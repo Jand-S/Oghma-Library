@@ -9,7 +9,7 @@ import type {
   QueueItem,
   ServerProbe,
   SourceSite
-} from "../types";
+} from "../core/types";
 
 export type KindleTransferResult = {
   sentIds: string[];

@@ -1,8 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
-import { defaultAppConfig, readStoredConfig } from "./appConfig";
-import { mockBackendClient } from "./mockBackend";
+import { defaultAppConfig, readStoredConfig } from "./core/appConfig";
+import { mockBackendClient } from "./services/mockBackend";
 import { createStaticBackendClient } from "./services/staticBackend";
 import type { BackendClient } from "./services/backendClient";
 import "./styles/index.css";

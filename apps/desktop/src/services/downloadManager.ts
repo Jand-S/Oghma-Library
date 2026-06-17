@@ -2,7 +2,7 @@
 // Sem acoplar a UI: recebe dados + callbacks de progresso.
 import { fetchBundle, bundleToHtml, bundleToText, type ExtractedBundle } from "./bundle";
 import { saveLocalFile, type FileData } from "./localFiles";
-import type { DownloadFormat } from "../types";
+import type { DownloadFormat } from "../core/types";
 
 export type SaveFile = (fileName: string, data: FileData) => Promise<void>;
 

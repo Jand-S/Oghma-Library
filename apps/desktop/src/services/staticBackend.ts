@@ -15,7 +15,7 @@ import type {
   QueueItem,
   ServerProbe,
   SourceSite
-} from "../types";
+} from "../core/types";
 
 // ---- Formatos publicados (espelham backend/src/oghma/publish) ----
 type CatalogChapter = { number: number; title: string };

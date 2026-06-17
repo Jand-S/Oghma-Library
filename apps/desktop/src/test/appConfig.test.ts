@@ -5,7 +5,7 @@ import {
   readStoredConfig,
   resolveAppConfig,
   setupStorageKey
-} from "./appConfig";
+} from "../core/appConfig";
 
 describe("appConfig", () => {
   beforeEach(() => {

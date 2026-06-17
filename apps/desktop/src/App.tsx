@@ -7,7 +7,7 @@ import {
   readStoredConfig,
   resolveAppConfig,
   writeStoredConfig
-} from "./appConfig";
+} from "./core/appConfig";
 import {
   DiscoverView,
   DownloadsView,
@@ -24,7 +24,7 @@ import {
   type SetupSyncEntry,
   Titlebar
 } from "./appUi";
-import { defaultFilters, defaultSelection, mockBackendClient } from "./mockBackend";
+import { defaultFilters, defaultSelection, mockBackendClient } from "./services/mockBackend";
 import { getErrorMessage, type BackendClient } from "./services/backendClient";
 import { detectKindleDevice, joinPath, listLocalLibrary, openLocalPath, saveLocalFile, sendItemsToKindle } from "./services/localFiles";
 import { runDownload, sanitizeFileName } from "./services/downloadManager";
@@ -44,7 +44,7 @@ import type {
   ServerProbe,
   SourceSite,
   ViewId
-} from "./types";
+} from "./core/types";
 
 type AppProps = {
   backend?: BackendClient;

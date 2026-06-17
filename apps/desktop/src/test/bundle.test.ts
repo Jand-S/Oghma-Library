@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bundleToText, extractBundle, fetchBundle, htmlToText, untar } from "./bundle";
+import { bundleToText, extractBundle, fetchBundle, htmlToText, untar } from "../services/bundle";
 
 // --- mini tar writer (so para o teste) ---
 function tarHeader(name: string, size: number): Uint8Array {

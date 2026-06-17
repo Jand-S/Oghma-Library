@@ -62,6 +62,8 @@ frequente** (`git add -A` / `git commit -m "..."`), não precisa push. Ver `docs
 ## Arquivos-chave criados/alterados nesta sessão
 - `backend/src/oghma/publish/{catalog,runner}.py` — emissão do `catalog.json.gz`.
 - `backend/docs/MONITOR_PUBLISH_BUTTON.md` — guia do botão de publish no `/monitor` (para o codex).
-- `apps/desktop/src/services/{staticBackend,bundle,downloadManager}.ts` (+ testes).
-- `apps/desktop/src/{App,appUi,main,types,appConfig,styles.css}` — UI + wiring + CSS restaurado.
-- `.gitignore`, `docs/GIT_CHECKPOINTS.md`, este arquivo.
+- `apps/desktop/src/services/{staticBackend,bundle,downloadManager}.
+## Pendência para o codex (acabamento)
+Reorganizar `apps/desktop/src` (agrupar testes em `test/`, mover config/types p/ `core/`,
+`mockBackend` p/ `services/`, remover lixo). Instruções: `docs/REORG_FOR_CODEX.md`.
+Cowork não executa (ambiente sem mv/rm/git e corrompe arquivos grandes).

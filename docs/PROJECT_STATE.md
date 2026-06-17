@@ -252,3 +252,12 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - Se o Calibre/`ebook-convert` nao estiver no PATH, o app bloqueia o envio e mostra a razao.
 - Nesta maquina, `ebook-convert` foi encontrado em `C:\Program Files\Calibre2\ebook-convert.exe`.
 - Limite conhecido: Kindles que nao montam como armazenamento USB classico podem precisar de suporte MTP/libmtp em versao futura.
+
+## Reorganizacao desktop src (17/06/2026)
+
+- `apps/desktop/src` foi reorganizado conforme `docs/REORG_FOR_CODEX.md`.
+- `core/` agora guarda `appConfig.ts`, `types.ts` e `windowControls.ts`.
+- `services/mockBackend.ts` ficou junto dos demais clientes/adaptadores.
+- Todos os testes foram movidos para `src/test/`.
+- A raiz de `src/` ficou apenas com `main.tsx`, `App.tsx`, `appUi.tsx` e pastas.
+- Lixo temporario removido: `__rmtest.tmp` e `.fuse_hidden*`.

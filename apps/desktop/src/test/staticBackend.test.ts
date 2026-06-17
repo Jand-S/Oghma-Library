@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createStaticBackendClient } from "./staticBackend";
-import type { Filters } from "../types";
+import { createStaticBackendClient } from "../services/staticBackend";
+import type { Filters } from "../core/types";
 
 const BASE = "https://b2.example";
 

@@ -1,5 +1,5 @@
 import { Download, Globe2, Home, Library, Settings } from "lucide-react";
-import type { IndexMode, TranslationEngine, ViewId } from "../types";
+import type { IndexMode, TranslationEngine, ViewId } from "../core/types";
 
 export const tags = ["Fantasia", "Romance", "Misterio", "Isekai", "Aventura", "Drama"];
 

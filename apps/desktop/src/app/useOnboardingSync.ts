@@ -4,7 +4,7 @@ import { onboardingSteps } from "../constants/ui";
 import type { SetupSyncEntry } from "../constants/ui";
 import { getErrorMessage } from "../services/backendClient";
 import type { BackendClient } from "../services/backendClient";
-import type { AppConfig, SourceSite } from "../types";
+import type { AppConfig, SourceSite } from "../core/types";
 
 type Deps = {
   showOnboarding: boolean;

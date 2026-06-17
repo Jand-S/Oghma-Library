@@ -13,8 +13,9 @@ truncamento de arquivos grandes do ambiente de sync.
   - `shell` (Splash/Titlebar/Sidebar), `discover`, `downloads`, `sources`,
     `library`, `settings`, `onboarding`, `kindle`.
 - `constants/ui.ts` — `views`, `pageTitle`, `onboardingSteps`, `tags`, etc.
-- `types.ts` — tipos de domínio.
-- `appConfig.ts` — config + persistência (localStorage).
+- `core/types.ts` — tipos de domínio.
+- `core/appConfig.ts` — config + persistência (localStorage).
+- `core/windowControls.ts` — controles da janela (Tauri).
 - `services/` — camada de dados/integração:
   - `backendClient.ts` (interface), `staticBackend.ts` (lê do B2/CDN),
     `mockBackend.ts` (dev), `bundle.ts` (baixa/extrai .tar.gz),
@@ -22,7 +23,7 @@ truncamento de arquivos grandes do ambiente de sync.
     `localFiles.ts` (ponte Tauri: fs, abrir pasta, Kindle).
 - `styles/` — CSS por área: `tokens`, `base`, `layout`, `components`, `views`,
   `responsive`, importados por `styles/index.css`.
-- `windowControls.ts` — controles da janela (Tauri).
+- `test/` — setup do Vitest e todos os `*.test.*`.
 
 ## Desktop — Rust (`apps/desktop/src-tauri/src/`)
 - `lib.rs` — comandos Tauri (fs, biblioteca, Kindle: `detect_kindle`/`send_to_kindle`)

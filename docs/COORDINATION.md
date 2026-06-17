@@ -159,3 +159,29 @@ Observacoes:
 - O state fica em `/srv/oghma/publish_state.json` (so e salvo apos upload real; `--no-upload`/`--dry-run` nao persistem).
 - Incremental: re-rodar so re-sobe bundles cujo conteudo mudou; `--full` forca tudo.
 - Capas: sobe so as dos novels que mudaram e que tem `cover_path` (as 3 sem capa entram quando o backfill rodar).
+
+---
+
+## Próxima tarefa do codex: reorganizar `apps/desktop/src`
+
+Status: **pendente** (Cowork não consegue — ambiente sem `mv`/`rm`/`git` e corrompe escrita grande).
+
+Passo-a-passo completo em **`docs/REORG_FOR_CODEX.md`**. Resumo:
+- Remover lixo: `split_appui.py`, `refactor_app1.py`, `__rmtest.tmp`, `.fuse_hidden*`.
+- `git mv`: `appConfig.ts`/`types.ts`/`windowControls.ts` → `src/core/`; `mockBackend.ts` → `src/services/`; todos os `*.test.*` → `src/test/`.
+- Corrigir imports (tabela no doc; loop `tsc --noEmit`).
+- Validar (`tsc` + `npm test`) e commitar.
+
+Contexto: a divisão de `styles.css` e `appUi.tsx` já foi feita (ver `docs/STRUCTURE.md`). Esta reorg é o acabamento final antes de subir no GitHub.
+
+---
+
+## Atualizacao codex: reorg desktop concluida (17/06/2026)
+
+- Removido lixo temporario em `apps/desktop/src`: `__rmtest.tmp` e `.fuse_hidden*`.
+- `appConfig.ts`, `types.ts` e `windowControls.ts` foram movidos para `src/core/`.
+- `mockBackend.ts` foi movido para `src/services/`.
+- Todos os testes foram movidos para `src/test/`.
+- Imports corrigidos e validados com `tsc --noEmit`.
+- Validacoes executadas: `npm test`, `npm run build`, `npm run tauri:check`.
+- Raiz de `src/` ficou apenas com `main.tsx`, `App.tsx`, `appUi.tsx` e pastas.

@@ -28,9 +28,9 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { defaultAppConfig } from "../appConfig";
-import { downloadFormats } from "../types";
-import { defaultFilters, defaultSelection, estimateChapters, selectionLabel } from "../mockBackend";
+import { defaultAppConfig } from "../core/appConfig";
+import { downloadFormats } from "../core/types";
+import { defaultFilters, defaultSelection, estimateChapters, selectionLabel } from "../services/mockBackend";
 import type {
   AppConfig,
   ChapterSelection,
@@ -44,8 +44,8 @@ import type {
   SourceSite,
   TranslationEngine,
   ViewId
-} from "../types";
-import { runWindowAction } from "../windowControls";
+} from "../core/types";
+import { runWindowAction } from "../core/windowControls";
 import {
   indexModeOptions,
   onboardingSteps,
