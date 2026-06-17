@@ -162,7 +162,9 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       updatedAt: formatUpdatedAt(cn.updatedAt),
       description: cn.description || "",
       coverClass: coverClassFor(cn.id),
-      coverUrl: resolveCover(base, cn.coverUrl)
+      coverUrl: resolveCover(base, cn.coverUrl),
+      bundleKey: cn.bundleKey ?? undefined,
+      bundleVersion: cn.bundleVersion ?? undefined
     };
   }
 

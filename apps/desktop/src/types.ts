@@ -30,6 +30,8 @@ export type Novel = {
   description: string;
   coverClass: string;
   coverUrl?: string;
+  bundleKey?: string;
+  bundleVersion?: number;
 };
 
 export type Chapter = {
