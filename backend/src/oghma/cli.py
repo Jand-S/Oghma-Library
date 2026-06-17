@@ -61,6 +61,13 @@ def seed_sources() -> None:
             mode="api_available",
             rate_limit_seconds=1.5,
         ),
+        dict(
+            id="sky-demon-order",
+            name="Sky Demon Order",
+            base_url="https://skydemonorder.com/",
+            mode="static_html",
+            rate_limit_seconds=2.0,
+        ),
     ]
 
     async def _run() -> None:
