@@ -267,3 +267,21 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - Imports de `apps/desktop/src` foram organizados com TypeScript Language Service.
 - Imports mortos e estados/funcoes nao usados foram removidos (`retryBoot`/`bootAttempt`).
 - `tsc --noEmit --noUnusedLocals --noUnusedParameters` passou sem erros.
+
+## Refactor App/Tauri e icone (17/06/2026)
+
+- `App.tsx` foi reduzido e voltou a atuar mais como coordenador de telas.
+- Novos hooks de orquestracao no desktop:
+  - `src/app/useBootstrapState.ts`: boot inicial, splash, estado base do acervo, fila e persistencia de config.
+  - `src/app/useNovelSearch.ts`: busca incremental quando filtros mudam.
+  - `src/app/useLocalLibrary.ts`: leitura da biblioteca local a partir da pasta de saida e salvamento de capa junto do livro.
+  - `src/app/useDownloadProcessor.ts`: processamento sequencial da fila de download.
+  - `src/app/useConversionManager.ts`: modal/execucao de conversao para formatos faltantes, traducao e audiobook.
+  - `src/app/useKindleTransfer.ts`: regra de habilitacao do Kindle, modal de envio, conversao AZW3 e atualizacao da fila.
+- O lado Tauri foi separado por responsabilidade:
+  - `src-tauri/src/lib.rs`: apenas registra plugins e comandos.
+  - `src-tauri/src/files.rs`: comandos de salvar arquivo, abrir pasta e listar biblioteca local.
+  - `src-tauri/src/kindle.rs`: deteccao USB, conversao com Calibre/`ebook-convert` e envio ao Kindle.
+  - `src-tauri/src/paths.rs`: helpers compartilhados de paths e nomes seguros.
+- O icone do app foi regenerado com `npm run tauri -- icon public/icons/oghma-icon.svg`.
+- `tauri.conf.json` agora aponta para o conjunto desktop completo: PNG 32/128/256, ICNS e ICO. Isso substitui o icone antigo que aparecia como Python no Windows.

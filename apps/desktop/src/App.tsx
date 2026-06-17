@@ -1,11 +1,15 @@
 import { CloudOff, RefreshCcw, Settings } from "lucide-react";
 import {
-  useEffect,
   useMemo,
-  useRef,
   useState
 } from "react";
+import { useBootstrapState } from "./app/useBootstrapState";
+import { useConversionManager } from "./app/useConversionManager";
+import { useDownloadProcessor } from "./app/useDownloadProcessor";
 import { useKindleDetection } from "./app/useKindleDetection";
+import { useKindleTransfer } from "./app/useKindleTransfer";
+import { useLocalLibrary } from "./app/useLocalLibrary";
+import { useNovelSearch } from "./app/useNovelSearch";
 import { useOnboardingSync } from "./app/useOnboardingSync";
 import { useToast } from "./app/useToast";
 import {
@@ -26,32 +30,20 @@ import {
 import {
   hasCompletedSetup,
   markSetupComplete,
-  readStoredConfig,
-  resolveAppConfig,
-  writeStoredConfig
 } from "./core/appConfig";
 import type {
   AppConfig,
-  BootstrapPayload,
   ChapterSelection,
-  DownloadFormat,
   Filters,
-  KindleDeviceStatus,
-  LibraryItem,
   Novel,
   QueueItem,
   ServerProbe,
-  SourceSite,
-  ViewId
 } from "./core/types";
 import { getErrorMessage, type BackendClient } from "./services/backendClient";
-import { runDownload, sanitizeFileName } from "./services/downloadManager";
+import { sanitizeFileName } from "./services/downloadManager";
 import {
   joinPath,
-  listLocalLibrary,
-  openLocalPath,
-  saveLocalFile,
-  sendItemsToKindle
+  openLocalPath
 } from "./services/localFiles";
 import { defaultFilters, defaultSelection, mockBackendClient } from "./services/mockBackend";
 
@@ -60,50 +52,53 @@ type AppProps = {
 };
 
 export function App({ backend = mockBackendClient }: AppProps) {
-  const storedConfigRef = useRef(readStoredConfig());
-  const storedConfig = storedConfigRef.current;
-  const [bootDone, setBootDone] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
-  const [bootError, setBootError] = useState<string | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(!hasCompletedSetup());
   const [onboardingStep, setOnboardingStep] = useState(0);
-  const [activeView, setActiveView] = useState<ViewId>("discover");
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
-  const [appConfig, setAppConfig] = useState<AppConfig>(() => resolveAppConfig(storedConfig));
   const [serverProbe, setServerProbe] = useState<ServerProbe | null>(null);
   const [probingServer, setProbingServer] = useState(false);
-  const [sources, setSources] = useState<SourceSite[]>([]);
-  const [results, setResults] = useState<Novel[]>([]);
-  const [library, setLibrary] = useState<LibraryItem[]>([]);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
-  const autoSelectedRef = useRef<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [downloadsPulse, setDownloadsPulse] = useState(0);
-  const [focusedNovelId, setFocusedNovelId] = useState<string>("");
   const [selections, setSelections] = useState<Record<string, ChapterSelection>>({});
   const [syncing, setSyncing] = useState<string[]>([]);
   const [queuePaused, setQueuePaused] = useState(false);
-  const [kindleModalOpen, setKindleModalOpen] = useState(false);
-  const [kindleJobItems, setKindleJobItems] = useState<QueueItem[]>([]);
-  const [kindleSending, setKindleSending] = useState(false);
-  const [kindleCompleted, setKindleCompleted] = useState(false);
-  const [kindleProgress, setKindleProgress] = useState(0);
-  const [converterOpen, setConverterOpen] = useState(false);
-  const [converterFormats, setConverterFormats] = useState<Set<DownloadFormat>>(new Set(["EPUB"]));
-  const [converterTranslate, setConverterTranslate] = useState(false);
-  const [converterAudiobook, setConverterAudiobook] = useState(false);
-  const [converterProgress, setConverterProgress] = useState(0);
-  const [converterRunning, setConverterRunning] = useState(false);
-  const skippedInitialSearch = useRef(false);
-  const processingDownloadRef = useRef<string | null>(null);
-
   const { toast, setToast } = useToast();
-  const { kindleStatus, setKindleStatus } = useKindleDetection(loading);
+  const { kindleStatus, setKindleStatus } = useKindleDetection(false);
+  const {
+    activeView,
+    appConfig,
+    autoSelectedRef,
+    bootDone,
+    bootError,
+    focusedNovelId,
+    library,
+    loading,
+    queue,
+    results,
+    setActiveView,
+    setAppConfig,
+    setFocusedNovelId,
+    setLibrary,
+    setQueue,
+    setResults,
+    setShowOnboarding,
+    setSources,
+    showOnboarding,
+    showSplash,
+    sources
+  } = useBootstrapState({ backend, setKindleStatus });
+  const searching = useNovelSearch({
+    backend,
+    filters,
+    focusedNovelId,
+    loading,
+    setFocusedNovelId,
+    setResults,
+    setToast
+  });
+  const { refreshLocalLibrary, saveCoverForItem } = useLocalLibrary({ appConfig, loading, results, setLibrary });
   const {
     setupSync,
     setupSyncRunning,
@@ -113,175 +108,19 @@ export function App({ backend = mockBackendClient }: AppProps) {
     setSetupSyncCompleted
   } = useOnboardingSync({ showOnboarding, onboardingStep, appConfig, backend, setSources, setSyncing, setToast });
 
-  useEffect(() => {
-    let mounted = true;
-    let splashTimer = 0;
-
-    setLoading(true);
-    setBootDone(false);
-    setBootError(null);
-
-    void Promise.all([backend.bootstrap(), backend.getKindleStatus()])
-      .then(([payload, deviceStatus]: [BootstrapPayload, KindleDeviceStatus]) => {
-        if (!mounted) return;
-        const fallbackSourceIds = payload.sources.filter((source) => source.enabled).map((source) => source.id);
-        const effectiveConfig = resolveAppConfig(storedConfig, fallbackSourceIds);
-
-        setAppConfig(effectiveConfig);
-        setSources(payload.sources.map((source) => ({ ...source, enabled: effectiveConfig.enabledSourceIds.includes(source.id) })));
-        setResults(payload.novels);
-        setLibrary(payload.library);
-        autoSelectedRef.current = new Set(payload.queue.filter((item) => item.state === "done").map((item) => item.id));
-        setQueue(payload.queue);
-        setKindleStatus(deviceStatus);
-        setFocusedNovelId(payload.novels[0]?.id ?? "");
-        setLoading(false);
-        setBootDone(true);
-        splashTimer = window.setTimeout(() => setShowSplash(false), 520);
-      })
-      .catch((error: unknown) => {
-        if (!mounted) return;
-        setBootError(getErrorMessage(error, "Nao foi possivel carregar o estado inicial do app."));
-        setLoading(false);
-        setBootDone(true);
-        setShowSplash(false);
-      });
-
-    return () => {
-      mounted = false;
-      window.clearTimeout(splashTimer);
-    };
-  }, [backend, storedConfig]);
-
-  useEffect(() => {
-    if (loading) return;
-    writeStoredConfig(appConfig);
-  }, [appConfig, loading]);
-
-  useEffect(() => {
-    if (loading) return;
-    if (!skippedInitialSearch.current) {
-      skippedInitialSearch.current = true;
-      return;
-    }
-    let cancelled = false;
-    setSearching(true);
-
-    void backend.searchNovels(filters)
-      .then((items) => {
-        if (cancelled) return;
-        setResults(items);
-        if (items.length > 0 && !items.some((item) => item.id === focusedNovelId)) {
-          setFocusedNovelId(items[0].id);
-        }
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setToast(getErrorMessage(error, "Nao foi possivel atualizar os resultados da busca."));
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setSearching(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [backend, filters, focusedNovelId, loading]);
-
   const focusedNovel = useMemo(() => results.find((novel) => novel.id === focusedNovelId), [focusedNovelId, results]);
   const kindleConnected = kindleStatus?.connected ?? false;
-
-  const refreshLocalLibrary = () => {
-    void listLocalLibrary(appConfig.outputPath)
-      .then((items) => {
-        if (!items) return;
-        setLibrary(items.map((item) => {
-          const formats = item.files
-            .map((file) => file.split(".").pop()?.toUpperCase())
-            .filter((format): format is "EPUB" | "PDF" | "TXT" => format === "EPUB" || format === "PDF" || format === "TXT");
-          const known = results.find((novel) => sanitizeFileName(novel.title) === item.title || novel.title === item.title);
-          return {
-            id: `local-${item.outputDir}`,
-            title: item.title,
-            author: known?.author ?? "Desconhecido",
-            format: formats[0] ?? "EPUB",
-            formats,
-            chapters: known?.chapters ?? 0,
-            sizeMb: Math.max(1, Math.round(item.sizeBytes / 1024 / 1024)),
-            coverClass: known?.coverClass ?? "cover-c",
-            coverUrl: item.coverUrl,
-            outputDir: item.outputDir,
-            files: item.files,
-            exportedAt: "Local"
-          };
-        }));
-      })
-      .catch(() => undefined);
-  };
-
-  useEffect(() => {
-    if (loading) return;
-    refreshLocalLibrary();
-  }, [appConfig.outputPath, loading, results]);
-
-  const saveCoverForItem = async (item: QueueItem, outputDir: string) => {
-    if (!item.coverUrl) return;
-    const res = await fetch(item.coverUrl, { cache: "no-store" });
-    if (!res.ok) return;
-    const contentType = res.headers.get("content-type") ?? "";
-    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-    await saveLocalFile(outputDir, `cover.${ext}`, new Uint8Array(await res.arrayBuffer()));
-  };
-
-  useEffect(() => {
-    if (queuePaused || processingDownloadRef.current) return;
-    const item = queue.find((entry) => entry.state === "downloading") ?? queue.find((entry) => entry.state === "queued");
-    if (!item) return;
-
-    const sourceNovel = results.find((novel) => novel.id === item.novelId);
-    const bundleKey = item.bundleKey ?? sourceNovel?.bundleKey;
-    const itemOutputDir = joinPath(appConfig.outputPath, sanitizeFileName(item.title));
-    const range = item.preset === "range" && item.rangeStart && item.rangeEnd
-      ? { start: item.rangeStart, end: item.rangeEnd }
-      : undefined;
-
-    processingDownloadRef.current = item.id;
-    setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, state: "downloading", progress: Math.max(entry.progress, 2), outputDir: itemOutputDir, error: undefined } : entry));
-
-    void runDownload(
-      {
-        serverUrl: appConfig.serverUrl,
-        novel: { id: item.novelId, title: item.title, bundleKey },
-        formats: item.formats,
-        outputDir: itemOutputDir,
-        range
-      },
-      {
-        onProgress: (percent) => {
-          setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, progress: percent } : entry));
-        }
-      }
-    )
-      .then((files) => {
-        setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, state: "done", progress: 100, outputDir: itemOutputDir, outputFiles: files } : entry));
-        void saveCoverForItem(item, itemOutputDir).finally(refreshLocalLibrary);
-        setToast(`${item.title} salvo em ${itemOutputDir}.`);
-      })
-      .catch((error: unknown) => {
-        setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, state: "error", progress: 0, outputDir: itemOutputDir, error: getErrorMessage(error, "Falha ao salvar download.") } : entry));
-        setToast(getErrorMessage(error, `Nao foi possivel baixar ${item.title}.`));
-      })
-      .finally(() => {
-        processingDownloadRef.current = null;
-      });
-  }, [appConfig.outputPath, appConfig.serverUrl, queue, queuePaused, results]);
-
-  useEffect(() => {
-    const newlyDone = queue.filter((item) => item.state === "done" && !autoSelectedRef.current.has(item.id));
-    if (newlyDone.length === 0) return;
-    newlyDone.forEach((item) => autoSelectedRef.current.add(item.id));
-  }, [queue]);
+  useDownloadProcessor({
+    appConfig,
+    autoSelectedRef,
+    queue,
+    queuePaused,
+    refreshLocalLibrary,
+    results,
+    saveCoverForItem,
+    setQueue,
+    setToast
+  });
 
   const selectedNovels = useMemo(
     () => selectedIds.map((id) => results.find((novel) => novel.id === id)).filter((novel): novel is Novel => Boolean(novel)),
@@ -291,15 +130,39 @@ export function App({ backend = mockBackendClient }: AppProps) {
     () => queue.filter((item) => item.state === "done" && selectedQueueIds.includes(item.id)),
     [queue, selectedQueueIds]
   );
-  const kindleDisabledReason = useMemo(() => {
-    if (!kindleConnected) return "Kindle desconectado.";
-    if (selectedCompletedItems.length === 0) return "Selecione ao menos um livro concluido.";
-    if (selectedCompletedItems.some((item) => !item.formats.includes("EPUB"))) {
-      return "Somente livros com EPUB podem ser enviados ao Kindle.";
-    }
-    if (kindleStatus?.converterAvailable === false) return "Calibre/ebook-convert nao encontrado para converter EPUB em AZW3.";
-    return undefined;
-  }, [kindleConnected, kindleStatus?.converterAvailable, selectedCompletedItems]);
+  const {
+    closeConverter,
+    converterAudiobook,
+    converterFormats,
+    converterOpen,
+    converterProgress,
+    converterRunning,
+    converterTranslate,
+    openConverter,
+    startConversion,
+    toggleConverterAudiobook,
+    toggleConverterFormat,
+    toggleConverterTranslate
+  } = useConversionManager({ appConfig, refreshLocalLibrary, selectedCompletedItems, setQueue, setToast });
+  const {
+    closeKindleTransfer,
+    kindleCompleted,
+    kindleDisabledReason,
+    kindleJobItems,
+    kindleModalOpen,
+    kindleProgress,
+    kindleSending,
+    openKindleTransfer,
+    startKindleTransfer
+  } = useKindleTransfer({
+    backend,
+    kindleConnected,
+    kindleStatus,
+    refreshLocalLibrary,
+    selectedCompletedItems,
+    setQueue,
+    setToast
+  });
   const buildDefaultSelection = (novel: Novel) => ({
     ...defaultSelection(novel),
     formats: appConfig.defaultFormats,
@@ -345,60 +208,6 @@ export function App({ backend = mockBackendClient }: AppProps) {
       return allSelected ? [] : selectable;
     });
 
-  const openConverter = () => {
-    if (selectedCompletedItems.length === 0) return;
-    setConverterFormats(new Set(appConfig.defaultFormats));
-    setConverterTranslate(false);
-    setConverterAudiobook(false);
-    setConverterProgress(0);
-    setConverterRunning(false);
-    setConverterOpen(true);
-  };
-
-  const closeConverter = () => {
-    if (converterRunning) return;
-    setConverterOpen(false);
-  };
-
-  const startConversion = () => {
-    const items = selectedCompletedItems;
-    if (items.length === 0) return;
-    const requestedFormats = Array.from(converterFormats);
-    setConverterRunning(true);
-    setConverterProgress(5);
-    void (async () => {
-      for (let index = 0; index < items.length; index += 1) {
-        const item = items[index];
-        const missing = requestedFormats.filter((format) => !item.formats.includes(format));
-        let generated: string[] = [];
-        if (missing.length > 0) {
-          generated = await runDownload({
-            serverUrl: appConfig.serverUrl,
-            novel: { id: item.novelId, title: item.title, bundleKey: item.bundleKey },
-            formats: missing,
-            outputDir: item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)),
-            range: item.preset === "range" && item.rangeStart && item.rangeEnd ? { start: item.rangeStart, end: item.rangeEnd } : undefined
-          });
-        }
-        setQueue((current) => current.map((entry) => entry.id === item.id ? {
-          ...entry,
-          formats: Array.from(new Set([...entry.formats, ...missing])),
-          outputFiles: Array.from(new Set([...(entry.outputFiles ?? []), ...generated])),
-          translate: entry.translate || converterTranslate,
-          audiobook: entry.audiobook || converterAudiobook
-        } : entry));
-        setConverterProgress(Math.round(((index + 1) / items.length) * 100));
-      }
-      refreshLocalLibrary();
-      setConverterRunning(false);
-      setConverterOpen(false);
-      setToast("Conversao concluida.");
-    })().catch((error: unknown) => {
-      setConverterRunning(false);
-      setToast(getErrorMessage(error, "Nao foi possivel converter os itens."));
-    });
-  };
-
   const clearSelectedQueue = () => {
     const ids = queue
       .filter((item) => selectedQueueIds.includes(item.id) && item.state === "done")
@@ -415,30 +224,6 @@ export function App({ backend = mockBackendClient }: AppProps) {
     setToast("Download cancelado.");
   };
 
-  const openKindleTransfer = () => {
-    if (kindleDisabledReason) return;
-    setKindleJobItems(selectedCompletedItems);
-    setKindleProgress(0);
-    setKindleCompleted(false);
-    setKindleSending(false);
-    setKindleModalOpen(true);
-  };
-
-  const closeKindleTransfer = () => {
-    if (kindleSending) return;
-    setKindleModalOpen(false);
-    setKindleCompleted(false);
-    setKindleProgress(0);
-    setKindleJobItems([]);
-  };
-
-  const startKindleTransfer = () => {
-    if (kindleJobItems.length === 0) return;
-    setKindleProgress(0);
-    setKindleCompleted(false);
-    setKindleSending(true);
-  };
-
   const openFolder = (path: string, label = "pasta de saida") => {
     void openLocalPath(path)
       .then((opened) => {
@@ -451,43 +236,6 @@ export function App({ backend = mockBackendClient }: AppProps) {
 
   const openLibraryFolder = () => openFolder(appConfig.outputPath, "pasta de saida");
   const openQueueItemFolder = (item: QueueItem) => openFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`);
-
-  useEffect(() => {
-    if (!kindleSending) return;
-    if (kindleProgress >= 100) {
-      let cancelled = false;
-      void (async () => {
-        const nativeResult = await sendItemsToKindle(kindleJobItems);
-        return nativeResult ?? backend.sendToKindle(kindleJobItems);
-      })()
-        .then((result) => {
-          if (cancelled) return;
-          setKindleSending(false);
-          setKindleCompleted(true);
-          setQueue((items) => items.map((item) => result.sentIds.includes(item.id) ? {
-            ...item,
-            formats: item.formats.includes("AZW3") ? item.formats : [...item.formats, "AZW3"],
-            outputFiles: item.outputFiles?.some((file) => file.toLowerCase().endsWith(".azw3"))
-              ? item.outputFiles
-              : [...(item.outputFiles ?? []), `${sanitizeFileName(item.title)}.azw3`]
-          } : item));
-          refreshLocalLibrary();
-          setToast(`${result.sentIds.length} item(ns) convertidos para ${result.convertedFormat} e enviados ao Kindle.`);
-        })
-        .catch((error: unknown) => {
-          if (cancelled) return;
-          setKindleSending(false);
-          setToast(getErrorMessage(error, "Nao foi possivel concluir o envio para o Kindle."));
-        });
-      return () => {
-        cancelled = true;
-      };
-    }
-    const timer = window.setTimeout(() => {
-      setKindleProgress((value) => Math.min(100, value + 12 + Math.random() * 18));
-    }, 140);
-    return () => window.clearTimeout(timer);
-  }, [backend, kindleJobItems, kindleProgress, kindleSending]);
 
   const runSourceSync = async (sourceId: string, options?: { silentError?: boolean }) => {
     if (syncing.includes(sourceId)) return;
@@ -696,14 +444,9 @@ export function App({ backend = mockBackendClient }: AppProps) {
           audiobook={converterAudiobook}
           progress={converterProgress}
           running={converterRunning}
-          onToggleFormat={(format) => setConverterFormats((current) => {
-            const next = new Set(current);
-            if (next.has(format) && next.size > 1) next.delete(format);
-            else next.add(format);
-            return next;
-          })}
-          onToggleTranslate={() => setConverterTranslate((value) => !value)}
-          onToggleAudiobook={() => setConverterAudiobook((value) => !value)}
+          onToggleFormat={toggleConverterFormat}
+          onToggleTranslate={toggleConverterTranslate}
+          onToggleAudiobook={toggleConverterAudiobook}
           onClose={closeConverter}
           onStart={startConversion}
         />
