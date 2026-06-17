@@ -85,7 +85,7 @@ export function LibraryView({
       <section className="library-results">
         <div className="pane-header">
           <div>
-            <h3>Biblioteca local</h3>
+            <h3>Livros</h3>
             <span>{selectedCount > 0 ? `${selectedCount} selecionado(s)` : `${library.length} livro(s)`}</span>
           </div>
           <div className="pane-actions">
