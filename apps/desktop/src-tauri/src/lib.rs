@@ -22,6 +22,7 @@ struct KindleStatus {
     mount_path: String,
     target_format: String,
     converter_available: bool,
+    transport: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -67,6 +68,15 @@ fn converter_available() -> bool {
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
+}
+
+/// Kindle conectado por USB? Detecta antigo (Mass Storage) e novo (MTP) pelo
+/// Vendor ID da Amazon/Lab126 (0x1949), independente de montar como drive.
+fn kindle_usb_present() -> bool {
+    match nusb::list_devices() {
+        Ok(devices) => devices.into_iter().any(|device| device.vendor_id() == 0x1949),
+        Err(_) => false,
+    }
 }
 
 fn candidate_kindle_document_dirs() -> Vec<PathBuf> {
@@ -201,30 +211,41 @@ fn list_export_library(output_dir: String) -> Result<Vec<ExportLibraryItem>, Str
 
 #[tauri::command]
 fn detect_kindle() -> KindleStatus {
-    if let Some(path) = find_kindle_documents_dir() {
-        KindleStatus {
-            id: format!("kindle-{}", path.to_string_lossy()),
-            device_name: "Kindle".to_string(),
-            connected: true,
-            mount_path: path.to_string_lossy().to_string(),
-            target_format: "AZW3".to_string(),
-            converter_available: converter_available(),
-        }
-    } else {
-        KindleStatus {
-            id: "kindle-usb".to_string(),
-            device_name: "Kindle".to_string(),
-            connected: false,
-            mount_path: String::new(),
-            target_format: "AZW3".to_string(),
-            converter_available: converter_available(),
-        }
+    let ms_dir = find_kindle_documents_dir();
+    let usb = kindle_usb_present();
+    let connected = usb || ms_dir.is_some();
+    // transport: "mass_storage" (antigo, copia direta), "mtp" (novo, WPD/Windows), "none"
+    let (transport, mount_path, id) = match &ms_dir {
+        Some(path) => (
+            "mass_storage".to_string(),
+            path.to_string_lossy().to_string(),
+            format!("kindle-{}", path.to_string_lossy()),
+        ),
+        None if usb => ("mtp".to_string(), String::new(), "kindle-mtp".to_string()),
+        None => ("none".to_string(), String::new(), "kindle-usb".to_string()),
+    };
+    KindleStatus {
+        id,
+        device_name: "Kindle".to_string(),
+        connected,
+        mount_path,
+        target_format: "AZW3".to_string(),
+        converter_available: converter_available(),
+        transport,
     }
 }
 
 #[tauri::command]
 fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {
-    let kindle_dir = find_kindle_documents_dir().ok_or_else(|| "Kindle nao encontrado por USB".to_string())?;
+    let kindle_dir = match find_kindle_documents_dir() {
+        Some(dir) => dir,
+        None => {
+            if kindle_usb_present() {
+                return Err("Kindle detectado via MTP. O envio por MTP (WPD) ainda nao esta implementado nesta versao.".to_string());
+            }
+            return Err("Kindle nao encontrado por USB".to_string());
+        }
+    };
     fs::create_dir_all(&kindle_dir).map_err(|err| format!("Nao foi possivel acessar a pasta documents do Kindle: {err}"))?;
 
     let mut sent_ids = Vec::new();
