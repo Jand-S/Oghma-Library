@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     default_rate_limit_seconds: float = 2.0
     request_timeout_seconds: float = 30.0
     fts_language: str = "portuguese"
+    house_saikai_bearer: str | None = None
 
 
 @lru_cache

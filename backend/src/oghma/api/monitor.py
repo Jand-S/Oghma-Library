@@ -117,6 +117,58 @@ MONITOR_HTML = """<!doctype html>
       min-width: 0;
     }
 
+    .run-section {
+      display: grid;
+      gap: 10px;
+    }
+
+    .run-section + .run-section {
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .section-head h3 {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .source-group {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #10161c;
+    }
+
+    .source-group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .source-group-head strong {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .run.compact {
+      padding: 11px;
+      background: #121920;
+    }
+
     .run-head {
       display: flex;
       align-items: flex-start;
@@ -148,6 +200,12 @@ MONITOR_HTML = """<!doctype html>
     .badge.done { border-color: rgba(55, 192, 120, 0.55); color: #ddfbe9; background: rgba(55, 192, 120, 0.14); }
     .badge.error { border-color: rgba(224, 92, 92, 0.55); color: #ffdede; background: rgba(224, 92, 92, 0.14); }
     .badge.stale { border-color: rgba(217, 164, 65, 0.7); color: #ffe8b5; background: rgba(217, 164, 65, 0.15); }
+
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
 
     .progress-group {
       display: grid;
@@ -402,14 +460,89 @@ MONITOR_HTML = """<!doctype html>
         </div>`;
     }
 
-    function renderRun(run) {
+    function groupBySource(runs) {
+      return runs.reduce((groups, run) => {
+        const key = run.sourceId || "sem-fonte";
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(run);
+        return groups;
+      }, {});
+    }
+
+    function runSort(a, b) {
+      return new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime();
+    }
+
+    function sourceLabel(sourceId) {
+      return String(sourceId || "sem-fonte").replace(/-/g, " ");
+    }
+
+    function statusCounts(runs) {
+      const counts = runs.reduce((acc, run) => {
+        const status = isStale(run) ? "stale" : run.status;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+      return Object.entries(counts)
+        .map(([status, count]) => `<span class="badge ${status}">${status}: ${fmt.format(count)}</span>`)
+        .join("");
+    }
+
+    function renderRunSection(title, runs, emptyText) {
+      const sorted = [...runs].sort(runSort);
+      return `
+        <section class="run-section">
+          <div class="section-head">
+            <h3>${title}</h3>
+            <span>${fmt.format(sorted.length)} runs</span>
+          </div>
+          ${sorted.length ? sorted.map((run) => renderRun(run, true)).join("") : `<div class="empty">${emptyText}</div>`}
+        </section>`;
+    }
+
+    function renderSourceGroup(sourceId, runs) {
+      const sorted = [...runs].sort(runSort);
+      const latest = sorted[0];
+      return `
+        <div class="source-group">
+          <div class="source-group-head">
+            <strong>${sourceLabel(sourceId)}</strong>
+            <div class="status-strip">${statusCounts(sorted)}</div>
+          </div>
+          ${renderRun(latest, true)}
+        </div>`;
+    }
+
+    function renderGroupedRuns(runs) {
+      if (!runs.length) return `<div class="empty">Nenhum crawl registrado ainda.</div>`;
+      const running = runs.filter((run) => run.status === "running" && !isStale(run));
+      const attention = runs.filter((run) => run.status === "error" || isStale(run));
+      const historical = runs.filter((run) => run.status !== "running" && !isStale(run));
+      const sourceGroups = groupBySource(historical);
+      const sources = Object.keys(sourceGroups).sort();
+
+      return `
+        ${renderRunSection("Rodando agora", running, "Nenhum crawler ativo no momento.")}
+        ${renderRunSection("Precisam de atencao", attention, "Sem erros ou crawlers travados recentes.")}
+        <section class="run-section">
+          <div class="section-head">
+            <h3>Historico por fonte</h3>
+            <span>${fmt.format(historical.length)} runs</span>
+          </div>
+          ${sources.length
+            ? sources.map((sourceId) => renderSourceGroup(sourceId, sourceGroups[sourceId])).join("")
+            : `<div class="empty">Sem historico finalizado ainda.</div>`}
+        </section>`;
+    }
+
+    function renderRun(run, compact = false) {
       const s = run.stats || {};
       const novelsDone = asNumber(s.novels_done || s.novels);
       const novelsTotal = asNumber(s.novels_total || s.discovered_total);
       const chapterDone = asNumber(s.current_novel_chapters_done);
       const chapterTotal = asNumber(s.current_novel_chapters_total);
       return `
-        <article class="run">
+        <article class="run ${compact ? "compact" : ""}">
           <div class="run-head">
             <div>
               <h3>${text(s.current_novel_title, run.sourceId)}</h3>
@@ -490,7 +623,7 @@ MONITOR_HTML = """<!doctype html>
     async function load() {
       try {
         const [runsRes, statsRes] = await Promise.all([
-          fetch("/api/crawls?limit=12", { cache: "no-store" }),
+          fetch("/api/crawls?limit=60", { cache: "no-store" }),
           fetch("/api/stats", { cache: "no-store" }),
         ]);
         if (!runsRes.ok || !statsRes.ok) throw new Error("API indisponivel");
@@ -504,7 +637,7 @@ MONITOR_HTML = """<!doctype html>
         $("novelCount").textContent = fmt.format(stats.novels || 0);
         $("chapterCount").textContent = fmt.format(stats.chapters || 0);
         $("coverCount").textContent = fmt.format(stats.covers || 0);
-        $("runs").innerHTML = runs.length ? runs.map(renderRun).join("") : `<div class="empty">Nenhum crawl registrado ainda.</div>`;
+        $("runs").innerHTML = renderGroupedRuns(runs);
       } catch (error) {
         $("apiDot").style.background = "var(--bad)";
         $("apiStatus").textContent = "offline";

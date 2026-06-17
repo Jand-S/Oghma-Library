@@ -178,6 +178,25 @@ Contexto: a divisão de `styles.css` e `appUi.tsx` já foi feita (ver `docs/STRU
 
 ## Atualizacao codex: reorg desktop concluida (17/06/2026)
 
+---
+
+## Atualizacao codex: House Saikai em andamento (17/06/2026)
+
+- Novo conector local: `backend/src/oghma/scraper/connectors/house_saikai.py`.
+- Fonte registrada no seed como `house-saikai` / `House Saikai`.
+- Regra anti-comics: o conector usa apenas `GET /api/stories` com `format=1`; nao consulta `/comics`.
+- API publica validada parcialmente:
+  - catalogo `stories?...format=1...` respondeu 200 sem Bearer;
+  - detalhe/lista de capitulos vem de `stories?...slug=<slug>&relationships=...separators.releases`;
+  - capítulos observados usam URL publica `https://housesaikai.net/ler/series/<slug>/<releaseId>/<releaseSlug>`.
+- Conteudo: o conector monta `GET /api/releases/<releaseId>?relationships=releaseText`
+  e normaliza `release_text.content`/`releaseText.content` quando vier JSON; ha fallback para HTML renderizado.
+- Autenticacao: o Bearer visto no navegador e opcional via `OGHMA_HOUSE_SAIKAI_BEARER`. O curl fornecido nao contem refresh token;
+  nao commitar token real.
+- Testes sinteticos adicionados em `backend/tests/test_house_saikai.py`.
+- Pendente validar live no servidor quando comandos remotos/testes voltarem:
+  `docker compose run --rm crawler oghma crawl --source house-saikai --limit 1 --chapter-limit 1`.
+
 - Removido lixo temporario em `apps/desktop/src`: `__rmtest.tmp` e `.fuse_hidden*`.
 - `appConfig.ts`, `types.ts` e `windowControls.ts` foram movidos para `src/core/`.
 - `mockBackend.ts` foi movido para `src/services/`.

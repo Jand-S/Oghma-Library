@@ -108,3 +108,46 @@ Status da verificacao real no servidor (16/06/2026):
   - probe live: descobriu 5 obras, listou capitulos, baixou e normalizou o primeiro capitulo.
   - crawl real pequeno: `oghma crawl --source novel-mania --limit 2 --chapter-limit 2` salvou 2 novels,
     4 capitulos e 2 capas, com 0 erros.
+
+## House Saikai / antigo Saikai Scans
+
+- URL base: https://housesaikai.net/
+- Tipo: **api_available**.
+- Observacao importante: o site tambem possui comics em https://housesaikai.net/comics. O conector **nao usa**
+  `/comics` e sempre consulta `stories` com `format=1`, que corresponde a `series`; isso evita misturar comics
+  no acervo de novels.
+- Catalogo de series:
+  - `GET https://api.housesaikai.net/api/stories?format=1&hdropped=1&q=&status=null&genres=&country=null&sortProperty=title&sortDirection=asc&page=<n>&per_page=100&relationships=language,type,format`
+  - Validado em 17/06/2026 sem Bearer: respondeu `200` com `meta.last_page=78` e `total=156` quando `per_page=2`.
+- Detalhe da obra e lista de capitulos:
+  - `GET /api/stories?pageview=0&relationships=firstRelease,tags,genres,associatedNames,authors.user,artists.user,translators,revisors,checkers,editors,separatorType,language,status,galleries,curiosities,separators.releases&format=1&first=true&slug=<slug>&cache=1`
+  - A lista de capitulos vem em `data.separators[].releases[]`.
+  - Cada release traz `id`, `chapter`, `slug`, `title`, `order/order_all`, `published_at` e `release_text_id`.
+- Conteudo do capitulo:
+  - A URL publica observada no navegador e `https://housesaikai.net/ler/series/<storySlug>/<releaseId>/<releaseSlug>`.
+  - Validado em 17/06/2026: `GET /api/releases/<releaseId>?relationships=releaseText` responde `200` sem Bearer e traz
+    o HTML em `data.release_text.content`.
+  - A variante com `pageview=0&cache=1` retornou `Server Error` no teste local, entao o conector usa apenas
+    `relationships=releaseText`.
+  - O normalizador procura `release_text.content`, `releaseText.content` e campos equivalentes.
+  - Se a API devolver HTML em vez de JSON, ha fallback para seletores de leitura (`.reader-content`, `.reading-content`,
+    `.content-item`, `.ql-editor`, `article`, `main`).
+- Capa:
+  - Campo `image`, resolvido contra `https://s3-beta.housesaikai.net/`.
+- Descricao:
+  - Campo `synopsis`, convertido para texto sem estilos; fallback em `resume`.
+- Autenticacao:
+  - Catalogo e detalhe foram validados sem Bearer em 17/06/2026.
+  - Cloudflare devolveu `403` para chamada sem headers de navegador; com `Accept`, `Origin`, `Referer`, `Sec-Fetch-*`
+    e `User-Agent` de navegador, a API respondeu JSON normalmente. O sufixo `OghmaLibraryBot/0.1` no `User-Agent`
+    tambem causou `403`, entao este conector usa um `User-Agent` de Chrome sem sufixo.
+  - O Bearer capturado no navegador e um access token JWT; o curl nao contem refresh token. Pelo payload observado,
+    ele tem vencimento longo, mas deve ser tratado como credencial rotativa.
+  - Se alguma rota passar a exigir sessao, configurar manualmente `OGHMA_HOUSE_SAIKAI_BEARER=<token>` no `.env` do backend.
+    Nunca commitar token real.
+- Rate limit sugerido: **1.5s por dominio/API**, respeitando limite de resposta observado (`X-RateLimit-Limit: 500`).
+- Status local:
+  - Conector criado em `backend/src/oghma/scraper/connectors/house_saikai.py`.
+  - Testes sinteticos em `backend/tests/test_house_saikai.py`.
+  - Pendente validar live no servidor quando a cota/comandos remotos estiverem disponiveis:
+    `oghma crawl --source house-saikai --limit 1 --chapter-limit 1`.

@@ -54,6 +54,13 @@ def seed_sources() -> None:
             mode="static_html",
             rate_limit_seconds=2.5,
         ),
+        dict(
+            id="house-saikai",
+            name="House Saikai",
+            base_url="https://housesaikai.net/",
+            mode="api_available",
+            rate_limit_seconds=1.5,
+        ),
     ]
 
     async def _run() -> None:
@@ -74,7 +81,9 @@ def probe(url: str, source: str = "central-novel") -> None:
 
     async def _run() -> None:
         connector = registry.get(source)
-        fetcher = HttpFetcher(connector.rate_limit_seconds)
+        headers_provider = getattr(connector, "request_headers", None)
+        headers = headers_provider() if callable(headers_provider) else getattr(connector, "headers", None)
+        fetcher = HttpFetcher(connector.rate_limit_seconds, headers=headers)
         try:
             raw = await fetcher.get(url)
         finally:

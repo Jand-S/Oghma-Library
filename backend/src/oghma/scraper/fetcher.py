@@ -18,13 +18,19 @@ from .base import RawPage
 
 
 class HttpFetcher:
-    def __init__(self, rate_limit_seconds: float | None = None) -> None:
+    def __init__(self, rate_limit_seconds: float | None = None, headers: dict[str, str] | None = None) -> None:
         s = get_settings()
         self.rate_limit_seconds = rate_limit_seconds or s.default_rate_limit_seconds
         self._last: dict[str, float] = {}
         self._lock = asyncio.Lock()
+        client_headers = {
+            "User-Agent": s.user_agent,
+            "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.6",
+        }
+        if headers:
+            client_headers.update(headers)
         self._client = httpx.AsyncClient(
-            headers={"User-Agent": s.user_agent, "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.6"},
+            headers=client_headers,
             timeout=s.request_timeout_seconds,
             follow_redirects=True,
             http2=True,

@@ -301,3 +301,11 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - O painel lateral nao mostra mais o caminho absoluto do livro para reduzir ruido visual.
 - As capas da Biblioteca devem vir do arquivo `cover.*` dentro da pasta do livro. O comando Tauri `list_export_library` agora devolve tambem `cover_data_url`, evitando falhas de renderizacao por protocolo de arquivo/asset no Windows.
 - O runtime do desktop nao usa mais backend mockado: `main.tsx` cria sempre um `StaticBackendClient` a partir do `serverUrl` configurado. Os mocks restantes ficam restritos a testes/fixtures ate a suite ser migrada completamente para fixtures estaticas.
+
+## House Saikai API crawler (17/06/2026)
+
+- House Saikai deve ser indexado somente como **series**: o conector usa `GET /api/stories` com `format=1` e nao consulta `/comics`.
+- Cloudflare retorna `403` para chamada crua sem headers de navegador. Com `Accept`, `Origin`, `Referer`, `Sec-Fetch-*` e `User-Agent` de navegador, a API respondeu JSON normalmente. O sufixo `OghmaLibraryBot/0.1` no `User-Agent` tambem retornou `403`, entao o conector usa UA de Chrome sem sufixo.
+- Catalogo e detalhe da obra foram validados sem Bearer; o token fica opcional via `OGHMA_HOUSE_SAIKAI_BEARER` caso alguma rota passe a exigir sessao.
+- Conteudo de capitulo usa `GET /api/releases/<releaseId>?relationships=releaseText`; a variante anterior com `pageview=0&cache=1` retornou `Server Error`.
+- O `/monitor` agora agrupa crawls em **Rodando agora**, **Precisam de atencao** e **Historico por fonte**, evitando misturar crawlers ativos com erros antigos na mesma lista.
