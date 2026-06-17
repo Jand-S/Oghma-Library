@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { onboardingSteps } from "../constants/ui";
+import { useEffect, useState } from "react";
 import type { SetupSyncEntry } from "../constants/ui";
-import { getErrorMessage } from "../services/backendClient";
-import type { BackendClient } from "../services/backendClient";
+import { onboardingSteps } from "../constants/ui";
 import type { AppConfig, SourceSite } from "../core/types";
+import type { BackendClient } from "../services/backendClient";
+import { getErrorMessage } from "../services/backendClient";
 
 type Deps = {
   showOnboarding: boolean;

@@ -1,6 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildOutputs, runDownload, sanitizeFileName } from "../services/downloadManager";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi
+} from "vitest";
 import type { ExtractedBundle } from "../services/bundle";
+import { buildOutputs, runDownload, sanitizeFileName } from "../services/downloadManager";
 
 function tarHeader(name: string, size: number): Uint8Array {
   const h = new Uint8Array(512);

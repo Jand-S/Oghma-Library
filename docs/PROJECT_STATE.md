@@ -261,3 +261,9 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - Todos os testes foram movidos para `src/test/`.
 - A raiz de `src/` ficou apenas com `main.tsx`, `App.tsx`, `appUi.tsx` e pastas.
 - Lixo temporario removido: `__rmtest.tmp` e `.fuse_hidden*`.
+
+## Pente fino desktop (17/06/2026)
+
+- Imports de `apps/desktop/src` foram organizados com TypeScript Language Service.
+- Imports mortos e estados/funcoes nao usados foram removidos (`retryBoot`/`bootAttempt`).
+- `tsc --noEmit --noUnusedLocals --noUnusedParameters` passou sem erros.

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { defaultFilters, defaultSelection, estimateChapters, mockBackend, selectionLabel } from "../services/mockBackend";
+import {
+  defaultFilters,
+  defaultSelection,
+  estimateChapters,
+  mockBackend,
+  selectionLabel
+} from "../services/mockBackend";
 
 describe("mockBackend", () => {
   it("returns bootstrap payload with sources, novels, queue and library", async () => {

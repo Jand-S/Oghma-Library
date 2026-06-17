@@ -1,5 +1,3 @@
-import { defaultAppConfig } from "../core/appConfig";
-import type { BackendClient } from "./backendClient";
 import type {
   BootstrapPayload,
   Chapter,
@@ -14,6 +12,7 @@ import type {
   ServerProbe,
   SourceSite
 } from "../core/types";
+import type { BackendClient } from "./backendClient";
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 const jitter = (base = 420) => wait(base + Math.round(Math.random() * 420));

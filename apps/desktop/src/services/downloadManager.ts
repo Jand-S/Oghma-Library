@@ -1,8 +1,13 @@
 // Orquestra o download real: bundle do B2 -> saidas (TXT/HTML) -> grava em disco.
 // Sem acoplar a UI: recebe dados + callbacks de progresso.
-import { fetchBundle, bundleToHtml, bundleToText, type ExtractedBundle } from "./bundle";
-import { saveLocalFile, type FileData } from "./localFiles";
 import type { DownloadFormat } from "../core/types";
+import {
+  bundleToHtml,
+  bundleToText,
+  fetchBundle,
+  type ExtractedBundle
+} from "./bundle";
+import { saveLocalFile, type FileData } from "./localFiles";
 
 export type SaveFile = (fileName: string, data: FileData) => Promise<void>;
 

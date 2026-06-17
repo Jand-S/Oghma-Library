@@ -2,9 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { defaultAppConfig, readStoredConfig } from "./core/appConfig";
+import type { BackendClient } from "./services/backendClient";
 import { mockBackendClient } from "./services/mockBackend";
 import { createStaticBackendClient } from "./services/staticBackend";
-import type { BackendClient } from "./services/backendClient";
 import "./styles/index.css";
 
 // Escolhe o backend real conforme o serverUrl configurado.

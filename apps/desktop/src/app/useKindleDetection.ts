@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { detectKindleDevice } from "../services/localFiles";
 import type { KindleDeviceStatus } from "../core/types";
+import { detectKindleDevice } from "../services/localFiles";
 
 export function useKindleDetection(loading: boolean) {
   const [kindleStatus, setKindleStatus] = useState<KindleDeviceStatus | null>(null);

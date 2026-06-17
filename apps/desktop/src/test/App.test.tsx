@@ -1,10 +1,21 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  within
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultAppConfig, setupCompleteKey, setupStorageKey } from "../core/appConfig";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi
+} from "vitest";
 import { App } from "../App";
-import { mockBackendClient } from "../services/mockBackend";
+import { defaultAppConfig, setupCompleteKey, setupStorageKey } from "../core/appConfig";
 import type { BackendClient } from "../services/backendClient";
+import { mockBackendClient } from "../services/mockBackend";
 
 function buildBackend(overrides: Partial<BackendClient> = {}): BackendClient {
   return { ...mockBackendClient, ...overrides };

@@ -1,61 +1,17 @@
-import { MouseEvent, PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  ExternalLink,
+  CheckSquare,
   FolderOpen,
-  Globe2,
-  GripVertical,
   Headphones,
-  Home,
   Languages,
-  Library,
-  Loader2,
-  Minus,
   Pause,
   Play,
   RefreshCcw,
-  Search,
-  Settings,
-  CheckSquare,
-  SlidersHorizontal,
   Square,
-  Trash2,
-  X
+  Trash2
 } from "lucide-react";
-import { defaultAppConfig } from "../core/appConfig";
-import { downloadFormats } from "../core/types";
-import { defaultFilters, defaultSelection, estimateChapters, selectionLabel } from "../services/mockBackend";
-import type {
-  AppConfig,
-  ChapterSelection,
-  DownloadFormat,
-  Filters,
-  IndexMode,
-  LibraryItem,
-  Novel,
-  QueueItem,
-  ServerProbe,
-  SourceSite,
-  TranslationEngine,
-  ViewId
-} from "../core/types";
-import { runWindowAction } from "../core/windowControls";
-import {
-  indexModeOptions,
-  onboardingSteps,
-  pageTitle,
-  statusLabel,
-  tags,
-  translationEngineOptions,
-  views,
-  type SetupSyncEntry
-} from "../constants/ui";
+import type { QueueItem } from "../core/types";
 
 export function DownloadsView({
   queue,

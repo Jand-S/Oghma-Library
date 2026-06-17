@@ -1,5 +1,5 @@
-import { isTauriRuntime } from "../core/windowControls";
 import type { KindleDeviceStatus, QueueItem } from "../core/types";
+import { isTauriRuntime } from "../core/windowControls";
 
 export type FileData = string | Uint8Array;
 export type LocalLibraryEntry = {

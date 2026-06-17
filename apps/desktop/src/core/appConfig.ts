@@ -1,5 +1,10 @@
+import type {
+  AppConfig,
+  DownloadFormat,
+  IndexMode,
+  TranslationEngine
+} from "./types";
 import { downloadFormats } from "./types";
-import type { AppConfig, DownloadFormat, IndexMode, TranslationEngine } from "./types";
 
 export const setupStorageKey = "oghma.setup.v1";
 export const setupCompleteKey = "oghma.setup.complete.v1";

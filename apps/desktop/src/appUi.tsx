@@ -1,10 +1,10 @@
-export * from "./views/shell";
+export { onboardingSteps,pageTitle } from "./constants/ui";
+export type { SetupSyncEntry } from "./constants/ui";
 export * from "./views/discover";
-export * from "./views/sources";
 export * from "./views/downloads";
 export * from "./views/kindle";
-export * from "./views/onboarding";
 export * from "./views/library";
+export * from "./views/onboarding";
 export * from "./views/settings";
-export { pageTitle, onboardingSteps } from "./constants/ui";
-export type { SetupSyncEntry } from "./constants/ui";
+export * from "./views/shell";
+export * from "./views/sources";

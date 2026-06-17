@@ -1,7 +1,6 @@
 // Cliente de backend "estatico": le o acervo publicado no B2/CDN
 // (index.json -> catalog.json.gz por site -> bundles tar.gz sob demanda).
 // Implementa a mesma interface BackendClient usada pela UI, sem SQLite no cliente.
-import type { BackendClient, KindleTransferResult } from "./backendClient";
 import type {
   BootstrapPayload,
   Chapter,
@@ -16,6 +15,7 @@ import type {
   ServerProbe,
   SourceSite
 } from "../core/types";
+import type { BackendClient, KindleTransferResult } from "./backendClient";
 
 // ---- Formatos publicados (espelham backend/src/oghma/publish) ----
 type CatalogChapter = { number: number; title: string };

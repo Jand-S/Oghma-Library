@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudOff, RefreshCcw, Settings } from "lucide-react";
 import {
-  defaultAppConfig,
-  hasCompletedSetup,
-  markSetupComplete,
-  readStoredConfig,
-  resolveAppConfig,
-  writeStoredConfig
-} from "./core/appConfig";
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
+import { useKindleDetection } from "./app/useKindleDetection";
+import { useOnboardingSync } from "./app/useOnboardingSync";
+import { useToast } from "./app/useToast";
 import {
+  ConversionModal,
   DiscoverView,
   DownloadsView,
-  ConversionModal,
   KindleTransferModal,
   LibraryView,
   onboardingSteps,
@@ -21,30 +21,39 @@ import {
   Sidebar,
   SourcesView,
   SplashScreen,
-  type SetupSyncEntry,
   Titlebar
 } from "./appUi";
-import { defaultFilters, defaultSelection, mockBackendClient } from "./services/mockBackend";
-import { getErrorMessage, type BackendClient } from "./services/backendClient";
-import { detectKindleDevice, joinPath, listLocalLibrary, openLocalPath, saveLocalFile, sendItemsToKindle } from "./services/localFiles";
-import { runDownload, sanitizeFileName } from "./services/downloadManager";
-import { useToast } from "./app/useToast";
-import { useKindleDetection } from "./app/useKindleDetection";
-import { useOnboardingSync } from "./app/useOnboardingSync";
+import {
+  hasCompletedSetup,
+  markSetupComplete,
+  readStoredConfig,
+  resolveAppConfig,
+  writeStoredConfig
+} from "./core/appConfig";
 import type {
   AppConfig,
   BootstrapPayload,
   ChapterSelection,
+  DownloadFormat,
   Filters,
   KindleDeviceStatus,
   LibraryItem,
   Novel,
   QueueItem,
-  DownloadFormat,
   ServerProbe,
   SourceSite,
   ViewId
 } from "./core/types";
+import { getErrorMessage, type BackendClient } from "./services/backendClient";
+import { runDownload, sanitizeFileName } from "./services/downloadManager";
+import {
+  joinPath,
+  listLocalLibrary,
+  openLocalPath,
+  saveLocalFile,
+  sendItemsToKindle
+} from "./services/localFiles";
+import { defaultFilters, defaultSelection, mockBackendClient } from "./services/mockBackend";
 
 type AppProps = {
   backend?: BackendClient;
@@ -53,7 +62,6 @@ type AppProps = {
 export function App({ backend = mockBackendClient }: AppProps) {
   const storedConfigRef = useRef(readStoredConfig());
   const storedConfig = storedConfigRef.current;
-  const [bootAttempt, setBootAttempt] = useState(0);
   const [bootDone, setBootDone] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
@@ -143,7 +151,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
       mounted = false;
       window.clearTimeout(splashTimer);
     };
-  }, [backend, bootAttempt, storedConfig]);
+  }, [backend, storedConfig]);
 
   useEffect(() => {
     if (loading) return;
@@ -573,13 +581,6 @@ export function App({ backend = mockBackendClient }: AppProps) {
   };
 
   const rewindOnboarding = () => setOnboardingStep((value) => Math.max(value - 1, 0));
-
-  const retryBoot = () => {
-    setShowSplash(true);
-    setBootDone(false);
-    setBootError(null);
-    setBootAttempt((value) => value + 1);
-  };
 
   const workspaceClass = bootError && activeView !== "settings"
     ? "workspace single"
