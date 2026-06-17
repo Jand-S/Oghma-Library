@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCcw } from "lucide-react";
+import { CloudOff, RefreshCcw, Settings } from "lucide-react";
 import {
   defaultAppConfig,
   hasCompletedSetup,
@@ -526,7 +526,9 @@ export function App({ backend = mockBackendClient }: AppProps) {
     setBootAttempt((value) => value + 1);
   };
 
-  const workspaceClass = activeView === "discover"
+  const workspaceClass = bootError && activeView !== "settings"
+    ? "workspace single"
+    : activeView === "discover"
     ? `workspace discover ${!filtersCollapsed ? "filters-open" : ""} ${selectedIds.length > 0 ? "selection-open" : ""}`
     : "workspace single";
 
@@ -537,17 +539,28 @@ export function App({ backend = mockBackendClient }: AppProps) {
       <section className="app-shell">
         <Titlebar title={pageTitle[activeView]} />
         <div className={workspaceClass}>
-          {bootError ? (
-            <section className="page-area full-span">
-              <div className="page-header">
-                <div>
-                  <h2>Falha ao iniciar</h2>
-                  <span>{bootError}</span>
+          {bootError && activeView !== "settings" ? (
+            <section className="boot-error">
+              <div className="boot-error-card">
+                <span className="boot-error-icon">
+                  <CloudOff size={40} />
+                </span>
+                <h2>Nao foi possivel carregar o acervo</h2>
+                <p>
+                  O app nao conseguiu falar com o servidor de indice configurado. Ajuste o endereco
+                  do servidor em Ajustes e rode o assistente inicial novamente.
+                </p>
+                <code className="boot-error-detail">{bootError}</code>
+                <div className="boot-error-actions">
+                  <button className="button primary" onClick={() => window.location.reload()}>
+                    <RefreshCcw size={15} />
+                    Tentar novamente
+                  </button>
+                  <button className="button quiet" onClick={() => setActiveView("settings")}>
+                    <Settings size={15} />
+                    Abrir Ajustes
+                  </button>
                 </div>
-                <button className="button primary" onClick={retryBoot}>
-                  <RefreshCcw size={15} />
-                  Tentar novamente
-                </button>
               </div>
             </section>
           ) : null}
@@ -589,10 +602,10 @@ export function App({ backend = mockBackendClient }: AppProps) {
             />
           ) : null}
           {!bootError && activeView === "library" ? <LibraryView library={library} /> : null}
-          {!bootError && activeView === "settings" ? <SettingsView config={appConfig} onConfigChange={patchConfig} onOpenOnboarding={openOnboarding} /> : null}
+          {activeView === "settings" ? <SettingsView config={appConfig} onConfigChange={patchConfig} onOpenOnboarding={openOnboarding} /> : null}
         </div>
         <OnboardingWizard
-          open={!loading && !bootError && showOnboarding}
+          open={!loading && showOnboarding}
           allowClose={hasCompletedSetup()}
           step={onboardingStep}
           config={appConfig}
