@@ -227,3 +227,11 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - `GET /api/publish/status` devolve o estado em memoria (`idle`, `running`, `done`, `error`) e o resumo do ultimo publish.
 - A pagina `/monitor` tem o botao **Publicar no B2**, com polling do status e bloqueio visual enquanto o job roda.
 - O job chama `oghma.publish.runner.run()` no processo da API e usa lock em memoria para impedir publish concorrente.
+
+## Downloads reais no desktop (17/06/2026)
+
+- A aba Downloads agora separa a fila em duas colunas verticais: **Em andamento** a esquerda e **Concluidos** a direita, cada uma com rolagem propria.
+- O fluxo da fila chama `runDownload` de verdade: baixa o bundle publicado, gera os arquivos solicitados e salva em disco.
+- Cada livro e salvo em `outputPath/titulo-sanitizado`; o botao **Abrir pasta** abre a pasta de saida configurada e cada item concluido tem um botao para abrir sua propria pasta.
+- EPUB deixou de ser HTML intermediario: o desktop gera um `.epub` basico valido em ZIP/OPF/nav XHTML. PDF ainda usa HTML como base ate existir exportador dedicado.
+- Se o item nao tiver `bundleKey` publicado ou houver erro de escrita, a fila marca o item como `error` e mostra a mensagem no card.

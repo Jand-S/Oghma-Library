@@ -69,14 +69,20 @@ export type QueueItem = {
   novelId: string;
   title: string;
   coverClass: string;
+  bundleKey?: string;
   preset: ChapterPreset;
+  rangeStart?: number;
+  rangeEnd?: number;
   rangeLabel: string;
   progress: number;
-  state: "downloading" | "queued" | "done" | "paused";
+  state: "downloading" | "queued" | "done" | "paused" | "error";
   chaptersTotal: number;
   formats: DownloadFormat[];
   translate: boolean;
   audiobook: boolean;
+  outputDir?: string;
+  outputFiles?: string[];
+  error?: string;
 };
 
 export type KindleDeviceStatus = {

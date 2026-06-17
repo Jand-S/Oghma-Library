@@ -134,5 +134,8 @@ describe("staticBackend", () => {
     expect(items).toHaveLength(1);
     expect(items[0].chaptersTotal).toBe(2);
     expect(items[0].state).toBe("queued");
+    expect(items[0].bundleKey).toBe("content/central-novel/lord/lord.v1.tar.gz");
+    expect(items[0].rangeStart).toBe(1);
+    expect(items[0].rangeEnd).toBe(2);
   });
 });

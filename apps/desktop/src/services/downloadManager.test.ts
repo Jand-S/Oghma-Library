@@ -52,15 +52,16 @@ describe("downloadManager", () => {
     expect(sanitizeFileName('A/B:C*?"')).toBe("A_B_C_");
   });
 
-  it("buildOutputs makes TXT and HTML per requested formats", () => {
+  it("buildOutputs makes TXT and EPUB per requested formats", () => {
     const txt = buildOutputs(sampleBundle, "Shadow Slave", ["TXT"]);
     expect(txt).toHaveLength(1);
     expect(txt[0].fileName).toBe("Shadow Slave.txt");
     expect(txt[0].data).toContain("Capitulo 1 - Nightmare");
 
     const both = buildOutputs(sampleBundle, "Shadow Slave", ["TXT", "EPUB"]);
-    expect(both.map((o) => o.fileName)).toEqual(["Shadow Slave.txt", "Shadow Slave.html"]);
-    expect(both[1].data).toContain("<!doctype html>");
+    expect(both.map((o) => o.fileName)).toEqual(["Shadow Slave.epub", "Shadow Slave.txt"]);
+    expect(both[0].data).toBeInstanceOf(Uint8Array);
+    expect(new TextDecoder().decode((both[0].data as Uint8Array).slice(0, 64))).toContain("PK");
   });
 
   it("runDownload fetches, builds and saves with progress", async () => {
@@ -79,7 +80,7 @@ describe("downloadManager", () => {
         formats: ["TXT"],
         outputDir: "C:/out"
       },
-      { save: async (n, d) => { saved[n] = d; }, onProgress: (p) => progress.push(p) }
+      { save: async (n, d) => { saved[n] = typeof d === "string" ? d : new TextDecoder().decode(d); }, onProgress: (p) => progress.push(p) }
     );
     expect(files).toEqual(["Shadow Slave.txt"]);
     expect(saved["Shadow Slave.txt"]).toContain("um");

@@ -225,7 +225,9 @@ Os tipos de hoje sao **moldados para o mock**, nao para um backend real. O clien
 - `Novel.coverClass` — hoje e uma classe CSS de gradiente (mock). O backend real devolve **URL de capa**; o adaptador deve mapear `coverUrl -> coverClass`/`coverUrl` (ou a UI passa a renderizar `<img src>`). **Sugestao:** o backend expoe `coverUrl`; o desktop adiciona suporte a imagem real e usa `coverClass` so como fallback.
 - `Novel.chapters` (numero), `updatedAt` (string "Hoje") — o backend deve devolver contagem real e timestamp ISO; o adaptador formata para exibicao.
 - `Chapter.pages`, `Chapter.sizeMb`, `Chapter.downloaded` — sao aproximacoes do mock; no real viram metadados verdadeiros (ou somem da UI).
-- `QueueItem.rangeLabel`, `progress`, `state`, `chaptersTotal`, `coverClass` — sao estado de fila do mock; no real vem de **status de job** (`GET /api/jobs/:id`). O adaptador converte job -> `QueueItem`.
+- `QueueItem.rangeLabel`, `progress`, `state`, `chaptersTotal`, `coverClass`, `bundleKey`, `outputDir`, `outputFiles`, `error` — sao estado de fila do desktop; no real vem de **status de job** (`GET /api/jobs/:id`). O adaptador converte job -> `QueueItem`.
+- `QueueItem.state` aceita `queued`, `downloading`, `done`, `paused` e `error`.
+- Downloads locais sao salvos em `AppConfig.outputPath/titulo-sanitizado`; o item concluido guarda `outputDir` e `outputFiles` para abrir a pasta correta.
 - `SourceSite.count`, `lastSync` (string), `delayMs` — `count`/`lastSync` viram dados reais; `delayMs` (rate-limit) e detalhe de backend e pode sair do DTO publico.
 
 > Recomendacao: manter a UI estavel e concentrar TODA a traducao "DTO real -> tipo da UI" no cliente HTTP (`apps/desktop/src/services/httpBackendClient.ts`, a criar). Assim o backend evolui sem mexer em `appUi.tsx`.

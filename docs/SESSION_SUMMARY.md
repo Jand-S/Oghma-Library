@@ -24,7 +24,7 @@ Estado consolidado para o próximo agente (codex) continuar.
    - Selecionado em `main.tsx` conforme `serverUrl` (mock se `VITE_USE_MOCK=1`).
    - 26 novels aparecendo com capas. `serverUrl` padrão = `https://b2.jandson.me`.
 
-4. **Motor de download (testado, ainda não ligado na fila)**:
+4. **Motor de download (testado e ligado na fila)**:
    - `services/bundle.ts`: baixa `.tar.gz`, gunzip + untar minimalista (sem deps), extrai
      `meta.json` + `chapters/*.html`; gera TXT e HTML autocontido.
    - `services/downloadManager.ts`: orquestra fetch → gera saídas → salva (fs do Tauri se
@@ -41,7 +41,7 @@ Estado consolidado para o próximo agente (codex) continuar.
   npm bloqueado) — rodar `npm test` na máquina Windows.
 
 ## Pendências (prioridade aproximada)
-1. **Ligar `runDownload` na fila** (App.tsx): botão dispara → progresso real → abre pasta.
+1. **Evoluir exportadores**: EPUB basico ja e gerado no desktop; PDF ainda usa HTML intermediario ate termos renderizador dedicado.
    Requer `@tauri-apps/plugin-fs` (npm + Cargo + capabilities) para gravar em disco; sem ele cai no
    download do navegador.
 2. **EPUB/PDF reais** — hoje TXT é real e EPUB/PDF geram HTML autocontido como base.

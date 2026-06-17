@@ -25,6 +25,8 @@ import {
 } from "./appUi";
 import { defaultFilters, defaultSelection, mockBackendClient } from "./mockBackend";
 import { getErrorMessage, type BackendClient } from "./services/backendClient";
+import { joinPath, openLocalPath } from "./services/localFiles";
+import { runDownload, sanitizeFileName } from "./services/downloadManager";
 import type {
   AppConfig,
   BootstrapPayload,
@@ -84,6 +86,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
   const [kindleProgress, setKindleProgress] = useState(0);
   const [toast, setToast] = useState("");
   const skippedInitialSearch = useRef(false);
+  const processingDownloadRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -241,24 +244,46 @@ export function App({ backend = mockBackendClient }: AppProps) {
   const kindleConnected = kindleStatus?.connected ?? false;
 
   useEffect(() => {
-    if (queuePaused) return;
-    const timer = window.setInterval(() => {
-      setQueue((items) => {
-        const active = items.find((item) => item.state === "downloading");
-        if (!active) {
-          const firstQueued = items.find((item) => item.state === "queued");
-          if (!firstQueued) return items;
-          return items.map((item) => item.id === firstQueued.id ? { ...item, state: "downloading" } : item);
+    if (queuePaused || processingDownloadRef.current) return;
+    const item = queue.find((entry) => entry.state === "downloading") ?? queue.find((entry) => entry.state === "queued");
+    if (!item) return;
+
+    const sourceNovel = results.find((novel) => novel.id === item.novelId);
+    const bundleKey = item.bundleKey ?? sourceNovel?.bundleKey;
+    const itemOutputDir = joinPath(appConfig.outputPath, sanitizeFileName(item.title));
+    const range = item.preset === "range" && item.rangeStart && item.rangeEnd
+      ? { start: item.rangeStart, end: item.rangeEnd }
+      : undefined;
+
+    processingDownloadRef.current = item.id;
+    setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, state: "downloading", progress: Math.max(entry.progress, 2), outputDir: itemOutputDir, error: undefined } : entry));
+
+    void runDownload(
+      {
+        serverUrl: appConfig.serverUrl,
+        novel: { id: item.novelId, title: item.title, bundleKey },
+        formats: item.formats,
+        outputDir: itemOutputDir,
+        range
+      },
+      {
+        onProgress: (percent) => {
+          setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, progress: percent } : entry));
         }
-        return items.map((item) => {
-          if (item.id !== active.id) return item;
-          const next = Math.min(100, item.progress + 3 + Math.random() * 4);
-          return { ...item, progress: next, state: next >= 100 ? "done" : "downloading" };
-        });
+      }
+    )
+      .then((files) => {
+        setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, state: "done", progress: 100, outputDir: itemOutputDir, outputFiles: files } : entry));
+        setToast(`${item.title} salvo em ${itemOutputDir}.`);
+      })
+      .catch((error: unknown) => {
+        setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, state: "error", progress: 0, outputDir: itemOutputDir, error: getErrorMessage(error, "Falha ao salvar download.") } : entry));
+        setToast(getErrorMessage(error, `Nao foi possivel baixar ${item.title}.`));
+      })
+      .finally(() => {
+        processingDownloadRef.current = null;
       });
-    }, 700);
-    return () => window.clearInterval(timer);
-  }, [queuePaused]);
+  }, [appConfig.outputPath, appConfig.serverUrl, queue, queuePaused, results]);
 
   useEffect(() => {
     const newlyDone = queue.filter((item) => item.state === "done" && !autoSelectedRef.current.has(item.id));
@@ -395,7 +420,18 @@ export function App({ backend = mockBackendClient }: AppProps) {
     setKindleSending(true);
   };
 
-  const openLibraryFolder = () => setToast("Abrindo a pasta da biblioteca local...");
+  const openFolder = (path: string, label = "pasta de saida") => {
+    void openLocalPath(path)
+      .then((opened) => {
+        setToast(opened ? `Abrindo ${label}.` : `No navegador, use a pasta configurada: ${path}`);
+      })
+      .catch((error: unknown) => {
+        setToast(getErrorMessage(error, `Nao foi possivel abrir ${label}.`));
+      });
+  };
+
+  const openLibraryFolder = () => openFolder(appConfig.outputPath, "pasta de saida");
+  const openQueueItemFolder = (item: QueueItem) => openFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`);
 
   useEffect(() => {
     if (!toast) return;
@@ -601,6 +637,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
               onClearSelected={clearSelectedQueue}
               onCancel={cancelDownload}
               onOpenFolder={openLibraryFolder}
+              onOpenItemFolder={openQueueItemFolder}
               onSendToKindle={openKindleTransfer}
             />
           ) : null}

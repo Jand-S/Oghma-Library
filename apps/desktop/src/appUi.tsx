@@ -736,6 +736,7 @@ export function DownloadsView({
   onClearSelected,
   onCancel,
   onOpenFolder,
+  onOpenItemFolder,
   onSendToKindle
 }: {
   queue: QueueItem[];
@@ -750,6 +751,7 @@ export function DownloadsView({
   onClearSelected: () => void;
   onCancel: (id: string) => void;
   onOpenFolder: () => void;
+  onOpenItemFolder: (item: QueueItem) => void;
   onSendToKindle: () => void;
 }) {
   const pending = queue.filter((item) => item.state !== "done");
@@ -777,6 +779,7 @@ export function DownloadsView({
             ) : (
               pending.map((item) => {
                 const downloading = item.state === "downloading";
+                const failed = item.state === "error";
                 const currentChapter = Math.min(item.chaptersTotal, Math.round((item.progress / 100) * item.chaptersTotal));
                 const remaining = Math.max(0, item.chaptersTotal - currentChapter);
                 const etaSeconds = Math.round(remaining * 0.6);
@@ -790,7 +793,9 @@ export function DownloadsView({
                       <small>{item.rangeLabel}</small>
                       <div className="progress"><span style={{ width: `${item.progress}%` }} /></div>
                       <span className="download-meta">
-                        {downloading
+                        {failed
+                          ? item.error ?? "Falha no download"
+                          : downloading
                           ? `Cap. ${currentChapter}/${item.chaptersTotal.toLocaleString("pt-BR")} - ${speed} - ETA ${eta}`
                           : `${item.state} - ${Math.round(item.progress)}%`}
                       </span>
@@ -861,6 +866,9 @@ export function DownloadsView({
                     <div className="download-info">
                       <strong>{item.title}</strong>
                       <small>{item.rangeLabel}</small>
+                      {item.outputFiles && item.outputFiles.length > 0 ? (
+                        <small>{item.outputFiles.join(", ")}</small>
+                      ) : null}
                       <div className="queue-badges">
                         {item.formats.map((format) => (
                           <span className="badge" key={format}>{format}</span>
@@ -869,6 +877,17 @@ export function DownloadsView({
                         {item.audiobook ? <span className="badge accent"><Headphones size={11} /> Audiobook</span> : null}
                       </div>
                     </div>
+                    <button
+                      className="icon-button small row-folder"
+                      title="Abrir pasta deste livro"
+                      aria-label={`Abrir pasta de ${item.title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenItemFolder(item);
+                      }}
+                    >
+                      <FolderOpen size={15} />
+                    </button>
                   </article>
                 );
               })
