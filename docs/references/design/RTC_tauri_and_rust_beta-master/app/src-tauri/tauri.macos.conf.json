@@ -1,0 +1,33 @@
+{
+  "tauri": {
+    "windows": [
+      {
+        "title": "Loading...",
+        "width": 280,
+        "height": 280,
+        "decorations": false,
+        "transparent": true,
+        "url": "../src/pages/splashscreen.html",
+        "label": "splashscreen",
+        "center": true,
+        "alwaysOnTop": true,
+        "resizable": false
+      },
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Modern Gui",
+        "width": 540,
+        "height": 720,
+        "minWidth": 540,
+        "minHeight": 680,
+        "visible": false,
+        "center": true,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }      
+    ],
+    "macOSPrivateApi": true
+  }
+}

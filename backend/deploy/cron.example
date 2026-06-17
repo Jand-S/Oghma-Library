@@ -1,0 +1,2 @@
+# Crontab do servidor: crawl mensal (dia 1, 03:00). Ajuste o caminho do projeto.
+0 3 1 * * cd /home/codex/oghma && docker compose run --rm crawler oghma crawl --source central-novel >> /srv/oghma/logs/crawl.log 2>&1

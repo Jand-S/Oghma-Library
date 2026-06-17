@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Splash Screen Animation</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f0f4f8; /* Fundo suave para destacar o ícone */
+    }
+    .icon-container {
+      width: 250px;
+      height: 250px;
+    }
+  </style>
+</head>
+<body>
+  <div class="icon-container">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+      <defs>
+        <clipPath id="icon-clip">
+          <rect width="200" height="200" rx="20" ry="20" />
+        </clipPath>
+        
+        <style>
+          /* 1. Animação de Entrada (Efeito elástico / Pop In) */
+          @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          
+          /* 2. Animação de Loop (Flutuação suave para cima e para baixo) */
+          @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+          }
+          
+          /* 3. Animação extra para a cabeça (Efeito Parallax) 
+             Flutua um pouquinho a mais que o livro para dar dinamismo */
+          @keyframes floatHead {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+          }
+
+          /* --- Aplicação nas classes --- */
+          
+          .bg-entry {
+            transform-origin: center;
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          }
+          
+          .content-entry {
+            transform-origin: center;
+            /* Usa 'both' para garantir que fique invisível antes do delay de 0.15s */
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.15s both;
+          }
+          
+          .content-loop {
+            /* Inicia o loop infinito de flutuação logo após a entrada terminar */
+            animation: float 4s ease-in-out 0.75s infinite;
+          }
+          
+          .head-loop {
+            /* Adiciona o movimento extra apenas ao círculo da cabeça */
+            animation: floatHead 4s ease-in-out 0.75s infinite;
+          }
+        </style>
+      </defs>
+
+      <g clip-path="url(#icon-clip)">
+        <!-- Fundo Verde (Animação 1) -->
+        <rect width="200" height="200" fill="#00897B" class="bg-entry" />
+
+        <!-- Camada que gerencia a Entrada Elástica do conteúdo -->
+        <g class="content-entry">
+          <!-- Camada que gerencia o Loop Contínuo (Flutuação) -->
+          <g class="content-loop">
+            
+            <!-- Sombras Longas -->
+            <!-- Elas acompanham o movimento do livro perfeitamente -->
+            <g opacity="0.15" fill="#000000">
+              <path d="M 112.7,45.3 L 312.7,245.3 L 287.3,270.7 L 87.3,70.7 A 18 18 0 0 0 112.7 45.3 Z" />
+              <path d="M 152,78 L 352,278 L 248,344 L 48,144 Q 74,149 100,166 Q 126,149 152,144 Z" />
+            </g>
+
+            <!-- Livro Aberto -->
+            <path d="M 48,78 
+                     Q 74,83 100,100 
+                     Q 126,83 152,78 
+                     L 152,144 
+                     Q 126,149 100,166 
+                     Q 74,149 48,144 
+                     Z" 
+                  fill="#ffffff" />
+                  
+            <!-- Cabeça (Círculo) com movimento extra sutil -->
+            <circle cx="100" cy="58" r="18" fill="#ffffff" class="head-loop" />
+            
+          </g>
+        </g>
+      </g>
+    </svg>
+  </div>
+</body>
+</html>

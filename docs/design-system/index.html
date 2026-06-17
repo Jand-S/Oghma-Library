@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Oghma Library Design System</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="design-page">
+      <header class="design-header">
+        <div>
+          <p class="kicker">Oghma Library</p>
+          <h1>Design system desktop</h1>
+        </div>
+        <div class="header-actions">
+          <button class="icon-button" title="Alternar tema" aria-label="Alternar tema">
+            <span class="icon moon"></span>
+          </button>
+          <button class="button primary">Exportar tokens</button>
+        </div>
+      </header>
+
+      <section class="token-grid" aria-label="Tokens visuais">
+        <article class="token tone-ink"><span>Base</span><strong>#121417</strong></article>
+        <article class="token tone-panel"><span>Painel</span><strong>#1B1D23</strong></article>
+        <article class="token tone-raised"><span>Elevado</span><strong>#242932</strong></article>
+        <article class="token tone-accent"><span>Acento</span><strong>#00796B</strong></article>
+        <article class="token tone-warning"><span>Aviso</span><strong>#D9A441</strong></article>
+        <article class="token tone-danger"><span>Erro</span><strong>#C94B5B</strong></article>
+      </section>
+
+      <section class="sample-window" aria-label="Janela principal">
+        <aside class="app-sidebar">
+          <div class="brand-mark">
+            <span class="brand-icon">O</span>
+          </div>
+          <nav class="nav-stack" aria-label="Principal">
+            <button class="nav-button active" title="Buscar" aria-label="Buscar"><span class="icon search"></span></button>
+            <button class="nav-button" title="Fontes" aria-label="Fontes"><span class="icon globe"></span></button>
+            <button class="nav-button" title="Downloads" aria-label="Downloads"><span class="icon download"></span></button>
+            <button class="nav-button" title="Biblioteca" aria-label="Biblioteca"><span class="icon book"></span></button>
+          </nav>
+          <div class="nav-stack bottom">
+            <button class="nav-button" title="Configuracoes" aria-label="Configuracoes"><span class="icon settings"></span></button>
+          </div>
+        </aside>
+
+        <section class="app-shell">
+          <header class="titlebar">
+            <div>
+              <strong>Oghma Library</strong>
+              <span>Download Search</span>
+            </div>
+            <div class="window-controls" aria-label="Controles da janela">
+              <button title="Minimizar" aria-label="Minimizar"></button>
+              <button title="Maximizar" aria-label="Maximizar"></button>
+              <button class="close" title="Fechar" aria-label="Fechar"></button>
+            </div>
+          </header>
+
+          <div class="workspace">
+            <aside class="filter-panel">
+              <div class="panel-header">
+                <h2>Filtros</h2>
+                <button class="icon-button small" title="Limpar filtros" aria-label="Limpar filtros">
+                  <span class="icon refresh"></span>
+                </button>
+              </div>
+
+              <div class="field-group">
+                <label for="query">Busca</label>
+                <div class="input-with-icon">
+                  <span class="icon search"></span>
+                  <input id="query" value="mockingbird" aria-label="Busca">
+                </div>
+              </div>
+
+              <div class="field-grid one">
+                <div class="field-group">
+                  <label for="source">Fonte</label>
+                  <select id="source">
+                    <option>Todos os sites</option>
+                    <option>Central Novel</option>
+                    <option>Novel Mania</option>
+                    <option>Servidor local</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label for="status">Status</label>
+                  <select id="status">
+                    <option>Qualquer status</option>
+                    <option>Em andamento</option>
+                    <option>Completa</option>
+                    <option>Pausada</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="filter-chips" aria-label="Tags">
+                <button class="chip active">Fantasia</button>
+                <button class="chip">Romance</button>
+                <button class="chip">Misterio</button>
+                <button class="chip">Isekai</button>
+                <button class="chip">Aventura</button>
+                <button class="chip">Drama</button>
+              </div>
+
+              <div class="field-grid two">
+                <div class="field-group">
+                  <label for="format">Formato</label>
+                  <select id="format">
+                    <option>EPUB</option>
+                    <option>PDF</option>
+                    <option>TXT</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label for="language">Idioma</label>
+                  <select id="language">
+                    <option>PT-BR</option>
+                    <option>EN</option>
+                    <option>Todos</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="range-box">
+                <div class="range-head">
+                  <span>Capitulos</span>
+                  <strong>1-120</strong>
+                </div>
+                <div class="range-track">
+                  <span></span>
+                </div>
+              </div>
+
+              <label class="toggle-line">
+                <input type="checkbox" checked>
+                <span class="toggle"></span>
+                <span>Mostrar apenas com capa</span>
+              </label>
+
+              <label class="toggle-line">
+                <input type="checkbox">
+                <span class="toggle"></span>
+                <span>Somente atualizadas</span>
+              </label>
+
+              <div class="source-section">
+                <div class="basket-header">
+                  <h3>Fontes ativas</h3>
+                  <span>2 de 3</span>
+                </div>
+                <label class="source-option selected">
+                  <input type="checkbox" checked>
+                  <span class="source-main">
+                    <strong>Central Novel</strong>
+                    <small>1.248 novels</small>
+                  </span>
+                  <span class="status-dot online"></span>
+                </label>
+                <label class="source-option selected">
+                  <input type="checkbox" checked>
+                  <span class="source-main">
+                    <strong>Novel Mania</strong>
+                    <small>892 novels</small>
+                  </span>
+                  <span class="status-dot sync"></span>
+                </label>
+                <label class="source-option">
+                  <input type="checkbox">
+                  <span class="source-main">
+                    <strong>Servidor local</strong>
+                    <small>Biblioteca salva</small>
+                  </span>
+                  <span class="status-dot muted"></span>
+                </label>
+              </div>
+            </aside>
+
+            <section class="content-area">
+              <div class="toolbar">
+                <div>
+                  <h2>Resultados</h2>
+                  <span>238 livros encontrados</span>
+                </div>
+                <div class="toolbar-actions">
+                  <div class="segmented" role="tablist" aria-label="Visualizacao">
+                    <button class="active">Grade</button>
+                    <button>Lista</button>
+                  </div>
+                  <button class="button primary">
+                    <span class="icon download"></span>
+                    Adicionar a fila
+                  </button>
+                </div>
+              </div>
+
+              <div class="active-filter-row" aria-label="Filtros ativos">
+                <span>Central Novel</span>
+                <span>Novel Mania</span>
+                <span>Fantasia</span>
+                <span>PT-BR</span>
+                <button>Limpar</button>
+              </div>
+
+              <div class="notice-row">
+                <div class="toast danger">
+                  <span class="icon alert"></span>
+                  <div>
+                    <strong>Download falhou</strong>
+                    <small>Verifique sua conexao ou tente novamente.</small>
+                  </div>
+                </div>
+                <div class="toast warning">
+                  <span class="icon warning"></span>
+                  <div>
+                    <strong>Item em andamento</strong>
+                    <small>O download foi movido para a fila.</small>
+                  </div>
+                </div>
+              </div>
+
+              <div class="book-grid compact">
+                <article class="book-card selected">
+                  <button class="card-check active" title="Selecionado" aria-label="Selecionado"></button>
+                  <div class="book-cover cover-c"></div>
+                  <div class="book-info">
+                    <strong>The Enchanted Forest</strong>
+                    <small>Emily Bronte</small>
+                    <p>142 capitulos · Central Novel</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-d"></div>
+                  <div class="book-info">
+                    <strong>Whispers of the Night</strong>
+                    <small>Edgar Allan Poe</small>
+                    <p>58 capitulos · Novel Mania</p>
+                  </div>
+                </article>
+                <article class="book-card selected">
+                  <button class="card-check active" title="Selecionado" aria-label="Selecionado"></button>
+                  <div class="book-cover cover-e"></div>
+                  <div class="book-info">
+                    <strong>Journey to the Unknown</strong>
+                    <small>Jules Verne</small>
+                    <p>211 capitulos · Central Novel</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-f"></div>
+                  <div class="book-info">
+                    <strong>Secrets of the Enchanted Forest</strong>
+                    <small>John Smith</small>
+                    <p>36 capitulos · Novel Mania</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-g"></div>
+                  <div class="book-info">
+                    <strong>Castle of the Dark Storm</strong>
+                    <small>Mary Shelley</small>
+                    <p>89 capitulos · Central Novel</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-h"></div>
+                  <div class="book-info">
+                    <strong>The Labyrinth's Secret</strong>
+                    <small>John Smith</small>
+                    <p>74 capitulos · Novel Mania</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-i"></div>
+                  <div class="book-info">
+                    <strong>Mystery of the Lost Temple</strong>
+                    <small>Jules Verne</small>
+                    <p>19 capitulos · Central Novel</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-j"></div>
+                  <div class="book-info">
+                    <strong>To Kill a Mockingbird</strong>
+                    <small>Harper Lee</small>
+                    <p>31 capitulos · Servidor local</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-k"></div>
+                  <div class="book-info">
+                    <strong>Whispers in the Shadow Woods</strong>
+                    <small>Emily Bronte</small>
+                    <p>126 capitulos · Novel Mania</p>
+                  </div>
+                </article>
+                <article class="book-card">
+                  <button class="card-check" title="Selecionar" aria-label="Selecionar"></button>
+                  <div class="book-cover cover-l"></div>
+                  <div class="book-info">
+                    <strong>Journey to the Forgotten Kingdom</strong>
+                    <small>John Smith</small>
+                    <p>63 capitulos · Central Novel</p>
+                  </div>
+                </article>
+              </div>
+
+              <article class="chapter-panel">
+                <header class="panel-header">
+                  <div>
+                    <h2>Selecao rapida de capitulos</h2>
+                    <span>Aplicado ao livro selecionado</span>
+                  </div>
+                  <button class="button compact">Selecionar todos</button>
+                </header>
+                <div class="chapter-list">
+                  <label class="chapter-row">
+                    <input type="checkbox" checked>
+                    <span>001</span>
+                    <strong>O bosque desperta</strong>
+                    <small>2.1 MB</small>
+                  </label>
+                  <label class="chapter-row">
+                    <input type="checkbox" checked>
+                    <span>002</span>
+                    <strong>Uma carta sem remetente</strong>
+                    <small>1.8 MB</small>
+                  </label>
+                  <label class="chapter-row">
+                    <input type="checkbox">
+                    <span>003</span>
+                    <strong>O mapa incompleto</strong>
+                    <small>2.4 MB</small>
+                  </label>
+                </div>
+              </article>
+            </section>
+
+            <aside class="download-dock">
+              <div class="panel-header">
+                <div>
+                  <h2>Fila</h2>
+                  <span>1 ativo · 2 aguardando</span>
+                </div>
+                <button class="icon-button small" title="Pausar fila" aria-label="Pausar fila">
+                  <span class="icon pause"></span>
+                </button>
+              </div>
+
+              <article class="download-summary">
+                <div class="radial-progress" aria-label="82 por cento">
+                  <span>82%</span>
+                </div>
+                <strong>To Kill a Mockingbird</strong>
+                <p>Pacote EPUB · capitulos 1-20</p>
+                <div class="progress">
+                  <span style="width: 82%"></span>
+                </div>
+              </article>
+
+              <div class="queue-list">
+                <article class="queue-item active">
+                  <div class="queue-thumb cover-j"></div>
+                  <div class="queue-body">
+                    <strong>To Kill a Mockingbird</strong>
+                    <small>Baixando agora</small>
+                  </div>
+                </article>
+                <article class="queue-item">
+                  <div class="queue-thumb cover-d"></div>
+                  <div class="queue-body">
+                    <strong>Whispers of the Night</strong>
+                    <small>Aguardando</small>
+                  </div>
+                </article>
+                <article class="queue-item">
+                  <div class="queue-thumb cover-e"></div>
+                  <div class="queue-body">
+                    <strong>Journey to the Unknown</strong>
+                    <small>Aguardando</small>
+                  </div>
+                </article>
+              </div>
+
+              <div class="dock-actions">
+                <button class="button quiet">Abrir pasta</button>
+                <button class="button danger">Limpar concluidos</button>
+              </div>
+            </aside>
+          </div>
+
+          <footer class="statusbar">
+            <span>Servidor: 192.168.0.42</span>
+            <span>MinIO: conectado</span>
+            <span>Worker: 2 ativos</span>
+          </footer>
+        </section>
+      </section>
+
+      <section class="component-board" aria-label="Componentes">
+        <article class="component-panel">
+          <h2>Botoes</h2>
+          <div class="component-row">
+            <button class="button primary">Primario</button>
+            <button class="button quiet">Secundario</button>
+            <button class="button danger">Perigo</button>
+            <button class="icon-button" title="Baixar" aria-label="Baixar"><span class="icon download"></span></button>
+          </div>
+        </article>
+
+        <article class="component-panel">
+          <h2>Campos</h2>
+          <div class="field-grid">
+            <div class="field-group">
+              <label for="source-url">Servidor</label>
+              <input id="source-url" value="http://192.168.0.42:8000">
+            </div>
+            <div class="field-group">
+              <label for="export-format">Formato</label>
+              <select id="export-format">
+                <option>EPUB</option>
+                <option>PDF</option>
+                <option>TXT</option>
+              </select>
+            </div>
+          </div>
+        </article>
+
+        <article class="component-panel">
+          <h2>Splash</h2>
+          <div class="splash-preview">
+            <div class="splash-ring">
+              <span>64%</span>
+            </div>
+            <strong>Oghma Library</strong>
+            <small>Carregando biblioteca local</small>
+          </div>
+        </article>
+      </section>
+
+      <section class="reference-strip" aria-label="Referencias Figma">
+        <img src="../references/figma/reference1.png" alt="Referencia Figma com busca e downloads">
+        <img src="../references/figma/reference2.png" alt="Referencia Figma com grade de novels">
+      </section>
+    </main>
+  </body>
+</html>

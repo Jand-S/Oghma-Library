@@ -1,0 +1,28 @@
+# Node / desktop
+node_modules/
+dist/
+.vite/
+*.local
+
+# Tauri / Rust
+apps/desktop/src-tauri/target/
+target/
+
+# Python / backend
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Dados/artefatos locais (não versionar o acervo)
+/srv/
+*.sqlite
+*.sqlite.gz
+*.tar.gz
+publish_state.json
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.fuse_hidden*
