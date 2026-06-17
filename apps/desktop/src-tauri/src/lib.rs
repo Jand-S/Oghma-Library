@@ -4,6 +4,9 @@ use std::process::Command;
 
 use serde::Serialize;
 
+#[cfg(target_os = "windows")]
+mod kindle_mtp;
+
 #[derive(Serialize)]
 struct ExportLibraryItem {
     title: String,
@@ -74,7 +77,13 @@ fn converter_available() -> bool {
 /// Vendor ID da Amazon/Lab126 (0x1949), independente de montar como drive.
 fn kindle_usb_present() -> bool {
     match nusb::list_devices() {
-        Ok(devices) => devices.into_iter().any(|device| device.vendor_id() == 0x1949),
+        Ok(devices) => devices.into_iter().any(|device| {
+            device.vendor_id() == 0x1949
+                && device
+                    .product_string()
+                    .map(|name| name.to_lowercase().contains("kindle"))
+                    .unwrap_or(true)
+        }),
         Err(_) => false,
     }
 }
@@ -237,16 +246,17 @@ fn detect_kindle() -> KindleStatus {
 
 #[tauri::command]
 fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {
-    let kindle_dir = match find_kindle_documents_dir() {
-        Some(dir) => dir,
-        None => {
-            if kindle_usb_present() {
-                return Err("Kindle detectado via MTP. O envio por MTP (WPD) ainda nao esta implementado nesta versao.".to_string());
-            }
-            return Err("Kindle nao encontrado por USB".to_string());
-        }
-    };
-    fs::create_dir_all(&kindle_dir).map_err(|err| format!("Nao foi possivel acessar a pasta documents do Kindle: {err}"))?;
+    let ms_dir = find_kindle_documents_dir();
+    if ms_dir.is_none() && !kindle_usb_present() {
+        return Err("Kindle nao encontrado por USB".to_string());
+    }
+    if let Some(dir) = &ms_dir {
+        fs::create_dir_all(dir).map_err(|err| format!("Nao foi possivel acessar a pasta documents do Kindle: {err}"))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    if ms_dir.is_none() {
+        return Err("Envio via MTP so e suportado no Windows por enquanto.".to_string());
+    }
 
     let mut sent_ids = Vec::new();
     for item in items {
@@ -286,9 +296,25 @@ fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String
         let source = azw3.ok_or_else(|| format!("{} nao gerou AZW3", item.title))?;
         let file_name = source
             .file_name()
-            .ok_or_else(|| "Arquivo AZW3 invalido".to_string())?;
-        fs::copy(&source, kindle_dir.join(file_name))
-            .map_err(|err| format!("Nao foi possivel copiar para o Kindle: {err}"))?;
+            .ok_or_else(|| "Arquivo AZW3 invalido".to_string())?
+            .to_string_lossy()
+            .to_string();
+        match &ms_dir {
+            Some(dir) => {
+                fs::copy(&source, dir.join(&file_name))
+                    .map_err(|err| format!("Nao foi possivel copiar para o Kindle: {err}"))?;
+            }
+            None => {
+                #[cfg(target_os = "windows")]
+                {
+                    kindle_mtp::send_file_to_kindle(&source, &file_name)?;
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    return Err("Envio via MTP so e suportado no Windows.".to_string());
+                }
+            }
+        }
         sent_ids.push(item.id);
     }
 
