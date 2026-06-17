@@ -26,4 +26,6 @@ exports/
 # SO / editor
 .DS_Store
 Thumbs.db
-.fuse_hidden*
+.fuse
+# Scripts temporarios de refatoracao (nao versionar)
+apps/desktop/src/*.py

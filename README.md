@@ -1,43 +1,46 @@
 # Oghma Library
 
-Oghma Library e um projeto para preservar novels traduzidas por fas, baixar capitulos de sites externos suportados e manter uma biblioteca local exportavel para formatos como EPUB.
+Sistema para **preservar novels fan-traduzidas**: um servidor coleta e arquiva o
+acervo, publica um catálogo estático (catálogo + bundles + capas) no Backblaze B2
+servido via Cloudflare, e um app desktop (Tauri + React) lê esse acervo, baixa,
+converte (EPUB/PDF/TXT) e envia para o Kindle.
 
-O objetivo inicial e simples: catalogar novels, baixar capas/metadados/capitulos com respeito a limites dos sites, armazenar tudo localmente no servidor e permitir que o usuario baixe/exporte os livros por uma interface desktop moderna.
+## Arquitetura
 
-## Visao geral
+- **Desktop** (`apps/desktop`) — Tauri 2 + React 19 + TypeScript + Vite.
+  Lê o acervo estático em `https://b2.jandson.me` (sem depender do servidor ligado).
+- **Backend** (`backend`) — FastAPI + scraper + pacote `publish/` que gera o
+  catálogo/bundles e sobe para o B2. Roda no servidor local (Docker Compose).
+- **Distribuição** — B2 (S3-compatível) + Cloudflare (egress grátis). O desktop
+  consome `index.json` → `catalog.json.gz` por site → bundles `.tar.gz` por novel.
 
-- Scrapers adaptaveis por site, com controle de velocidade, estado incremental e suporte a paginas estaticas ou renderizadas por JavaScript.
-- Armazenamento local no servidor, preferencialmente em `/srv`, com objetos grandes em storage S3-compativel e metadados em banco relacional.
-- Aplicativo desktop leve e multiplataforma para buscar novels, selecionar capitulos, baixar, exportar EPUB e futuramente gerenciar biblioteca local.
-- Fundacao preparada para recursos futuros de IA, como traducao assistida, TTS/audiobook e organizacao/exportacao para Kindle.
+## Rodando o desktop
 
-## Documentacao
+```bash
+cd apps/desktop
+npm install
+npm run tauri dev      # app completo (recompila o Rust)
+npm test               # vitest
+npx tsc --noEmit       # checagem de tipos
+```
 
-- [Arquitetura proposta](docs/ARCHITECTURE.md)
-- [Operacao local e monitoramento](docs/OPERATIONS.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Referencias de design e Figma](docs/references/README.md)
+Opcional: **Calibre** (`ebook-convert`) no PATH para gerar/enviar AZW3.
 
-## Backend local
+## Rodando o backend
 
-Backend atual no servidor:
+Ver `backend/HANDOFF.md`. Resumo: `docker compose up -d` (db + api) e
+`docker compose run --rm crawler python -m oghma.publish --source central-novel`
+para publicar no B2.
 
-- API: `http://192.168.0.42:8010`
-- Monitor visual do crawler: `http://192.168.0.42:8010/monitor`
-- Swagger/OpenAPI: `http://192.168.0.42:8010/docs`
+## Estrutura e manutenção
 
-O monitor visual atualiza sozinho e mostra progresso por run/fonte, obra atual, capitulo atual, heartbeat e alerta de possivel travamento.
+- Mapa dos diretórios: `docs/STRUCTURE.md`.
+- Distribuição/armazenamento: `docs/DISTRIBUTION.md`, `docs/STORAGE_SETUP.md`.
+- Kindle (detecção USB/MTP + WPD): `docs/KINDLE.md`.
+- Convenção: arquivos pequenos e coesos (< ~400 linhas), 1 componente por arquivo,
+  lógica em hooks. **Commits frequentes.**
 
-## Recomendacao inicial de stack
+## Documentação
 
-Para a primeira versao, a opcao mais equilibrada parece ser:
-
-- Backend/scraper: Python com Crawlee Python, Playwright, BeautifulSoup/lxml, SQLAlchemy, PostgreSQL e MinIO/S3.
-- Desktop: Tauri 2 com Rust no lado nativo e React/TypeScript no frontend.
-- Exportacao: EPUB como formato principal no MVP, com uma camada propria de geracao/exportacao para abrir caminho para Kindle depois.
-
-Essa combinacao favorece iteracao rapida nos scrapers, aplicativo leve no desktop e um caminho claro para empacotar em Windows, Linux e macOS.
-
-## Observacao legal e operacional
-
-O projeto deve ser pensado como ferramenta de preservacao e biblioteca pessoal. Cada conector precisa respeitar robots.txt quando aplicavel, limites de requisicao, atribuicao da fonte e regras de uso de cada site. O download em massa deve ser configuravel e cuidadoso para reduzir impacto nos servidores das comunidades.
+A pasta `docs/` reúne arquitetura, contratos de API, conectores, plano de
+refatoração e o resumo das sessões.
