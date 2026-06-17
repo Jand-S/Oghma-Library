@@ -37,9 +37,12 @@ fn save_export_file(output_dir: String, file_name: String, bytes: Vec<u8>) -> Re
 fn open_local_path(path: String) -> Result<(), String> {
     let path = expand_home(&path);
     fs::create_dir_all(&path).map_err(|err| format!("Nao foi possivel abrir/criar a pasta: {err}"))?;
+    let path = path
+        .canonicalize()
+        .map_err(|err| format!("Nao foi possivel resolver a pasta: {err}"))?;
 
     #[cfg(target_os = "windows")]
-    let status = Command::new("explorer").arg(&path).status();
+    let status = Command::new("explorer").arg(path.as_os_str()).status();
     #[cfg(target_os = "macos")]
     let status = Command::new("open").arg(&path).status();
     #[cfg(all(unix, not(target_os = "macos")))]

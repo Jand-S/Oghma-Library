@@ -21,6 +21,7 @@ venv/
 *.sqlite.gz
 *.tar.gz
 publish_state.json
+exports/
 
 # SO / editor
 .DS_Store

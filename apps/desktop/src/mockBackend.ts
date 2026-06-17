@@ -416,6 +416,7 @@ export const mockBackendClient: BackendClient = {
         novelId: novel.id,
         title: novel.title,
         coverClass: novel.coverClass,
+        coverUrl: novel.coverUrl,
         bundleKey: novel.bundleKey,
         preset: selection.preset,
         rangeStart: selection.start,

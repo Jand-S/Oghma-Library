@@ -787,7 +787,10 @@ export function DownloadsView({
                 const speed = `${(1.4 + (item.progress % 12) * 0.05).toFixed(1)} MB/s`;
                 return (
                   <article className={`download-row pending ${item.state}`} key={item.id}>
-                    <div className={`queue-thumb ${item.coverClass}`} />
+                    <div
+                      className={`queue-thumb ${item.coverClass}`}
+                      style={item.coverUrl ? { backgroundImage: `url("${item.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                    />
                     <div className="download-info">
                       <strong>{item.title}</strong>
                       <small>{item.rangeLabel}</small>
@@ -862,7 +865,10 @@ export function DownloadsView({
                     <span className={`row-check ${selected ? "active" : ""}`} aria-hidden="true">
                       {selected ? <Check size={11} /> : null}
                     </span>
-                    <div className={`queue-thumb ${item.coverClass}`} />
+                    <div
+                      className={`queue-thumb ${item.coverClass}`}
+                      style={item.coverUrl ? { backgroundImage: `url("${item.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                    />
                     <div className="download-info">
                       <strong>{item.title}</strong>
                       <small>{item.rangeLabel}</small>

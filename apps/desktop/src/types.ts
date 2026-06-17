@@ -69,6 +69,7 @@ export type QueueItem = {
   novelId: string;
   title: string;
   coverClass: string;
+  coverUrl?: string;
   bundleKey?: string;
   preset: ChapterPreset;
   rangeStart?: number;
