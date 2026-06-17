@@ -228,6 +228,9 @@ Os tipos de hoje sao **moldados para o mock**, nao para um backend real. O clien
 - `QueueItem.rangeLabel`, `progress`, `state`, `chaptersTotal`, `coverClass`, `bundleKey`, `outputDir`, `outputFiles`, `error` — sao estado de fila do desktop; no real vem de **status de job** (`GET /api/jobs/:id`). O adaptador converte job -> `QueueItem`.
 - `QueueItem.state` aceita `queued`, `downloading`, `done`, `paused` e `error`.
 - Downloads locais sao salvos em `AppConfig.outputPath/titulo-sanitizado`; o item concluido guarda `outputDir` e `outputFiles` para abrir a pasta correta.
+- O desktop tambem salva `cover.*` na pasta do livro quando houver capa no catalogo.
+- A biblioteca local e derivada da pasta `AppConfig.outputPath`: cada subpasta com arquivo `.epub`, `.pdf`, `.txt` ou `.html` vira um `LibraryItem`.
+- Conversao e uma operacao local sobre downloads concluidos: formatos ja existentes sao ignorados; formatos faltantes sao gerados a partir do `bundleKey`.
 - `SourceSite.count`, `lastSync` (string), `delayMs` — `count`/`lastSync` viram dados reais; `delayMs` (rate-limit) e detalhe de backend e pode sair do DTO publico.
 
 > Recomendacao: manter a UI estavel e concentrar TODA a traducao "DTO real -> tipo da UI" no cliente HTTP (`apps/desktop/src/services/httpBackendClient.ts`, a criar). Assim o backend evolui sem mexer em `appUi.tsx`.

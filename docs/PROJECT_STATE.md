@@ -235,3 +235,8 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - Cada livro e salvo em `outputPath/titulo-sanitizado`; o botao **Abrir pasta** abre a pasta de saida configurada e cada item concluido tem um botao para abrir sua propria pasta.
 - EPUB deixou de ser HTML intermediario: o desktop gera um `.epub` basico valido em ZIP/OPF/nav XHTML. PDF ainda usa HTML como base ate existir exportador dedicado.
 - Se o item nao tiver `bundleKey` publicado ou houver erro de escrita, a fila marca o item como `error` e mostra a mensagem no card.
+- Downloads concluidos agora entram desmarcados. A selecao e sempre uma acao explicita do usuario.
+- O antigo botao **Exportar** virou **Converter**. Ele abre um modal para gerar formatos faltantes, marcar traducao e marcar audiobook; formatos ja existentes sao ignorados.
+- Ao concluir um download, o livro ja passa a fazer parte da Biblioteca local automaticamente.
+- A Biblioteca local deve refletir a pasta `outputPath`: o desktop lista as subpastas de `exports`, entao itens apagados do disco somem do app na proxima sincronizacao/entrada na tela.
+- A capa da novel e salva junto do livro como `cover.*` quando `coverUrl` estiver disponivel, e a Biblioteca usa essa capa local.

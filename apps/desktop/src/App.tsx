@@ -11,6 +11,7 @@ import {
 import {
   DiscoverView,
   DownloadsView,
+  ConversionModal,
   KindleTransferModal,
   LibraryView,
   onboardingSteps,
@@ -25,7 +26,7 @@ import {
 } from "./appUi";
 import { defaultFilters, defaultSelection, mockBackendClient } from "./mockBackend";
 import { getErrorMessage, type BackendClient } from "./services/backendClient";
-import { joinPath, openLocalPath } from "./services/localFiles";
+import { joinPath, listLocalLibrary, openLocalPath, saveLocalFile } from "./services/localFiles";
 import { runDownload, sanitizeFileName } from "./services/downloadManager";
 import type {
   AppConfig,
@@ -36,6 +37,7 @@ import type {
   LibraryItem,
   Novel,
   QueueItem,
+  DownloadFormat,
   ServerProbe,
   SourceSite,
   ViewId
@@ -84,6 +86,12 @@ export function App({ backend = mockBackendClient }: AppProps) {
   const [kindleSending, setKindleSending] = useState(false);
   const [kindleCompleted, setKindleCompleted] = useState(false);
   const [kindleProgress, setKindleProgress] = useState(0);
+  const [converterOpen, setConverterOpen] = useState(false);
+  const [converterFormats, setConverterFormats] = useState<Set<DownloadFormat>>(new Set(["EPUB"]));
+  const [converterTranslate, setConverterTranslate] = useState(false);
+  const [converterAudiobook, setConverterAudiobook] = useState(false);
+  const [converterProgress, setConverterProgress] = useState(0);
+  const [converterRunning, setConverterRunning] = useState(false);
   const [toast, setToast] = useState("");
   const skippedInitialSearch = useRef(false);
   const processingDownloadRef = useRef<string | null>(null);
@@ -243,6 +251,48 @@ export function App({ backend = mockBackendClient }: AppProps) {
   const focusedNovel = useMemo(() => results.find((novel) => novel.id === focusedNovelId), [focusedNovelId, results]);
   const kindleConnected = kindleStatus?.connected ?? false;
 
+  const refreshLocalLibrary = () => {
+    void listLocalLibrary(appConfig.outputPath)
+      .then((items) => {
+        if (!items) return;
+        setLibrary(items.map((item) => {
+          const formats = item.files
+            .map((file) => file.split(".").pop()?.toUpperCase())
+            .filter((format): format is "EPUB" | "PDF" | "TXT" => format === "EPUB" || format === "PDF" || format === "TXT");
+          const known = results.find((novel) => sanitizeFileName(novel.title) === item.title || novel.title === item.title);
+          return {
+            id: `local-${item.outputDir}`,
+            title: item.title,
+            author: known?.author ?? "Desconhecido",
+            format: formats[0] ?? "EPUB",
+            formats,
+            chapters: known?.chapters ?? 0,
+            sizeMb: Math.max(1, Math.round(item.sizeBytes / 1024 / 1024)),
+            coverClass: known?.coverClass ?? "cover-c",
+            coverUrl: item.coverUrl,
+            outputDir: item.outputDir,
+            files: item.files,
+            exportedAt: "Local"
+          };
+        }));
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    if (loading) return;
+    refreshLocalLibrary();
+  }, [appConfig.outputPath, loading, results]);
+
+  const saveCoverForItem = async (item: QueueItem, outputDir: string) => {
+    if (!item.coverUrl) return;
+    const res = await fetch(item.coverUrl, { cache: "no-store" });
+    if (!res.ok) return;
+    const contentType = res.headers.get("content-type") ?? "";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    await saveLocalFile(outputDir, `cover.${ext}`, new Uint8Array(await res.arrayBuffer()));
+  };
+
   useEffect(() => {
     if (queuePaused || processingDownloadRef.current) return;
     const item = queue.find((entry) => entry.state === "downloading") ?? queue.find((entry) => entry.state === "queued");
@@ -274,6 +324,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
     )
       .then((files) => {
         setQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, state: "done", progress: 100, outputDir: itemOutputDir, outputFiles: files } : entry));
+        void saveCoverForItem(item, itemOutputDir).finally(refreshLocalLibrary);
         setToast(`${item.title} salvo em ${itemOutputDir}.`);
       })
       .catch((error: unknown) => {
@@ -289,10 +340,6 @@ export function App({ backend = mockBackendClient }: AppProps) {
     const newlyDone = queue.filter((item) => item.state === "done" && !autoSelectedRef.current.has(item.id));
     if (newlyDone.length === 0) return;
     newlyDone.forEach((item) => autoSelectedRef.current.add(item.id));
-    setSelectedQueueIds((ids) => {
-      const additions = newlyDone.map((item) => item.id).filter((id) => !ids.includes(id));
-      return additions.length > 0 ? [...ids, ...additions] : ids;
-    });
   }, [queue]);
 
   const selectedNovels = useMemo(
@@ -356,28 +403,58 @@ export function App({ backend = mockBackendClient }: AppProps) {
       return allSelected ? [] : selectable;
     });
 
-  const exportSelectedToLibrary = () => {
-    const items = queue.filter((item) => selectedQueueIds.includes(item.id) && item.state === "done");
+  const openConverter = () => {
+    if (selectedCompletedItems.length === 0) return;
+    setConverterFormats(new Set(appConfig.defaultFormats));
+    setConverterTranslate(false);
+    setConverterAudiobook(false);
+    setConverterProgress(0);
+    setConverterRunning(false);
+    setConverterOpen(true);
+  };
+
+  const closeConverter = () => {
+    if (converterRunning) return;
+    setConverterOpen(false);
+  };
+
+  const startConversion = () => {
+    const items = selectedCompletedItems;
     if (items.length === 0) return;
-    setLibrary((lib) => {
-      const additions = items
-        .filter((item) => !lib.some((entry) => entry.id === `lib-${item.id}`))
-        .map((item) => ({
-          id: `lib-${item.id}`,
-          title: item.title,
-          author: results.find((novel) => novel.id === item.novelId)?.author ?? "Desconhecido",
-          format: item.formats[0],
-          chapters: item.chaptersTotal,
-          sizeMb: Math.max(1, Math.round(item.chaptersTotal * 0.3)),
-          coverClass: item.coverClass,
-          exportedAt: "Agora"
-        }));
-      return [...additions, ...lib];
+    const requestedFormats = Array.from(converterFormats);
+    setConverterRunning(true);
+    setConverterProgress(5);
+    void (async () => {
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        const missing = requestedFormats.filter((format) => !item.formats.includes(format));
+        let generated: string[] = [];
+        if (missing.length > 0) {
+          generated = await runDownload({
+            serverUrl: appConfig.serverUrl,
+            novel: { id: item.novelId, title: item.title, bundleKey: item.bundleKey },
+            formats: missing,
+            outputDir: item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)),
+            range: item.preset === "range" && item.rangeStart && item.rangeEnd ? { start: item.rangeStart, end: item.rangeEnd } : undefined
+          });
+        }
+        setQueue((current) => current.map((entry) => entry.id === item.id ? {
+          ...entry,
+          formats: Array.from(new Set([...entry.formats, ...missing])),
+          outputFiles: Array.from(new Set([...(entry.outputFiles ?? []), ...generated])),
+          translate: entry.translate || converterTranslate,
+          audiobook: entry.audiobook || converterAudiobook
+        } : entry));
+        setConverterProgress(Math.round(((index + 1) / items.length) * 100));
+      }
+      refreshLocalLibrary();
+      setConverterRunning(false);
+      setConverterOpen(false);
+      setToast("Conversao concluida.");
+    })().catch((error: unknown) => {
+      setConverterRunning(false);
+      setToast(getErrorMessage(error, "Nao foi possivel converter os itens."));
     });
-    const ids = items.map((item) => item.id);
-    setQueue((current) => current.filter((item) => !ids.includes(item.id)));
-    setSelectedQueueIds([]);
-    setToast(`${items.length} item(ns) exportado(s) para a biblioteca.`);
   };
 
   const clearSelectedQueue = () => {
@@ -633,7 +710,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
               onPauseToggle={() => setQueuePaused((value) => !value)}
               onToggleSelect={toggleQueueSelect}
               onToggleSelectAll={toggleQueueSelectAll}
-              onExportSelected={exportSelectedToLibrary}
+              onExportSelected={openConverter}
               onClearSelected={clearSelectedQueue}
               onCancel={cancelDownload}
               onOpenFolder={openLibraryFolder}
@@ -641,7 +718,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
               onSendToKindle={openKindleTransfer}
             />
           ) : null}
-          {!bootError && activeView === "library" ? <LibraryView library={library} /> : null}
+          {!bootError && activeView === "library" ? <LibraryView library={library} onOpenFolder={openLibraryFolder} /> : null}
           {activeView === "settings" ? <SettingsView config={appConfig} onConfigChange={patchConfig} onOpenOnboarding={openOnboarding} /> : null}
         </div>
         <OnboardingWizard
@@ -670,6 +747,25 @@ export function App({ backend = mockBackendClient }: AppProps) {
           completed={kindleCompleted}
           onClose={closeKindleTransfer}
           onStart={startKindleTransfer}
+        />
+        <ConversionModal
+          open={converterOpen}
+          items={selectedCompletedItems}
+          formats={converterFormats}
+          translate={converterTranslate}
+          audiobook={converterAudiobook}
+          progress={converterProgress}
+          running={converterRunning}
+          onToggleFormat={(format) => setConverterFormats((current) => {
+            const next = new Set(current);
+            if (next.has(format) && next.size > 1) next.delete(format);
+            else next.add(format);
+            return next;
+          })}
+          onToggleTranslate={() => setConverterTranslate((value) => !value)}
+          onToggleAudiobook={() => setConverterAudiobook((value) => !value)}
+          onClose={closeConverter}
+          onStart={startConversion}
         />
         <footer className="statusbar">
           <div className="footer-meta">

@@ -125,9 +125,13 @@ export type LibraryItem = {
   title: string;
   author: string;
   format: DownloadFormat;
+  formats?: DownloadFormat[];
   chapters: number;
   sizeMb: number;
   coverClass: string;
+  coverUrl?: string;
+  outputDir?: string;
+  files?: string[];
   exportedAt: string;
 };
 

@@ -1,6 +1,13 @@
 import { isTauriRuntime } from "../windowControls";
 
 export type FileData = string | Uint8Array;
+export type LocalLibraryEntry = {
+  title: string;
+  outputDir: string;
+  files: string[];
+  coverUrl?: string;
+  sizeBytes: number;
+};
 
 type Invoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
@@ -50,4 +57,29 @@ export async function openLocalPath(path: string): Promise<boolean> {
   if (!invoke) return false;
   await invoke("open_local_path", { path });
   return true;
+}
+
+async function filePathToAssetUrl(path: string): Promise<string> {
+  try {
+    const mod = await import("@tauri-apps/api/core");
+    return mod.convertFileSrc(path);
+  } catch {
+    return path;
+  }
+}
+
+export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryEntry[] | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  const rows = await invoke<Array<{ title: string; output_dir: string; files: string[]; cover_path?: string | null; size_bytes: number }>>(
+    "list_export_library",
+    { outputDir }
+  );
+  return Promise.all(rows.map(async (row) => ({
+    title: row.title,
+    outputDir: row.output_dir,
+    files: row.files,
+    coverUrl: row.cover_path ? await filePathToAssetUrl(row.cover_path) : undefined,
+    sizeBytes: row.size_bytes
+  })));
 }

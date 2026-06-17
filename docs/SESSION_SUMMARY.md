@@ -41,7 +41,7 @@ Estado consolidado para o próximo agente (codex) continuar.
   npm bloqueado) — rodar `npm test` na máquina Windows.
 
 ## Pendências (prioridade aproximada)
-1. **Evoluir exportadores**: EPUB basico ja e gerado no desktop; PDF ainda usa HTML intermediario ate termos renderizador dedicado.
+1. **Evoluir exportadores**: EPUB basico ja e gerado no desktop; PDF ainda usa HTML intermediario ate termos renderizador dedicado. O fluxo de conversao local ja ignora formatos existentes e gera apenas faltantes.
    Requer `@tauri-apps/plugin-fs` (npm + Cargo + capabilities) para gravar em disco; sem ele cai no
    download do navegador.
 2. **EPUB/PDF reais** — hoje TXT é real e EPUB/PDF geram HTML autocontido como base.

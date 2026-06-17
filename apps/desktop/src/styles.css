@@ -1512,7 +1512,7 @@ select:focus {
   grid-template-columns: 44px minmax(0, 1fr) auto;
   padding-right: 30px;
   cursor: pointer;
-  min-height: 104px;
+  min-height: 88px;
 }
 
 .download-row.complete:hover {
@@ -1627,8 +1627,9 @@ select:focus {
 }
 
 .row-folder {
-  align-self: start;
-  margin-top: 24px;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
 }
 
 .library-grid {
@@ -2096,6 +2097,24 @@ select:focus {
 .pane-header h3 { font-size: 14px; }
 .pane-header span { color: var(--text-dim); font-size: 12px; }
 .pane-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.select-all-button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text-dim);
+}
+.select-all-button:hover:not(:disabled) {
+  border-color: var(--accent-muted);
+  color: var(--text);
+  background: var(--panel-2);
+}
+.select-all-button:disabled {
+  opacity: 0.45;
+}
 .action-hint {
   margin: 0 0 8px;
   padding: 6px 10px;

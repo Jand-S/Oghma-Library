@@ -818,7 +818,7 @@ export function DownloadsView({
               <span>{selectedCount > 0 ? `${selectedCount} selecionado(s)` : `${completed.length} item(ns)`}</span>
             </div>
             <div className="pane-actions">
-              <button className="icon-button small" title={allSelected ? "Limpar selecao" : "Selecionar todos"} aria-label="Selecionar todos" onClick={onToggleSelectAll} disabled={completed.length === 0}>
+              <button className="select-all-button" title={allSelected ? "Limpar selecao" : "Selecionar todos"} aria-label="Selecionar todos" onClick={onToggleSelectAll} disabled={completed.length === 0}>
                 {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
               </button>
               {kindleConnected ? (
@@ -842,8 +842,8 @@ export function DownloadsView({
                 Limpar
               </button>
               <button className="button primary compact" onClick={onExportSelected} disabled={selectedCount === 0}>
-                <Library size={15} />
-                Exportar
+                <RefreshCcw size={15} />
+                Converter
               </button>
             </div>
           </div>
@@ -872,12 +872,9 @@ export function DownloadsView({
                     <div className="download-info">
                       <strong>{item.title}</strong>
                       <small>{item.rangeLabel}</small>
-                      {item.outputFiles && item.outputFiles.length > 0 ? (
-                        <small>{item.outputFiles.join(", ")}</small>
-                      ) : null}
                       <div className="queue-badges">
                         {item.formats.map((format) => (
-                          <span className="badge" key={format}>{format}</span>
+                          <span className="badge" key={format} title={item.outputFiles?.filter((file) => file.toLowerCase().endsWith(`.${format.toLowerCase()}`)).join(", ") || format}>{format}</span>
                         ))}
                         {item.translate ? <span className="badge accent"><Languages size={11} /> Traduzir</span> : null}
                         {item.audiobook ? <span className="badge accent"><Headphones size={11} /> Audiobook</span> : null}
@@ -902,6 +899,96 @@ export function DownloadsView({
         </section>
       </div>
     </section>
+  );
+}
+
+export function ConversionModal({
+  open,
+  items,
+  formats,
+  translate,
+  audiobook,
+  progress,
+  running,
+  onToggleFormat,
+  onToggleTranslate,
+  onToggleAudiobook,
+  onClose,
+  onStart
+}: {
+  open: boolean;
+  items: QueueItem[];
+  formats: Set<DownloadFormat>;
+  translate: boolean;
+  audiobook: boolean;
+  progress: number;
+  running: boolean;
+  onToggleFormat: (format: DownloadFormat) => void;
+  onToggleTranslate: () => void;
+  onToggleAudiobook: () => void;
+  onClose: () => void;
+  onStart: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="conversion-modal-title">
+        <div className="modal-header">
+          <div>
+            <h2 id="conversion-modal-title">Converter downloads</h2>
+            <span>{items.length} livro(s) selecionado(s)</span>
+          </div>
+          <button className="icon-button small" aria-label="Fechar modal" onClick={onClose} disabled={running}>
+            <X size={15} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p>Formatos ja existentes serao ignorados. O app so gera o que estiver faltando na pasta de cada livro.</p>
+          <div className="format-options">
+            {downloadFormats.map((format) => (
+              <button
+                key={format}
+                className={`format-chip ${formats.has(format) ? "active" : ""}`}
+                aria-pressed={formats.has(format)}
+                onClick={() => onToggleFormat(format)}
+                disabled={running}
+              >
+                {format}
+              </button>
+            ))}
+          </div>
+          <div className="modal-list">
+            {items.map((item) => (
+              <span className="badge" key={item.id}>{item.title}</span>
+            ))}
+          </div>
+          <div className="format-options">
+            <button className={`format-chip ${translate ? "active" : ""}`} onClick={onToggleTranslate} disabled={running}>
+              <Languages size={13} />
+              Traduzir
+            </button>
+            <button className={`format-chip ${audiobook ? "active" : ""}`} onClick={onToggleAudiobook} disabled={running}>
+              <Headphones size={13} />
+              Audiobook
+            </button>
+          </div>
+          <div className="kindle-progress-block">
+            <div className="kindle-progress-header">
+              <strong>{running ? "Convertendo" : "Pronto para converter"}</strong>
+              <span>{Math.round(progress)}%</span>
+            </div>
+            <div className="progress"><span style={{ width: `${progress}%` }} /></div>
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button className="button quiet" onClick={onClose} disabled={running}>Cancelar</button>
+          <button className="button primary" onClick={onStart} disabled={running || items.length === 0}>
+            {running ? "Convertendo..." : "Converter"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1317,11 +1404,11 @@ export function OnboardingWizard({
   );
 }
 
-export function LibraryView({ library }: { library: LibraryItem[] }) {
+export function LibraryView({ library, onOpenFolder }: { library: LibraryItem[]; onOpenFolder: () => void }) {
   return (
     <section className="page-area full-span">
       <div className="page-header">
-        <button className="button quiet">
+        <button className="button quiet" onClick={onOpenFolder}>
           <FolderOpen size={16} />
           Abrir pasta
         </button>
@@ -1329,11 +1416,14 @@ export function LibraryView({ library }: { library: LibraryItem[] }) {
       <div className="library-grid">
         {library.map((item) => (
           <article className="library-card" key={item.id}>
-            <div className={`book-cover ${item.coverClass}`} />
+            <div
+              className={`book-cover ${item.coverClass}`}
+              style={item.coverUrl ? { backgroundImage: `url("${item.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+            />
             <div>
               <strong>{item.title}</strong>
               <small>{item.author}</small>
-              <p>{item.format} - {item.chapters} capitulos - {item.sizeMb} MB</p>
+              <p>{(item.formats?.length ? item.formats : [item.format]).join(", ")} - {item.chapters || "?"} capitulos - {item.sizeMb} MB</p>
             </div>
             <button className="icon-button small" title="Exportar">
               <ExternalLink size={15} />

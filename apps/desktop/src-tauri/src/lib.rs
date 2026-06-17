@@ -2,6 +2,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct ExportLibraryItem {
+    title: String,
+    output_dir: String,
+    files: Vec<String>,
+    cover_path: Option<String>,
+    size_bytes: u64,
+}
+
 fn expand_home(path: &str) -> PathBuf {
     if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
         if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
@@ -59,10 +70,61 @@ fn open_local_path(path: String) -> Result<(), String> {
         })
 }
 
+#[tauri::command]
+fn list_export_library(output_dir: String) -> Result<Vec<ExportLibraryItem>, String> {
+    let root = expand_home(&output_dir);
+    if !root.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut items = Vec::new();
+    for entry in fs::read_dir(&root).map_err(|err| format!("Nao foi possivel ler a pasta de saida: {err}"))? {
+        let entry = entry.map_err(|err| format!("Nao foi possivel ler um item da pasta: {err}"))?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let mut files = Vec::new();
+        let mut cover_path = None;
+        let mut size_bytes = 0;
+        for file in fs::read_dir(&path).map_err(|err| format!("Nao foi possivel ler uma pasta de livro: {err}"))? {
+            let file = file.map_err(|err| format!("Nao foi possivel ler um arquivo exportado: {err}"))?;
+            let file_path = file.path();
+            if !file_path.is_file() {
+                continue;
+            }
+            let name = file.file_name().to_string_lossy().to_string();
+            let lower = name.to_lowercase();
+            size_bytes += file.metadata().map(|m| m.len()).unwrap_or(0);
+            if lower.starts_with("cover.") {
+                cover_path = Some(file_path.to_string_lossy().to_string());
+            } else if lower.ends_with(".epub") || lower.ends_with(".pdf") || lower.ends_with(".txt") || lower.ends_with(".html") {
+                files.push(name);
+            }
+        }
+
+        if files.is_empty() {
+            continue;
+        }
+        files.sort();
+        items.push(ExportLibraryItem {
+            title: entry.file_name().to_string_lossy().to_string(),
+            output_dir: path.to_string_lossy().to_string(),
+            files,
+            cover_path,
+            size_bytes,
+        });
+    }
+
+    items.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+    Ok(items)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![save_export_file, open_local_path])
+        .invoke_handler(tauri::generate_handler![save_export_file, open_local_path, list_export_library])
         .run(tauri::generate_context!())
         .expect("error while running Oghma Library");
 }
