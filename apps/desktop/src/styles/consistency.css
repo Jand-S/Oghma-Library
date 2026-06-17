@@ -1,0 +1,44 @@
+/* ===== Consistência visual de controles =====
+   Centraliza as alturas pra eliminar botões/chips com tamanhos levemente
+   diferentes entre as telas. Importado por último (vence empates de cascata). */
+
+/* Altura padrão = 36px (igual a .button, input e select). icon-button vira quadrado. */
+.icon-button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+}
+
+/* Variantes compactas alinhadas entre si em 30px. */
+.button.compact,
+.icon-button.small {
+  height: 30px;
+  min-height: 30px;
+}
+.icon-button.small {
+  width: 30px;
+  min-width: 30px;
+}
+
+/* Chips e toggles (filtros, formatos, opções) todos em 30px. */
+.chip,
+.active-filter-row span,
+.active-filter-row button,
+.option-toggle,
+.format-chip {
+  min-height: 30px;
+  height: 30px;
+}
+
+/* Select inline (faixa de capítulos) alinhado aos chips. */
+.field-inline select {
+  min-height: 30px;
+  height: 30px;
+}
+
+/* Gap interno dos cards uniforme (igual settings-panel). */
+.source-card {
+  gap: 10px;
+}

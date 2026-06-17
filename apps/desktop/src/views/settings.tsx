@@ -14,12 +14,6 @@ export function SettingsView({
 }) {
   return (
     <section className="page-area full-span">
-      <div className="page-header">
-        <button className="button quiet" onClick={onOpenOnboarding}>
-          <Settings size={15} />
-          Assistente inicial
-        </button>
-      </div>
       <div className="settings-grid">
         <article className="settings-panel">
           <h3>Servidor</h3>
@@ -39,6 +33,10 @@ export function SettingsView({
               ))}
             </select>
           </div>
+          <button className="button quiet" onClick={onOpenOnboarding}>
+            <Settings size={15} />
+            Assistente inicial
+          </button>
         </article>
 
         <article className="settings-panel">

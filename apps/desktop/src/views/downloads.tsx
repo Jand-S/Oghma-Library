@@ -35,7 +35,7 @@ export function DownloadsView({
               <h3>Em andamento</h3>
               <span>{pending.length} item(ns)</span>
             </div>
-            <button className="button quiet compact" onClick={onPauseToggle} disabled={pending.length === 0}>
+            <button className="button quiet" onClick={onPauseToggle} disabled={pending.length === 0}>
               {paused ? <Play size={15} /> : <Pause size={15} />}
               {paused ? "Retomar" : "Pausar"}
             </button>
@@ -85,7 +85,7 @@ export function DownloadsView({
               <span>{completed.length} item(ns)</span>
             </div>
             <div className="pane-actions">
-              <button className="button quiet compact" onClick={onClearCompleted} disabled={completed.length === 0}>
+              <button className="button quiet" onClick={onClearCompleted} disabled={completed.length === 0}>
                 <Trash2 size={15} />
                 Limpar
               </button>
