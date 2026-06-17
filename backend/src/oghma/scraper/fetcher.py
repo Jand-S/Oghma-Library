@@ -18,7 +18,12 @@ from .base import RawPage
 
 
 class HttpFetcher:
-    def __init__(self, rate_limit_seconds: float | None = None, headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        rate_limit_seconds: float | None = None,
+        headers: dict[str, str] | None = None,
+        http2: bool = True,
+    ) -> None:
         s = get_settings()
         self.rate_limit_seconds = rate_limit_seconds or s.default_rate_limit_seconds
         self._last: dict[str, float] = {}
@@ -33,7 +38,7 @@ class HttpFetcher:
             headers=client_headers,
             timeout=s.request_timeout_seconds,
             follow_redirects=True,
-            http2=True,
+            http2=http2,
         )
 
     async def _throttle(self, host: str) -> None:

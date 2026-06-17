@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 30.0
     fts_language: str = "portuguese"
     house_saikai_bearer: str | None = None
+    sky_demon_order_cookie: str | None = None
 
 
 @lru_cache

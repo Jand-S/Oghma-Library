@@ -135,7 +135,7 @@ async def crawl_source(
     connector = registry.get(source_id)
     headers_provider = getattr(connector, "request_headers", None)
     headers = headers_provider() if callable(headers_provider) else getattr(connector, "headers", None)
-    fetcher = HttpFetcher(connector.rate_limit_seconds, headers=headers)
+    fetcher = HttpFetcher(connector.rate_limit_seconds, headers=headers, http2=getattr(connector, "http2", True))
     run = CrawlRun(source_id=source_id, status="running")
     session.add(run)
     await session.commit()

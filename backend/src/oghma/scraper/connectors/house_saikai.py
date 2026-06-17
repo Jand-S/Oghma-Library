@@ -40,6 +40,7 @@ def _first_text_from_html(value: str | None) -> str | None:
         return None
     tree = HTMLParser(value.encode("utf-8"))
     text = tree.text(separator=" ", strip=True)
+    text = re.sub(r"\s+([.,;:!?])", r"\1", text)
     return text or None
 
 

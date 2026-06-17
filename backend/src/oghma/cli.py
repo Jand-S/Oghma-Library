@@ -83,7 +83,7 @@ def probe(url: str, source: str = "central-novel") -> None:
         connector = registry.get(source)
         headers_provider = getattr(connector, "request_headers", None)
         headers = headers_provider() if callable(headers_provider) else getattr(connector, "headers", None)
-        fetcher = HttpFetcher(connector.rate_limit_seconds, headers=headers)
+        fetcher = HttpFetcher(connector.rate_limit_seconds, headers=headers, http2=getattr(connector, "http2", True))
         try:
             raw = await fetcher.get(url)
         finally:
