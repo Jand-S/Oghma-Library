@@ -329,7 +329,7 @@ MONITOR_HTML = """<!doctype html>
 
       <aside class="panel">
         <h2>Resumo operacional</h2>
-        <button id="publishButton" class="action-button" type="button">Publicar no B2</button>
+        <button id="publishButton" class="action-button" type="button">Publicar todos no B2</button>
         <div id="publishStatus" class="publish-status">
           <strong>Publish</strong>
           <span>consultando status...</span>
@@ -441,16 +441,20 @@ MONITOR_HTML = """<!doctype html>
     function renderPublish(job) {
       if (!job || !job.status) return "<strong>Publish</strong><span>status indisponivel</span>";
       if (job.status === "running") {
-        return `<strong>Publish em andamento</strong><span>Fonte: ${text(job.source, "central-novel")}</span><span>Inicio: ${formatDateTime(job.startedAt)}</span>`;
+        return `<strong>Publish em andamento</strong><span>Fonte: ${text(job.source, "all")}</span><span>Inicio: ${formatDateTime(job.startedAt)}</span>`;
       }
       if (job.status === "done") {
         const s = job.summary || {};
-        return `<strong>Ultimo publish concluido</strong><span>${fmt.format(asNumber(s.novels))} novels · ${fmt.format(asNumber(s.bundles_changed))} bundles · ${fmt.format(asNumber(s.covers))} capas</span><span>${text(s.catalog_json_key, "catalogo json nao informado")}</span>`;
+        const sourceLabel = s.source_count ? `${fmt.format(asNumber(s.source_count))} sites · ` : "";
+        const catalogLabel = s.sources
+          ? s.sources.map((item) => `${item.source}: ${text(item.summary?.catalog_json_key, "-")}`).join(" | ")
+          : text(s.catalog_json_key, "catalogo json nao informado");
+        return `<strong>Ultimo publish concluido</strong><span>${sourceLabel}${fmt.format(asNumber(s.novels))} novels · ${fmt.format(asNumber(s.bundles_changed))} bundles · ${fmt.format(asNumber(s.covers))} capas</span><span>${catalogLabel}</span>`;
       }
       if (job.status === "error") {
         return `<strong>Publish com erro</strong><span>${text(job.error, "erro desconhecido")}</span>`;
       }
-      return `<strong>Publish</strong><span>pronto para publicar no B2</span>`;
+      return `<strong>Publish</strong><span>pronto para publicar todos os sites no B2</span>`;
     }
 
     async function loadPublish() {
@@ -460,7 +464,7 @@ MONITOR_HTML = """<!doctype html>
         const job = await res.json();
         $("publishStatus").innerHTML = renderPublish(job);
         $("publishButton").disabled = job.status === "running";
-        $("publishButton").textContent = job.status === "running" ? "Publicando..." : "Publicar no B2";
+        $("publishButton").textContent = job.status === "running" ? "Publicando..." : "Publicar todos no B2";
       } catch (error) {
         $("publishStatus").innerHTML = `<strong>Publish</strong><span>nao consegui consultar o status</span>`;
         $("publishButton").disabled = false;
@@ -472,7 +476,7 @@ MONITOR_HTML = """<!doctype html>
       $("publishButton").textContent = "Disparando...";
       $("publishStatus").innerHTML = `<strong>Publish</strong><span>iniciando publicacao...</span>`;
       try {
-        const res = await fetch("/api/publish/run", { method: "POST" });
+        const res = await fetch("/api/publish/run?source=all", { method: "POST" });
         if (!res.ok) throw new Error("falha ao iniciar publish");
         const payload = await res.json();
         $("publishStatus").innerHTML = renderPublish(payload.job);

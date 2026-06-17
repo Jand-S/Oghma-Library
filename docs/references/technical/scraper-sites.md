@@ -87,11 +87,24 @@ Status da verificacao real no servidor (16/06/2026):
 ## Novel Mania  (segunda rodada)
 
 - URL base: https://novelmania.com.br/
-- Tipo: **provavel `javascript_required`** (ou com protecao anti-bot).
+- Tipo: **api_available + HTML SSR hidratado**.
 - Analise (16/06/2026): pela ferramenta de fetch HTTP usada, **nem a home (`/`) nem `/novels` devolveram conteudo** - retorno vazio. A Central Novel, no mesmo fetcher, devolveu HTML completo. Esse contraste indica que a Novel Mania **nao serve o catalogo em HTML estatico**: ou e SPA (renderiza no cliente) ou bloqueia agentes nao-navegador (ex.: desafio Cloudflare).
-- Sobre API: o dominio nao e WordPress, entao nao ha `/wp-json/`. Plataformas custom (Rails/Laravel/Next) frequentemente expoem endpoints JSON que o proprio front consome (`/api/...`, variantes `.json`, ou chamadas XHR/GraphQL). **Esses endpoints so dao para descobrir abrindo o site num navegador real e olhando a aba Network/DevTools** - nao da para inferir pelo fetch simples.
-- Estrategia recomendada quando chegar a vez:
-  1. Abrir no navegador e inspecionar a aba Network para achar a API XHR/JSON que a SPA usa (esse costuma ser o ponto de integracao mais limpo).
-  2. Se nao houver API utilizavel, usar um conector `javascript_required` com Playwright/headless para renderizar e raspar.
-  3. Revisar `robots.txt` e termos antes de qualquer coleta.
-- Status: **fica para a segunda rodada**, depois que o caminho fim-a-fim estiver provado com a Central Novel.
+- Atualizacao codex (17/06/2026): via navegador/web, `/novels` mostrou HTML textual com **426 novels encontradas**
+  e links de obras como `/novels/86-oitenta-e-seis`. A pagina individual de `86: Eighty Six` abriu com metadados
+  basicos, mas sem conteudo/capitulos visiveis no HTML textual. Foi criado o conector `novel-mania` com parsing
+  conservador de listagem, metatags e links de capitulos quando existirem no HTML/hidratacao; se os capitulos nao
+  vierem sem JavaScript/API, ele retorna lista vazia e nao inventa dados.
+- Atualizacao codex (17/06/2026, segunda rodada): o frontend usa base `/api`.
+  - Catalogo paginado: `GET /api/novels?page=<n>&items=100`.
+  - Metadados da obra: `GET /api/novels/<slug>`.
+  - Capitulos: `GET /api/novels/<slug>/chapters?page=<n>&items=100&sort=asc`.
+  - Conteudo do capitulo: a rota publica `/novels/<slug>/capitulos/<chapterSlug>` retorna HTML com payload
+    TanStack Start em script `$tsr`; o campo `chapter.content` vem serializado como string JS com escapes
+    `\x3C...`. O conector extrai esse `content`, decodifica e passa pelo normalizador semantico.
+  - O endpoint direto `GET /api/novels/<slug>/chapters/<chapterSlug>` respondeu 403 fora do loader interno,
+    entao nao usar esse caminho para conteudo.
+- Status: **conector funcional**. Validado no servidor com:
+  - testes container: `test_publish.py` -> 6 passed; `test_novel_mania.py` -> 7 passed.
+  - probe live: descobriu 5 obras, listou capitulos, baixou e normalizou o primeiro capitulo.
+  - crawl real pequeno: `oghma crawl --source novel-mania --limit 2 --chapter-limit 2` salvou 2 novels,
+    4 capitulos e 2 capas, com 0 erros.

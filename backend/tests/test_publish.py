@@ -11,6 +11,7 @@ from oghma.publish.catalog import build_catalog, cover_key
 from oghma.publish.covers import plan_covers
 from oghma.publish.hashing import content_hash
 from oghma.publish.records import ChapterRecord, NovelRecord, SourceRecord
+from oghma.publish.runner import _index_from_state
 
 
 def _novel(with_cover=True):
@@ -97,6 +98,32 @@ def test_plan_covers():
     assert len(plan) == 1
     assert plan[0]["key"] == "covers/central-novel/supreme-magus.jpg"
     assert plan[0]["content_type"] == "image/jpeg"
+
+
+def test_index_from_state_keeps_multiple_sites():
+    state = {
+        "novels": {},
+        "sites": {
+            "central-novel": {
+                "id": "central-novel",
+                "name": "Central Novel",
+                "catalogKey": "catalog/central.sqlite.gz",
+                "catalogVersion": 3,
+            },
+            "novel-mania": {
+                "id": "novel-mania",
+                "name": "Novel Mania",
+                "catalogKey": "catalog/novel-mania.sqlite.gz",
+                "catalogVersion": 1,
+            },
+        },
+    }
+
+    index = _index_from_state(state)
+
+    assert index["schema"] == 1
+    assert {site["id"] for site in index["sites"]} == {"central-novel", "novel-mania"}
+    assert len(index["sites"]) == 2
 
 
 if __name__ == "__main__":

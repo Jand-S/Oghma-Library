@@ -1,6 +1,7 @@
 # Botão "Publicar no B2" no /monitor (guia para o codex)
 
-Objetivo: um botão no painel `/monitor` que dispara `oghma publish --source central-novel`
+Objetivo: um botão no painel `/monitor` que dispara publish no B2. O padrão atual é `source=all`,
+publicando em sequência todas as fontes habilitadas que possuem novels no banco.
 sem `--no-upload`, mostra o andamento e o resultado (sucesso/erro + resumo).
 
 O `runner.run()` já é **async** e usa `get_settings()` + `SessionLocal` (os mesmos do
@@ -52,7 +53,7 @@ from ..api import publish_jobs
 router = APIRouter()
 
 @router.post("/api/publish/run")
-async def publish_run(background: BackgroundTasks, source: str = "central-novel"):
+async def publish_run(background: BackgroundTasks, source: str = "all"):
     snap = publish_jobs.snapshot()
     if snap["status"] == "running":
         return {"ok": False, "reason": "already_running", "job": snap}
@@ -87,7 +88,7 @@ async function poll() {
 }
 document.getElementById("btn-publish").onclick = async () => {
   el.textContent = "disparando…";
-  await fetch("/api/publish/run", { method: "POST" });
+  await fetch("/api/publish/run?source=all", { method: "POST" });
   poll();
 };
 poll();
@@ -100,7 +101,7 @@ poll();
   e só persiste o `publish_state.json` se o upload real terminou. Se cair no meio, o
   `index.json` antigo continua válido (clientes não quebram).
 - O resumo agora inclui `catalog_json_key` (o catálogo leve que o desktop consome).
-- Para multi-site no futuro: aceite `source` no POST e, se quiser, faça um loop pelos
+- Para multi-site: aceite `source` no POST; `source=all` faz loop pelos
   sites habilitados antes de subir o `index.json` (ele é montado a partir do state, então
   publicar cada site sequencialmente já agrega todos no índice).
 - Se preferir isolar o publish do processo da API (memória/CPU), troque o BackgroundTask por

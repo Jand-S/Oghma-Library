@@ -1,1 +1,1 @@
-from . import central_novel  # noqa: F401  (registra o conector ao importar o pacote)
+from . import central_novel, novel_mania  # noqa: F401  (registra os conectores ao importar o pacote)

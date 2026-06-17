@@ -189,7 +189,7 @@ async def stats(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/publish/run")
-async def publish_run(background: BackgroundTasks, source: str = "central-novel"):
+async def publish_run(background: BackgroundTasks, source: str = "all"):
     ok, job = await publish_jobs.start_publish(source)
     if not ok:
         return {"ok": False, "reason": "already_running", "job": job}

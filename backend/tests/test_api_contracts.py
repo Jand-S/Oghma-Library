@@ -49,7 +49,8 @@ def test_monitor_page_polls_crawl_and_stats_endpoints():
 def test_monitor_page_contains_publish_controls():
     assert 'id="publishButton"' in MONITOR_HTML
     assert 'fetch("/api/publish/status"' in MONITOR_HTML
-    assert 'fetch("/api/publish/run"' in MONITOR_HTML
+    assert 'fetch("/api/publish/run?source=all"' in MONITOR_HTML
+    assert "Publicar todos no B2" in MONITOR_HTML
 
 
 @pytest.mark.asyncio
@@ -66,3 +67,16 @@ async def test_publish_job_rejects_concurrent_start():
     assert job["status"] == "running"
 
     await publish_jobs.reset_for_tests()
+
+
+def test_publish_summary_combines_multiple_sources():
+    summary = publish_jobs._combine_summaries([
+        {"source": "central-novel", "summary": {"novels": 10, "bundles_changed": 2, "covers": 1, "uploaded": True}},
+        {"source": "novel-mania", "summary": {"novels": 5, "bundles_changed": 3, "covers": 4, "uploaded": True}},
+    ])
+
+    assert summary["source_count"] == 2
+    assert summary["novels"] == 15
+    assert summary["bundles_changed"] == 5
+    assert summary["covers"] == 5
+    assert summary["uploaded"] is True

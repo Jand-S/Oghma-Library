@@ -42,6 +42,11 @@ sobrescrever (evita cache/condicao de corrida e deixa rollback trivial).
 }
 ```
 
+Validacao atual (17/06/2026): a implementacao de `oghma.publish.runner` monta o `index.json` a partir de
+`publish_state["sites"]`, preservando os sites ja publicados e atualizando apenas o `source` corrente. Foi
+adicionado teste cobrindo `central-novel` + `novel-mania` no mesmo manifesto. Observacao operacional: evitar
+dois `publish` simultaneos, porque ambos escrevem o mesmo `publish_state.json` e o mesmo `index.json`.
+
 ## 2. Esquema do `catalog.sqlite`
 
 ```sql

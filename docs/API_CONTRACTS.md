@@ -123,7 +123,9 @@ Detalhes operacionais, comandos de apoio e interpretacao dos campos ficam em [OP
 Dispara um publish real para o B2/Cloudflare usando o `oghma.publish.runner.run()` dentro do processo da API.
 
 Query:
-- `source` opcional, default `central-novel`.
+- `source` opcional, default `all`.
+- `source=all`: publica sequencialmente todas as fontes habilitadas que possuem novels no banco.
+- `source=<id>`: publica apenas uma fonte, ex.: `central-novel` ou `novel-mania`.
 
 Resposta quando inicia:
 ```json
@@ -131,7 +133,7 @@ Resposta quando inicia:
   "ok": true,
   "job": {
     "status": "running",
-    "source": "central-novel",
+    "source": "all",
     "startedAt": 1781640000.0,
     "finishedAt": null,
     "summary": null,

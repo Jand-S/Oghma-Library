@@ -47,6 +47,13 @@ def seed_sources() -> None:
             mode="static_html",
             rate_limit_seconds=2.0,
         ),
+        dict(
+            id="novel-mania",
+            name="Novel Mania",
+            base_url="https://novelmania.com.br/",
+            mode="static_html",
+            rate_limit_seconds=2.5,
+        ),
     ]
 
     async def _run() -> None:
