@@ -204,6 +204,7 @@
 
 .button {
   min-height: 36px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -242,6 +243,7 @@
 }
 
 .button.compact {
+  height: 30px;
   min-height: 30px;
   padding: 0 10px;
   font-size: 12px;
@@ -795,6 +797,14 @@
   grid-template-columns: 240px minmax(0, 1fr) 300px;
 }
 
+.library-workspace.filters-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.library-workspace.filters-hidden.detail-open {
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+
 .library-filter-panel,
 .library-detail-panel,
 .library-results {
@@ -812,6 +822,10 @@
   overflow: hidden;
   padding: 14px 14px 0 0;
   box-sizing: border-box;
+}
+
+.library-workspace.filters-hidden .library-results {
+  padding-left: 14px;
 }
 
 .library-book-grid {

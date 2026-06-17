@@ -209,6 +209,10 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Biblioteca" }));
     expect(screen.getByRole("heading", { name: "Filtros" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ocultar filtros" }));
+    expect(screen.queryByRole("heading", { name: "Filtros" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
+    expect(screen.getByRole("heading", { name: "Filtros" })).toBeInTheDocument();
     expect(screen.queryByText("Sinopse")).not.toBeInTheDocument();
 
     const title = screen.getAllByText("To Kill a Mockingbird").find((element) => element.closest(".library-book-card")) as HTMLElement;

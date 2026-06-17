@@ -2,7 +2,8 @@ import {
   Check,
   FolderOpen,
   RefreshCcw,
-  Search
+  Search,
+  SlidersHorizontal
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DownloadFormat, LibraryItem } from "../core/types";
@@ -31,6 +32,7 @@ export function LibraryView({
 }: LibraryViewProps) {
   const [query, setQuery] = useState("");
   const [format, setFormat] = useState<DownloadFormat | "all">("all");
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -51,44 +53,50 @@ export function LibraryView({
   };
 
   return (
-    <section className={`library-workspace full-span ${selectedItem ? "detail-open" : ""}`}>
-      <aside className="filter-panel library-filter-panel">
-        <div className="panel-header">
-          <div>
-            <h2>Filtros</h2>
-            <span>Biblioteca local</span>
+    <section className={`library-workspace full-span ${filtersCollapsed ? "filters-hidden" : ""} ${selectedItem ? "detail-open" : ""}`}>
+      {!filtersCollapsed ? (
+        <aside className="filter-panel library-filter-panel">
+          <div className="panel-header">
+            <div>
+              <h2>Filtros</h2>
+              <span>Biblioteca local</span>
+            </div>
           </div>
-        </div>
-        <div className="field-group">
-          <label htmlFor="library-query">Busca</label>
-          <div className="input-with-icon">
-            <Search size={16} />
-            <input id="library-query" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <div className="field-group">
+            <label htmlFor="library-query">Busca</label>
+            <div className="input-with-icon">
+              <Search size={16} />
+              <input id="library-query" value={query} onChange={(event) => setQuery(event.target.value)} />
+            </div>
           </div>
-        </div>
-        <div className="field-group">
-          <label htmlFor="library-format">Formato</label>
-          <select id="library-format" value={format} onChange={(event) => setFormat(event.target.value as DownloadFormat | "all")}>
-            {formatOptions.map((option) => (
-              <option value={option} key={option}>
-                {option === "all" ? "Todos" : option}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="library-summary-box">
-          <strong>{filtered.length}</strong>
-          <span>livro(s) encontrados</span>
-        </div>
-      </aside>
+          <div className="field-group">
+            <label htmlFor="library-format">Formato</label>
+            <select id="library-format" value={format} onChange={(event) => setFormat(event.target.value as DownloadFormat | "all")}>
+              {formatOptions.map((option) => (
+                <option value={option} key={option}>
+                  {option === "all" ? "Todos" : option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="library-summary-box">
+            <strong>{filtered.length}</strong>
+            <span>livro(s) encontrados</span>
+          </div>
+        </aside>
+      ) : null}
 
       <section className="library-results">
         <div className="pane-header">
           <div>
             <h3>Livros</h3>
-            <span>{selectedCount > 0 ? `${selectedCount} selecionado(s)` : `${library.length} livro(s)`}</span>
+            <span>{selectedCount > 0 ? `${selectedCount} selecionado(s)` : `${filtered.length} livro(s)`}</span>
           </div>
           <div className="pane-actions">
+            <button className="button quiet compact" onClick={() => setFiltersCollapsed((value) => !value)}>
+              <SlidersHorizontal size={15} />
+              {filtersCollapsed ? "Filtros" : "Ocultar filtros"}
+            </button>
             <button className="button primary compact" onClick={onConvertSelected} disabled={selectedCount === 0}>
               <RefreshCcw size={15} />
               Converter
