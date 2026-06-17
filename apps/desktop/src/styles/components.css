@@ -789,7 +789,6 @@
   gap: 14px;
   min-height: 0;
   overflow: hidden;
-  padding-top: 14px;
 }
 
 .library-workspace.detail-open {
@@ -811,12 +810,15 @@
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
+  padding: 14px 14px 0 0;
+  box-sizing: border-box;
 }
 
 .library-book-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
   align-content: start;
+  flex: 1;
   gap: 8px;
   min-height: 0;
   overflow-x: hidden;
@@ -825,24 +827,12 @@
 }
 
 .library-book-card {
-  position: relative;
-  display: grid;
-  grid-template-rows: 104px minmax(58px, auto) 22px;
-  gap: 8px;
-  min-width: 0;
-  min-height: 204px;
-  max-height: 204px;
-  padding: 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  background: var(--panel);
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+  min-height: 216px;
+  max-height: 216px;
 }
 
 .library-book-card:hover {
   border-color: rgba(0, 121, 107, 0.55);
-  background: var(--panel-strong);
 }
 
 .library-book-card.selected {
@@ -852,14 +842,10 @@
 
 .library-book-card .book-info {
   min-width: 0;
-  display: grid;
-  gap: 1px;
-  text-align: center;
 }
 
 .library-book-card .book-info p {
   color: var(--text-muted);
-  font-size: 12px;
 }
 
 .library-book-card .book-info strong,
@@ -867,14 +853,9 @@
   overflow-wrap: anywhere;
 }
 
-.library-book-card .queue-thumb {
-  width: 78px;
-  height: 104px;
-  justify-self: center;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
-}
-
 .library-book-card .queue-badges {
+  display: flex;
+  flex-wrap: nowrap;
   min-height: 22px;
   max-height: 22px;
   overflow: hidden;
@@ -884,9 +865,7 @@
 }
 
 .library-book-card .badge {
-  min-height: 20px;
-  padding: 0 8px;
-  font-size: 10px;
+  flex: 0 0 auto;
 }
 
 .library-folder-button {

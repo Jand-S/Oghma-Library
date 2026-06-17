@@ -101,9 +101,12 @@ export function LibraryView({
           ) : (
             filtered.map((item) => {
               const selected = selectedIds.includes(item.id);
+              const formats = item.formats?.length ? item.formats : [item.format];
+              const visibleFormats = formats.length > 2 ? [formats[0]] : formats;
+              const hiddenFormatCount = formats.length - visibleFormats.length;
               return (
                 <article
-                  className={`library-book-card ${selected ? "selected" : ""}`}
+                  className={`book-card library-book-card ${selected ? "selected" : ""}`}
                   key={item.id}
                   role="button"
                   aria-pressed={selected}
@@ -120,7 +123,7 @@ export function LibraryView({
                     {selected ? <Check size={11} /> : null}
                   </button>
                   <div
-                    className={`queue-thumb ${item.coverClass}`}
+                    className={`book-cover ${item.coverClass}`}
                     style={item.coverUrl ? { backgroundImage: `url("${item.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
                   />
                   <div className="book-info">
@@ -129,11 +132,14 @@ export function LibraryView({
                     <p>{item.chapters ? `${item.chapters.toLocaleString("pt-BR")} capitulos` : "Capitulos locais"}</p>
                   </div>
                   <div className="queue-badges">
-                    {(item.formats?.length ? item.formats : [item.format]).map((itemFormat) => (
+                    {visibleFormats.map((itemFormat) => (
                       <span className="badge" key={itemFormat} title={item.files?.filter((file) => file.toLowerCase().endsWith(`.${itemFormat.toLowerCase()}`)).join(", ") || itemFormat}>
                         {itemFormat}
                       </span>
                     ))}
+                    {hiddenFormatCount > 0 ? (
+                      <span className="badge" title={formats.join(", ")}>+{hiddenFormatCount}</span>
+                    ) : null}
                   </div>
                   <button
                     className="icon-button small library-folder-button"

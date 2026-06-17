@@ -213,7 +213,7 @@ describe("App", () => {
 
     const title = screen.getAllByText("To Kill a Mockingbird").find((element) => element.closest(".library-book-card")) as HTMLElement;
     const card = title.closest(".library-book-card") as HTMLElement;
-    expect(card.querySelector<HTMLElement>(".queue-thumb")?.style.backgroundImage).toContain("oghma-icon.svg");
+    expect(card.querySelector<HTMLElement>(".book-cover")?.style.backgroundImage).toContain("oghma-icon.svg");
 
     await user.click(title);
     const detail = screen.getByText("Sinopse").closest(".library-detail-panel") as HTMLElement;
