@@ -42,3 +42,70 @@
 .source-card {
   gap: 10px;
 }
+
+/* ===== Ajustes finos de tamanho/estilo ===== */
+
+/* Slider TTS: tira o azul nativo, usa o teal do tema */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #0d0f12;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+input[type="range"]:hover::-webkit-slider-thumb { background: var(--accent-hover); }
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border: none;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border: 2px solid #0d0f12;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Buscar: itens de "Adicionar a fila" um pouco mais compactos */
+.selection-card { padding: 8px; gap: 6px; }
+.selection-summary { padding: 6px 10px; gap: 8px; }
+
+/* Fontes: botoes de acao do card menores (contexto denso) */
+.source-actions .button {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* Biblioteca: cards e capas maiores (estavam menores que a Buscar) */
+.library-book-grid {
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 10px;
+}
+.library-book-card {
+  min-height: 248px;
+  max-height: 248px;
+}
+.library-card .book-cover,
+.library-book-card .book-cover {
+  width: 86px;
+  height: 118px;
+}
