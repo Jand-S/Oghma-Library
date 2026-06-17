@@ -240,3 +240,15 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - Ao concluir um download, o livro ja passa a fazer parte da Biblioteca local automaticamente.
 - A Biblioteca local deve refletir a pasta `outputPath`: o desktop lista as subpastas de `exports`, entao itens apagados do disco somem do app na proxima sincronizacao/entrada na tela.
 - A capa da novel e salva junto do livro como `cover.*` quando `coverUrl` estiver disponivel, e a Biblioteca usa essa capa local.
+
+## Kindle USB inicial (17/06/2026)
+
+- O desktop agora tenta detectar Kindle conectado por USB procurando uma pasta `documents` em unidades/pontos de montagem comuns:
+  - Windows: `D:\documents` ate `Z:\documents`.
+  - macOS: `/Volumes/*/documents`.
+  - Linux: `/media/$USER/*/documents`, `/run/media/$USER/*/documents` e `/mnt/*/documents`.
+- O envio ao Kindle usa o comando `ebook-convert` do Calibre para converter EPUB em AZW3 quando o AZW3 ainda nao existe.
+- Depois da conversao, o arquivo `.azw3` e copiado para a pasta `documents` do Kindle e o item ganha a label `AZW3` na fila.
+- Se o Calibre/`ebook-convert` nao estiver no PATH, o app bloqueia o envio e mostra a razao.
+- Nesta maquina, `ebook-convert` foi encontrado em `C:\Program Files\Calibre2\ebook-convert.exe`.
+- Limite conhecido: Kindles que nao montam como armazenamento USB classico podem precisar de suporte MTP/libmtp em versao futura.

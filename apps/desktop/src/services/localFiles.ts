@@ -1,4 +1,5 @@
 import { isTauriRuntime } from "../windowControls";
+import type { KindleDeviceStatus, QueueItem } from "../types";
 
 export type FileData = string | Uint8Array;
 export type LocalLibraryEntry = {
@@ -82,4 +83,23 @@ export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryE
     coverUrl: row.cover_path ? await filePathToAssetUrl(row.cover_path) : undefined,
     sizeBytes: row.size_bytes
   })));
+}
+
+export async function detectKindleDevice(): Promise<KindleDeviceStatus | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  return invoke<KindleDeviceStatus>("detect_kindle");
+}
+
+export async function sendItemsToKindle(items: QueueItem[]): Promise<{ sentIds: string[]; convertedFormat: "AZW3" } | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  return invoke<{ sentIds: string[]; convertedFormat: "AZW3" }>("send_to_kindle", {
+    items: items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      outputDir: item.outputDir,
+      outputFiles: item.outputFiles
+    }))
+  });
 }

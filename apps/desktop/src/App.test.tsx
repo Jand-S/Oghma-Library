@@ -181,4 +181,25 @@ describe("App", () => {
     const todos = within(panel).getByRole("button", { name: "Todos" });
     expect(todos.className).toContain("active");
   });
+
+  it("blocks Kindle send when Calibre converter is missing", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp(buildBackend({
+      getKindleStatus: async () => ({
+        id: "kindle-test",
+        deviceName: "Kindle",
+        connected: true,
+        mountPath: "E:\\documents",
+        targetFormat: "AZW3",
+        converterAvailable: false
+      })
+    }));
+
+    await user.click(screen.getByRole("button", { name: "Downloads" }));
+    await user.click(screen.getByText("Whispers of the Night"));
+
+    expect(screen.getByRole("button", { name: "Enviar ao Kindle" })).toBeDisabled();
+    expect(screen.getByText("Calibre/ebook-convert nao encontrado para converter EPUB em AZW3.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Converter" })).toBeInTheDocument();
+  });
 });

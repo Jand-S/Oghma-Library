@@ -26,7 +26,7 @@ import {
 } from "./appUi";
 import { defaultFilters, defaultSelection, mockBackendClient } from "./mockBackend";
 import { getErrorMessage, type BackendClient } from "./services/backendClient";
-import { joinPath, listLocalLibrary, openLocalPath, saveLocalFile } from "./services/localFiles";
+import { detectKindleDevice, joinPath, listLocalLibrary, openLocalPath, saveLocalFile, sendItemsToKindle } from "./services/localFiles";
 import { runDownload, sanitizeFileName } from "./services/downloadManager";
 import type {
   AppConfig,
@@ -140,6 +140,24 @@ export function App({ backend = mockBackendClient }: AppProps) {
     if (loading) return;
     writeStoredConfig(appConfig);
   }, [appConfig, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    const refresh = () => {
+      void detectKindleDevice()
+        .then((status) => {
+          if (!cancelled && status) setKindleStatus(status);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [loading]);
 
   useEffect(() => {
     if (!showOnboarding || onboardingStep !== onboardingSteps.length - 1 || setupSyncRunning || setupSyncCompleted) return;
@@ -356,8 +374,9 @@ export function App({ backend = mockBackendClient }: AppProps) {
     if (selectedCompletedItems.some((item) => !item.formats.includes("EPUB"))) {
       return "Somente livros com EPUB podem ser enviados ao Kindle.";
     }
+    if (kindleStatus?.converterAvailable === false) return "Calibre/ebook-convert nao encontrado para converter EPUB em AZW3.";
     return undefined;
-  }, [kindleConnected, selectedCompletedItems]);
+  }, [kindleConnected, kindleStatus?.converterAvailable, selectedCompletedItems]);
   const buildDefaultSelection = (novel: Novel) => ({
     ...defaultSelection(novel),
     formats: appConfig.defaultFormats,
@@ -520,11 +539,22 @@ export function App({ backend = mockBackendClient }: AppProps) {
     if (!kindleSending) return;
     if (kindleProgress >= 100) {
       let cancelled = false;
-      void backend.sendToKindle(kindleJobItems)
+      void (async () => {
+        const nativeResult = await sendItemsToKindle(kindleJobItems);
+        return nativeResult ?? backend.sendToKindle(kindleJobItems);
+      })()
         .then((result) => {
           if (cancelled) return;
           setKindleSending(false);
           setKindleCompleted(true);
+          setQueue((items) => items.map((item) => result.sentIds.includes(item.id) ? {
+            ...item,
+            formats: item.formats.includes("AZW3") ? item.formats : [...item.formats, "AZW3"],
+            outputFiles: item.outputFiles?.some((file) => file.toLowerCase().endsWith(".azw3"))
+              ? item.outputFiles
+              : [...(item.outputFiles ?? []), `${sanitizeFileName(item.title)}.azw3`]
+          } : item));
+          refreshLocalLibrary();
           setToast(`${result.sentIds.length} item(ns) convertidos para ${result.convertedFormat} e enviados ao Kindle.`);
         })
         .catch((error: unknown) => {

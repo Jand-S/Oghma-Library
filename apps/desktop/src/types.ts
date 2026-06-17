@@ -46,7 +46,7 @@ export type Chapter = {
 
 export type ChapterPreset = "all" | "range";
 
-export type DownloadFormat = "EPUB" | "PDF" | "TXT";
+export type DownloadFormat = "EPUB" | "PDF" | "TXT" | "AZW3";
 
 export const downloadFormats: DownloadFormat[] = ["EPUB", "PDF", "TXT"];
 
@@ -92,6 +92,7 @@ export type KindleDeviceStatus = {
   connected: boolean;
   mountPath: string;
   targetFormat: "AZW3";
+  converterAvailable?: boolean;
 };
 
 export type ServerProbe = {
