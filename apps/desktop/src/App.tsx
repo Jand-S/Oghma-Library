@@ -72,6 +72,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [downloadsPulse, setDownloadsPulse] = useState(0);
   const [focusedNovelId, setFocusedNovelId] = useState<string>("");
   const [selections, setSelections] = useState<Record<string, ChapterSelection>>({});
   const [syncing, setSyncing] = useState<string[]>([]);
@@ -304,6 +305,8 @@ export function App({ backend = mockBackendClient }: AppProps) {
     void backend.createDownloads(payload)
       .then((items) => {
         setQueue((current) => [...current, ...items]);
+        setSelectedIds([]);
+        setDownloadsPulse((value) => value + 1);
         setToast(`${items.length} pacote(s) adicionados a fila de download.`);
       })
       .catch((error: unknown) => {
@@ -535,7 +538,7 @@ export function App({ backend = mockBackendClient }: AppProps) {
   return (
     <main className={`app-frame ${sidebarExpanded ? "sidebar-open" : ""}`}>
       {showSplash ? <SplashScreen done={bootDone} /> : null}
-      <Sidebar activeView={activeView} expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((value) => !value)} onChange={setActiveView} />
+      <Sidebar activeView={activeView} expanded={sidebarExpanded} flashKey={downloadsPulse} onToggle={() => setSidebarExpanded((value) => !value)} onChange={setActiveView} />
       <section className="app-shell">
         <Titlebar title={pageTitle[activeView]} />
         <div className={workspaceClass}>

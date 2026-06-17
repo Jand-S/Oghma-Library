@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { defaultAppConfig } from "./appConfig";
 import { downloadFormats } from "./types";
-import { defaultFilters, defaultSelection, estimateChapters, mockEndpoints, selectionLabel } from "./mockBackend";
+import { defaultFilters, defaultSelection, estimateChapters, selectionLabel } from "./mockBackend";
 import type {
   AppConfig,
   ChapterSelection,
@@ -141,14 +141,23 @@ export function Titlebar({ title }: { title: string }) {
 export function Sidebar({
   activeView,
   expanded,
+  flashKey = 0,
   onToggle,
   onChange
 }: {
   activeView: ViewId;
   expanded: boolean;
+  flashKey?: number;
   onToggle: () => void;
   onChange: (view: ViewId) => void;
 }) {
+  const [flashing, setFlashing] = useState(false);
+  useEffect(() => {
+    if (flashKey === 0) return;
+    setFlashing(true);
+    const timer = window.setTimeout(() => setFlashing(false), 700);
+    return () => window.clearTimeout(timer);
+  }, [flashKey]);
   return (
     <aside className={`app-sidebar ${expanded ? "expanded" : ""}`}>
       <button className="brand-mark" onClick={onToggle} aria-label="Alternar menu lateral">
@@ -160,7 +169,7 @@ export function Sidebar({
           const Icon = view.icon;
           return (
             <button
-              className={`nav-button ${activeView === view.id ? "active" : ""}`}
+              className={`nav-button ${activeView === view.id ? "active" : ""} ${flashing && view.id === "downloads" ? "flash" : ""}`}
               key={view.id}
               title={view.label}
               onClick={() => onChange(view.id)}
@@ -198,7 +207,7 @@ function FiltersPanel({
       <div className="panel-header">
         <div>
           <h2>Filtros</h2>
-          <span>Busca local mockada</span>
+          <span>Busca no acervo</span>
         </div>
       </div>
 
@@ -684,12 +693,6 @@ export function SourcesView({
 }) {
   return (
     <section className="page-area full-span">
-      <div className="page-header">
-        <div>
-          <h2>Selecao de sites</h2>
-          <span>Configure quais fontes entram na busca e simule uma sincronizacao.</span>
-        </div>
-      </div>
       <div className="source-grid">
         {sources.map((source) => (
           <article className="source-card" key={source.id}>
@@ -1293,10 +1296,6 @@ export function LibraryView({ library }: { library: LibraryItem[] }) {
   return (
     <section className="page-area full-span">
       <div className="page-header">
-        <div>
-          <h2>Biblioteca local</h2>
-          <span>Livros ja preservados no servidor local.</span>
-        </div>
         <button className="button quiet">
           <FolderOpen size={16} />
           Abrir pasta
@@ -1333,10 +1332,6 @@ export function SettingsView({
   return (
     <section className="page-area full-span">
       <div className="page-header">
-        <div>
-          <h2>Ajustes</h2>
-          <span>Configuracoes do app e contrato inicial que depois vira backend real.</span>
-        </div>
         <button className="button quiet" onClick={onOpenOnboarding}>
           <Settings size={15} />
           Assistente inicial
@@ -1453,17 +1448,6 @@ export function SettingsView({
               </select>
             </div>
           </div>
-        </article>
-
-        <article className="settings-panel endpoints-panel">
-          <h3>Endpoints planejados</h3>
-          {mockEndpoints.map((endpoint) => (
-            <div className="endpoint-row" key={`${endpoint.method}-${endpoint.path}`}>
-              <span>{endpoint.method}</span>
-              <strong>{endpoint.path}</strong>
-              <span>{endpoint.description}</span>
-            </div>
-          ))}
         </article>
       </div>
     </section>
