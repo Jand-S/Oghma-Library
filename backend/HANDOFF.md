@@ -16,6 +16,7 @@ Este handoff foi executado ate a validacao fim-a-fim inicial:
 - Atualizacao codex: crawl baixa capas como bytes e preenche `cover_path`; descoberta principal usa `/series/list-mode/` (232 obras no probe); `A Returner’s Magic Should Be Special` resolvido com seletor `.eplister li > a`; banco validado com `6` novels e `42` capitulos; testes no container `5 passed`.
 - Atualizacao codex: crawler agora tem telemetria viva em `crawl_run.stats`, endpoint `GET /api/crawls`, log persistido em `/srv/oghma/logs/crawl-central-novel.log`, script `/home/codex/oghma/deploy/crawl-status.sh` e cron mensal instalado para o dia 1 as 03:00. O status marca possivel travamento (`STALE?`) quando um run `running` fica mais de 10 minutos sem heartbeat.
 - Atualizacao codex: normalizador agora salva `content_path` como HTML semantico allowlist (`p`, `em`, `strong`, `img`, `blockquote`, `hr`), removendo wrapper/classes/estilos/scripts/anuncios do site. Raw bruto continua preservado. Para limpar conteudo ja baixado, usar `oghma reprocess-content --source central-novel`.
+- Atualizacao codex: `/monitor` tem botao **Publicar no B2**. A API expoe `POST /api/publish/run` e `GET /api/publish/status`; o job chama `oghma.publish.runner.run()` em background no processo da API e impede publish concorrente com lock em memoria.
 
 ## 0. Objetivo do produto
 
@@ -73,9 +74,16 @@ Observabilidade do crawl:
 tail -f /srv/oghma/logs/crawl-central-novel.log
 curl "http://localhost:8010/api/crawls?limit=5"
 curl "http://localhost:8010/api/stats"
+curl "http://localhost:8010/api/publish/status"
 ```
 
 Pagina visual no backend: `http://192.168.0.42:8010/monitor`.
+
+Publish estatico pelo monitor/API:
+```bash
+curl -X POST "http://localhost:8010/api/publish/run?source=central-novel"
+curl "http://localhost:8010/api/publish/status"
+```
 
 O script mensal usa `flock` para evitar duas execucoes simultaneas:
 ```bash

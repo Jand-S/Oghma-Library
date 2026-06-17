@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
 
+import pytest
+
+from oghma.api import publish_jobs
 from oghma.api.routes import _crawl_run_out
 from oghma.api.monitor import MONITOR_HTML, router as monitor_router
 
@@ -41,3 +44,25 @@ def test_monitor_route_is_registered():
 def test_monitor_page_polls_crawl_and_stats_endpoints():
     assert 'fetch("/api/crawls?limit=12"' in MONITOR_HTML
     assert 'fetch("/api/stats"' in MONITOR_HTML
+
+
+def test_monitor_page_contains_publish_controls():
+    assert 'id="publishButton"' in MONITOR_HTML
+    assert 'fetch("/api/publish/status"' in MONITOR_HTML
+    assert 'fetch("/api/publish/run"' in MONITOR_HTML
+
+
+@pytest.mark.asyncio
+async def test_publish_job_rejects_concurrent_start():
+    await publish_jobs.reset_for_tests()
+
+    ok, job = await publish_jobs.start_publish("central-novel")
+    assert ok is True
+    assert job["status"] == "running"
+    assert job["source"] == "central-novel"
+
+    ok, job = await publish_jobs.start_publish("central-novel")
+    assert ok is False
+    assert job["status"] == "running"
+
+    await publish_jobs.reset_for_tests()

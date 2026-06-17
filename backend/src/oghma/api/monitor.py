@@ -237,6 +237,44 @@ MONITOR_HTML = """<!doctype html>
     .side-row:last-child { border-bottom: 0; }
     .side-row strong { color: var(--text); text-align: right; }
 
+    .action-button {
+      width: 100%;
+      min-height: 40px;
+      margin: 2px 0 12px;
+      border: 1px solid rgba(0, 121, 107, 0.72);
+      border-radius: 7px;
+      background: var(--accent);
+      color: #f3fffc;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background 180ms ease, border-color 180ms ease, opacity 180ms ease;
+    }
+
+    .action-button:hover { background: #008d7d; border-color: rgba(0, 167, 143, 0.85); }
+    .action-button:disabled { cursor: default; opacity: 0.54; background: #16423e; border-color: #255a55; }
+
+    .publish-status {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #11171d;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .publish-status strong {
+      display: block;
+      color: var(--text);
+      font-size: 13px;
+    }
+
     .empty {
       border: 1px dashed var(--line);
       border-radius: 8px;
@@ -291,10 +329,16 @@ MONITOR_HTML = """<!doctype html>
 
       <aside class="panel">
         <h2>Resumo operacional</h2>
+        <button id="publishButton" class="action-button" type="button">Publicar no B2</button>
+        <div id="publishStatus" class="publish-status">
+          <strong>Publish</strong>
+          <span>consultando status...</span>
+        </div>
         <div class="side-list">
           <div class="side-row"><span>Atualizacao</span><strong id="refreshInterval">2s</strong></div>
           <div class="side-row"><span>Alerta stale</span><strong>10 min</strong></div>
           <div class="side-row"><span>Endpoint</span><strong>/api/crawls</strong></div>
+          <div class="side-row"><span>Publish</span><strong>/api/publish</strong></div>
           <div class="side-row"><span>Multi-site</span><strong>por source_id</strong></div>
         </div>
       </aside>
@@ -389,6 +433,56 @@ MONITOR_HTML = """<!doctype html>
         </article>`;
     }
 
+    function formatDateTime(seconds) {
+      if (!seconds) return "-";
+      return new Date(seconds * 1000).toLocaleString("pt-BR");
+    }
+
+    function renderPublish(job) {
+      if (!job || !job.status) return "<strong>Publish</strong><span>status indisponivel</span>";
+      if (job.status === "running") {
+        return `<strong>Publish em andamento</strong><span>Fonte: ${text(job.source, "central-novel")}</span><span>Inicio: ${formatDateTime(job.startedAt)}</span>`;
+      }
+      if (job.status === "done") {
+        const s = job.summary || {};
+        return `<strong>Ultimo publish concluido</strong><span>${fmt.format(asNumber(s.novels))} novels · ${fmt.format(asNumber(s.bundles_changed))} bundles · ${fmt.format(asNumber(s.covers))} capas</span><span>${text(s.catalog_json_key, "catalogo json nao informado")}</span>`;
+      }
+      if (job.status === "error") {
+        return `<strong>Publish com erro</strong><span>${text(job.error, "erro desconhecido")}</span>`;
+      }
+      return `<strong>Publish</strong><span>pronto para publicar no B2</span>`;
+    }
+
+    async function loadPublish() {
+      try {
+        const res = await fetch("/api/publish/status", { cache: "no-store" });
+        if (!res.ok) throw new Error("publish status indisponivel");
+        const job = await res.json();
+        $("publishStatus").innerHTML = renderPublish(job);
+        $("publishButton").disabled = job.status === "running";
+        $("publishButton").textContent = job.status === "running" ? "Publicando..." : "Publicar no B2";
+      } catch (error) {
+        $("publishStatus").innerHTML = `<strong>Publish</strong><span>nao consegui consultar o status</span>`;
+        $("publishButton").disabled = false;
+      }
+    }
+
+    async function triggerPublish() {
+      $("publishButton").disabled = true;
+      $("publishButton").textContent = "Disparando...";
+      $("publishStatus").innerHTML = `<strong>Publish</strong><span>iniciando publicacao...</span>`;
+      try {
+        const res = await fetch("/api/publish/run", { method: "POST" });
+        if (!res.ok) throw new Error("falha ao iniciar publish");
+        const payload = await res.json();
+        $("publishStatus").innerHTML = renderPublish(payload.job);
+      } catch (error) {
+        $("publishStatus").innerHTML = `<strong>Publish</strong><span>erro ao iniciar publicacao</span>`;
+      } finally {
+        await loadPublish();
+      }
+    }
+
     async function load() {
       try {
         const [runsRes, statsRes] = await Promise.all([
@@ -415,8 +509,11 @@ MONITOR_HTML = """<!doctype html>
       }
     }
 
+    $("publishButton").addEventListener("click", triggerPublish);
     load();
+    loadPublish();
     setInterval(load, pollMs);
+    setInterval(loadPublish, pollMs);
   </script>
 </body>
 </html>

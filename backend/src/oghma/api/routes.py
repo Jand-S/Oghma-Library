@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from ..schemas import (
     SourceOut,
 )
 from .deps import get_db
+from . import publish_jobs
 
 router = APIRouter(prefix="/api")
 
@@ -185,6 +186,20 @@ async def stats(db: AsyncSession = Depends(get_db)):
         "covers": covers,
         "runningCrawls": running_crawls,
     }
+
+
+@router.post("/publish/run")
+async def publish_run(background: BackgroundTasks, source: str = "central-novel"):
+    ok, job = await publish_jobs.start_publish(source)
+    if not ok:
+        return {"ok": False, "reason": "already_running", "job": job}
+    background.add_task(publish_jobs.run_publish, source)
+    return {"ok": True, "job": job}
+
+
+@router.get("/publish/status")
+async def publish_status():
+    return publish_jobs.snapshot()
 
 
 @router.get("/bootstrap", response_model=BootstrapOut)

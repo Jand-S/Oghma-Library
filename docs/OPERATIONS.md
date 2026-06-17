@@ -11,6 +11,7 @@ Servidor atual:
 - Swagger/OpenAPI: `http://192.168.0.42:8010/docs`
 - Crawls em JSON: `http://192.168.0.42:8010/api/crawls?limit=20`
 - Resumo em JSON: `http://192.168.0.42:8010/api/stats`
+- Status do publish: `http://192.168.0.42:8010/api/publish/status`
 - Novels em JSON: `http://192.168.0.42:8010/api/novels?limit=20`
 
 ## Monitor visual
@@ -31,6 +32,7 @@ Ela atualiza automaticamente a cada 2 segundos e mostra:
 - quantidade de capitulos novos e pulados;
 - ultimo evento;
 - heartbeat mais recente.
+- botao **Publicar no B2**, que dispara a geracao/upload do acervo estatico.
 
 ## Como funciona
 
@@ -40,6 +42,13 @@ O monitor consome dois endpoints:
 
 - `GET /api/crawls?limit=12`: lista os runs recentes e seus campos de progresso.
 - `GET /api/stats`: devolve contagens globais para os cards de resumo.
+- `GET /api/publish/status`: acompanha o publish estatico para o B2.
+
+O botao **Publicar no B2** chama:
+
+- `POST /api/publish/run`: inicia o publish real para a fonte `central-novel`.
+
+Existe lock em memoria no processo da API: se um publish ja estiver rodando, uma segunda chamada retorna `already_running`.
 
 Campos mais importantes dentro de `stats`:
 
@@ -96,6 +105,13 @@ Reprocessar conteudo limpo a partir do raw salvo, sem rebaixar do site:
 
 ```bash
 ssh codex@192.168.0.42 "cd /home/codex/oghma && docker compose run --rm crawler oghma reprocess-content --source central-novel"
+```
+
+Publicar manualmente pelo endpoint, equivalente ao botao do monitor:
+
+```bash
+curl -X POST "http://192.168.0.42:8010/api/publish/run?source=central-novel"
+curl "http://192.168.0.42:8010/api/publish/status"
 ```
 
 Ver cron instalado:

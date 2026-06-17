@@ -18,6 +18,8 @@ Regra de ouro: o desktop **so fala com `BackendClient`**. Trocar o mock pelo bac
 | `sendToKindle(items)` | `POST /api/kindle/send` | `KindleTransferResult` |
 | (listar fontes) | `GET /api/sources` | `SourceSite[]` |
 | (acompanhar crawls) | `GET /api/crawls` | `CrawlRun[]` |
+| (publicar acervo estatico) | `POST /api/publish/run` | `PublishRunResult` |
+| (status de publicacao) | `GET /api/publish/status` | `PublishJob` |
 
 ## Endpoints
 
@@ -111,10 +113,52 @@ Pagina HTML simples servida pelo proprio backend para acompanhar o crawler sem a
 Ela faz polling a cada 2 segundos em:
 - `GET /api/crawls?limit=12`
 - `GET /api/stats`
+- `GET /api/publish/status`
 
 Uso atual: abrir `http://192.168.0.42:8010/monitor`.
 
 Detalhes operacionais, comandos de apoio e interpretacao dos campos ficam em [OPERATIONS.md](</C:/Users/Jandson/Documents/Oghma Library/docs/OPERATIONS.md>).
+
+### `POST /api/publish/run`
+Dispara um publish real para o B2/Cloudflare usando o `oghma.publish.runner.run()` dentro do processo da API.
+
+Query:
+- `source` opcional, default `central-novel`.
+
+Resposta quando inicia:
+```json
+{
+  "ok": true,
+  "job": {
+    "status": "running",
+    "source": "central-novel",
+    "startedAt": 1781640000.0,
+    "finishedAt": null,
+    "summary": null,
+    "error": null
+  }
+}
+```
+
+Resposta quando ja existe publish em andamento:
+```json
+{
+  "ok": false,
+  "reason": "already_running",
+  "job": { "status": "running" }
+}
+```
+
+### `GET /api/publish/status`
+Retorna o estado em memoria do ultimo publish.
+
+Estados:
+- `idle`: nenhum publish disparado desde o boot da API.
+- `running`: publish em andamento.
+- `done`: ultimo publish concluiu.
+- `error`: ultimo publish falhou.
+
+Quando `done`, `summary` contem campos como `novels`, `bundles_changed`, `covers`, `catalog_key`, `catalog_json_key` e `uploaded`.
 
 ### `GET /api/novels`
 Busca com filtros (query string): `query, sourceId, status, language, tags[], onlyCovered, minChapters, maxChapters, updatedOnly`.

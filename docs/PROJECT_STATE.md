@@ -220,3 +220,10 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - O wrapper do Central Novel (`div.epcontent.entry-content`), atributos `style`, classes, scripts/anuncios e elementos de layout nao entram mais no `content/*.html`.
 - Comando operacional criado para limpar conteudo ja baixado a partir do raw salvo: `oghma reprocess-content --source central-novel`.
 - Validacao no servidor: testes do backend passaram (`9 passed`); `reprocess-content` regenerou `1507` capitulos com `0` raws ausentes; o crawl antigo foi parado e um novo crawl iniciou como run `8`.
+
+## Publish pelo monitor (17/06/2026)
+
+- O backend passa a expor `POST /api/publish/run` para disparar publish real do acervo estatico.
+- `GET /api/publish/status` devolve o estado em memoria (`idle`, `running`, `done`, `error`) e o resumo do ultimo publish.
+- A pagina `/monitor` tem o botao **Publicar no B2**, com polling do status e bloqueio visual enquanto o job roda.
+- O job chama `oghma.publish.runner.run()` no processo da API e usa lock em memoria para impedir publish concorrente.
