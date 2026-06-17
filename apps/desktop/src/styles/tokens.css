@@ -1,0 +1,25 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1114;
+  --panel: #1b1d23;
+  --panel-2: #20242c;
+  --panel-3: #242932;
+  --panel-4: #2e3540;
+  --border: #323946;
+  --border-soft: #252b35;
+  --text: #edf3f1;
+  --text-muted: #b8c3c0;
+  --text-dim: #818d90;
+  --accent: #00796b;
+  --accent-hover: #009889;
+  --accent-soft: rgba(0, 121, 107, 0.12);
+  --accent-muted: rgba(0, 121, 107, 0.28);
+  --focus: #4fb7e8;
+  --warning: #d9a441;
+  --danger: #c94b5b;
+  --success: #76b878;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  --font: "Segoe UI", Inter, Roboto, Arial, sans-serif;
+}

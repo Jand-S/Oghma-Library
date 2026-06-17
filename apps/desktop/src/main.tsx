@@ -5,7 +5,7 @@ import { defaultAppConfig, readStoredConfig } from "./appConfig";
 import { mockBackendClient } from "./mockBackend";
 import { createStaticBackendClient } from "./services/staticBackend";
 import type { BackendClient } from "./services/backendClient";
-import "./styles.css";
+import "./styles/index.css";
 
 // Escolhe o backend real conforme o serverUrl configurado.
 // - VITE_USE_MOCK=1 (ou serverUrl vazio) -> backend mock para desenvolvimento.

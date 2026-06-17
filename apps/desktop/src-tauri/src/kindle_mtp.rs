@@ -7,13 +7,12 @@ use std::fs;
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 
-use windows::core::{Interface, PCWSTR, PWSTR};
+use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Devices::PortableDevices::*;
 use windows::Win32::Foundation::S_FALSE;
-use windows::Win32::System::Com::StructuredStorage::IStream;
 use windows::Win32::System::Com::{
-    CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER,
-    COINIT_MULTITHREADED, STGC_DEFAULT,
+    CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, IStream,
+    CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, STGC_DEFAULT,
 };
 
 fn wide(s: &str) -> Vec<u16> {
@@ -88,10 +87,11 @@ unsafe fn send_inner(file_name: &str, bytes: &[u8]) -> Result<(), String> {
         let mut written: u32 = 0;
         stream
             .Write(slice.as_ptr() as *const _, slice.len() as u32, Some(&mut written))
+            .ok()
             .map_err(|e| fmt("Write", e))?;
         offset += (written.max(1)) as usize;
     }
-    stream.Commit(STGC_DEFAULT.0 as u32).map_err(|e| fmt("Commit", e))?;
+    stream.Commit(STGC_DEFAULT).map_err(|e| fmt("Commit", e))?;
     Ok(())
 }
 
@@ -99,13 +99,13 @@ unsafe fn find_kindle_device() -> Result<Option<Vec<u16>>, String> {
     let manager: IPortableDeviceManager =
         CoCreateInstance(&PortableDeviceManager, None, CLSCTX_INPROC_SERVER).map_err(|e| fmt("manager", e))?;
     let mut count: u32 = 0;
-    manager.GetDevices(None, &mut count).map_err(|e| fmt("GetDevices(count)", e))?;
+    manager.GetDevices(std::ptr::null_mut(), &mut count).map_err(|e| fmt("GetDevices(count)", e))?;
     if count == 0 {
         return Ok(None);
     }
     let mut ids: Vec<PWSTR> = vec![PWSTR::null(); count as usize];
     manager
-        .GetDevices(Some(ids.as_mut_ptr()), &mut count)
+        .GetDevices(ids.as_mut_ptr(), &mut count)
         .map_err(|e| fmt("GetDevices", e))?;
 
     let mut found: Option<Vec<u16>> = None;
@@ -114,11 +114,11 @@ unsafe fn find_kindle_device() -> Result<Option<Vec<u16>>, String> {
             continue;
         }
         let mut name_len: u32 = 0;
-        let _ = manager.GetDeviceFriendlyName(PCWSTR(id.0 as *const u16), None, &mut name_len);
+        let _ = manager.GetDeviceFriendlyName(PCWSTR(id.0 as *const u16), PWSTR::null(), &mut name_len);
         if name_len > 0 {
             let mut buf = vec![0u16; name_len as usize];
             if manager
-                .GetDeviceFriendlyName(PCWSTR(id.0 as *const u16), Some(buf.as_mut_ptr()), &mut name_len)
+                .GetDeviceFriendlyName(PCWSTR(id.0 as *const u16), PWSTR(buf.as_mut_ptr()), &mut name_len)
                 .is_ok()
             {
                 let end = (name_len as usize).min(buf.len());
