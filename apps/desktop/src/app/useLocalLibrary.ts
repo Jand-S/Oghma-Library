@@ -22,6 +22,7 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary }: Loc
           const known = results.find((novel) => sanitizeFileName(novel.title) === item.title || novel.title === item.title);
           return {
             id: `local-${item.outputDir}`,
+            novelId: known?.id,
             title: item.title,
             author: known?.author ?? "Desconhecido",
             format: formats[0] ?? "EPUB",
@@ -30,6 +31,9 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary }: Loc
             sizeMb: Math.max(1, Math.round(item.sizeBytes / 1024 / 1024)),
             coverClass: known?.coverClass ?? "cover-c",
             coverUrl: item.coverUrl,
+            bundleKey: known?.bundleKey,
+            description: known?.description,
+            sourceName: known?.sourceName,
             outputDir: item.outputDir,
             files: item.files,
             exportedAt: "Local"

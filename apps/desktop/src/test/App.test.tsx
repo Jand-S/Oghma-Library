@@ -17,10 +17,6 @@ import { defaultAppConfig, setupCompleteKey, setupStorageKey } from "../core/app
 import type { BackendClient } from "../services/backendClient";
 import { mockBackendClient } from "../services/mockBackend";
 
-function buildBackend(overrides: Partial<BackendClient> = {}): BackendClient {
-  return { ...mockBackendClient, ...overrides };
-}
-
 function seedSetup(config = defaultAppConfig(["central-novel", "novel-mania"])) {
   window.localStorage.setItem(setupStorageKey, JSON.stringify(config));
   window.localStorage.setItem(setupCompleteKey, "1");
@@ -69,7 +65,7 @@ describe("App", () => {
     const listener = vi.fn();
     window.addEventListener("oghma-window-action", listener);
     seedSetup();
-    render(<App />);
+    render(<App backend={mockBackendClient} />);
 
     await user.click(screen.getByLabelText("Minimizar"));
     await user.click(screen.getByLabelText("Maximizar"));
@@ -193,24 +189,39 @@ describe("App", () => {
     expect(todos.className).toContain("active");
   });
 
-  it("blocks Kindle send when Calibre converter is missing", async () => {
+  it("clears all completed downloads without requiring selection", async () => {
     const user = userEvent.setup();
-    await renderReadyApp(buildBackend({
-      getKindleStatus: async () => ({
-        id: "kindle-test",
-        deviceName: "Kindle",
-        connected: true,
-        mountPath: "E:\\documents",
-        targetFormat: "AZW3",
-        converterAvailable: false
-      })
-    }));
+    await renderReadyApp();
 
     await user.click(screen.getByRole("button", { name: "Downloads" }));
-    await user.click(screen.getByText("Whispers of the Night"));
+    expect(screen.getByText("Whispers of the Night")).toBeInTheDocument();
+    expect(screen.getByText("The Labyrinth's Secret")).toBeInTheDocument();
 
-    expect(screen.getByRole("button", { name: "Enviar ao Kindle" })).toBeDisabled();
-    expect(screen.getByText("Calibre/ebook-convert nao encontrado para converter EPUB em AZW3.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Limpar" }));
+
+    expect(screen.queryByText("Whispers of the Night")).not.toBeInTheDocument();
+    expect(screen.queryByText("The Labyrinth's Secret")).not.toBeInTheDocument();
+  });
+
+  it("moves conversion actions to the local library", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    await user.click(screen.getByRole("button", { name: "Biblioteca" }));
+    expect(screen.getByRole("heading", { name: "Filtros" })).toBeInTheDocument();
+    expect(screen.queryByText("Sinopse")).not.toBeInTheDocument();
+
+    const title = screen.getAllByText("To Kill a Mockingbird").find((element) => element.closest(".library-book-card")) as HTMLElement;
+    const card = title.closest(".library-book-card") as HTMLElement;
+    expect(card.querySelector<HTMLElement>(".queue-thumb")?.style.backgroundImage).toContain("oghma-icon.svg");
+
+    await user.click(title);
+    const detail = screen.getByText("Sinopse").closest(".library-detail-panel") as HTMLElement;
+    expect(detail.querySelector<HTMLElement>(".detail-cover")?.style.backgroundImage).toContain("oghma-icon.svg");
     expect(screen.getByRole("button", { name: "Converter" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Converter" }));
+
+    expect(screen.getByRole("heading", { name: "Converter downloads" })).toBeInTheDocument();
+    expect(screen.getAllByText("To Kill a Mockingbird").some((element) => element.closest(".modal-panel"))).toBe(true);
   });
 });

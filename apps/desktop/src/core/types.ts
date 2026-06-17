@@ -123,6 +123,7 @@ export type AppConfig = {
 
 export type LibraryItem = {
   id: string;
+  novelId?: string;
   title: string;
   author: string;
   format: DownloadFormat;
@@ -131,6 +132,9 @@ export type LibraryItem = {
   sizeMb: number;
   coverClass: string;
   coverUrl?: string;
+  bundleKey?: string;
+  description?: string;
+  sourceName?: string;
   outputDir?: string;
   files?: string[];
   exportedAt: string;

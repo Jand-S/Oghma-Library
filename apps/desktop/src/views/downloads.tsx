@@ -1,14 +1,9 @@
 import {
-  BookOpen,
-  Check,
-  CheckSquare,
   FolderOpen,
   Headphones,
   Languages,
   Pause,
   Play,
-  RefreshCcw,
-  Square,
   Trash2
 } from "lucide-react";
 import type { QueueItem } from "../core/types";
@@ -16,38 +11,20 @@ import type { QueueItem } from "../core/types";
 export function DownloadsView({
   queue,
   paused,
-  selectedIds,
-  kindleConnected,
-  kindleDisabledReason,
   onPauseToggle,
-  onToggleSelect,
-  onToggleSelectAll,
-  onExportSelected,
-  onClearSelected,
+  onClearCompleted,
   onCancel,
-  onOpenFolder,
-  onOpenItemFolder,
-  onSendToKindle
+  onOpenItemFolder
 }: {
   queue: QueueItem[];
   paused: boolean;
-  selectedIds: string[];
-  kindleConnected: boolean;
-  kindleDisabledReason?: string;
   onPauseToggle: () => void;
-  onToggleSelect: (id: string) => void;
-  onToggleSelectAll: () => void;
-  onExportSelected: () => void;
-  onClearSelected: () => void;
+  onClearCompleted: () => void;
   onCancel: (id: string) => void;
-  onOpenFolder: () => void;
   onOpenItemFolder: (item: QueueItem) => void;
-  onSendToKindle: () => void;
 }) {
   const pending = queue.filter((item) => item.state !== "done");
   const completed = queue.filter((item) => item.state === "done");
-  const allSelected = completed.length > 0 && completed.every((item) => selectedIds.includes(item.id));
-  const selectedCount = completed.filter((item) => selectedIds.includes(item.id)).length;
 
   return (
     <section className="page-area full-span">
@@ -105,56 +82,25 @@ export function DownloadsView({
           <div className="pane-header">
             <div>
               <h3>Concluidos</h3>
-              <span>{selectedCount > 0 ? `${selectedCount} selecionado(s)` : `${completed.length} item(ns)`}</span>
+              <span>{completed.length} item(ns)</span>
             </div>
             <div className="pane-actions">
-              <button className="select-all-button" title={allSelected ? "Limpar selecao" : "Selecionar todos"} aria-label="Selecionar todos" onClick={onToggleSelectAll} disabled={completed.length === 0}>
-                {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
-              </button>
-              {kindleConnected ? (
-                <button
-                  className="button primary compact"
-                  title={kindleDisabledReason ?? "Converter para AZW3 e enviar ao Kindle"}
-                  aria-label="Enviar ao Kindle"
-                  onClick={onSendToKindle}
-                  disabled={Boolean(kindleDisabledReason)}
-                >
-                  <BookOpen size={15} />
-                  Enviar ao Kindle
-                </button>
-              ) : null}
-              <button className="button quiet compact" title="Abrir pasta local" aria-label="Abrir pasta local" onClick={onOpenFolder}>
-                <FolderOpen size={15} />
-                Abrir pasta
-              </button>
-              <button className="button quiet compact" onClick={onClearSelected} disabled={selectedCount === 0}>
+              <button className="button quiet compact" onClick={onClearCompleted} disabled={completed.length === 0}>
                 <Trash2 size={15} />
                 Limpar
               </button>
-              <button className="button primary compact" onClick={onExportSelected} disabled={selectedCount === 0}>
-                <RefreshCcw size={15} />
-                Converter
-              </button>
             </div>
           </div>
-          {kindleConnected && kindleDisabledReason && selectedCount > 0 ? <p className="action-hint">{kindleDisabledReason}</p> : null}
           <div className="download-table">
             {completed.length === 0 ? (
               <div className="empty-state compact">Nenhum download concluido.</div>
             ) : (
               completed.map((item) => {
-                const selected = selectedIds.includes(item.id);
                 return (
                   <article
-                    className={`download-row complete ${selected ? "selected" : ""}`}
+                    className="download-row complete"
                     key={item.id}
-                    role="button"
-                    aria-pressed={selected}
-                    onClick={() => onToggleSelect(item.id)}
                   >
-                    <span className={`row-check ${selected ? "active" : ""}`} aria-hidden="true">
-                      {selected ? <Check size={11} /> : null}
-                    </span>
                     <div
                       className={`queue-thumb ${item.coverClass}`}
                       style={item.coverUrl ? { backgroundImage: `url("${item.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
@@ -174,10 +120,7 @@ export function DownloadsView({
                       className="icon-button small row-folder"
                       title="Abrir pasta deste livro"
                       aria-label={`Abrir pasta de ${item.title}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpenItemFolder(item);
-                      }}
+                      onClick={() => onOpenItemFolder(item)}
                     >
                       <FolderOpen size={15} />
                     </button>

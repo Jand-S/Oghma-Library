@@ -285,3 +285,19 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
   - `src-tauri/src/paths.rs`: helpers compartilhados de paths e nomes seguros.
 - O icone do app foi regenerado com `npm run tauri -- icon public/icons/oghma-icon.svg`.
 - `tauri.conf.json` agora aponta para o conjunto desktop completo: PNG 32/128/256, ICNS e ICO. Isso substitui o icone antigo que aparecia como Python no Windows.
+
+## Biblioteca local como centro de gerenciamento (17/06/2026)
+
+- A aba Downloads passa a ser uma visualizacao da fila: andamento, concluidos, abrir pasta do item e limpar todos os concluidos.
+- Downloads nao tem mais selecao, selecionar todos, converter, enviar ao Kindle ou botao global de abrir pasta.
+- A aba Biblioteca assume as acoes de gerenciamento local:
+  - filtros por busca e formato;
+  - selecao unica de livro;
+  - converter o livro selecionado;
+  - abrir a pasta do livro selecionado;
+  - cards com capa local, formatos e botao de pasta;
+  - painel lateral com capa maior, formatos, fonte/tamanho e sinopse.
+- Ao clicar novamente no livro selecionado, ele e desmarcado e o painel lateral some do layout.
+- O painel lateral nao mostra mais o caminho absoluto do livro para reduzir ruido visual.
+- As capas da Biblioteca devem vir do arquivo `cover.*` dentro da pasta do livro. O comando Tauri `list_export_library` agora devolve tambem `cover_data_url`, evitando falhas de renderizacao por protocolo de arquivo/asset no Windows.
+- O runtime do desktop nao usa mais backend mockado: `main.tsx` cria sempre um `StaticBackendClient` a partir do `serverUrl` configurado. Os mocks restantes ficam restritos a testes/fixtures ate a suite ser migrada completamente para fixtures estaticas.

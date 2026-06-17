@@ -7,6 +7,7 @@ export type LocalLibraryEntry = {
   outputDir: string;
   files: string[];
   coverUrl?: string;
+  coverDataUrl?: string;
   sizeBytes: number;
 };
 
@@ -72,7 +73,7 @@ async function filePathToAssetUrl(path: string): Promise<string> {
 export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryEntry[] | null> {
   const invoke = await loadInvoke();
   if (!invoke) return null;
-  const rows = await invoke<Array<{ title: string; output_dir: string; files: string[]; cover_path?: string | null; size_bytes: number }>>(
+  const rows = await invoke<Array<{ title: string; output_dir: string; files: string[]; cover_path?: string | null; cover_data_url?: string | null; size_bytes: number }>>(
     "list_export_library",
     { outputDir }
   );
@@ -80,7 +81,8 @@ export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryE
     title: row.title,
     outputDir: row.output_dir,
     files: row.files,
-    coverUrl: row.cover_path ? await filePathToAssetUrl(row.cover_path) : undefined,
+    coverUrl: row.cover_data_url ?? (row.cover_path ? await filePathToAssetUrl(row.cover_path) : undefined),
+    coverDataUrl: row.cover_data_url ?? undefined,
     sizeBytes: row.size_bytes
   })));
 }

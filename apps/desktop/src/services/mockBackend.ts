@@ -258,22 +258,36 @@ const novels: Novel[] = [
 const library: LibraryItem[] = [
   {
     id: "lib-mockingbird",
+    novelId: "enchanter-forest",
     title: "To Kill a Mockingbird",
     author: "Harper Lee",
     format: "EPUB",
+    formats: ["EPUB"],
     chapters: 31,
     sizeMb: 15,
-    coverClass: "cover-j",
+    coverClass: "cover-c",
+    coverUrl: "/icons/oghma-icon.svg",
+    bundleKey: novels[0].bundleKey,
+    description: "A copia local preservada fica disponivel para conversao e leitura mesmo sem depender do site de origem.",
+    sourceName: "Central Novel",
+    outputDir: "~/Documents/Oghma Library/exports/To Kill a Mockingbird",
+    files: ["To Kill a Mockingbird.epub"],
     exportedAt: "Hoje, 00:51"
   },
   {
     id: "lib-lost-temple",
+    novelId: "lost-temple",
     title: "Mystery of the Lost Temple",
     author: "Jules Verne",
     format: "EPUB",
+    formats: ["EPUB", "PDF"],
     chapters: 19,
     sizeMb: 11,
     coverClass: "cover-i",
+    description: "Uma aventura local com multiplos formatos ja gerados.",
+    sourceName: "Novel Mania",
+    outputDir: "~/Documents/Oghma Library/exports/Mystery of the Lost Temple",
+    files: ["Mystery of the Lost Temple.epub", "Mystery of the Lost Temple.pdf"],
     exportedAt: "Ontem, 20:10"
   }
 ];

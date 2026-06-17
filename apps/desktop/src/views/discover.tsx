@@ -17,6 +17,12 @@ import {
   useState
 } from "react";
 import { statusLabel, tags } from "../constants/ui";
+import {
+  defaultFilters,
+  defaultSelection,
+  estimateChapters,
+  selectionLabel
+} from "../core/defaults";
 import type {
   ChapterSelection,
   DownloadFormat,
@@ -25,12 +31,6 @@ import type {
   SourceSite
 } from "../core/types";
 import { downloadFormats } from "../core/types";
-import {
-  defaultFilters,
-  defaultSelection,
-  estimateChapters,
-  selectionLabel
-} from "../services/mockBackend";
 
 function FiltersPanel({
   filters,

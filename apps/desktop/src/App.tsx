@@ -7,7 +7,6 @@ import { useBootstrapState } from "./app/useBootstrapState";
 import { useConversionManager } from "./app/useConversionManager";
 import { useDownloadProcessor } from "./app/useDownloadProcessor";
 import { useKindleDetection } from "./app/useKindleDetection";
-import { useKindleTransfer } from "./app/useKindleTransfer";
 import { useLocalLibrary } from "./app/useLocalLibrary";
 import { useNovelSearch } from "./app/useNovelSearch";
 import { useOnboardingSync } from "./app/useOnboardingSync";
@@ -16,7 +15,6 @@ import {
   ConversionModal,
   DiscoverView,
   DownloadsView,
-  KindleTransferModal,
   LibraryView,
   onboardingSteps,
   OnboardingWizard,
@@ -31,10 +29,12 @@ import {
   hasCompletedSetup,
   markSetupComplete,
 } from "./core/appConfig";
+import { defaultFilters, defaultSelection } from "./core/defaults";
 import type {
   AppConfig,
   ChapterSelection,
   Filters,
+  LibraryItem,
   Novel,
   QueueItem,
   ServerProbe,
@@ -45,20 +45,40 @@ import {
   joinPath,
   openLocalPath
 } from "./services/localFiles";
-import { defaultFilters, defaultSelection, mockBackendClient } from "./services/mockBackend";
 
 type AppProps = {
-  backend?: BackendClient;
+  backend: BackendClient;
 };
 
-export function App({ backend = mockBackendClient }: AppProps) {
+function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
+  return items.map((item) => ({
+    id: item.id,
+    novelId: item.novelId ?? item.id,
+    title: item.title,
+    coverClass: item.coverClass,
+    coverUrl: item.coverUrl,
+    bundleKey: item.bundleKey,
+    preset: "all",
+    rangeLabel: item.chapters ? `Todos os ${item.chapters.toLocaleString("pt-BR")} capitulos` : "Livro local",
+    progress: 100,
+    state: "done",
+    chaptersTotal: item.chapters || 0,
+    formats: item.formats?.length ? item.formats : [item.format],
+    translate: false,
+    audiobook: false,
+    outputDir: item.outputDir,
+    outputFiles: item.files
+  }));
+}
+
+export function App({ backend }: AppProps) {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
   const [serverProbe, setServerProbe] = useState<ServerProbe | null>(null);
   const [probingServer, setProbingServer] = useState(false);
-  const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
+  const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [downloadsPulse, setDownloadsPulse] = useState(0);
   const [selections, setSelections] = useState<Record<string, ChapterSelection>>({});
@@ -127,8 +147,8 @@ export function App({ backend = mockBackendClient }: AppProps) {
     [results, selectedIds]
   );
   const selectedCompletedItems = useMemo(
-    () => queue.filter((item) => item.state === "done" && selectedQueueIds.includes(item.id)),
-    [queue, selectedQueueIds]
+    () => libraryToQueueItems(library.filter((item) => selectedLibraryIds.includes(item.id))),
+    [library, selectedLibraryIds]
   );
   const {
     closeConverter,
@@ -144,25 +164,6 @@ export function App({ backend = mockBackendClient }: AppProps) {
     toggleConverterFormat,
     toggleConverterTranslate
   } = useConversionManager({ appConfig, refreshLocalLibrary, selectedCompletedItems, setQueue, setToast });
-  const {
-    closeKindleTransfer,
-    kindleCompleted,
-    kindleDisabledReason,
-    kindleJobItems,
-    kindleModalOpen,
-    kindleProgress,
-    kindleSending,
-    openKindleTransfer,
-    startKindleTransfer
-  } = useKindleTransfer({
-    backend,
-    kindleConnected,
-    kindleStatus,
-    refreshLocalLibrary,
-    selectedCompletedItems,
-    setQueue,
-    setToast
-  });
   const buildDefaultSelection = (novel: Novel) => ({
     ...defaultSelection(novel),
     formats: appConfig.defaultFormats,
@@ -198,29 +199,15 @@ export function App({ backend = mockBackendClient }: AppProps) {
     }
   };
 
-  const toggleQueueSelect = (id: string) =>
-    setSelectedQueueIds((ids) => (ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]));
-
-  const toggleQueueSelectAll = () =>
-    setSelectedQueueIds((ids) => {
-      const selectable = queue.filter((item) => item.state === "done").map((item) => item.id);
-      const allSelected = selectable.length > 0 && selectable.every((id) => ids.includes(id));
-      return allSelected ? [] : selectable;
-    });
-
   const clearSelectedQueue = () => {
-    const ids = queue
-      .filter((item) => selectedQueueIds.includes(item.id) && item.state === "done")
-      .map((item) => item.id);
-    if (ids.length === 0) return;
-    setQueue((current) => current.filter((item) => !ids.includes(item.id)));
-    setSelectedQueueIds([]);
-    setToast(`${ids.length} item(ns) removido(s) da fila.`);
+    const doneCount = queue.filter((item) => item.state === "done").length;
+    if (doneCount === 0) return;
+    setQueue((current) => current.filter((item) => item.state !== "done"));
+    setToast(`${doneCount} item(ns) concluido(s) removido(s) da fila.`);
   };
 
   const cancelDownload = (id: string) => {
     setQueue((current) => current.filter((item) => item.id !== id));
-    setSelectedQueueIds((ids) => ids.filter((value) => value !== id));
     setToast("Download cancelado.");
   };
 
@@ -234,8 +221,10 @@ export function App({ backend = mockBackendClient }: AppProps) {
       });
   };
 
-  const openLibraryFolder = () => openFolder(appConfig.outputPath, "pasta de saida");
   const openQueueItemFolder = (item: QueueItem) => openFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`);
+  const openLibraryItemFolder = (item: LibraryItem) => openFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`);
+  const toggleLibrarySelect = (id: string) =>
+    setSelectedLibraryIds((ids) => (ids.includes(id) ? [] : [id]));
 
   const runSourceSync = async (sourceId: string, options?: { silentError?: boolean }) => {
     if (syncing.includes(sourceId)) return;
@@ -392,21 +381,21 @@ export function App({ backend = mockBackendClient }: AppProps) {
             <DownloadsView
               queue={queue}
               paused={queuePaused}
-              selectedIds={selectedQueueIds}
-              kindleConnected={kindleConnected}
-              kindleDisabledReason={kindleDisabledReason}
               onPauseToggle={() => setQueuePaused((value) => !value)}
-              onToggleSelect={toggleQueueSelect}
-              onToggleSelectAll={toggleQueueSelectAll}
-              onExportSelected={openConverter}
-              onClearSelected={clearSelectedQueue}
+              onClearCompleted={clearSelectedQueue}
               onCancel={cancelDownload}
-              onOpenFolder={openLibraryFolder}
               onOpenItemFolder={openQueueItemFolder}
-              onSendToKindle={openKindleTransfer}
             />
           ) : null}
-          {!bootError && activeView === "library" ? <LibraryView library={library} onOpenFolder={openLibraryFolder} /> : null}
+          {!bootError && activeView === "library" ? (
+            <LibraryView
+              library={library}
+              selectedIds={selectedLibraryIds}
+              onToggleSelect={toggleLibrarySelect}
+              onConvertSelected={openConverter}
+              onOpenItemFolder={openLibraryItemFolder}
+            />
+          ) : null}
           {activeView === "settings" ? <SettingsView config={appConfig} onConfigChange={patchConfig} onOpenOnboarding={openOnboarding} /> : null}
         </div>
         <OnboardingWizard
@@ -426,15 +415,6 @@ export function App({ backend = mockBackendClient }: AppProps) {
           onBack={rewindOnboarding}
           onNext={advanceOnboarding}
           onClose={closeOnboarding}
-        />
-        <KindleTransferModal
-          open={kindleModalOpen}
-          items={kindleJobItems}
-          progress={kindleProgress}
-          sending={kindleSending}
-          completed={kindleCompleted}
-          onClose={closeKindleTransfer}
-          onStart={startKindleTransfer}
         />
         <ConversionModal
           open={converterOpen}

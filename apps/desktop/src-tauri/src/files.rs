@@ -11,7 +11,42 @@ pub struct ExportLibraryItem {
     output_dir: String,
     files: Vec<String>,
     cover_path: Option<String>,
+    cover_data_url: Option<String>,
     size_bytes: u64,
+}
+
+fn mime_from_name(name: &str) -> &'static str {
+    let lower = name.to_lowercase();
+    if lower.ends_with(".png") {
+        "image/png"
+    } else if lower.ends_with(".webp") {
+        "image/webp"
+    } else {
+        "image/jpeg"
+    }
+}
+
+fn base64_encode(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0];
+        let b1 = *chunk.get(1).unwrap_or(&0);
+        let b2 = *chunk.get(2).unwrap_or(&0);
+        out.push(TABLE[(b0 >> 2) as usize] as char);
+        out.push(TABLE[(((b0 & 0b0000_0011) << 4) | (b1 >> 4)) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(TABLE[(((b1 & 0b0000_1111) << 2) | (b2 >> 6)) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(TABLE[(b2 & 0b0011_1111) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
 }
 
 #[tauri::command]
@@ -67,6 +102,7 @@ pub fn list_export_library(output_dir: String) -> Result<Vec<ExportLibraryItem>,
 
         let mut files = Vec::new();
         let mut cover_path = None;
+        let mut cover_data_url = None;
         let mut size_bytes = 0;
         for file in fs::read_dir(&path).map_err(|err| format!("Nao foi possivel ler uma pasta de livro: {err}"))? {
             let file = file.map_err(|err| format!("Nao foi possivel ler um arquivo exportado: {err}"))?;
@@ -79,6 +115,11 @@ pub fn list_export_library(output_dir: String) -> Result<Vec<ExportLibraryItem>,
             size_bytes += file.metadata().map(|m| m.len()).unwrap_or(0);
             if lower.starts_with("cover.") {
                 cover_path = Some(file_path.to_string_lossy().to_string());
+                if cover_data_url.is_none() {
+                    if let Ok(bytes) = fs::read(&file_path) {
+                        cover_data_url = Some(format!("data:{};base64,{}", mime_from_name(&name), base64_encode(&bytes)));
+                    }
+                }
             } else if lower.ends_with(".epub") || lower.ends_with(".pdf") || lower.ends_with(".txt") || lower.ends_with(".html") {
                 files.push(name);
             }
@@ -93,6 +134,7 @@ pub fn list_export_library(output_dir: String) -> Result<Vec<ExportLibraryItem>,
             output_dir: path.to_string_lossy().to_string(),
             files,
             cover_path,
+            cover_data_url,
             size_bytes,
         });
     }
