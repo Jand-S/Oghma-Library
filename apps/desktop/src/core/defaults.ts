@@ -5,12 +5,12 @@ import type {
   Novel
 } from "./types";
 
-export function defaultFilters(): Filters {
+export function defaultFilters(sourceId = "all"): Filters {
   return {
     query: "",
-    sourceId: "all",
+    sourceId,
     status: "any",
-    language: "pt-br",
+    language: "all",
     tags: [],
     onlyCovered: true,
     updatedOnly: false,

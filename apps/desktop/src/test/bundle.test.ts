@@ -73,14 +73,15 @@ const meta = {
 
 const files = [
   { name: "meta.json", body: JSON.stringify(meta) },
-  { name: "chapters/1.html", body: "<p>Klein abriu os olhos.</p><p>Tudo&nbsp;estranho.</p>" },
-  { name: "chapters/2.html", body: "<div>A morte&amp;a vida.</div>" }
+  { name: "chapters/1.html", body: '<p>Klein abriu os olhos.</p><img src="../assets/abc.webp">' },
+  { name: "chapters/2.html", body: "<div>A morte&amp;a vida.</div>" },
+  { name: "assets/abc.webp", body: "RIFFxxxxWEBPimage" }
 ];
 
 describe("bundle", () => {
   it("untar reads regular file entries", () => {
     const entries = untar(buildTar(files));
-    expect(entries.map((e) => e.name)).toEqual(["meta.json", "chapters/1.html", "chapters/2.html"]);
+    expect(entries.map((e) => e.name)).toEqual(["meta.json", "chapters/1.html", "chapters/2.html", "assets/abc.webp"]);
   });
 
   it("extractBundle parses meta + chapters and joins titles", () => {
@@ -89,6 +90,8 @@ describe("bundle", () => {
     expect(res.chapters.map((c) => c.number)).toEqual([1, 2]);
     expect(res.chapters[0].title).toBe("Crimson");
     expect(res.chapters[0].html).toContain("Klein");
+    expect(res.assets).toHaveLength(1);
+    expect(res.assets[0].mediaType).toBe("image/webp");
   });
 
   it("htmlToText strips tags and entities", () => {

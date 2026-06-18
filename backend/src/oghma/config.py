@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     user_agent: str = "OghmaLibraryBot/0.1 (+preservacao/biblioteca pessoal)"
     default_rate_limit_seconds: float = 2.0
     request_timeout_seconds: float = 30.0
+    publish_upload_concurrency: int = 4
     fts_language: str = "portuguese"
     house_saikai_bearer: str | None = None
     sky_demon_order_cookie: str | None = None

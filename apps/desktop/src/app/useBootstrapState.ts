@@ -54,14 +54,20 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
         const fallbackSourceIds = payload.sources.filter((source) => source.enabled).map((source) => source.id);
         const effectiveConfig = resolveAppConfig(storedConfig, fallbackSourceIds);
 
+        const initialSourceId = effectiveConfig.enabledSourceIds.find((id) =>
+          payload.sources.some((source) => source.id === id)
+        ) ?? payload.sources[0]?.id;
+        const initialNovels = initialSourceId
+          ? payload.novels.filter((novel) => novel.sourceId === initialSourceId)
+          : [];
         setAppConfig(effectiveConfig);
         setSources(payload.sources.map((source) => ({ ...source, enabled: effectiveConfig.enabledSourceIds.includes(source.id) })));
-        setResults(payload.novels);
+        setResults(initialNovels);
         setLibrary(payload.library);
         autoSelectedRef.current = new Set(payload.queue.filter((item) => item.state === "done").map((item) => item.id));
         setQueue(payload.queue);
         setKindleStatus(deviceStatus);
-        setFocusedNovelId(payload.novels[0]?.id ?? "");
+        setFocusedNovelId(initialNovels[0]?.id ?? "");
         setLoading(false);
         setBootDone(true);
         splashTimer = window.setTimeout(() => setShowSplash(false), 520);

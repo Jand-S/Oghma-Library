@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub fn expand_home(path: &str) -> PathBuf {
     if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
@@ -13,12 +13,29 @@ pub fn expand_home(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-pub fn safe_file_name(file_name: &str) -> Result<&str, String> {
+pub fn safe_relative_path(file_name: &str) -> Result<PathBuf, String> {
     let path = Path::new(file_name);
-    if path.components().count() != 1 {
-        return Err("Nome de arquivo invalido".to_string());
+    if file_name.is_empty()
+        || path.is_absolute()
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err("Caminho de arquivo invalido".to_string());
     }
-    Ok(file_name)
+    Ok(path.to_path_buf())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_relative_path;
+
+    #[test]
+    fn relative_export_path_allows_asset_subdirectory() {
+        assert!(safe_relative_path("assets/image.webp").is_ok());
+        assert!(safe_relative_path("../outside.webp").is_err());
+        assert!(safe_relative_path("/absolute.webp").is_err());
+    }
 }
 
 pub fn safe_export_stem(title: &str) -> String {

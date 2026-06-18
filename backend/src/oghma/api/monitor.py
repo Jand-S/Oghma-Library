@@ -574,7 +574,12 @@ MONITOR_HTML = """<!doctype html>
     function renderPublish(job) {
       if (!job || !job.status) return "<strong>Publish</strong><span>status indisponivel</span>";
       if (job.status === "running") {
-        return `<strong>Publish em andamento</strong><span>Fonte: ${text(job.source, "all")}</span><span>Inicio: ${formatDateTime(job.startedAt)}</span>`;
+        const source = text(job.currentSource, text(job.source, "all"));
+        const progress = job.sourcesTotal
+          ? `Site ${fmt.format(asNumber(job.sourcesDone) + 1)} de ${fmt.format(asNumber(job.sourcesTotal))}`
+          : "Preparando fontes";
+        const phase = job.phase === "uploading" ? "Enviando ao B2" : "Gerando arquivos";
+        return `<strong>Publish em andamento</strong><span>${progress} &middot; ${source} &middot; ${phase}</span><span>Inicio: ${formatDateTime(job.startedAt)}</span>`;
       }
       if (job.status === "done") {
         const s = job.summary || {};

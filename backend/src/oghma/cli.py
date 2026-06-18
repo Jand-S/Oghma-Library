@@ -17,6 +17,7 @@ from .scraper.base import RawPage
 from .scraper import registry
 from .scraper.fetcher import HttpFetcher
 from .scraper.orchestrator import crawl_source
+from .scraper.repair_images import repair_chapter_images
 
 app = typer.Typer(add_completion=False, help="Oghma Library backend")
 
@@ -198,6 +199,33 @@ def serve(host: str = "0.0.0.0", port: int = 8000) -> None:
     import uvicorn
 
     uvicorn.run("oghma.api.main:app", host=host, port=port)
+
+
+@app.command("repair-chapter-images")
+def repair_images(
+    source: str = typer.Option("all", help="fonte ou all"),
+    limit: int = typer.Option(None, help="max de capitulos por fonte (teste)"),
+    dry_run: bool = typer.Option(False, help="somente gera o relatorio"),
+    image_rate_seconds: float = typer.Option(0.1, help="intervalo por host entre imagens"),
+) -> None:
+    """Baixa imagens inline, reescreve HTML e gera relatorio por novel."""
+
+    result = asyncio.run(
+        repair_chapter_images(
+            source,
+            limit=limit,
+            dry_run=dry_run,
+            image_rate_seconds=image_rate_seconds,
+        )
+    )
+    for source_id, stats in result["sources"].items():
+        typer.echo(
+            f"{source_id}: {len(stats['novels'])} novels, "
+            f"{stats['chapters_affected']} chapters, "
+            f"{stats['downloaded']} downloaded, {stats['reused']} reused, "
+            f"{stats['removed']} removed, {stats['failed']} failures"
+        )
+    typer.echo(f"report: {result['report_path']}")
 
 
 if __name__ == "__main__":

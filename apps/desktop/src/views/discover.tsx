@@ -7,15 +7,19 @@ import {
   Headphones,
   Languages,
   Search,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Trash2
 } from "lucide-react";
 import {
   MouseEvent,
   PointerEvent as ReactPointerEvent,
+  RefObject,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState
 } from "react";
+import { createPortal } from "react-dom";
 import { statusLabel, tags } from "../constants/ui";
 import {
   defaultFilters,
@@ -45,6 +49,7 @@ function FiltersPanel({
   const toggleTag = (tag: string) => {
     setFilter("tags", filters.tags.includes(tag) ? filters.tags.filter((item) => item !== tag) : [...filters.tags, tag]);
   };
+  const changeSource = (sourceId: string) => onChange({ ...filters, sourceId, language: "all" });
 
   return (
     <aside className="filter-panel">
@@ -66,9 +71,8 @@ function FiltersPanel({
 
         <div className="field-group">
           <label htmlFor="source">Fonte</label>
-          <select id="source" value={filters.sourceId} onChange={(event) => setFilter("sourceId", event.target.value)}>
-            <option value="all">Todos os sites</option>
-            {sources.map((source) => (
+          <select id="source" value={filters.sourceId} onChange={(event) => changeSource(event.target.value)} required>
+            {sources.filter((source) => source.enabled).map((source) => (
               <option value={source.id} key={source.id}>
                 {source.name}
               </option>
@@ -201,20 +205,54 @@ function SelectionConfigurator({
   selections,
   onChange,
   onAdd,
-  onReorder
+  onReorder,
+  onRemove,
+  trashRef,
+  onDragStateChange
 }: {
   selectedNovels: Novel[];
   selections: Record<string, ChapterSelection>;
   onChange: (selection: ChapterSelection) => void;
   onAdd: () => void;
   onReorder: (orderedIds: string[]) => void;
+  onRemove: (novelId: string) => void;
+  trashRef: RefObject<HTMLDivElement | null>;
+  onDragStateChange: (active: boolean, overTrash: boolean) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [dragPreview, setDragPreview] = useState<{
+    x: number;
+    y: number;
+    offsetX: number;
+    offsetY: number;
+    width: number;
+  } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const dragIdRef = useRef<string | null>(null);
-  const overIdRef = useRef<string | null>(null);
+  const orderRef = useRef<string[]>([]);
+  const positionsRef = useRef(new Map<string, DOMRect>());
+
+  useLayoutEffect(() => {
+    const cards = listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]");
+    if (!cards) return;
+    const next = new Map<string, DOMRect>();
+    cards.forEach((card) => {
+      const id = card.dataset.cardId;
+      if (!id) return;
+      const rect = card.getBoundingClientRect();
+      next.set(id, rect);
+      const previous = positionsRef.current.get(id);
+      const delta = previous ? previous.top - rect.top : 0;
+      if (delta && typeof card.animate === "function") {
+        card.animate(
+          [{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }],
+          { duration: 160, easing: "cubic-bezier(.2,.8,.2,1)" }
+        );
+      }
+    });
+    positionsRef.current = next;
+  }, [selectedNovels]);
 
   useEffect(() => {
     if (!expandedId) return;
@@ -226,49 +264,76 @@ function SelectionConfigurator({
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
     const card = event.currentTarget.closest("[data-card-id]") as HTMLElement | null;
     const id = card?.getAttribute("data-card-id") ?? null;
-    if (!id) return;
+    if (!id || !card) return;
     event.preventDefault();
+    const rect = card.getBoundingClientRect();
     dragIdRef.current = id;
-    overIdRef.current = id;
+    orderRef.current = selectedNovels.map((novel) => novel.id);
     setDragId(id);
-    setOverId(id);
+    setDragPreview({
+      x: event.clientX,
+      y: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      width: rect.width
+    });
+    onDragStateChange(true, false);
 
     const onMove = (moveEvent: PointerEvent) => {
-      const cards = listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]");
-      if (!cards) return;
-      let target = overIdRef.current;
-      cards.forEach((element) => {
-        const rect = element.getBoundingClientRect();
-        if (moveEvent.clientY >= rect.top && moveEvent.clientY <= rect.bottom) {
-          target = element.getAttribute("data-card-id");
+      setDragPreview((current) => current ? { ...current, x: moveEvent.clientX, y: moveEvent.clientY } : current);
+      const trashRect = trashRef.current?.getBoundingClientRect();
+      const overTrash = Boolean(trashRect
+        && moveEvent.clientX >= trashRect.left
+        && moveEvent.clientX <= trashRect.right
+        && moveEvent.clientY >= trashRect.top
+        && moveEvent.clientY <= trashRect.bottom);
+      onDragStateChange(true, overTrash);
+      if (overTrash) return;
+
+      const from = dragIdRef.current;
+      const cards = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]") ?? []);
+      if (!from || cards.length < 2) return;
+      const remaining = orderRef.current.filter((value) => value !== from);
+      let insertAt = remaining.length;
+      for (const element of cards) {
+        const idAtCard = element.dataset.cardId;
+        if (!idAtCard || idAtCard === from) continue;
+        const rectAtCard = element.getBoundingClientRect();
+        if (moveEvent.clientY < rectAtCard.top + rectAtCard.height / 2) {
+          insertAt = remaining.indexOf(idAtCard);
+          break;
         }
-      });
-      if (target !== overIdRef.current) {
-        overIdRef.current = target;
-        setOverId(target);
+      }
+      const next = [...remaining];
+      next.splice(Math.max(0, insertAt), 0, from);
+      if (next.some((value, index) => value !== orderRef.current[index])) {
+        orderRef.current = next;
+        onReorder(next);
       }
     };
 
-    const onUp = () => {
+    const onUp = (upEvent: PointerEvent) => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       const from = dragIdRef.current;
-      const to = overIdRef.current;
-      if (from && to && from !== to) {
-        const ids = selectedNovels.map((novel) => novel.id);
-        const next = ids.filter((value) => value !== from);
-        next.splice(next.indexOf(to), 0, from);
-        onReorder(next);
-      }
+      const trashRect = trashRef.current?.getBoundingClientRect();
+      const droppedInTrash = Boolean(trashRect
+        && upEvent.clientX >= trashRect.left
+        && upEvent.clientX <= trashRect.right
+        && upEvent.clientY >= trashRect.top
+        && upEvent.clientY <= trashRect.bottom);
+      if (from && droppedInTrash) onRemove(from);
       dragIdRef.current = null;
-      overIdRef.current = null;
       setDragId(null);
-      setOverId(null);
+      setDragPreview(null);
+      onDragStateChange(false, false);
     };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   };
+
+  const draggedNovel = selectedNovels.find((novel) => novel.id === dragId);
 
   return (
     <aside className="selection-drawer">
@@ -295,7 +360,7 @@ function SelectionConfigurator({
             <span>Clique em um card para configurar capitulos.</span>
           </div>
         ) : (
-          selectedNovels.map((novel, index) => {
+          selectedNovels.map((novel) => {
             const selection = selections[novel.id] ?? defaultSelection(novel);
             const expanded = expandedId === novel.id;
             const update = (patch: Partial<ChapterSelection>) => onChange({ ...selection, ...patch });
@@ -309,7 +374,7 @@ function SelectionConfigurator({
             };
             return (
               <article
-                className={`selection-card ${expanded ? "expanded" : "collapsed"} ${dragId === novel.id ? "dragging" : ""} ${overId === novel.id && dragId && dragId !== novel.id ? "drop-target" : ""}`}
+                className={`selection-card ${expanded ? "expanded" : "collapsed"} ${dragId === novel.id ? "dragging" : ""}`}
                 key={novel.id}
                 data-card-id={novel.id}
               >
@@ -322,7 +387,6 @@ function SelectionConfigurator({
                   >
                     <GripVertical size={15} />
                   </span>
-                  <span className="priority-badge" title="Prioridade na fila">{index + 1}</span>
                   <button
                     className="selection-summary"
                     aria-expanded={expanded}
@@ -422,6 +486,23 @@ function SelectionConfigurator({
           })
         )}
       </div>
+      {dragPreview && draggedNovel ? createPortal(
+        <div
+          className="selection-drag-preview"
+          style={{
+            left: dragPreview.x - dragPreview.offsetX,
+            top: dragPreview.y - dragPreview.offsetY,
+            width: dragPreview.width
+          }}
+        >
+          <GripVertical size={15} />
+          <div className="selection-title">
+            <strong>{draggedNovel.title}</strong>
+            <small>{draggedNovel.chapters.toLocaleString("pt-BR")} capitulos</small>
+          </div>
+        </div>,
+        document.body
+      ) : null}
     </aside>
   );
 }
@@ -430,6 +511,7 @@ export function DiscoverView({
   sources,
   filters,
   results,
+  selectedNovels,
   loading,
   selectedIds,
   focusedNovel,
@@ -441,11 +523,13 @@ export function DiscoverView({
   onFocusNovel,
   onSelectionChange,
   onAddSelected,
-  onReorder
+  onReorder,
+  onRemoveSelected
 }: {
   sources: SourceSite[];
   filters: Filters;
   results: Novel[];
+  selectedNovels: Novel[];
   loading: boolean;
   selectedIds: string[];
   focusedNovel?: Novel;
@@ -458,11 +542,14 @@ export function DiscoverView({
   onSelectionChange: (selection: ChapterSelection) => void;
   onAddSelected: () => void;
   onReorder: (orderedIds: string[]) => void;
+  onRemoveSelected: (novelId: string) => void;
 }) {
-  const selectedNovels = selectedIds
-    .map((id) => results.find((novel) => novel.id === id))
-    .filter((novel): novel is Novel => Boolean(novel));
-
+  const pageSize = 60;
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+  const [dragState, setDragState] = useState({ active: false, overTrash: false });
+  const trashRef = useRef<HTMLDivElement>(null);
+  useEffect(() => setVisibleCount(pageSize), [results]);
+  const visibleResults = results.slice(0, visibleCount);
   return (
     <>
       {!filterCollapsed ? (
@@ -473,10 +560,22 @@ export function DiscoverView({
         />
       ) : null}
       <section className="content-area">
+        <div
+          ref={trashRef}
+          className={`selection-trash-zone ${dragState.active ? "visible" : ""} ${dragState.overTrash ? "active" : ""}`}
+          aria-hidden={!dragState.active}
+        >
+          <Trash2 size={22} />
+          <strong>Solte para remover</strong>
+        </div>
         <div className="toolbar">
           <div>
             <h2>Resultados</h2>
-            <span>{loading ? "Buscando..." : `${results.length} livros encontrados`}</span>
+            <span>
+              {loading
+                ? "Buscando..."
+                : `${Math.min(visibleCount, results.length)} de ${results.length} livros`}
+            </span>
           </div>
           <div className="toolbar-actions">
             <button className="button quiet" onClick={onToggleFilters}>
@@ -487,17 +586,17 @@ export function DiscoverView({
         </div>
 
         <div className="active-filter-row">
-          {filters.sourceId !== "all" ? <span>{sources.find((source) => source.id === filters.sourceId)?.name}</span> : <span>Todos os sites</span>}
+          <span>{sources.find((source) => source.id === filters.sourceId)?.name ?? "Fonte obrigatoria"}</span>
           {filters.tags.map((tag) => <span key={tag}>{tag}</span>)}
           <span>{filters.language.toUpperCase()}</span>
-          <button onClick={() => onFiltersChange(defaultFilters())}>Limpar</button>
+          <button onClick={() => onFiltersChange(defaultFilters(filters.sourceId))}>Limpar</button>
         </div>
 
         {loading ? (
           <SkeletonGrid />
         ) : (
           <div className="book-grid compact">
-            {results.map((novel) => (
+            {visibleResults.map((novel) => (
               <NovelCard
                 key={novel.id}
                 novel={novel}
@@ -507,6 +606,13 @@ export function DiscoverView({
                 onFocus={() => onFocusNovel(novel)}
               />
             ))}
+            {visibleCount < results.length ? (
+              <div className="results-more">
+                <button className="button quiet" onClick={() => setVisibleCount((count) => count + pageSize)}>
+                  Mostrar mais
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -518,6 +624,9 @@ export function DiscoverView({
           onChange={onSelectionChange}
           onAdd={onAddSelected}
           onReorder={onReorder}
+          onRemove={onRemoveSelected}
+          trashRef={trashRef}
+          onDragStateChange={(active, overTrash) => setDragState({ active, overTrash })}
         />
       ) : null}
     </>

@@ -2,8 +2,9 @@ use std::fs;
 use std::process::Command;
 
 use serde::Serialize;
+use tauri::ipc::{InvokeBody, Request};
 
-use crate::paths::{expand_home, safe_file_name};
+use crate::paths::{expand_home, safe_relative_path};
 
 #[derive(Serialize)]
 pub struct ExportLibraryItem {
@@ -50,12 +51,58 @@ fn base64_encode(bytes: &[u8]) -> String {
 }
 
 #[tauri::command]
-pub fn save_export_file(output_dir: String, file_name: String, bytes: Vec<u8>) -> Result<String, String> {
-    let file_name = safe_file_name(&file_name)?;
+pub fn save_export_file(request: Request<'_>) -> Result<String, String> {
+    fn decode_header(value: &str) -> Result<String, String> {
+        let source = value.as_bytes();
+        let mut decoded = Vec::with_capacity(source.len());
+        let mut index = 0;
+        while index < source.len() {
+            if source[index] == b'%' {
+                if index + 2 >= source.len() {
+                    return Err("Header de arquivo invalido".to_string());
+                }
+                let hex = std::str::from_utf8(&source[index + 1..index + 3])
+                    .map_err(|_| "Header de arquivo invalido".to_string())?;
+                decoded.push(
+                    u8::from_str_radix(hex, 16)
+                        .map_err(|_| "Header de arquivo invalido".to_string())?,
+                );
+                index += 3;
+            } else {
+                decoded.push(source[index]);
+                index += 1;
+            }
+        }
+        String::from_utf8(decoded).map_err(|_| "Header de arquivo invalido".to_string())
+    }
+
+    let payload = match request.body() {
+        InvokeBody::Raw(bytes) => bytes,
+        _ => return Err("Payload binario esperado".to_string()),
+    };
+    let output_dir = request
+        .headers()
+        .get("x-oghma-output-dir")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| "Pasta de saida ausente".to_string())
+        .and_then(decode_header)?;
+    let file_name = request
+        .headers()
+        .get("x-oghma-file-name")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| "Nome de arquivo ausente".to_string())
+        .and_then(decode_header)?;
+
+    let relative_path = safe_relative_path(&file_name)?;
     let dir = expand_home(&output_dir);
     fs::create_dir_all(&dir).map_err(|err| format!("Nao foi possivel criar a pasta de saida: {err}"))?;
-    let path = dir.join(file_name);
-    fs::write(&path, bytes).map_err(|err| format!("Nao foi possivel salvar o arquivo: {err}"))?;
+    let path = dir.join(relative_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("Nao foi possivel criar a pasta de assets: {err}"))?;
+    }
+    fs::write(&path, payload)
+        .map_err(|err| format!("Nao foi possivel salvar o arquivo: {err}"))?;
     Ok(path.to_string_lossy().to_string())
 }
 

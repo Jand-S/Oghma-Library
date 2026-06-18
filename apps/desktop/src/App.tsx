@@ -1,5 +1,6 @@
 import { CloudOff, RefreshCcw, Settings } from "lucide-react";
 import {
+  useEffect,
   useMemo,
   useState
 } from "react";
@@ -80,6 +81,7 @@ export function App({ backend }: AppProps) {
   const [probingServer, setProbingServer] = useState(false);
   const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedNovelById, setSelectedNovelById] = useState<Record<string, Novel>>({});
   const [downloadsPulse, setDownloadsPulse] = useState(0);
   const [selections, setSelections] = useState<Record<string, ChapterSelection>>({});
   const [syncing, setSyncing] = useState<string[]>([]);
@@ -128,6 +130,16 @@ export function App({ backend }: AppProps) {
     setSetupSyncCompleted
   } = useOnboardingSync({ showOnboarding, onboardingStep, appConfig, backend, setSources, setSyncing, setToast });
 
+  useEffect(() => {
+    if (sources.length === 0) return;
+    const available = sources.filter((source) => source.enabled);
+    const fallback = available[0] ?? sources[0];
+    const selectedExists = available.some((source) => source.id === filters.sourceId);
+    if (!selectedExists && fallback) {
+      setFilters((current) => ({ ...current, sourceId: fallback.id, language: "all" }));
+    }
+  }, [filters.sourceId, sources]);
+
   const focusedNovel = useMemo(() => results.find((novel) => novel.id === focusedNovelId), [focusedNovelId, results]);
   const kindleConnected = kindleStatus?.connected ?? false;
   useDownloadProcessor({
@@ -143,8 +155,8 @@ export function App({ backend }: AppProps) {
   });
 
   const selectedNovels = useMemo(
-    () => selectedIds.map((id) => results.find((novel) => novel.id === id)).filter((novel): novel is Novel => Boolean(novel)),
-    [results, selectedIds]
+    () => selectedIds.map((id) => selectedNovelById[id]).filter((novel): novel is Novel => Boolean(novel)),
+    [selectedIds, selectedNovelById]
   );
   const selectedCompletedItems = useMemo(
     () => libraryToQueueItems(library.filter((item) => selectedLibraryIds.includes(item.id))),
@@ -172,9 +184,25 @@ export function App({ backend }: AppProps) {
   });
 
   const toggleNovel = (novel: Novel) => {
-    setSelectedIds((ids) => ids.includes(novel.id) ? ids.filter((id) => id !== novel.id) : [...ids, novel.id]);
+    const removing = selectedIds.includes(novel.id);
+    setSelectedIds((ids) => removing ? ids.filter((id) => id !== novel.id) : [...ids, novel.id]);
+    setSelectedNovelById((current) => {
+      if (!removing) return { ...current, [novel.id]: novel };
+      const next = { ...current };
+      delete next[novel.id];
+      return next;
+    });
     setFocusedNovelId(novel.id);
     setSelections((current) => current[novel.id] ? current : { ...current, [novel.id]: buildDefaultSelection(novel) });
+  };
+
+  const removeSelectedNovel = (novelId: string) => {
+    setSelectedIds((ids) => ids.filter((id) => id !== novelId));
+    setSelectedNovelById((current) => {
+      const next = { ...current };
+      delete next[novelId];
+      return next;
+    });
   };
 
   const addSelectedToQueue = () => {
@@ -184,6 +212,7 @@ export function App({ backend }: AppProps) {
       .then((items) => {
         setQueue((current) => [...current, ...items]);
         setSelectedIds([]);
+        setSelectedNovelById({});
         setDownloadsPulse((value) => value + 1);
         setToast(`${items.length} pacote(s) adicionados a fila de download.`);
       })
@@ -362,7 +391,8 @@ export function App({ backend }: AppProps) {
               sources={sources}
               filters={filters}
               results={results}
-              loading={loading || searching}
+              selectedNovels={selectedNovels}
+              loading={loading || searching || filters.sourceId === "all"}
               selectedIds={selectedIds}
               focusedNovel={focusedNovel}
               filterCollapsed={filtersCollapsed}
@@ -374,6 +404,7 @@ export function App({ backend }: AppProps) {
               onSelectionChange={(selection) => setSelections((current) => ({ ...current, [selection.novelId]: selection }))}
               onAddSelected={addSelectedToQueue}
               onReorder={setSelectedIds}
+              onRemoveSelected={removeSelectedNovel}
             />
           ) : null}
           {!bootError && activeView === "sources" ? <SourcesView sources={sources} syncing={syncing} onToggle={toggleSourceEnabled} onSync={syncSource} /> : null}

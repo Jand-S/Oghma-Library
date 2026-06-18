@@ -66,47 +66,70 @@ function u32(value: number): number[] {
   return [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff];
 }
 
-function concatBytes(parts: Uint8Array[]): Uint8Array {
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
-    out.set(part, offset);
-    offset += part.length;
-  }
-  return out;
+async function yieldToUi(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
-function createZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array {
+async function createZip(
+  files: Array<{ name: string; data: Uint8Array }>,
+  onProgress?: (percent: number) => void
+): Promise<Uint8Array> {
   const enc = new TextEncoder();
-  const locals: Uint8Array[] = [];
-  const centrals: Uint8Array[] = [];
+  const prepared: Array<{
+    name: Uint8Array;
+    data: Uint8Array;
+    crc: number;
+    offset: number;
+  }> = [];
   let offset = 0;
 
-  for (const file of files) {
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
     const name = enc.encode(file.name);
     const crc = crc32(file.data);
-    const localHeader = new Uint8Array([
-      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
-      ...u32(crc), ...u32(file.data.length), ...u32(file.data.length), ...u16(name.length), ...u16(0), ...name
-    ]);
-    const local = concatBytes([localHeader, file.data]);
-    locals.push(local);
-    const central = new Uint8Array([
-      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
-      ...u32(crc), ...u32(file.data.length), ...u32(file.data.length), ...u16(name.length), ...u16(0), ...u16(0),
-      ...u16(0), ...u16(0), ...u32(0), ...u32(offset), ...name
-    ]);
-    centrals.push(central);
-    offset += local.length;
+    prepared.push({ name, data: file.data, crc, offset });
+    offset += 30 + name.length + file.data.length;
+    onProgress?.(Math.round((45 * (index + 1)) / Math.max(files.length, 1)));
+    if (index % 8 === 7 || file.data.length >= 1024 * 1024) await yieldToUi();
   }
 
-  const centralDir = concatBytes(centrals);
+  const centralSize = prepared.reduce((sum, file) => sum + 46 + file.name.length, 0);
+  const out = new Uint8Array(offset + centralSize + 22);
+  let cursor = 0;
+  for (let index = 0; index < prepared.length; index += 1) {
+    const file = prepared[index];
+    const localHeader = new Uint8Array([
+      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(file.crc), ...u32(file.data.length), ...u32(file.data.length),
+      ...u16(file.name.length), ...u16(0), ...file.name
+    ]);
+    out.set(localHeader, cursor);
+    cursor += localHeader.length;
+    out.set(file.data, cursor);
+    cursor += file.data.length;
+    onProgress?.(45 + Math.round((45 * (index + 1)) / Math.max(prepared.length, 1)));
+    if (index % 8 === 7 || file.data.length >= 1024 * 1024) await yieldToUi();
+  }
+
+  const centralOffset = cursor;
+  for (const file of prepared) {
+    const central = new Uint8Array([
+      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(file.crc), ...u32(file.data.length), ...u32(file.data.length),
+      ...u16(file.name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(file.offset), ...file.name
+    ]);
+    out.set(central, cursor);
+    cursor += central.length;
+  }
+
   const end = new Uint8Array([
     ...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length),
-    ...u32(centralDir.length), ...u32(offset), ...u16(0)
+    ...u32(cursor - centralOffset), ...u32(centralOffset), ...u16(0)
   ]);
-  return concatBytes([...locals, centralDir, end]);
+  out.set(end, cursor);
+  onProgress?.(100);
+  return out;
 }
 
 function xhtmlDoc(title: string, body: string): string {
@@ -118,18 +141,37 @@ function xhtmlDoc(title: string, body: string): string {
 </html>`;
 }
 
-function buildEpub(bundle: ExtractedBundle, title: string, range?: { start: number; end: number }): Uint8Array {
+function referencedAssetNames(chapters: ExtractedBundle["chapters"]): Set<string> {
+  const names = new Set<string>();
+  for (const chapter of chapters) {
+    for (const match of chapter.html.matchAll(/\.\.\/assets\/([a-zA-Z0-9._-]+)/g)) names.add(match[1]);
+  }
+  return names;
+}
+
+async function buildEpub(
+  bundle: ExtractedBundle,
+  title: string,
+  range?: { start: number; end: number },
+  onProgress?: (percent: number) => void
+): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const chapters = bundle.chapters.filter((chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end));
+  const assetNames = referencedAssetNames(chapters);
+  const assets = bundle.assets.filter((asset) => assetNames.has(asset.name));
   const chapterFiles = chapters.map((chapter, index) => ({
     id: `chapter-${index + 1}`,
     href: `chapters/chapter-${index + 1}.xhtml`,
     title: chapter.title || `Capitulo ${chapter.number}`,
-    html: xhtmlDoc(chapter.title || `Capitulo ${chapter.number}`, `<h1>${xmlEscape(chapter.title || `Capitulo ${chapter.number}`)}</h1>${chapter.html}`)
+    html: xhtmlDoc(
+      chapter.title || `Capitulo ${chapter.number}`,
+      `<h1>${xmlEscape(chapter.title || `Capitulo ${chapter.number}`)}</h1>${chapter.html.replace(/<img([^>]*)>/gi, "<img$1 />")}`
+    )
   }));
   const manifestItems = chapterFiles.map((file) => `<item id="${file.id}" href="${file.href}" media-type="application/xhtml+xml"/>`).join("\n    ");
   const spineItems = chapterFiles.map((file) => `<itemref idref="${file.id}"/>`).join("\n    ");
   const navItems = chapterFiles.map((file) => `<li><a href="${file.href}">${xmlEscape(file.title)}</a></li>`).join("\n      ");
+  const assetManifest = assets.map((asset, index) => `<item id="asset-${index + 1}" href="assets/${asset.name}" media-type="${asset.mediaType}"/>`).join("\n    ");
   const plainDescription = stripHtml(chapters[0]?.html ?? title);
 
   return createZip([
@@ -147,27 +189,30 @@ function buildEpub(bundle: ExtractedBundle, title: string, range?: { start: numb
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
     ${manifestItems}
+    ${assetManifest}
   </manifest>
   <spine>
     ${spineItems}
   </spine>
 </package>`) },
     { name: "OEBPS/nav.xhtml", data: enc.encode(xhtmlDoc("Sumario", `<nav epub:type="toc" xmlns:epub="http://www.idpf.org/2007/ops"><h1>Sumario</h1><ol>${navItems}</ol></nav>`)) },
-    { name: "OEBPS/style.css", data: enc.encode("body{font-family:serif;line-height:1.55;margin:5%;} h1{font-size:1.35em;} img{max-width:100%;height:auto;}") },
-    ...chapterFiles.map((file) => ({ name: `OEBPS/${file.href}`, data: enc.encode(file.html) }))
-  ]);
+    { name: "OEBPS/style.css", data: enc.encode("body{font-family:serif;line-height:1.55;margin:5%;} h1{font-size:1.35em;} img{display:block;width:100%;max-width:100%;height:auto;object-fit:contain;margin:1em auto;}") },
+    ...chapterFiles.map((file) => ({ name: `OEBPS/${file.href}`, data: enc.encode(file.html) })),
+    ...assets.map((asset) => ({ name: `OEBPS/assets/${asset.name}`, data: asset.data }))
+  ], onProgress);
 }
 
-export function buildOutputs(
+export async function buildOutputs(
   bundle: ExtractedBundle,
   title: string,
   formats: DownloadFormat[],
-  range?: { start: number; end: number }
-): Array<{ fileName: string; data: FileData }> {
+  range?: { start: number; end: number },
+  onProgress?: (percent: number) => void
+): Promise<Array<{ fileName: string; data: FileData }>> {
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
   if (formats.includes("EPUB")) {
-    outputs.push({ fileName: `${base}.epub`, data: buildEpub(bundle, title, range) });
+    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress) });
   }
   if (formats.includes("TXT")) {
     outputs.push({ fileName: `${base}.txt`, data: bundleToText(title, bundle.chapters, range) });
@@ -175,6 +220,12 @@ export function buildOutputs(
   // PDF ainda nao tem renderizador real: mantemos HTML como base exportavel por enquanto.
   if (formats.includes("PDF")) {
     outputs.push({ fileName: `${base}.html`, data: bundleToHtml(title, bundle.chapters, range) });
+    const chapters = bundle.chapters.filter((chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end));
+    const names = referencedAssetNames(chapters);
+    outputs.push(...bundle.assets.filter((asset) => names.has(asset.name)).map((asset) => ({
+      fileName: `assets/${asset.name}`,
+      data: asset.data
+    })));
   }
   if (outputs.length === 0) {
     outputs.push({ fileName: `${base}.txt`, data: bundleToText(title, bundle.chapters, range) });
@@ -196,11 +247,19 @@ export async function runDownload(
   if (!req.novel.bundleKey) throw new Error(`"${req.novel.title}" ainda nao tem bundle publicado`);
   const bundle = await fetchBundle(req.serverUrl, req.novel.bundleKey);
   onProgress?.(60);
-  const outputs = buildOutputs(bundle, req.novel.title, req.formats, req.range);
+  const outputs = await buildOutputs(
+    bundle,
+    req.novel.title,
+    req.formats,
+    req.range,
+    (percent) => onProgress?.(60 + Math.round(percent * 0.2))
+  );
+  onProgress?.(80);
   const save = opts.save ?? (await defaultSaveFile(req.outputDir));
   for (let i = 0; i < outputs.length; i += 1) {
     await save(outputs[i].fileName, outputs[i].data);
-    onProgress?.(60 + Math.round((40 * (i + 1)) / outputs.length));
+    await yieldToUi();
+    onProgress?.(80 + Math.round((20 * (i + 1)) / outputs.length));
   }
   onProgress?.(100);
   return outputs.map((o) => o.fileName);

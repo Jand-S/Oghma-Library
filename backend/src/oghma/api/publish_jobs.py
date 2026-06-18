@@ -12,6 +12,10 @@ _state: dict[str, Any] = {
     "finishedAt": None,
     "summary": None,
     "error": None,
+    "phase": None,
+    "currentSource": None,
+    "sourcesDone": 0,
+    "sourcesTotal": 0,
 }
 _lock = asyncio.Lock()
 
@@ -31,6 +35,10 @@ async def start_publish(source_id: str) -> tuple[bool, dict[str, Any]]:
             finishedAt=None,
             summary=None,
             error=None,
+            phase="preparing",
+            currentSource=None,
+            sourcesDone=0,
+            sourcesTotal=0,
         )
         return True, snapshot()
 
@@ -61,6 +69,7 @@ def _combine_summaries(results: list[dict[str, Any]]) -> dict[str, Any]:
         "novels": sum(int(item["summary"].get("novels") or 0) for item in results),
         "bundles_changed": sum(int(item["summary"].get("bundles_changed") or 0) for item in results),
         "covers": sum(int(item["summary"].get("covers") or 0) for item in results),
+        "missing_covers": sum(int(item["summary"].get("missing_covers") or 0) for item in results),
         "uploaded": all(bool(item["summary"].get("uploaded")) for item in results),
     }
 
@@ -77,18 +86,31 @@ async def run_publish(source_id: str) -> None:
             if not source_ids:
                 raise RuntimeError("nenhuma fonte com novels para publicar")
             results = []
-            for current_source in source_ids:
-                summary = await run(current_source, out_dir=out_dir)
+            _state.update(sourcesTotal=len(source_ids))
+            for index, current_source in enumerate(source_ids):
+                _state.update(currentSource=current_source, sourcesDone=index, phase="building")
+                summary = await run(
+                    current_source,
+                    out_dir=out_dir,
+                    progress=lambda update: _state.update(update),
+                )
                 results.append({"source": current_source, "summary": summary})
+                _state.update(sourcesDone=index + 1)
             summary = _combine_summaries(results)
         else:
-            summary = await run(source_id, out_dir=out_dir)
+            _state.update(currentSource=source_id, sourcesTotal=1)
+            summary = await run(
+                source_id,
+                out_dir=out_dir,
+                progress=lambda update: _state.update(update),
+            )
+            _state.update(sourcesDone=1)
     except Exception as exc:  # noqa: BLE001 - surfaced in monitor for operation
         async with _lock:
-            _state.update(status="error", error=repr(exc), finishedAt=time.time())
+            _state.update(status="error", phase="error", error=repr(exc), finishedAt=time.time())
     else:
         async with _lock:
-            _state.update(status="done", summary=summary, error=None, finishedAt=time.time())
+            _state.update(status="done", phase="done", summary=summary, error=None, finishedAt=time.time())
 
 
 async def reset_for_tests() -> None:
@@ -100,4 +122,8 @@ async def reset_for_tests() -> None:
             finishedAt=None,
             summary=None,
             error=None,
+            phase=None,
+            currentSource=None,
+            sourcesDone=0,
+            sourcesTotal=0,
         )

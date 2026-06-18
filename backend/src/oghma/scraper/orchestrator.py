@@ -13,6 +13,7 @@ from ..models import Chapter, CrawlRun, Novel, SourceSite
 from . import connectors  # noqa: F401  (registra conectores)
 from . import registry
 from .base import ChapterRef, NovelMeta, NovelRef
+from .chapter_assets import localize_chapter_images
 from .fetcher import HttpFetcher
 
 PROGRESS_LOG_EVERY_CHAPTERS = 10
@@ -140,6 +141,7 @@ async def crawl_source(
         headers=headers,
         http2=getattr(connector, "http2", True),
         use_curl=getattr(connector, "use_curl", False),
+        curl_bin=getattr(connector, "curl_bin", "curl"),
     )
     run = CrawlRun(source_id=source_id, status="running")
     session.add(run)
@@ -248,6 +250,23 @@ async def crawl_source(
                     await _save_run_progress(session, run_id, stats)
                     raw = await connector.fetch_chapter(fetcher, cref.url)
                     norm = connector.normalize_chapter(raw)
+                    localized = await localize_chapter_images(
+                        fetcher,
+                        norm.html,
+                        raw.url,
+                        source_id,
+                        ref.slug,
+                        remove_unavailable=True,
+                    )
+                    norm.html = localized.html
+                    if localized.references:
+                        norm.text_hash = storage.sha256(norm.html)
+                        stats.setdefault("chapter_images_downloaded", 0)
+                        stats.setdefault("chapter_images_reused", 0)
+                        stats.setdefault("chapter_image_errors", 0)
+                        stats["chapter_images_downloaded"] += localized.downloaded
+                        stats["chapter_images_reused"] += localized.reused
+                        stats["chapter_image_errors"] += localized.failed
                     raw_path = storage.save_raw(source_id, ref.slug, cref.number, raw.html)
                     content_path = storage.save_content(source_id, ref.slug, cref.number, norm.html)
                     await _upsert_chapter(session, cid, novel_id, cref, norm, raw_path, content_path)

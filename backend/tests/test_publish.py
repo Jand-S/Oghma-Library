@@ -61,6 +61,29 @@ def test_build_bundle_and_meta():
     assert bundle_key(n, 3) == "content/central-novel/supreme-magus/supreme-magus.v3.tar.gz"
 
 
+def test_build_bundle_embeds_localized_chapter_assets():
+    n = _novel()
+    reader = {
+        "/fake/1.html": '<p><img src="../assets/abc123.webp"></p>',
+        "/fake/10_5.html": "<p>sem imagem</p>",
+    }
+    with tempfile.TemporaryDirectory() as d:
+        asset_dir = Path(d) / "assets"
+        asset_dir.mkdir()
+        (asset_dir / "abc123.webp").write_bytes(b"RIFFxxxxWEBPimage")
+        out = Path(d) / "bundle.tar.gz"
+        build_bundle(
+            str(out),
+            n,
+            version=1,
+            read_content=lambda path: reader[path],
+            asset_dir=str(asset_dir),
+        )
+        with tarfile.open(out, "r:gz") as tar:
+            assert "assets/abc123.webp" in tar.getnames()
+            assert tar.extractfile("assets/abc123.webp").read() == b"RIFFxxxxWEBPimage"
+
+
 def test_build_catalog_readback():
     n = _novel()
     src = SourceRecord(id="central-novel", name="Central Novel", base_url="https://centralnovel.com/",

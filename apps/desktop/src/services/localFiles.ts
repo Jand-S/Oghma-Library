@@ -11,7 +11,12 @@ export type LocalLibraryEntry = {
   sizeBytes: number;
 };
 
-type Invoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
+type Invoke = <T>(
+  command: string,
+  args?: InvokeArgs,
+  options?: { headers: Record<string, string> }
+) => Promise<T>;
 
 async function loadInvoke(): Promise<Invoke | null> {
   if (!isTauriRuntime()) return null;
@@ -34,10 +39,13 @@ export function joinPath(...parts: string[]): string {
 export async function saveLocalFile(outputDir: string, fileName: string, data: FileData): Promise<void> {
   const invoke = await loadInvoke();
   if (invoke) {
-    await invoke("save_export_file", {
-      outputDir,
-      fileName,
-      bytes: typeof data === "string" ? Array.from(new TextEncoder().encode(data)) : Array.from(data)
+    const enc = new TextEncoder();
+    const bytes = typeof data === "string" ? enc.encode(data) : data;
+    await invoke("save_export_file", bytes, {
+      headers: {
+        "x-oghma-output-dir": encodeURIComponent(outputDir),
+        "x-oghma-file-name": encodeURIComponent(fileName)
+      }
     });
     return;
   }

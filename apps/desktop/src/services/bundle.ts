@@ -3,6 +3,7 @@
 // Tudo em TS puro: gunzip nativo (DecompressionStream) + untar minimalista, sem dependencias.
 
 export type BundleChapter = { number: number; title?: string; html: string };
+export type BundleAsset = { name: string; data: Uint8Array; mediaType: string };
 
 export type BundleMeta = {
   id?: string;
@@ -14,7 +15,16 @@ export type BundleMeta = {
   chapters?: Array<{ number: number; title?: string; file?: string; words?: number }>;
 };
 
-export type ExtractedBundle = { meta: BundleMeta | null; chapters: BundleChapter[] };
+export type ExtractedBundle = { meta: BundleMeta | null; chapters: BundleChapter[]; assets: BundleAsset[] };
+
+function assetMediaType(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".avif")) return "image/avif";
+  return "image/jpeg";
+}
 
 function parseOctal(bytes: Uint8Array): number {
   let s = "";
@@ -62,6 +72,7 @@ export function extractBundle(tarBytes: Uint8Array): ExtractedBundle {
   const dec = new TextDecoder();
   let meta: BundleMeta | null = null;
   const chapters: BundleChapter[] = [];
+  const assets: BundleAsset[] = [];
   for (const entry of untar(tarBytes)) {
     if (entry.name === "meta.json") {
       try {
@@ -72,6 +83,8 @@ export function extractBundle(tarBytes: Uint8Array): ExtractedBundle {
     } else {
       const m = entry.name.match(/^chapters\/([0-9.]+)\.html$/);
       if (m) chapters.push({ number: Number(m[1]), html: dec.decode(entry.data) });
+      const asset = entry.name.match(/^assets\/([a-zA-Z0-9._-]+)$/);
+      if (asset) assets.push({ name: asset[1], data: entry.data, mediaType: assetMediaType(asset[1]) });
     }
   }
   chapters.sort((a, b) => a.number - b.number);
@@ -79,7 +92,7 @@ export function extractBundle(tarBytes: Uint8Array): ExtractedBundle {
     const titles = new Map(meta.chapters.map((c) => [c.number, c.title]));
     for (const ch of chapters) ch.title = titles.get(ch.number);
   }
-  return { meta, chapters };
+  return { meta, chapters, assets };
 }
 
 function trimBase(serverUrl: string): string {
@@ -142,7 +155,8 @@ export function bundleToHtml(
   const body = sel
     .map((c) => {
       const head = `Capitulo ${c.number}${c.title ? ` - ${c.title}` : ""}`;
-      return `<section class="chapter"><h2>${esc(head)}</h2>${c.html}</section>`;
+      const localHtml = c.html.replace(/\.\.\/assets\/([a-zA-Z0-9._-]+)/g, "assets/$1");
+      return `<section class="chapter"><h2>${esc(head)}</h2>${localHtml}</section>`;
     })
     .join("\n");
   return `<!doctype html>
@@ -155,6 +169,7 @@ export function bundleToHtml(
   h1 { text-align: center; }
   .chapter { margin-top: 3rem; }
   .chapter h2 { border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  img { display: block; width: 100%; max-width: 100%; height: auto; object-fit: contain; margin: 1rem auto; }
 </style>
 </head>
 <body>

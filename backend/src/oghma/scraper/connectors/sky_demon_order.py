@@ -105,6 +105,7 @@ class SkyDemonOrderConnector:
     capabilities = {"static_html", "paginated_listing", "free_chapter_walk"}
     rate_limit_seconds = 2.0
     http2 = False
+    curl_bin = "curl_ff"
     use_curl = True
 
     LISTING_LINK = "a[href*='skydemonorder.com/projects/']"
@@ -214,14 +215,6 @@ class SkyDemonOrderConnector:
                 tags.append(text)
 
         header_text = " ".join(node.text(separator=" ", strip=True) for node in tree.css("main span"))
-        language = "en"
-        if "Korean" in header_text:
-            language = "ko"
-        elif "Japanese" in header_text:
-            language = "ja"
-        elif "Chinese" in header_text:
-            language = "zh"
-
         return NovelMeta(
             source_id=self.id,
             slug=ref.slug,
@@ -231,7 +224,7 @@ class SkyDemonOrderConnector:
             description=description,
             tags=tags[:12],
             status=_status(header_text),
-            language=language,
+            language="en",
         )
 
     def _start_url(self, html: bytes, novel: NovelMeta) -> str | None:

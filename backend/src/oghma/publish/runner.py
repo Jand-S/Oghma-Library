@@ -1,10 +1,12 @@
 """Orquestra o publish: read -> bundles (mudados) -> catalog -> covers -> upload (ordem atomica)."""
 from __future__ import annotations
 
+import asyncio
 import gzip
 import json
 import time
 from pathlib import Path
+from typing import Callable
 
 from .bundles import build_bundle, bundle_key
 from .catalog import build_catalog, build_catalog_json
@@ -27,8 +29,28 @@ def _index_from_state(state: dict) -> dict:
     }
 
 
+def _gzip_file(source: Path, destination: Path) -> None:
+    with open(source, "rb") as fi, gzip.open(destination, "wb") as fo:
+        fo.writelines(fi)
+
+
+def _write_gzip_bytes(destination: Path, data: bytes) -> None:
+    destination.write_bytes(gzip.compress(data))
+
+
+async def _upload_files(up, files: list[tuple[str, str, str]], concurrency: int = 4) -> None:
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def upload(local: str, key: str, content_type: str) -> None:
+        async with semaphore:
+            await asyncio.to_thread(up.put_file, local, key, content_type)
+
+    await asyncio.gather(*(upload(*item) for item in files))
+
+
 async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = False,
-              dry_run: bool = False, full: bool = False) -> dict:
+              dry_run: bool = False, full: bool = False,
+              progress: Callable[[dict], None] | None = None) -> dict:
     from ..config import get_settings
     from ..db import SessionLocal
 
@@ -41,6 +63,15 @@ async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = F
     async with SessionLocal() as session:
         source, novels = await read_source(session, source_id)
 
+    missing_covers = 0
+    for novel in novels:
+        if novel.cover_path and not Path(novel.cover_path).is_file():
+            novel.cover_path = None
+            missing_covers += 1
+
+    if progress:
+        progress({"phase": "building", "novels": len(novels), "missingCovers": missing_covers})
+
     bundle_info: dict = {}
     changed: list = []
     for n in novels:
@@ -50,7 +81,10 @@ async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = F
             version = int(prev.get("version", 0)) + 1
             key = bundle_key(n, version)
             local = work / key
-            sha, size = build_bundle(str(local), n, version)
+            asset_dir = Path(settings.storage_root) / "assets" / n.source_id / n.slug
+            sha, size = await asyncio.to_thread(
+                build_bundle, str(local), n, version, asset_dir=str(asset_dir)
+            )
             state["novels"][n.id] = {"content_hash": h, "version": version, "key": key,
                                      "sha256": sha, "bytes": size}
             changed.append((n, local))
@@ -61,18 +95,17 @@ async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = F
     ts = _ts()
     catalog_key = f"catalog/{source_id}-{ts}.sqlite.gz"
     catalog_sqlite = work / f"catalog/{source_id}-{ts}.sqlite"
-    build_catalog(str(catalog_sqlite), source, novels, bundle_info)
+    await asyncio.to_thread(build_catalog, str(catalog_sqlite), source, novels, bundle_info)
     catalog_gz = work / catalog_key
-    with open(catalog_sqlite, "rb") as fi, gzip.open(catalog_gz, "wb") as fo:
-        fo.writelines(fi)
-    catalog_sha, _ = file_sha256(catalog_gz)
+    await asyncio.to_thread(_gzip_file, catalog_sqlite, catalog_gz)
+    catalog_sha, _ = await asyncio.to_thread(file_sha256, catalog_gz)
 
     # Catalogo JSON leve (consumido pelo desktop sem SQLite).
     catalog_json_key = f"catalog/{source_id}-{ts}.json.gz"
     catalog_json_gz = work / catalog_json_key
-    with gzip.open(catalog_json_gz, "wb") as fo:
-        fo.write(build_catalog_json(source, novels, bundle_info))
-    catalog_json_sha, _ = file_sha256(catalog_json_gz)
+    catalog_json = await asyncio.to_thread(build_catalog_json, source, novels, bundle_info)
+    await asyncio.to_thread(_write_gzip_bytes, catalog_json_gz, catalog_json)
+    catalog_json_sha, _ = await asyncio.to_thread(file_sha256, catalog_json_gz)
 
     prev_site = state["sites"].get(source_id, {})
     state["sites"][source_id] = {
@@ -88,18 +121,24 @@ async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = F
 
     cover_plan = [c for c in plan_covers([n for n, _ in changed])]
     summary = {"novels": len(novels), "bundles_changed": len(changed), "covers": len(cover_plan),
-               "catalog_key": catalog_key, "catalog_json_key": catalog_json_key, "uploaded": False}
+               "missing_covers": missing_covers, "catalog_key": catalog_key,
+               "catalog_json_key": catalog_json_key, "uploaded": False}
 
     if not no_upload:
         up = make_uploader(dry_run)
         # ORDEM ATOMICA: bundles -> covers -> catalog -> catalog.json -> index.json (por ultimo)
-        for n, local in changed:
-            up.put_file(str(local), state["novels"][n.id]["key"], "application/gzip")
-        for c in cover_plan:
-            up.put_file(c["local"], c["key"], c["content_type"])
-        up.put_file(str(catalog_gz), catalog_key, "application/gzip")
-        up.put_file(str(catalog_json_gz), catalog_json_key, "application/gzip")
-        up.put_bytes(index_bytes, "index.json", "application/json")
+        files = [
+            (str(local), state["novels"][n.id]["key"], "application/gzip")
+            for n, local in changed
+        ]
+        files.extend((c["local"], c["key"], c["content_type"]) for c in cover_plan)
+        if progress:
+            progress({"phase": "uploading", "uploadItems": len(files) + 3})
+        concurrency = max(1, min(settings.publish_upload_concurrency, 16))
+        await _upload_files(up, files, concurrency=concurrency)
+        await asyncio.to_thread(up.put_file, str(catalog_gz), catalog_key, "application/gzip")
+        await asyncio.to_thread(up.put_file, str(catalog_json_gz), catalog_json_key, "application/gzip")
+        await asyncio.to_thread(up.put_bytes, index_bytes, "index.json", "application/json")
         summary["uploaded"] = not dry_run
         if isinstance(up, DryRunUploader):
             summary["dry_run_ops"] = up.ops

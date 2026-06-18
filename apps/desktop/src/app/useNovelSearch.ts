@@ -23,9 +23,14 @@ export function useNovelSearch({
 }: NovelSearchArgs) {
   const [searching, setSearching] = useState(false);
   const skippedInitialSearch = useRef(false);
+  const focusedNovelIdRef = useRef(focusedNovelId);
 
   useEffect(() => {
-    if (loading) return;
+    focusedNovelIdRef.current = focusedNovelId;
+  }, [focusedNovelId]);
+
+  useEffect(() => {
+    if (loading || filters.sourceId === "all") return;
     if (!skippedInitialSearch.current) {
       skippedInitialSearch.current = true;
       return;
@@ -37,7 +42,7 @@ export function useNovelSearch({
       .then((items) => {
         if (cancelled) return;
         setResults(items);
-        if (items.length > 0 && !items.some((item) => item.id === focusedNovelId)) {
+        if (items.length > 0 && !items.some((item) => item.id === focusedNovelIdRef.current)) {
           setFocusedNovelId(items[0].id);
         }
       })
@@ -53,7 +58,7 @@ export function useNovelSearch({
     return () => {
       cancelled = true;
     };
-  }, [backend, filters, focusedNovelId, loading, setFocusedNovelId, setResults, setToast]);
+  }, [backend, filters, loading, setFocusedNovelId, setResults, setToast]);
 
   return searching;
 }

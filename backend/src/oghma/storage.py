@@ -49,5 +49,17 @@ def save_cover(source: str, slug: str, data: bytes, ext: str = "jpg") -> str:
     return str(path)
 
 
+def asset_dir(source: str, slug: str) -> Path:
+    path = _root() / "assets" / _safe(source) / _safe(slug)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def save_asset(source: str, slug: str, filename: str, data: bytes) -> str:
+    path = _ensure(asset_dir(source, slug) / _safe(filename))
+    path.write_bytes(data)
+    return str(path)
+
+
 def export_path(novel_id: str, label: str, ext: str) -> Path:
     return _ensure(_root() / "exports" / f"{_safe(novel_id)}-{_safe(label)}.{_safe(ext)}")

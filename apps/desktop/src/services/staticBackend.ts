@@ -191,9 +191,10 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
     loaded = true;
   }
 
-  function allNovels(): Novel[] {
+  function allNovels(sourceId?: string): Novel[] {
     const out: Novel[] = [];
     for (const sc of sites) {
+      if (sourceId && sc.source.id !== sourceId) continue;
       for (const cn of sc.novels.values()) out.push(novelToUi(cn, sc.source));
     }
     return out;
@@ -204,7 +205,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       await ensureLoaded();
       return {
         sources: sites.map((sc) => siteToSource(sc.site, sc.source.baseUrl)),
-        novels: allNovels(),
+        novels: sites[0] ? allNovels(sites[0].source.id) : [],
         queue: [],
         library: []
       };
@@ -213,7 +214,8 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
     async searchNovels(filters: Filters): Promise<Novel[]> {
       await ensureLoaded();
       const query = filters.query.trim().toLowerCase();
-      return allNovels().filter((novel) => {
+      const sourceId = filters.sourceId === "all" ? undefined : filters.sourceId;
+      return allNovels(sourceId).filter((novel) => {
         const matchesQuery = !query || `${novel.title} ${novel.author}`.toLowerCase().includes(query);
         const matchesSource = filters.sourceId === "all" || novel.sourceId === filters.sourceId;
         const matchesStatus = filters.status === "any" || novel.status === filters.status;

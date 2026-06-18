@@ -1,4 +1,5 @@
 import {
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -119,6 +120,41 @@ describe("App", () => {
     expect(await findBookCardTitle("The Enchanted Forest")).toBeInTheDocument();
     expect(screen.queryByText("Capitulos")).not.toBeInTheDocument();
     expect(screen.getByText("Kindle conectado")).toBeInTheDocument();
+    const source = screen.getByLabelText("Fonte") as HTMLSelectElement;
+    expect(source.required).toBe(true);
+    expect(within(source).queryByRole("option", { name: "Todos os sites" })).not.toBeInTheDocument();
+  });
+
+  it("renders large sources in batches of 60 cards", async () => {
+    let manyNovels: Awaited<ReturnType<BackendClient["searchNovels"]>> = [];
+    const manyBackend: BackendClient = {
+      ...mockBackendClient,
+      async bootstrap() {
+        const payload = await mockBackendClient.bootstrap();
+        const sample = payload.novels.find((novel) => novel.sourceId === "central-novel")!;
+        manyNovels = Array.from({ length: 75 }, (_, index) => ({
+          ...sample,
+          id: `large-${index + 1}`,
+          title: `Large Novel ${index + 1}`
+        }));
+        return {
+          ...payload,
+          novels: manyNovels
+        };
+      },
+      async searchNovels() {
+        return manyNovels;
+      }
+    };
+    seedSetup(defaultAppConfig(["central-novel"]));
+    render(<App backend={manyBackend} />);
+
+    expect(await screen.findByText("60 de 75 livros", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(document.querySelectorAll(".book-card")).toHaveLength(60);
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Mostrar mais" }));
+    expect(document.querySelectorAll(".book-card")).toHaveLength(75);
+    expect(screen.getByText("75 de 75 livros")).toBeInTheDocument();
   });
 
   it("uses a single filter toggle and removes the filter panel when hidden", async () => {
@@ -140,6 +176,45 @@ describe("App", () => {
 
     const panel = await selectFirstBook(user);
     expect(panel).toBeTruthy();
+  });
+
+  it("keeps selected novels visible when filters hide all results", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    const panel = await selectFirstBook(user);
+    await user.type(screen.getByLabelText("Busca"), "resultado que nao existe");
+
+    await waitFor(() => expect(screen.getByText("0 de 0 livros")).toBeInTheDocument());
+    expect(within(panel).getByText("The Enchanted Forest")).toBeInTheDocument();
+  });
+
+  it("removes a selected novel when it is dropped on the trash target", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    const panel = await selectFirstBook(user);
+    fireEvent.pointerDown(panel.querySelector(".drag-handle") as HTMLElement, { clientX: 10, clientY: 10 });
+
+    const trash = screen.getByText("Solte para remover").closest(".selection-trash-zone") as HTMLElement;
+    expect(trash).toHaveClass("visible");
+    vi.spyOn(trash, "getBoundingClientRect").mockReturnValue({
+      left: 100,
+      right: 300,
+      top: 100,
+      bottom: 180,
+      width: 200,
+      height: 80,
+      x: 100,
+      y: 100,
+      toJSON: () => ({})
+    });
+
+    fireEvent.pointerMove(window, { clientX: 150, clientY: 140 });
+    expect(trash).toHaveClass("active");
+    fireEvent.pointerUp(window, { clientX: 150, clientY: 140 });
+
+    await waitFor(() => expect(screen.queryByText("Capitulos")).not.toBeInTheDocument());
   });
 
   it("shows format chips and translate/audiobook options in a draggable card", async () => {

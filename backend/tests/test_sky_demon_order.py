@@ -97,7 +97,7 @@ def test_discover_novels_paginates_projects_listing():
     assert connector.expected_total_from_listing(LISTING_1) == 145
 
 
-def test_fetch_novel_reads_metadata_tags_and_language():
+def test_fetch_novel_uses_english_content_language():
     connector = SkyDemonOrderConnector()
     ref = asyncio.run(connector.discover_novels(FakeFetcher({connector._listing_url(1): LISTING_1}), limit=1))[0]
     fetcher = FakeFetcher({ref.url: NOVEL})
@@ -109,7 +109,7 @@ def test_fetch_novel_reads_metadata_tags_and_language():
     assert meta.description == "A better synopsis."
     assert meta.tags == ["Fantasy", "Male Protagonist"]
     assert meta.status == "ongoing"
-    assert meta.language == "ko"
+    assert meta.language == "en"
 
 
 def test_fetch_novel_prefers_real_mature_cover_over_placeholder():

@@ -42,7 +42,7 @@ def test_monitor_route_is_registered():
 
 
 def test_monitor_page_polls_crawl_and_stats_endpoints():
-    assert 'fetch("/api/crawls?limit=12"' in MONITOR_HTML
+    assert 'fetch("/api/crawls?limit=60"' in MONITOR_HTML
     assert 'fetch("/api/stats"' in MONITOR_HTML
 
 
@@ -61,6 +61,8 @@ async def test_publish_job_rejects_concurrent_start():
     assert ok is True
     assert job["status"] == "running"
     assert job["source"] == "central-novel"
+    assert job["phase"] == "preparing"
+    assert job["sourcesDone"] == 0
 
     ok, job = await publish_jobs.start_publish("central-novel")
     assert ok is False
@@ -71,12 +73,13 @@ async def test_publish_job_rejects_concurrent_start():
 
 def test_publish_summary_combines_multiple_sources():
     summary = publish_jobs._combine_summaries([
-        {"source": "central-novel", "summary": {"novels": 10, "bundles_changed": 2, "covers": 1, "uploaded": True}},
-        {"source": "novel-mania", "summary": {"novels": 5, "bundles_changed": 3, "covers": 4, "uploaded": True}},
+        {"source": "central-novel", "summary": {"novels": 10, "bundles_changed": 2, "covers": 1, "missing_covers": 2, "uploaded": True}},
+        {"source": "novel-mania", "summary": {"novels": 5, "bundles_changed": 3, "covers": 4, "missing_covers": 1, "uploaded": True}},
     ])
 
     assert summary["source_count"] == 2
     assert summary["novels"] == 15
     assert summary["bundles_changed"] == 5
     assert summary["covers"] == 5
+    assert summary["missing_covers"] == 3
     assert summary["uploaded"] is True

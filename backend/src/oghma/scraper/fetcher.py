@@ -27,6 +27,7 @@ class HttpFetcher:
         headers: dict[str, str] | None = None,
         http2: bool = True,
         use_curl: bool = False,
+        curl_bin: str = "curl",
     ) -> None:
         s = get_settings()
         self.rate_limit_seconds = rate_limit_seconds or s.default_rate_limit_seconds
@@ -40,6 +41,8 @@ class HttpFetcher:
             client_headers.update(headers)
         self.headers = client_headers
         self.use_curl = use_curl
+        self.curl_bin = curl_bin
+        self._curl_impersonate = curl_bin != "curl"
         self._client = httpx.AsyncClient(
             headers=client_headers,
             timeout=s.request_timeout_seconds,
@@ -79,9 +82,11 @@ class HttpFetcher:
         )
 
     async def _curl_get(self, url: str) -> RawPage:
-        curl = shutil.which("curl") or shutil.which("curl.exe")
+        curl = shutil.which(self.curl_bin)
+        if curl is None and self.curl_bin == "curl":
+            curl = shutil.which("curl.exe")
         if curl is None:
-            raise RuntimeError("curl transport requested, but curl was not found")
+            raise RuntimeError(f"curl transport requested, but {self.curl_bin!r} was not found")
 
         with tempfile.TemporaryDirectory(prefix="oghma-curl-") as tmp:
             body_path = Path(tmp) / "body.bin"
@@ -94,8 +99,15 @@ class HttpFetcher:
                 "-w",
                 "%{http_code}\n%{url_effective}\n%{content_type}",
             ]
-            for name, value in self.headers.items():
-                args.extend(["-H", f"{name}: {value}"])
+            if self._curl_impersonate:
+                # The bundled NSS build cannot read Debian's PEM CA bundle.
+                args.append("-k")
+                cookie = self.headers.get("Cookie")
+                if cookie:
+                    args.extend(["-H", f"Cookie: {cookie}"])
+            else:
+                for name, value in self.headers.items():
+                    args.extend(["-H", f"{name}: {value}"])
             args.append(url)
 
             proc = await asyncio.create_subprocess_exec(

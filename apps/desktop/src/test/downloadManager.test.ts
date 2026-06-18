@@ -48,6 +48,7 @@ async function gzipBytes(bytes: Uint8Array): Promise<ArrayBuffer> {
 
 const sampleBundle: ExtractedBundle = {
   meta: { title: "Shadow Slave" },
+  assets: [],
   chapters: [
     { number: 1, title: "Nightmare", html: "<p>Sunny acordou.</p>" },
     { number: 2, title: "Awaken", html: "<p>O pesadelo&nbsp;comecou.</p>" }
@@ -59,16 +60,32 @@ describe("downloadManager", () => {
     expect(sanitizeFileName('A/B:C*?"')).toBe("A_B_C_");
   });
 
-  it("buildOutputs makes TXT and EPUB per requested formats", () => {
-    const txt = buildOutputs(sampleBundle, "Shadow Slave", ["TXT"]);
+  it("buildOutputs makes TXT and EPUB per requested formats", async () => {
+    const txt = await buildOutputs(sampleBundle, "Shadow Slave", ["TXT"]);
     expect(txt).toHaveLength(1);
     expect(txt[0].fileName).toBe("Shadow Slave.txt");
     expect(txt[0].data).toContain("Capitulo 1 - Nightmare");
 
-    const both = buildOutputs(sampleBundle, "Shadow Slave", ["TXT", "EPUB"]);
+    const both = await buildOutputs(sampleBundle, "Shadow Slave", ["TXT", "EPUB"]);
     expect(both.map((o) => o.fileName)).toEqual(["Shadow Slave.epub", "Shadow Slave.txt"]);
     expect(both[0].data).toBeInstanceOf(Uint8Array);
     expect(new TextDecoder().decode((both[0].data as Uint8Array).slice(0, 64))).toContain("PK");
+  });
+
+  it("embeds assets in EPUB and saves them beside offline HTML", async () => {
+    const bundle: ExtractedBundle = {
+      meta: { title: "Com imagens" },
+      chapters: [{ number: 1, html: '<p><img src="../assets/abc.webp"></p>' }],
+      assets: [{ name: "abc.webp", mediaType: "image/webp", data: new TextEncoder().encode("image-bytes") }]
+    };
+    const epub = await buildOutputs(bundle, "Com imagens", ["EPUB"]);
+    expect(epub).toHaveLength(1);
+    expect(new TextDecoder().decode(epub[0].data as Uint8Array)).toContain("OEBPS/assets/abc.webp");
+
+    const html = await buildOutputs(bundle, "Com imagens", ["PDF"]);
+    expect(html.map((item) => item.fileName)).toEqual(["Com imagens.html", "assets/abc.webp"]);
+    expect(html[0].data).toContain('src="assets/abc.webp"');
+    expect(html[0].data).toContain("width: 100%");
   });
 
   it("runDownload fetches, builds and saves with progress", async () => {
