@@ -105,6 +105,7 @@ class SkyDemonOrderConnector:
     capabilities = {"static_html", "paginated_listing", "free_chapter_walk"}
     rate_limit_seconds = 2.0
     http2 = False
+    use_curl = True
 
     LISTING_LINK = "a[href*='skydemonorder.com/projects/']"
     NOVEL_TITLE = "h1"

@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
+import tempfile
 import time
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
@@ -23,6 +26,7 @@ class HttpFetcher:
         rate_limit_seconds: float | None = None,
         headers: dict[str, str] | None = None,
         http2: bool = True,
+        use_curl: bool = False,
     ) -> None:
         s = get_settings()
         self.rate_limit_seconds = rate_limit_seconds or s.default_rate_limit_seconds
@@ -34,6 +38,8 @@ class HttpFetcher:
         }
         if headers:
             client_headers.update(headers)
+        self.headers = client_headers
+        self.use_curl = use_curl
         self._client = httpx.AsyncClient(
             headers=client_headers,
             timeout=s.request_timeout_seconds,
@@ -58,6 +64,8 @@ class HttpFetcher:
     async def get(self, url: str) -> RawPage:
         host = urlsplit(url).netloc
         await self._throttle(host)
+        if self.use_curl:
+            return await self._curl_get(url)
         resp = await self._client.get(url)
         if resp.status_code in (429, 500, 502, 503, 504):
             resp.raise_for_status()
@@ -69,6 +77,51 @@ class HttpFetcher:
             last_modified=resp.headers.get("Last-Modified"),
             content_type=resp.headers.get("Content-Type"),
         )
+
+    async def _curl_get(self, url: str) -> RawPage:
+        curl = shutil.which("curl") or shutil.which("curl.exe")
+        if curl is None:
+            raise RuntimeError("curl transport requested, but curl was not found")
+
+        with tempfile.TemporaryDirectory(prefix="oghma-curl-") as tmp:
+            body_path = Path(tmp) / "body.bin"
+            args = [
+                curl,
+                "-sS",
+                "-L",
+                "-o",
+                str(body_path),
+                "-w",
+                "%{http_code}\n%{url_effective}\n%{content_type}",
+            ]
+            for name, value in self.headers.items():
+                args.extend(["-H", f"{name}: {value}"])
+            args.append(url)
+
+            proc = await asyncio.create_subprocess_exec(
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                message = stderr.decode("utf-8", errors="ignore").strip() or f"curl exited {proc.returncode}"
+                raise httpx.TransportError(message)
+            parts = stdout.decode("utf-8", errors="ignore").splitlines()
+            status = int(parts[0]) if parts and parts[0].isdigit() else 0
+            final_url = parts[1] if len(parts) > 1 and parts[1] else url
+            content_type = parts[2] if len(parts) > 2 and parts[2] else None
+            body = body_path.read_bytes()
+            response = httpx.Response(
+                status_code=status,
+                headers={"Content-Type": content_type or ""},
+                content=body,
+                request=httpx.Request("GET", url),
+            )
+            if status in (429, 500, 502, 503, 504):
+                response.raise_for_status()
+            response.raise_for_status()
+            return RawPage(url=final_url, html=body, content_type=content_type)
 
     async def get_json(self, url: str, params: dict | None = None) -> object:
         host = urlsplit(url).netloc
