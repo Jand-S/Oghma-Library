@@ -56,7 +56,7 @@
 }
 
 .brand-mark span,
-.nav-button span {
+.nav-button span:not(.nav-ico) {
   overflow: hidden;
   white-space: nowrap;
   opacity: 0;
@@ -100,7 +100,7 @@
 }
 
 .app-frame:not(.sidebar-open) .brand-mark span,
-.app-frame:not(.sidebar-open) .nav-button span {
+.app-frame:not(.sidebar-open) .nav-button span:not(.nav-ico) {
   width: 0;
   margin: 0;
 }

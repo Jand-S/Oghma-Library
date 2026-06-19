@@ -60,12 +60,14 @@ export function Sidebar({
   activeView,
   expanded,
   flashKey = 0,
+  downloading = false,
   onToggle,
   onChange
 }: {
   activeView: ViewId;
   expanded: boolean;
   flashKey?: number;
+  downloading?: boolean;
   onToggle: () => void;
   onChange: (view: ViewId) => void;
 }) {
@@ -87,12 +89,13 @@ export function Sidebar({
           const Icon = view.icon;
           return (
             <button
-              className={`nav-button ${activeView === view.id ? "active" : ""} ${flashing && view.id === "downloads" ? "flash" : ""}`}
+              className={`nav-button ${activeView === view.id ? "active" : ""} ${flashing && view.id === "downloads" ? "flash" : ""} ${downloading && view.id === "downloads" ? "is-downloading" : ""}`}
               key={view.id}
+              data-nav={view.id}
               title={view.label}
               onClick={() => onChange(view.id)}
             >
-              <Icon size={18} />
+              <span className="nav-ico"><Icon size={18} /></span>
               <span>{view.label}</span>
             </button>
           );

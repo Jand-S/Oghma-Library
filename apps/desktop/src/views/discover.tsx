@@ -216,7 +216,7 @@ function SelectionConfigurator({
   onAdd: () => void;
   onReorder: (orderedIds: string[]) => void;
   onRemove: (novelId: string) => void;
-  trashRef: RefObject<HTMLDivElement | null>;
+  trashRef: RefObject<HTMLElement | null>;
   onDragStateChange: (active: boolean, overTrash: boolean) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
@@ -227,6 +227,7 @@ function SelectionConfigurator({
     offsetY: number;
     width: number;
   } | null>(null);
+  const [dropY, setDropY] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const dragIdRef = useRef<string | null>(null);
@@ -261,11 +262,36 @@ function SelectionConfigurator({
     }
   }, [expandedId, selectedNovels]);
 
+  const computeDropIndex = (clientY: number): number => {
+    const cards = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]") ?? []);
+    for (let i = 0; i < cards.length; i += 1) {
+      const rect = cards[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return i;
+    }
+    return cards.length;
+  };
+
+  const lineYForIndex = (index: number): number | null => {
+    const list = listRef.current;
+    if (!list) return null;
+    const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-card-id]"));
+    if (cards.length === 0) return null;
+    const listTop = list.getBoundingClientRect().top;
+    if (index >= cards.length) {
+      const last = cards[cards.length - 1].getBoundingClientRect();
+      return last.bottom - listTop + list.scrollTop;
+    }
+    const rect = cards[index].getBoundingClientRect();
+    return rect.top - listTop + list.scrollTop;
+  };
+
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
     const card = event.currentTarget.closest("[data-card-id]") as HTMLElement | null;
     const id = card?.getAttribute("data-card-id") ?? null;
     if (!id || !card) return;
     event.preventDefault();
+    const pointerId = event.pointerId;
+    try { card.setPointerCapture(pointerId); } catch { /* sem captura: segue com listeners no window */ }
     const rect = card.getBoundingClientRect();
     dragIdRef.current = id;
     orderRef.current = selectedNovels.map((novel) => novel.id);
@@ -279,42 +305,38 @@ function SelectionConfigurator({
     });
     onDragStateChange(true, false);
 
+    let lastX = event.clientX;
+    let lastY = event.clientY;
+
     const onMove = (moveEvent: PointerEvent) => {
-      setDragPreview((current) => current ? { ...current, x: moveEvent.clientX, y: moveEvent.clientY } : current);
+      lastX = moveEvent.clientX;
+      lastY = moveEvent.clientY;
+      setDragPreview((current) => current ? { ...current, x: lastX, y: lastY } : current);
       const trashRect = trashRef.current?.getBoundingClientRect();
       const overTrash = Boolean(trashRect
-        && moveEvent.clientX >= trashRect.left
-        && moveEvent.clientX <= trashRect.right
-        && moveEvent.clientY >= trashRect.top
-        && moveEvent.clientY <= trashRect.bottom);
+        && lastX >= trashRect.left
+        && lastX <= trashRect.right
+        && lastY >= trashRect.top
+        && lastY <= trashRect.bottom);
       onDragStateChange(true, overTrash);
-      if (overTrash) return;
-
-      const from = dragIdRef.current;
-      const cards = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]") ?? []);
-      if (!from || cards.length < 2) return;
-      const remaining = orderRef.current.filter((value) => value !== from);
-      let insertAt = remaining.length;
-      for (const element of cards) {
-        const idAtCard = element.dataset.cardId;
-        if (!idAtCard || idAtCard === from) continue;
-        const rectAtCard = element.getBoundingClientRect();
-        if (moveEvent.clientY < rectAtCard.top + rectAtCard.height / 2) {
-          insertAt = remaining.indexOf(idAtCard);
-          break;
-        }
-      }
-      const next = [...remaining];
-      next.splice(Math.max(0, insertAt), 0, from);
-      if (next.some((value, index) => value !== orderRef.current[index])) {
-        orderRef.current = next;
-        onReorder(next);
-      }
+      // NUNCA reordena a lista durante o arraste (isso causava o loop que somia tudo).
+      // So mostra uma linha indicando onde vai cair; a reordenacao acontece no drop.
+      setDropY(overTrash ? null : lineYForIndex(computeDropIndex(lastY)));
     };
 
-    const onUp = (upEvent: PointerEvent) => {
+    const finish = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      try { card.releasePointerCapture(pointerId); } catch { /* ignore */ }
+      dragIdRef.current = null;
+      setDragId(null);
+      setDragPreview(null);
+      setDropY(null);
+      onDragStateChange(false, false);
+    };
+
+    function onUp(upEvent: PointerEvent) {
       const from = dragIdRef.current;
       const trashRect = trashRef.current?.getBoundingClientRect();
       const droppedInTrash = Boolean(trashRect
@@ -322,15 +344,75 @@ function SelectionConfigurator({
         && upEvent.clientX <= trashRect.right
         && upEvent.clientY >= trashRect.top
         && upEvent.clientY <= trashRect.bottom);
+      let reordered: string[] | null = null;
+      if (from && !droppedInTrash) {
+        const order = selectedNovels.map((novel) => novel.id);
+        const fromIndex = order.indexOf(from);
+        let target = computeDropIndex(upEvent.clientY);
+        if (fromIndex !== -1 && fromIndex < target) target -= 1;
+        const without = order.filter((id) => id !== from);
+        target = Math.max(0, Math.min(without.length, target));
+        const next = [...without];
+        next.splice(target, 0, from);
+        if (next.some((value, index) => value !== order[index])) reordered = next;
+      }
+      finish();
       if (from && droppedInTrash) onRemove(from);
-      dragIdRef.current = null;
-      setDragId(null);
-      setDragPreview(null);
-      onDragStateChange(false, false);
-    };
+      else if (reordered) onReorder(reordered);
+    }
+
+    function onCancel() {
+      finish();
+    }
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  };
+
+  const handleAdd = () => {
+    const list = listRef.current;
+    const target = document.querySelector<HTMLElement>('[data-nav="downloads"]');
+    if (!list || !target || selectedNovels.length === 0) {
+      onAdd();
+      return;
+    }
+    const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-card-id]"));
+    const targetRect = target.getBoundingClientRect();
+    const targetX = targetRect.left + targetRect.width / 2;
+    const targetY = targetRect.top + targetRect.height / 2;
+    cards.forEach((card, index) => {
+      const rect = card.getBoundingClientRect();
+      const clone = card.cloneNode(true) as HTMLElement;
+      clone.classList.remove("expanded", "dragging");
+      clone.classList.add("collapsed", "selection-card-fly");
+      clone.querySelector(".selection-body")?.remove();
+      Object.assign(clone.style, {
+        position: "fixed",
+        left: `${rect.left}px`,
+        top: `${rect.top}px`,
+        width: `${rect.width}px`,
+        height: "auto",
+        margin: "0",
+        zIndex: "1200",
+        pointerEvents: "none",
+        transformOrigin: "center center"
+      });
+      document.body.appendChild(clone);
+      const dx = targetX - (rect.left + rect.width / 2);
+      const dy = targetY - (rect.top + rect.height / 2);
+      const animation = clone.animate(
+        [
+          { transform: "translate(0px, 0px) scale(1)", opacity: 1 },
+          { transform: `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(0.5)`, opacity: 0.95, offset: 0.65 },
+          { transform: `translate(${dx}px, ${dy}px) scale(0.1)`, opacity: 0 }
+        ],
+        { duration: 620, delay: index * 110, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" }
+      );
+      animation.onfinish = () => clone.remove();
+      animation.oncancel = () => clone.remove();
+    });
+    onAdd();
   };
 
   const draggedNovel = selectedNovels.find((novel) => novel.id === dragId);
@@ -342,7 +424,7 @@ function SelectionConfigurator({
           <h2>Capitulos</h2>
           <span>{selectedNovels.length === 0 ? "Selecione livros" : `${selectedNovels.length} livro(s)`}</span>
         </div>
-        <button className="button primary compact" disabled={selectedNovels.length === 0} onClick={onAdd}>
+        <button className="button primary compact" disabled={selectedNovels.length === 0} onClick={handleAdd}>
           <Download size={15} />
           Adicionar a fila
         </button>
@@ -354,6 +436,7 @@ function SelectionConfigurator({
         </p>
       ) : null}
       <div className="selection-list" ref={listRef}>
+        {dragId && dropY != null ? <div className="drop-line" style={{ top: dropY }} aria-hidden="true" /> : null}
         {selectedNovels.length === 0 ? (
           <div className="empty-state compact">
             <BookOpen size={18} />
@@ -547,7 +630,7 @@ export function DiscoverView({
   const pageSize = 60;
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [dragState, setDragState] = useState({ active: false, overTrash: false });
-  const trashRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
   useEffect(() => setVisibleCount(pageSize), [results]);
   const visibleResults = results.slice(0, visibleCount);
   return (
@@ -559,15 +642,16 @@ export function DiscoverView({
           onChange={onFiltersChange}
         />
       ) : null}
-      <section className="content-area">
-        <div
-          ref={trashRef}
-          className={`selection-trash-zone ${dragState.active ? "visible" : ""} ${dragState.overTrash ? "active" : ""}`}
-          aria-hidden={!dragState.active}
-        >
-          <Trash2 size={22} />
-          <strong>Solte para remover</strong>
-        </div>
+      <section
+        className={`content-area ${dragState.active ? "drop-delete" : ""} ${dragState.overTrash ? "drop-delete-over" : ""}`}
+        ref={contentRef}
+      >
+        {dragState.active ? (
+          <div className={`content-delete-overlay ${dragState.overTrash ? "over" : ""}`} aria-hidden="true">
+            <Trash2 size={30} />
+            <strong>Solte para remover</strong>
+          </div>
+        ) : null}
         <div className="toolbar">
           <div>
             <h2>Resultados</h2>
@@ -625,7 +709,7 @@ export function DiscoverView({
           onAdd={onAddSelected}
           onReorder={onReorder}
           onRemove={onRemoveSelected}
-          trashRef={trashRef}
+          trashRef={contentRef}
           onDragStateChange={(active, overTrash) => setDragState({ active, overTrash })}
         />
       ) : null}

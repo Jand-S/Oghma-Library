@@ -109,3 +109,81 @@ input[type="range"]::-moz-range-thumb {
   width: 86px;
   height: 118px;
 }
+
+/* ===== Drag-to-remove: overlay full, borda tracejada na cor principal, sem rounding ===== */
+.content-area.drop-delete { position: relative; }
+.content-delete-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #f2b3bc;
+  background: rgba(8, 10, 13, 0.58);
+  border: 2px dashed var(--accent);
+  border-radius: 0;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.content-delete-overlay strong { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
+.content-delete-overlay.over {
+  background: rgba(0, 121, 107, 0.22);
+  border-color: var(--accent-hover);
+  color: #ffd9de;
+}
+
+/* Reordenar selecao: linha indicando onde o item vai cair (commit-on-drop) */
+.selection-list { position: relative; }
+.drop-line {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 121, 107, 0.35), 0 0 6px rgba(0, 152, 137, 0.5);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Card "voando" para a aba de downloads ao adicionar a fila */
+.selection-card-fly {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--accent) !important;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  opacity: 1 !important;
+}
+
+/* Icone de Downloads aceso (teal) + reflexo em movimento enquanto baixa */
+.nav-ico {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-button.is-downloading > .nav-ico > svg {
+  color: var(--accent);
+}
+.nav-button.is-downloading > .nav-ico::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M21%2015v4a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2v-4%27%2F%3E%3Cpolyline%20points%3D%277%2010%2012%2015%2017%2010%27%2F%3E%3Cline%20x1%3D%2712%27%20x2%3D%2712%27%20y1%3D%2715%27%20y2%3D%273%27%2F%3E%3C%2Fsvg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M21%2015v4a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2v-4%27%2F%3E%3Cpolyline%20points%3D%277%2010%2012%2015%2017%2010%27%2F%3E%3Cline%20x1%3D%2712%27%20x2%3D%2712%27%20y1%3D%2715%27%20y2%3D%273%27%2F%3E%3C%2Fsvg%3E") center / contain no-repeat;
+  background: linear-gradient(90deg, transparent 35%, rgba(215, 244, 239, 0.95) 50%, transparent 65%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: nav-ico-shine 1.8s linear infinite;
+  pointer-events: none;
+}
+@keyframes nav-ico-shine {
+  0% { background-position: 100% 0; }
+  55% { background-position: 0% 0; }
+  100% { background-position: 0% 0; }
+}

@@ -357,7 +357,7 @@ export function App({ backend }: AppProps) {
   return (
     <main className={`app-frame ${sidebarExpanded ? "sidebar-open" : ""}`}>
       {showSplash ? <SplashScreen done={bootDone} /> : null}
-      <Sidebar activeView={activeView} expanded={sidebarExpanded} flashKey={downloadsPulse} onToggle={() => setSidebarExpanded((value) => !value)} onChange={setActiveView} />
+      <Sidebar activeView={activeView} expanded={sidebarExpanded} flashKey={downloadsPulse} downloading={queue.some((item) => item.state === "downloading" || item.state === "queued")} onToggle={() => setSidebarExpanded((value) => !value)} onChange={setActiveView} />
       <section className="app-shell">
         <Titlebar title={pageTitle[activeView]} />
         <div className={workspaceClass}>
