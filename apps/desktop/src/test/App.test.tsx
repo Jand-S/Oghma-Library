@@ -196,9 +196,9 @@ describe("App", () => {
     const panel = await selectFirstBook(user);
     fireEvent.pointerDown(panel.querySelector(".drag-handle") as HTMLElement, { clientX: 10, clientY: 10 });
 
-    const trash = screen.getByText("Solte para remover").closest(".selection-trash-zone") as HTMLElement;
-    expect(trash).toHaveClass("visible");
-    vi.spyOn(trash, "getBoundingClientRect").mockReturnValue({
+    const trash = screen.getByText("Solte para remover").closest(".content-delete-overlay") as HTMLElement;
+    expect(trash).toBeInTheDocument();
+    vi.spyOn(trash.parentElement as HTMLElement, "getBoundingClientRect").mockReturnValue({
       left: 100,
       right: 300,
       top: 100,
@@ -211,10 +211,26 @@ describe("App", () => {
     });
 
     fireEvent.pointerMove(window, { clientX: 150, clientY: 140 });
-    expect(trash).toHaveClass("active");
+    expect(trash).toHaveClass("over");
     fireEvent.pointerUp(window, { clientX: 150, clientY: 140 });
 
     await waitFor(() => expect(screen.queryByText("Capitulos")).not.toBeInTheDocument());
+  });
+
+  it("keeps the selection drawer open while queue items are animating", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    const panel = await selectFirstBook(user);
+    await expandSelectionCard(user, panel);
+
+    await user.click(within(panel).getByRole("button", { name: "Adicionar a fila" }));
+
+    expect(screen.getByRole("button", { name: "Enviando..." })).toBeDisabled();
+    expect(screen.getByText("Capitulos")).toBeInTheDocument();
+    expect(within(panel).queryByText("The Enchanted Forest")).not.toBeInTheDocument();
+
+    await waitFor(() => expect(screen.queryByText("Capitulos")).not.toBeInTheDocument(), { timeout: 3000 });
   });
 
   it("shows format chips and translate/audiobook options in a draggable card", async () => {

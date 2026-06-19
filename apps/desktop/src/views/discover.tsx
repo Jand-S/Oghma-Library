@@ -229,10 +229,13 @@ function SelectionConfigurator({
   } | null>(null);
   const [dropY, setDropY] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [addingToQueue, setAddingToQueue] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const dragIdRef = useRef<string | null>(null);
   const orderRef = useRef<string[]>([]);
   const positionsRef = useRef(new Map<string, DOMRect>());
+  const addAnimationTimerRef = useRef<number | null>(null);
+  const addAnimationTokenRef = useRef(0);
 
   useLayoutEffect(() => {
     const cards = listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]");
@@ -261,6 +264,12 @@ function SelectionConfigurator({
       setExpandedId(null);
     }
   }, [expandedId, selectedNovels]);
+
+  useEffect(() => () => {
+    if (addAnimationTimerRef.current != null) {
+      window.clearTimeout(addAnimationTimerRef.current);
+    }
+  }, []);
 
   const computeDropIndex = (clientY: number): number => {
     const cards = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]") ?? []);
@@ -371,27 +380,32 @@ function SelectionConfigurator({
   };
 
   const handleAdd = () => {
+    if (addingToQueue || selectedNovels.length === 0) return;
     const list = listRef.current;
-    const target = document.querySelector<HTMLElement>('[data-nav="downloads"]');
-    if (!list || !target || selectedNovels.length === 0) {
+    const target = document.querySelector<HTMLElement>('[data-nav="downloads"] .nav-ico')
+      ?? document.querySelector<HTMLElement>('[data-nav="downloads"]');
+    if (!list || !target) {
       onAdd();
       return;
     }
+    setAddingToQueue(true);
+    const animationToken = addAnimationTokenRef.current + 1;
+    addAnimationTokenRef.current = animationToken;
     const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-card-id]"));
     const targetRect = target.getBoundingClientRect();
     const targetX = targetRect.left + targetRect.width / 2;
     const targetY = targetRect.top + targetRect.height / 2;
     cards.forEach((card, index) => {
-      const rect = card.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
       const clone = card.cloneNode(true) as HTMLElement;
       clone.classList.remove("expanded", "dragging");
       clone.classList.add("collapsed", "selection-card-fly");
       clone.querySelector(".selection-body")?.remove();
       Object.assign(clone.style, {
         position: "fixed",
-        left: `${rect.left}px`,
-        top: `${rect.top}px`,
-        width: `${rect.width}px`,
+        left: `${cardRect.left}px`,
+        top: `${cardRect.top}px`,
+        width: `${cardRect.width}px`,
         height: "auto",
         margin: "0",
         zIndex: "1200",
@@ -399,20 +413,33 @@ function SelectionConfigurator({
         transformOrigin: "center center"
       });
       document.body.appendChild(clone);
-      const dx = targetX - (rect.left + rect.width / 2);
-      const dy = targetY - (rect.top + rect.height / 2);
-      const animation = clone.animate(
-        [
-          { transform: "translate(0px, 0px) scale(1)", opacity: 1 },
-          { transform: `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(0.5)`, opacity: 0.95, offset: 0.65 },
-          { transform: `translate(${dx}px, ${dy}px) scale(0.1)`, opacity: 0 }
-        ],
-        { duration: 620, delay: index * 110, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" }
-      );
-      animation.onfinish = () => clone.remove();
-      animation.oncancel = () => clone.remove();
+      const cloneRect = clone.getBoundingClientRect();
+      const dx = targetX - (cloneRect.left + cloneRect.width / 2);
+      const dy = targetY - (cloneRect.top + cloneRect.height / 2);
+      if (typeof clone.animate === "function") {
+        const animation = clone.animate(
+          [
+            { transform: "translate(0px, 0px) scale(1)", opacity: 1 },
+            { transform: `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(0.5)`, opacity: 0.95, offset: 0.65 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.1)`, opacity: 0 }
+          ],
+          { duration: 620, delay: index * 110, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" }
+        );
+        animation.onfinish = () => clone.remove();
+        animation.oncancel = () => clone.remove();
+      } else {
+        window.setTimeout(() => clone.remove(), 620 + index * 110);
+      }
     });
-    onAdd();
+    const totalDuration = 620 + Math.max(0, cards.length - 1) * 110 + 40;
+    if (addAnimationTimerRef.current != null) {
+      window.clearTimeout(addAnimationTimerRef.current);
+    }
+    addAnimationTimerRef.current = window.setTimeout(() => {
+      if (addAnimationTokenRef.current !== animationToken) return;
+      setAddingToQueue(false);
+      onAdd();
+    }, totalDuration);
   };
 
   const draggedNovel = selectedNovels.find((novel) => novel.id === dragId);
@@ -424,12 +451,17 @@ function SelectionConfigurator({
           <h2>Capitulos</h2>
           <span>{selectedNovels.length === 0 ? "Selecione livros" : `${selectedNovels.length} livro(s)`}</span>
         </div>
-        <button className="button primary compact" disabled={selectedNovels.length === 0} onClick={handleAdd}>
+        <button
+          className="button primary compact"
+          disabled={selectedNovels.length === 0 || addingToQueue}
+          onClick={handleAdd}
+          aria-busy={addingToQueue}
+        >
           <Download size={15} />
-          Adicionar a fila
+          {addingToQueue ? "Enviando..." : "Adicionar a fila"}
         </button>
       </div>
-      {selectedNovels.length > 1 ? (
+      {!addingToQueue && selectedNovels.length > 1 ? (
         <p className="reorder-hint">
           <GripVertical size={13} />
           Arraste pela alca para priorizar (topo = primeiro)
@@ -442,7 +474,7 @@ function SelectionConfigurator({
             <BookOpen size={18} />
             <span>Clique em um card para configurar capitulos.</span>
           </div>
-        ) : (
+        ) : !addingToQueue ? (
           selectedNovels.map((novel) => {
             const selection = selections[novel.id] ?? defaultSelection(novel);
             const expanded = expandedId === novel.id;
@@ -567,6 +599,8 @@ function SelectionConfigurator({
               </article>
             );
           })
+        ) : (
+          null
         )}
       </div>
       {dragPreview && draggedNovel ? createPortal(
