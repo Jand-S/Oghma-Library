@@ -29,6 +29,11 @@ _CHAPTER_HREF = re.compile(
 )
 _CHAPTER_NUMBER = re.compile(r"^(\d+)(?:-|$)")
 _PROJECT_TOTAL = re.compile(r"([0-9][0-9,]*)\s+results", re.I)
+_PROJECT_CHAPTER_COUNT = re.compile(
+    r"<span[^>]*>\s*([0-9][0-9,]*)\s*</span>\s*"
+    r"<span[^>]*>\s*chapters\s*</span>",
+    re.I,
+)
 _PUBLISHED_RE = re.compile(r'"datePublished"\s*:\s*"([^"]+)"')
 _TITLE_PREFIX_RE = re.compile(r"\s+--?\s+Sky Demon Order\s*$", re.I)
 _COVER_URL_RE = re.compile(r"https://skydemonorder\.nyc3\.cdn\.digitaloceanspaces\.com/covers/[^'\"\s]+", re.I)
@@ -90,6 +95,13 @@ def _chapter_number_from_url(url: str) -> float | None:
     if not match:
         return None
     return float(match.group(1))
+
+
+def _source_chapter_count(html: bytes) -> int | None:
+    match = _PROJECT_CHAPTER_COUNT.search(html.decode("utf-8", errors="ignore"))
+    if not match:
+        return None
+    return int(match.group(1).replace(",", ""))
 
 
 def _clean_chapter_title(title: str, number: float) -> str:
@@ -225,6 +237,7 @@ class SkyDemonOrderConnector:
             tags=tags[:12],
             status=_status(header_text),
             language="en",
+            source_chapter_count=_source_chapter_count(raw.html),
         )
 
     def _start_url(self, html: bytes, novel: NovelMeta) -> str | None:
@@ -277,12 +290,14 @@ class SkyDemonOrderConnector:
         numbered.sort(key=lambda item: item[0])
         return numbered[0][1]
 
-    async def list_chapters(self, fetcher, novel: NovelMeta) -> list[ChapterRef]:
-        raw = await fetcher.get(novel.url)
-        current = self._start_url(raw.html, novel)
-        if not current:
-            return []
-
+    async def _walk_chapters(
+        self,
+        fetcher,
+        novel: NovelMeta,
+        current: str | None,
+        *,
+        after_number: float = 0.0,
+    ) -> list[ChapterRef]:
         chapters: dict[float, ChapterRef] = {}
         seen_urls: set[str] = set()
         while current and current not in seen_urls and len(chapters) < self.MAX_FREE_CHAPTERS:
@@ -291,12 +306,32 @@ class SkyDemonOrderConnector:
             chapter = self._chapter_from_page(page.html, str(page.url))
             if chapter is None:
                 break
-            chapters.setdefault(chapter.number, chapter)
+            if chapter.number > after_number:
+                chapters.setdefault(chapter.number, chapter)
             current = self._next_chapter_url(page.html, novel.slug, str(page.url))
 
         out = list(chapters.values())
         out.sort(key=lambda chapter: chapter.number)
         return out
+
+    async def list_chapters(self, fetcher, novel: NovelMeta) -> list[ChapterRef]:
+        raw = await fetcher.get(novel.url)
+        return await self._walk_chapters(fetcher, novel, self._start_url(raw.html, novel))
+
+    async def list_chapters_after(
+        self,
+        fetcher,
+        novel: NovelMeta,
+        latest: ChapterRef,
+    ) -> list[ChapterRef]:
+        latest_page = await fetcher.get(latest.url)
+        next_url = self._next_chapter_url(latest_page.html, novel.slug, str(latest_page.url))
+        return await self._walk_chapters(
+            fetcher,
+            novel,
+            next_url,
+            after_number=latest.number,
+        )
 
     async def fetch_chapter(self, fetcher, url: str) -> RawPage:
         return await fetcher.get(url)

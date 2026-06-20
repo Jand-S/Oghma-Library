@@ -82,6 +82,7 @@ export function App({ backend }: AppProps) {
   const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedNovelById, setSelectedNovelById] = useState<Record<string, Novel>>({});
+  const [previewNovel, setPreviewNovel] = useState<Novel | null>(null);
   const [downloadsPulse, setDownloadsPulse] = useState(0);
   const [selections, setSelections] = useState<Record<string, ChapterSelection>>({});
   const [syncing, setSyncing] = useState<string[]>([]);
@@ -140,7 +141,6 @@ export function App({ backend }: AppProps) {
     }
   }, [filters.sourceId, sources]);
 
-  const focusedNovel = useMemo(() => results.find((novel) => novel.id === focusedNovelId), [focusedNovelId, results]);
   const kindleConnected = kindleStatus?.connected ?? false;
   useDownloadProcessor({
     appConfig,
@@ -158,6 +158,8 @@ export function App({ backend }: AppProps) {
     () => selectedIds.map((id) => selectedNovelById[id]).filter((novel): novel is Novel => Boolean(novel)),
     [selectedIds, selectedNovelById]
   );
+  const selectedDetailNovel = selectedNovels[selectedNovels.length - 1];
+  const detailNovel = previewNovel ?? selectedDetailNovel;
   const selectedCompletedItems = useMemo(
     () => libraryToQueueItems(library.filter((item) => selectedLibraryIds.includes(item.id))),
     [library, selectedLibraryIds]
@@ -183,26 +185,57 @@ export function App({ backend }: AppProps) {
     audiobook: appConfig.audiobookDefault
   });
 
-  const toggleNovel = (novel: Novel) => {
-    const removing = selectedIds.includes(novel.id);
-    setSelectedIds((ids) => removing ? ids.filter((id) => id !== novel.id) : [...ids, novel.id]);
+  const rememberNovelSelection = (novel: Novel) => {
     setSelectedNovelById((current) => {
-      if (!removing) return { ...current, [novel.id]: novel };
-      const next = { ...current };
-      delete next[novel.id];
-      return next;
+      if (current[novel.id] === novel) return current;
+      return { ...current, [novel.id]: novel };
     });
-    setFocusedNovelId(novel.id);
     setSelections((current) => current[novel.id] ? current : { ...current, [novel.id]: buildDefaultSelection(novel) });
   };
 
+  const selectNovel = (novel: Novel) => {
+    setPreviewNovel(null);
+    toggleNovel(novel);
+  };
+
+  const toggleNovel = (novel: Novel) => {
+    const removing = selectedIds.includes(novel.id);
+    const nextIds = removing
+      ? selectedIds.filter((id) => id !== novel.id)
+      : [...selectedIds, novel.id];
+    setSelectedIds(nextIds);
+    if (removing) {
+      setSelectedNovelById((current) => {
+        const next = { ...current };
+        delete next[novel.id];
+        return next;
+      });
+      setFocusedNovelId(nextIds[nextIds.length - 1] ?? "");
+      return;
+    }
+    rememberNovelSelection(novel);
+    setFocusedNovelId(novel.id);
+  };
+
   const removeSelectedNovel = (novelId: string) => {
-    setSelectedIds((ids) => ids.filter((id) => id !== novelId));
+    const nextIds = selectedIds.filter((id) => id !== novelId);
+    setSelectedIds(nextIds);
     setSelectedNovelById((current) => {
       const next = { ...current };
       delete next[novelId];
       return next;
     });
+    setFocusedNovelId(nextIds[nextIds.length - 1] ?? "");
+  };
+
+  const openPreviewNovel = (novel: Novel) => {
+    setPreviewNovel(novel);
+    setFocusedNovelId(novel.id);
+  };
+
+  const clearPreviewNovel = () => {
+    setPreviewNovel(null);
+    setFocusedNovelId(selectedIds[selectedIds.length - 1] ?? "");
   };
 
   const addSelectedToQueue = () => {
@@ -210,9 +243,11 @@ export function App({ backend }: AppProps) {
     if (payload.length === 0) return;
     void backend.createDownloads(payload)
       .then((items) => {
+        setPreviewNovel(null);
         setQueue((current) => [...current, ...items]);
         setSelectedIds([]);
         setSelectedNovelById({});
+        setFocusedNovelId("");
         setDownloadsPulse((value) => value + 1);
         setToast(`${items.length} pacote(s) adicionados a fila de download.`);
       })
@@ -351,7 +386,7 @@ export function App({ backend }: AppProps) {
   const workspaceClass = bootError && activeView !== "settings"
     ? "workspace single"
     : activeView === "discover"
-    ? `workspace discover ${!filtersCollapsed ? "filters-open" : ""} ${selectedIds.length > 0 ? "selection-open" : ""}`
+    ? `workspace discover ${!filtersCollapsed ? "filters-open" : ""} ${selectedIds.length > 0 || previewNovel ? "selection-open" : ""}`
     : "workspace single";
 
   return (
@@ -394,13 +429,16 @@ export function App({ backend }: AppProps) {
               selectedNovels={selectedNovels}
               loading={loading || searching || filters.sourceId === "all"}
               selectedIds={selectedIds}
-              focusedNovel={focusedNovel}
+              detailNovel={detailNovel}
+              detailFromPreview={Boolean(previewNovel)}
               filterCollapsed={filtersCollapsed}
               selections={selections}
               onFiltersChange={setFilters}
               onToggleFilters={() => setFiltersCollapsed((value) => !value)}
               onToggleNovel={toggleNovel}
-              onFocusNovel={(novel) => setFocusedNovelId(novel.id)}
+              onSelectNovel={selectNovel}
+              onPreviewNovel={openPreviewNovel}
+              onClearPreview={clearPreviewNovel}
               onSelectionChange={(selection) => setSelections((current) => ({ ...current, [selection.novelId]: selection }))}
               onAddSelected={addSelectedToQueue}
               onReorder={setSelectedIds}

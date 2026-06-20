@@ -11,6 +11,7 @@ import {
   Trash2
 } from "lucide-react";
 import {
+  KeyboardEvent as ReactKeyboardEvent,
   MouseEvent,
   PointerEvent as ReactPointerEvent,
   RefObject,
@@ -36,14 +37,18 @@ import type {
 } from "../core/types";
 import { downloadFormats } from "../core/types";
 
+type DiscoverSidebarTab = "queue" | "details";
+
 function FiltersPanel({
   filters,
   sources,
-  onChange
+  onChange,
+  onBackgroundClick
 }: {
   filters: Filters;
   sources: SourceSite[];
   onChange: (filters: Filters) => void;
+  onBackgroundClick: (event: MouseEvent<HTMLElement>) => void;
 }) {
   const setFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => onChange({ ...filters, [key]: value });
   const toggleTag = (tag: string) => {
@@ -52,7 +57,7 @@ function FiltersPanel({
   const changeSource = (sourceId: string) => onChange({ ...filters, sourceId, language: "all" });
 
   return (
-    <aside className="filter-panel">
+    <aside className="filter-panel" onClick={onBackgroundClick}>
       <div className="panel-header">
         <div>
           <h2>Filtros</h2>
@@ -140,29 +145,35 @@ function NovelCard({
   selected,
   focused,
   onToggle,
-  onFocus
+  onSelect,
+  onPreview
 }: {
   novel: Novel;
   selected: boolean;
   focused: boolean;
   onToggle: () => void;
-  onFocus: () => void;
+  onSelect: () => void;
+  onPreview: () => void;
 }) {
-  const handleCardClick = () => {
-    onFocus();
+  const handleCheckClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
     onToggle();
   };
 
-  const handleCheckClick = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    handleCardClick();
+  const handleContextMenu = (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    onPreview();
   };
 
   return (
-    <article className={`book-card ${selected ? "selected" : ""} ${focused ? "focused" : ""}`} onClick={handleCardClick}>
+    <article
+      className={`book-card ${selected ? "selected" : ""} ${focused ? "focused" : ""}`}
+      onClick={onSelect}
+      onContextMenu={handleContextMenu}
+    >
       <button
         className={`card-check ${selected ? "active" : ""}`}
-        aria-label="Selecionar novel"
+        aria-label={selected ? `Remover ${novel.title} da fila` : `Selecionar ${novel.title} para a fila`}
         onClick={handleCheckClick}
       >
         {selected ? <Check size={11} /> : null}
@@ -445,7 +456,7 @@ function SelectionConfigurator({
   const draggedNovel = selectedNovels.find((novel) => novel.id === dragId);
 
   return (
-    <aside className="selection-drawer">
+    <section className="discover-sidebar-panel queue-panel">
       <div className="panel-header">
         <div>
           <h2>Capitulos</h2>
@@ -620,7 +631,69 @@ function SelectionConfigurator({
         </div>,
         document.body
       ) : null}
-    </aside>
+    </section>
+  );
+}
+
+function DiscoverDetailsPanel({
+  novel,
+  preview
+}: {
+  novel?: Novel;
+  preview?: boolean;
+}) {
+  if (!novel) {
+    return (
+      <section className="discover-sidebar-panel discover-detail-panel empty">
+        <div className="panel-header discover-detail-header">
+          <div>
+            <h2>Detalhes</h2>
+            <span>Selecione uma novel para inspecionar</span>
+          </div>
+        </div>
+        <div className="empty-state compact">
+          <BookOpen size={18} />
+          <span>Abra um card para ver capa, sinopse e metadados.</span>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="discover-sidebar-panel discover-detail-panel">
+      <div className="panel-header discover-detail-header">
+        <div>
+          <h2>Detalhes</h2>
+          <span>{preview ? "Pre-visualizacao temporaria" : "Ultima novel selecionada"}</span>
+        </div>
+      </div>
+      <div
+        className={`book-cover detail-cover ${novel.coverClass}`}
+        style={novel.coverUrl ? { backgroundImage: `url("${novel.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+      />
+      <div className="discover-detail-copy">
+        <h3>{novel.title}</h3>
+        <span>{novel.author}</span>
+      </div>
+      <div className="detail-stats">
+        <span>{novel.sourceName}</span>
+        <span>{statusLabel[novel.status]}</span>
+        <span>{novel.language.toUpperCase()}</span>
+        <span>{novel.chapters.toLocaleString("pt-BR")} capitulos</span>
+        <span>{novel.updatedAt}</span>
+      </div>
+      {novel.tags.length > 0 ? (
+        <div className="queue-badges discover-detail-tags">
+          {novel.tags.map((tag) => (
+            <span className="badge" key={tag}>{tag}</span>
+          ))}
+        </div>
+      ) : null}
+      <div className="discover-detail-section">
+        <h3>Sinopse</h3>
+        <p>{novel.description.trim() || "Sem sinopse cadastrada para esta novel."}</p>
+      </div>
+    </section>
   );
 }
 
@@ -631,13 +704,16 @@ export function DiscoverView({
   selectedNovels,
   loading,
   selectedIds,
-  focusedNovel,
+  detailNovel,
+  detailFromPreview,
   filterCollapsed,
   selections,
   onFiltersChange,
   onToggleFilters,
   onToggleNovel,
-  onFocusNovel,
+  onSelectNovel,
+  onPreviewNovel,
+  onClearPreview,
   onSelectionChange,
   onAddSelected,
   onReorder,
@@ -649,13 +725,16 @@ export function DiscoverView({
   selectedNovels: Novel[];
   loading: boolean;
   selectedIds: string[];
-  focusedNovel?: Novel;
+  detailNovel?: Novel;
+  detailFromPreview: boolean;
   filterCollapsed: boolean;
   selections: Record<string, ChapterSelection>;
   onFiltersChange: (filters: Filters) => void;
   onToggleFilters: () => void;
   onToggleNovel: (novel: Novel) => void;
-  onFocusNovel: (novel: Novel) => void;
+  onSelectNovel: (novel: Novel) => void;
+  onPreviewNovel: (novel: Novel) => void;
+  onClearPreview: () => void;
   onSelectionChange: (selection: ChapterSelection) => void;
   onAddSelected: () => void;
   onReorder: (orderedIds: string[]) => void;
@@ -664,9 +743,85 @@ export function DiscoverView({
   const pageSize = 60;
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [dragState, setDragState] = useState({ active: false, overTrash: false });
+  const [sidebarTab, setSidebarTab] = useState<DiscoverSidebarTab>("queue");
   const contentRef = useRef<HTMLElement>(null);
   useEffect(() => setVisibleCount(pageSize), [results]);
+  useEffect(() => {
+    if (detailFromPreview) {
+      contentRef.current?.focus();
+    }
+  }, [detailFromPreview]);
+  useEffect(() => {
+    if (!selectedNovels.length && !detailFromPreview) {
+      setSidebarTab("queue");
+      return;
+    }
+  }, [detailFromPreview, selectedNovels.length]);
   const visibleResults = results.slice(0, visibleCount);
+  const handleSelectNovel = (novel: Novel) => {
+    setSidebarTab("details");
+    onSelectNovel(novel);
+  };
+  const handlePreviewNovel = (novel: Novel) => {
+    setSidebarTab("details");
+    onPreviewNovel(novel);
+  };
+  const handleContentClick = (event: MouseEvent<HTMLElement>) => {
+    if (!detailFromPreview) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (
+      target.closest(".book-card, button, input, select, label, .selection-drawer, .filter-panel")
+      || target.tagName === "H2"
+      || target.tagName === "SPAN"
+      || target.tagName === "P"
+      || target.tagName === "SMALL"
+      || target.tagName === "STRONG"
+    ) {
+      return;
+    }
+    if (
+      target.closest(".content-area")
+      && (
+        target.closest(".toolbar")
+        || target.closest(".active-filter-row")
+        || target.closest(".book-grid")
+        || target.closest(".results-more")
+      )
+    ) {
+      onClearPreview();
+      return;
+    }
+    if (target === contentRef.current) {
+      onClearPreview();
+    }
+  };
+  const handleFilterBackgroundClick = (event: MouseEvent<HTMLElement>) => {
+    if (!detailFromPreview) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (
+      target.closest("button, input, select, label")
+      || target.closest(".input-with-icon")
+      || target.tagName === "H2"
+      || target.tagName === "SPAN"
+      || target.tagName === "P"
+      || target.tagName === "SMALL"
+      || target.tagName === "STRONG"
+    ) {
+      return;
+    }
+    if (target.closest(".filter-panel")) {
+      onClearPreview();
+    }
+  };
+  const handleContentKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (!detailFromPreview) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClearPreview();
+    }
+  };
   return (
     <>
       {!filterCollapsed ? (
@@ -674,11 +829,15 @@ export function DiscoverView({
           filters={filters}
           sources={sources}
           onChange={onFiltersChange}
+          onBackgroundClick={handleFilterBackgroundClick}
         />
       ) : null}
       <section
         className={`content-area ${dragState.active ? "drop-delete" : ""} ${dragState.overTrash ? "drop-delete-over" : ""}`}
         ref={contentRef}
+        tabIndex={detailFromPreview ? 0 : -1}
+        onClick={handleContentClick}
+        onKeyDown={handleContentKeyDown}
       >
         {dragState.active ? (
           <div className={`content-delete-overlay ${dragState.overTrash ? "over" : ""}`} aria-hidden="true">
@@ -719,9 +878,10 @@ export function DiscoverView({
                 key={novel.id}
                 novel={novel}
                 selected={selectedIds.includes(novel.id)}
-                focused={focusedNovel?.id === novel.id}
+                focused={detailNovel?.id === novel.id}
                 onToggle={() => onToggleNovel(novel)}
-                onFocus={() => onFocusNovel(novel)}
+                onSelect={() => handleSelectNovel(novel)}
+                onPreview={() => handlePreviewNovel(novel)}
               />
             ))}
             {visibleCount < results.length ? (
@@ -735,17 +895,44 @@ export function DiscoverView({
         )}
 
       </section>
-      {selectedNovels.length > 0 ? (
-        <SelectionConfigurator
-          selectedNovels={selectedNovels}
-          selections={selections}
-          onChange={onSelectionChange}
-          onAdd={onAddSelected}
-          onReorder={onReorder}
-          onRemove={onRemoveSelected}
-          trashRef={contentRef}
-          onDragStateChange={(active, overTrash) => setDragState({ active, overTrash })}
-        />
+      {selectedNovels.length > 0 || detailFromPreview ? (
+        <aside className="selection-drawer discover-sidebar">
+          <div className="discover-sidebar-tabs" role="tablist" aria-label="Painel lateral da descoberta">
+            <button
+              className={`discover-sidebar-tab ${sidebarTab === "queue" ? "active" : ""}`}
+              role="tab"
+              aria-selected={sidebarTab === "queue"}
+              disabled={selectedNovels.length === 0}
+              onClick={() => setSidebarTab("queue")}
+            >
+              Fila
+              {selectedNovels.length > 0 ? <span>{selectedNovels.length}</span> : null}
+            </button>
+            <button
+              className={`discover-sidebar-tab ${sidebarTab === "details" ? "active" : ""}`}
+              role="tab"
+              aria-selected={sidebarTab === "details"}
+              disabled={!detailNovel}
+              onClick={() => setSidebarTab("details")}
+            >
+              Detalhes
+            </button>
+          </div>
+          {sidebarTab === "queue" ? (
+            <SelectionConfigurator
+              selectedNovels={selectedNovels}
+              selections={selections}
+              onChange={onSelectionChange}
+              onAdd={onAddSelected}
+              onReorder={onReorder}
+              onRemove={onRemoveSelected}
+              trashRef={contentRef}
+              onDragStateChange={(active, overTrash) => setDragState({ active, overTrash })}
+            />
+          ) : (
+            <DiscoverDetailsPanel novel={detailNovel} preview={detailFromPreview} />
+          )}
+        </aside>
       ) : null}
     </>
   );

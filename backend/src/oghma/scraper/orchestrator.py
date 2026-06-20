@@ -1,7 +1,7 @@
 """Orquestra um crawl: descobre -> baixa -> normaliza -> grava (incremental)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -17,6 +17,7 @@ from .chapter_assets import localize_chapter_images
 from .fetcher import HttpFetcher
 
 PROGRESS_LOG_EVERY_CHAPTERS = 10
+COVER_REFRESH_AFTER = timedelta(days=180)
 
 
 def _now() -> datetime:
@@ -80,18 +81,57 @@ def _cover_extension(url: str, content_type: str | None, data: bytes) -> str:
     return "jpg"
 
 
-async def _download_cover(fetcher: HttpFetcher, meta: NovelMeta, existing_path: str | None) -> str | None:
+def _cover_needs_refresh(
+    novel: Novel | None,
+    meta: NovelMeta,
+    *,
+    now: datetime | None = None,
+) -> bool:
     if not meta.cover_url:
-        return existing_path
-    if existing_path and Path(existing_path).exists():
-        return existing_path
+        return False
+    if novel is None or not novel.cover_path:
+        return True
+
+    path = Path(novel.cover_path)
+    if not path.is_file() or novel.cover_url != meta.cover_url:
+        return True
+
+    checked_at = (novel.extra or {}).get("cover_checked_at")
+    try:
+        checked = datetime.fromisoformat(str(checked_at)) if checked_at else None
+    except ValueError:
+        checked = None
+    if checked is None:
+        checked = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    elif checked.tzinfo is None:
+        checked = checked.replace(tzinfo=timezone.utc)
+    return (now or _now()) - checked >= COVER_REFRESH_AFTER
+
+
+def _mark_cover_checked(novel: Novel) -> None:
+    extra = dict(novel.extra or {})
+    extra["cover_checked_at"] = _now_iso()
+    novel.extra = extra
+
+
+async def _download_cover(
+    fetcher: HttpFetcher,
+    meta: NovelMeta,
+    existing_path: str | None,
+    *,
+    refresh: bool = False,
+) -> tuple[str | None, bool]:
+    if not meta.cover_url:
+        return existing_path, False
+    if existing_path and Path(existing_path).exists() and not refresh:
+        return existing_path, False
 
     raw = await fetcher.get(meta.cover_url)
     content_type = (raw.content_type or "").split(";", 1)[0].strip().lower()
     if content_type.startswith("text/"):
-        return existing_path
+        return existing_path, False
     ext = _cover_extension(raw.url, raw.content_type, raw.html)
-    return storage.save_cover(meta.source_id, meta.slug, raw.html, ext)
+    return storage.save_cover(meta.source_id, meta.slug, raw.html, ext), True
 
 
 async def _upsert_novel(session: AsyncSession, novel_id: str, meta: NovelMeta) -> Novel:
@@ -160,6 +200,8 @@ async def crawl_source(
         "chapters_new": 0,
         "chapters_skipped": 0,
         "covers_new": 0,
+        "covers_refreshed": 0,
+        "covers_skipped": 0,
         "errors": 0,
         "cover_errors": 0,
         "current_novel_index": 0,
@@ -199,52 +241,133 @@ async def crawl_source(
                 await _save_run_progress(session, run_id, stats)
                 _log_progress(f"novel start {index}/{len(refs)} id={novel_id}")
 
+                existing_nv = await session.get(Novel, novel_id)
                 meta = await connector.fetch_novel(fetcher, ref)
                 stats["current_novel_title"] = meta.title
+                cover_due = _cover_needs_refresh(existing_nv, meta)
                 nv = await _upsert_novel(session, novel_id, meta)
                 stats["stage"] = "cover"
-                stats["last_event"] = f"checking cover for {meta.title}"
+                stats["last_event"] = (
+                    f"refreshing cover for {meta.title}"
+                    if cover_due
+                    else f"cover current for {meta.title}"
+                )
                 await _save_run_progress(session, run_id, stats)
-                try:
-                    cover_path = await _download_cover(fetcher, meta, nv.cover_path)
-                except Exception:
-                    stats["cover_errors"] += 1
+                if cover_due:
+                    previous_cover_path = nv.cover_path
+                    try:
+                        cover_path, downloaded = await _download_cover(
+                            fetcher,
+                            meta,
+                            nv.cover_path,
+                            refresh=True,
+                        )
+                    except Exception:
+                        stats["cover_errors"] += 1
+                    else:
+                        if downloaded and cover_path:
+                            nv.cover_path = cover_path
+                            _mark_cover_checked(nv)
+                            if previous_cover_path:
+                                stats["covers_refreshed"] += 1
+                            else:
+                                stats["covers_new"] += 1
                 else:
-                    if cover_path and cover_path != nv.cover_path:
-                        nv.cover_path = cover_path
-                        stats["covers_new"] += 1
+                    stats["covers_skipped"] += 1
                 new = 0
-                chapters = await connector.list_chapters(fetcher, meta)
-                stats["stage"] = "chapters"
-                stats["current_novel_chapters_total"] = len(chapters)
-                stats["last_event"] = f"{meta.title}: listed {len(chapters)} chapters"
                 current_count = int(
                     await session.scalar(
                         select(func.count()).select_from(Chapter).where(Chapter.novel_id == novel_id)
                     )
                     or 0
                 )
+                latest_chapter = await session.scalar(
+                    select(Chapter)
+                    .where(Chapter.novel_id == novel_id)
+                    .order_by(Chapter.number.desc())
+                    .limit(1)
+                )
+                incremental_lister = getattr(connector, "list_chapters_after", None)
+                chapter_offset = 0
+                if (
+                    not refresh
+                    and current_count > 0
+                    and meta.source_chapter_count is not None
+                    and current_count >= meta.source_chapter_count
+                ):
+                    chapters = []
+                    chapter_offset = current_count
+                    stats["stage"] = "chapters_current"
+                    stats["last_event"] = f"{meta.title}: chapter total unchanged ({current_count})"
+                elif (
+                    not refresh
+                    and callable(incremental_lister)
+                    and latest_chapter is not None
+                    and latest_chapter.source_url
+                ):
+                    stats["stage"] = "checking_updates"
+                    stats["last_event"] = f"{meta.title}: checking after chapter {latest_chapter.number:g}"
+                    await _save_run_progress(session, run_id, stats)
+                    latest_ref = ChapterRef(
+                        number=float(latest_chapter.number),
+                        title=latest_chapter.title,
+                        url=latest_chapter.source_url,
+                        published_at=latest_chapter.published_at,
+                    )
+                    try:
+                        chapters = await incremental_lister(fetcher, meta, latest_ref)
+                    except Exception:
+                        stats["stage"] = "listing_chapters"
+                        stats["last_event"] = f"{meta.title}: incremental check failed; scanning full list"
+                        await _save_run_progress(session, run_id, stats)
+                        chapters = await connector.list_chapters(fetcher, meta)
+                    else:
+                        chapter_offset = current_count
+                else:
+                    stats["stage"] = "listing_chapters"
+                    stats["last_event"] = f"{meta.title}: listing chapters"
+                    await _save_run_progress(session, run_id, stats)
+                    chapters = await connector.list_chapters(fetcher, meta)
+                stats["stage"] = "chapters"
+                stats["current_novel_chapters_total"] = chapter_offset + len(chapters)
+                stats["current_novel_chapters_done"] = chapter_offset
+                stats["last_event"] = (
+                    f"{meta.title}: found {len(chapters)} new chapters"
+                    if chapter_offset
+                    else f"{meta.title}: listed {len(chapters)} chapters"
+                )
+                if chapter_offset:
+                    stats["chapters_seen"] += chapter_offset
+                    stats["chapters_skipped"] += chapter_offset
                 nv = await session.get(Novel, novel_id)
                 if nv is not None:
                     nv.chapter_count = current_count
                 await _save_run_progress(session, run_id, stats)
-                _log_progress(f"chapters listed novel={novel_id} total={len(chapters)}")
+                _log_progress(
+                    f"chapters listed novel={novel_id} total={chapter_offset + len(chapters)} "
+                    f"new_candidates={len(chapters)}"
+                )
                 for chapter_index, cref in enumerate(chapters, start=1):
+                    progress_index = chapter_offset + chapter_index
                     cid = f"{novel_id}#{cref.number:g}"
                     stats["chapters_seen"] += 1
-                    stats["current_novel_chapters_done"] = chapter_index
+                    stats["current_novel_chapters_done"] = progress_index
                     stats["current_chapter_number"] = float(cref.number)
                     stats["current_chapter_title"] = cref.title
                     if (await session.get(Chapter, cid)) is not None and not refresh:
                         stats["chapters_skipped"] += 1
                         if chapter_index == 1 or chapter_index % PROGRESS_LOG_EVERY_CHAPTERS == 0:
                             stats["stage"] = "skipping_existing"
-                            stats["last_event"] = f"{meta.title}: skipped existing chapter {chapter_index}/{len(chapters)}"
+                            stats["last_event"] = (
+                                f"{meta.title}: skipped existing chapter "
+                                f"{progress_index}/{chapter_offset + len(chapters)}"
+                            )
                             await _save_run_progress(session, run_id, stats)
                         continue
                     stats["stage"] = "downloading_chapter"
                     stats["last_event"] = (
-                        f"{meta.title}: downloading chapter {chapter_index}/{len(chapters)} "
+                        f"{meta.title}: downloading chapter "
+                        f"{progress_index}/{chapter_offset + len(chapters)} "
                         f"#{cref.number:g}"
                     )
                     await _save_run_progress(session, run_id, stats)
@@ -280,10 +403,12 @@ async def crawl_source(
                     if new <= 3 or new % PROGRESS_LOG_EVERY_CHAPTERS == 0:
                         _log_progress(
                             f"chapter saved novel={novel_id} "
-                            f"{chapter_index}/{len(chapters)} number={cref.number:g} new={new}"
+                            f"{progress_index}/{chapter_offset + len(chapters)} "
+                            f"number={cref.number:g} new={new}"
                         )
                     stats["last_event"] = (
-                        f"{meta.title}: saved chapter {chapter_index}/{len(chapters)} "
+                        f"{meta.title}: saved chapter "
+                        f"{progress_index}/{chapter_offset + len(chapters)} "
                         f"#{cref.number:g}"
                     )
                     await _save_run_progress(session, run_id, stats)

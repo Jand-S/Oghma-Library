@@ -1,7 +1,7 @@
 """Testes de parsing do conector Sky Demon Order contra HTML sintetico."""
 import asyncio
 
-from oghma.scraper.base import RawPage
+from oghma.scraper.base import ChapterRef, RawPage
 from oghma.scraper.connectors.sky_demon_order import SkyDemonOrderConnector
 
 
@@ -29,6 +29,8 @@ NOVEL = b"""
   <span class="text-tag-ongoing">Ongoing</span>
   <span>Korean</span>
   <h1>Alpha Novel</h1>
+  <span class="text-lg font-bold font-system">3</span>
+  <span class="text-xs text-muted-foreground">chapters</span>
   <div x-ref="desc"><p>A better synopsis.</p></div>
   <a href="https://skydemonorder.com/projects?g=7">Fantasy</a>
   <a href="https://skydemonorder.com/projects?t=46">Male Protagonist</a>
@@ -79,8 +81,10 @@ PAYWALL = b"""
 class FakeFetcher:
     def __init__(self, pages: dict[str, bytes]) -> None:
         self.pages = pages
+        self.calls: list[str] = []
 
     async def get(self, url: str) -> RawPage:
+        self.calls.append(url)
         return RawPage(url=url, html=self.pages[url], content_type="text/html")
 
 
@@ -110,6 +114,7 @@ def test_fetch_novel_uses_english_content_language():
     assert meta.tags == ["Fantasy", "Male Protagonist"]
     assert meta.status == "ongoing"
     assert meta.language == "en"
+    assert meta.source_chapter_count == 3
 
 
 def test_fetch_novel_prefers_real_mature_cover_over_placeholder():
@@ -143,6 +148,51 @@ def test_list_chapters_walks_free_next_links_and_stops_at_paywall():
     assert [chapter.number for chapter in chapters] == [1.0, 2.0]
     assert chapters[0].title == "1 \u2014 First Step"
     assert chapters[0].published_at == "2026-06-01T00:00:00+00:00"
+
+
+def test_list_chapters_after_starts_from_last_saved_chapter():
+    connector = SkyDemonOrderConnector()
+    meta = asyncio.run(connector.fetch_novel(
+        FakeFetcher({"https://skydemonorder.com/projects/alpha-novel": NOVEL}),
+        connector._parse_project_refs(LISTING_1)[0],
+    ))
+    chapter_1_url = "https://skydemonorder.com/projects/alpha-novel/1-first-step"
+    chapter_2_url = "https://skydemonorder.com/projects/alpha-novel/2-second-step"
+    premium_url = "https://skydemonorder.com/projects/alpha-novel/3-premium-step"
+    fetcher = FakeFetcher({
+        chapter_1_url: CHAPTER_1,
+        chapter_2_url: CHAPTER_2,
+        premium_url: PAYWALL,
+    })
+
+    chapters = asyncio.run(connector.list_chapters_after(
+        fetcher,
+        meta,
+        ChapterRef(number=1, title="First Step", url=chapter_1_url),
+    ))
+
+    assert [chapter.number for chapter in chapters] == [2.0]
+    assert fetcher.calls == [chapter_1_url, chapter_2_url, premium_url]
+
+
+def test_list_chapters_after_stops_immediately_when_next_is_premium():
+    connector = SkyDemonOrderConnector()
+    meta = asyncio.run(connector.fetch_novel(
+        FakeFetcher({"https://skydemonorder.com/projects/alpha-novel": NOVEL}),
+        connector._parse_project_refs(LISTING_1)[0],
+    ))
+    chapter_2_url = "https://skydemonorder.com/projects/alpha-novel/2-second-step"
+    premium_url = "https://skydemonorder.com/projects/alpha-novel/3-premium-step"
+    fetcher = FakeFetcher({chapter_2_url: CHAPTER_2, premium_url: PAYWALL})
+
+    chapters = asyncio.run(connector.list_chapters_after(
+        fetcher,
+        meta,
+        ChapterRef(number=2, title="Second Step", url=chapter_2_url),
+    ))
+
+    assert chapters == []
+    assert fetcher.calls == [chapter_2_url, premium_url]
 
 
 def test_normalize_chapter_extracts_chapter_body():

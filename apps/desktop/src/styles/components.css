@@ -40,6 +40,72 @@
   overflow: hidden;
 }
 
+.selection-drawer.discover-sidebar {
+  gap: 12px;
+}
+
+.discover-sidebar-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.discover-sidebar-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: #181c22;
+  color: var(--text-muted);
+  font-size: 12px;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.discover-sidebar-tab:hover:not(:disabled) {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.discover-sidebar-tab.active {
+  border-color: var(--accent-muted);
+  background: rgba(0, 121, 107, 0.12);
+  color: #d7f4ef;
+}
+
+.discover-sidebar-tab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.discover-sidebar-tab span {
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+
+.discover-sidebar-panel {
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.content-area:focus,
+.content-area:focus-visible {
+  outline: none;
+}
+
 .selection-list {
   display: grid;
   align-content: start;
@@ -1318,6 +1384,61 @@
 .selection-chevron { margin-left: auto; color: var(--text-dim); transition: transform 180ms ease; }
 
 .selection-chevron.open { transform: rotate(180deg); }
+
+.discover-detail-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.discover-detail-header {
+  margin-bottom: 0;
+}
+
+.discover-detail-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.discover-detail-copy h3 {
+  font-size: 22px;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.discover-detail-copy > span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.discover-detail-panel .detail-cover {
+  width: min(160px, 82%);
+  height: 224px;
+  justify-self: center;
+}
+
+.discover-detail-tags {
+  margin-top: 0;
+}
+
+.discover-detail-section {
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.discover-detail-section h3 {
+  font-size: 13px;
+}
+
+.discover-detail-section p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
 
 .modal-backdrop {
   position: fixed;

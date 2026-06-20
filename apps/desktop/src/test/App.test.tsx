@@ -38,12 +38,49 @@ async function findBookCardTitle(title: string) {
   return cardTitle as HTMLElement;
 }
 
-async function selectFirstBook(user: ReturnType<typeof userEvent.setup>) {
-  const cardTitle = await findBookCardTitle("The Enchanted Forest");
-  await user.click(cardTitle as HTMLElement);
-  const panel = screen.getByText("Capitulos").closest("aside") as HTMLElement;
+function getQueuePanel() {
+  return screen.getByText("Capitulos").closest(".discover-sidebar-panel") as HTMLElement;
+}
+
+function getDetailPanel() {
+  return document.querySelector(".discover-detail-panel") as HTMLElement;
+}
+
+function getContentArea() {
+  return document.querySelector(".content-area") as HTMLElement;
+}
+
+function getToolbar() {
+  return document.querySelector(".toolbar") as HTMLElement;
+}
+
+function getActiveFilterRow() {
+  return document.querySelector(".active-filter-row") as HTMLElement;
+}
+
+function getFilterPanel() {
+  return document.querySelector(".filter-panel") as HTMLElement;
+}
+
+function getFirstFilterFieldGroup() {
+  return document.querySelector(".filter-panel .field-group") as HTMLElement;
+}
+
+async function queueFirstBook(user: ReturnType<typeof userEvent.setup>, title = "The Enchanted Forest") {
+  await user.click(await screen.findByRole("button", { name: `Selecionar ${title} para a fila` }));
+  const panel = getQueuePanel();
   await waitFor(() => {
-    expect(within(panel).getByText("The Enchanted Forest")).toBeInTheDocument();
+    expect(within(panel).getByText(title)).toBeInTheDocument();
+  });
+  return panel;
+}
+
+async function inspectBook(user: ReturnType<typeof userEvent.setup>, title = "The Enchanted Forest") {
+  const cardTitle = await findBookCardTitle(title);
+  await user.click(cardTitle as HTMLElement);
+  const panel = getDetailPanel();
+  await waitFor(() => {
+    expect(within(panel).getByText(title)).toBeInTheDocument();
   });
   return panel;
 }
@@ -170,19 +207,207 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Filtros" })).toBeInTheDocument();
   });
 
-  it("selects a novel by clicking the whole card", async () => {
+  it("clicking the card selects the novel and opens the details tab", async () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
-    const panel = await selectFirstBook(user);
+    const panel = await inspectBook(user);
+    expect(within(panel).getByText("Sinopse")).toBeInTheDocument();
+    expect(screen.queryByText("Capitulos")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Fila/i })).toBeInTheDocument();
+  });
+
+  it("right-click opens details without adding the novel to the queue", async () => {
+    await renderReadyApp();
+
+    const cardTitle = await findBookCardTitle("The Enchanted Forest");
+    fireEvent.contextMenu(cardTitle);
+
+    await waitFor(() => {
+      expect(within(getDetailPanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Capitulos")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Adicionar a fila" })).not.toBeInTheDocument();
+  });
+
+  it("right-clicking another card replaces the previewed details", async () => {
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    fireEvent.contextMenu(await findBookCardTitle("Journey to the Unknown"));
+
+    await waitFor(() => {
+      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
+    });
+  });
+
+  it("adds a novel to the queue from the card selector", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    const panel = await queueFirstBook(user);
     expect(panel).toBeTruthy();
+  });
+
+  it("keeps the queued selection when switching from details back to queue", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    const detailPanel = await inspectBook(user);
+    expect(within(detailPanel).getByText("The Enchanted Forest")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Fila/i }));
+
+    await waitFor(() => {
+      expect(within(getQueuePanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
+    });
+  });
+
+  it("shows the last selected novel in the details tab", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    await inspectBook(user, "The Enchanted Forest");
+    const secondTitle = await findBookCardTitle("Journey to the Unknown");
+    await user.click(secondTitle);
+
+    await waitFor(() => {
+      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
+    });
+  });
+
+  it("pressing escape closes preview details when nothing is selected", async () => {
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    fireEvent.keyDown(getContentArea(), { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: /Detalhes/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("pressing escape closes preview details and restores queue-backed details", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    await inspectBook(user, "The Enchanted Forest");
+    fireEvent.contextMenu(await findBookCardTitle("Journey to the Unknown"));
+    await waitFor(() => {
+      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(getContentArea(), { key: "Escape" });
+
+    await waitFor(() => {
+      expect(within(getDetailPanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
+    });
+  });
+
+  it("deselects the novel when clicking the selected card again", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    const title = await findBookCardTitle("The Enchanted Forest");
+    await user.click(title);
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Fila/i })).toBeInTheDocument();
+    });
+
+    await user.click(title);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: /Fila/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking the results background closes preview details", async () => {
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    fireEvent.click(getContentArea(), { target: getContentArea() });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: /Detalhes/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking the toolbar background closes preview details", async () => {
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    fireEvent.click(getToolbar(), { target: getToolbar() });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: /Detalhes/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking the active-filter-row background closes preview details", async () => {
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    fireEvent.click(getActiveFilterRow(), { target: getActiveFilterRow() });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: /Detalhes/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking the filter-panel background closes preview details", async () => {
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    fireEvent.click(getFilterPanel(), { target: getFilterPanel() });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: /Detalhes/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking a filter section background closes preview details", async () => {
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    fireEvent.click(getFirstFilterFieldGroup(), { target: getFirstFilterFieldGroup() });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: /Detalhes/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking controls while preview is open does not close it", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    await user.click(screen.getByRole("button", { name: "Ocultar filtros" }));
+
+    expect(within(getDetailPanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
+  });
+
+  it("left-click while preview is open selects normally and clears the temporary preview", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    fireEvent.contextMenu(await findBookCardTitle("The Enchanted Forest"));
+    const secondTitle = await findBookCardTitle("Journey to the Unknown");
+    await user.click(secondTitle);
+
+    await waitFor(() => {
+      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("tab", { name: /Fila/i }));
+    await waitFor(() => {
+      expect(within(getQueuePanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
+    });
   });
 
   it("keeps selected novels visible when filters hide all results", async () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
-    const panel = await selectFirstBook(user);
+    const panel = await queueFirstBook(user);
     await user.type(screen.getByLabelText("Busca"), "resultado que nao existe");
 
     await waitFor(() => expect(screen.getByText("0 de 0 livros")).toBeInTheDocument());
@@ -193,7 +418,7 @@ describe("App", () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
-    const panel = await selectFirstBook(user);
+    const panel = await queueFirstBook(user);
     fireEvent.pointerDown(panel.querySelector(".drag-handle") as HTMLElement, { clientX: 10, clientY: 10 });
 
     const trash = screen.getByText("Solte para remover").closest(".content-delete-overlay") as HTMLElement;
@@ -221,7 +446,7 @@ describe("App", () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
-    const panel = await selectFirstBook(user);
+    const panel = await queueFirstBook(user);
     await expandSelectionCard(user, panel);
 
     await user.click(within(panel).getByRole("button", { name: "Adicionar a fila" }));
@@ -237,7 +462,7 @@ describe("App", () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
-    const panel = await selectFirstBook(user);
+    const panel = await queueFirstBook(user);
     expect(within(panel).queryByText("Formatos")).not.toBeInTheDocument();
 
     await expandSelectionCard(user, panel);
@@ -256,7 +481,7 @@ describe("App", () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
-    const panel = await selectFirstBook(user);
+    const panel = await queueFirstBook(user);
     await expandSelectionCard(user, panel);
     const epub = within(panel).getByRole("button", { name: "EPUB" });
     const pdf = within(panel).getByRole("button", { name: "PDF" });
@@ -274,7 +499,7 @@ describe("App", () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
-    const panel = await selectFirstBook(user);
+    const panel = await queueFirstBook(user);
     await expandSelectionCard(user, panel);
     const todos = within(panel).getByRole("button", { name: "Todos" });
     expect(todos.className).toContain("active");

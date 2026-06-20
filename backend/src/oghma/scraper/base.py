@@ -24,6 +24,7 @@ class NovelMeta:
     tags: list[str] = field(default_factory=list)
     status: str = "ongoing"
     language: str = "pt-BR"
+    source_chapter_count: Optional[int] = None
 
 
 @dataclass
