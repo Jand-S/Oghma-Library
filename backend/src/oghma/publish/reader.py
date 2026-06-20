@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .records import ChapterRecord, NovelRecord, SourceRecord
+from ..taxonomy import canonical_tag_keys
 
 
 async def read_source(session, source_id: str) -> tuple[SourceRecord, list[NovelRecord]]:
@@ -31,6 +32,7 @@ async def read_source(session, source_id: str) -> tuple[SourceRecord, list[Novel
                 id=n.id, source_id=n.source_id, slug=n.slug, title=n.title, author=n.author,
                 description=n.description, cover_path=n.cover_path, language=n.language,
                 status=n.status, tags=list(n.tags or []),
+                tag_keys=list(n.tag_keys or []) or canonical_tag_keys(n.tags or []),
                 updated_at=(n.updated_at.isoformat() if n.updated_at else None),
                 chapters=[
                     ChapterRecord(

@@ -27,6 +27,7 @@ class NovelRecord:
     language: str
     status: str
     tags: list[str]
+    tag_keys: list[str]
     updated_at: Optional[str]
     chapters: list[ChapterRecord] = field(default_factory=list)
 

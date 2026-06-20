@@ -13,9 +13,11 @@ import type {
   NovelStatus,
   QueueItem,
   ServerProbe,
-  SourceSite
+  SourceSite,
+  TagCatalogItem
 } from "../core/types";
 import type { BackendClient, KindleTransferResult } from "./backendClient";
+import { buildFallbackTagCatalog, matchesContentRating, matchesTagFilters, normalizeTagCatalog } from "../core/tagFilters";
 
 // ---- Formatos publicados (espelham backend/src/oghma/publish) ----
 type CatalogChapter = { number: number; title: string };
@@ -30,6 +32,7 @@ type CatalogNovel = {
   language: string;
   status: string;
   tags: string[];
+  tagKeys?: string[];
   chapterCount: number;
   updatedAt: string | null;
   bundleKey: string | null;
@@ -41,7 +44,9 @@ type CatalogNovel = {
 
 type CatalogJson = {
   schema: number;
+  taxonomyVersion?: number;
   source: { id: string; name: string; baseUrl: string };
+  taxonomy?: TagCatalogItem[];
   novels: CatalogNovel[];
 };
 
@@ -63,6 +68,7 @@ type SiteCache = {
   site: IndexSite;
   source: { id: string; name: string; baseUrl: string };
   novels: Map<string, CatalogNovel>;
+  taxonomy: TagCatalogItem[];
 };
 
 const coverPalette = [
@@ -156,6 +162,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       sourceId: source.id,
       sourceName: source.name,
       tags: cn.tags || [],
+      tagKeys: cn.tagKeys || [],
       status: mapStatus(cn.status),
       chapters: cn.chapterCount,
       language: cn.language || "PT-BR",
@@ -185,7 +192,15 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       const catalog = await fetchGzipJson<CatalogJson>(`${base}/${site.catalogJsonKey}`);
       const novels = new Map<string, CatalogNovel>();
       for (const n of catalog.novels) novels.set(n.id, n);
-      next.push({ site, source: catalog.source, novels });
+      const uiNovels = [...novels.values()].map((novel) => novelToUi(novel, catalog.source));
+      next.push({
+        site,
+        source: catalog.source,
+        novels,
+        taxonomy: catalog.taxonomy?.length
+          ? normalizeTagCatalog(catalog.taxonomy)
+          : buildFallbackTagCatalog(uiNovels)
+      });
     }
     sites = next;
     loaded = true;
@@ -220,10 +235,32 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
         const matchesSource = filters.sourceId === "all" || novel.sourceId === filters.sourceId;
         const matchesStatus = filters.status === "any" || novel.status === filters.status;
         const matchesLanguage = filters.language === "all" || novel.language.toLowerCase() === filters.language;
-        const matchesTags = filters.tags.length === 0 || filters.tags.every((tag) => novel.tags.includes(tag));
+        const matchesContent = matchesContentRating(novel, filters.contentRating);
+        const matchesTags = matchesTagFilters(novel, filters.includeTags, filters.excludeTags);
         const matchesChapters = novel.chapters >= filters.minChapters && novel.chapters <= filters.maxChapters;
-        return matchesQuery && matchesSource && matchesStatus && matchesLanguage && matchesTags && matchesChapters;
+        return matchesQuery && matchesSource && matchesStatus && matchesLanguage && matchesContent && matchesTags && matchesChapters;
       });
+    },
+
+    async getTags(sourceId?: string): Promise<TagCatalogItem[]> {
+      await ensureLoaded();
+      const scoped = sourceId && sourceId !== "all"
+        ? sites.filter((site) => site.source.id === sourceId)
+        : sites;
+      if (scoped.length === 1) return scoped[0].taxonomy;
+      const counts = new Map<string, TagCatalogItem>();
+      for (const site of scoped) {
+        for (const tag of site.taxonomy) {
+          const current = counts.get(tag.key);
+          if (!current) {
+            counts.set(tag.key, { ...tag });
+          } else {
+            current.count += tag.count;
+            current.aliases = [...new Set([...current.aliases, ...tag.aliases])];
+          }
+        }
+      }
+      return [...counts.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
     },
 
     async getNovelChapters(novelId: string): Promise<Chapter[]> {

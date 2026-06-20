@@ -18,22 +18,34 @@ from .scraper import registry
 from .scraper.fetcher import HttpFetcher
 from .scraper.orchestrator import crawl_source
 from .scraper.repair_images import repair_chapter_images
+from .taxonomy import canonical_tag_keys, normalize_tag_key
 
 app = typer.Typer(add_completion=False, help="Oghma Library backend")
+
+
+async def _ensure_schema() -> None:
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("ALTER TABLE novel ADD COLUMN IF NOT EXISTS tag_keys VARCHAR[] DEFAULT '{}'::varchar[] NOT NULL"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_novel_tag_keys ON novel USING gin (tag_keys)"))
 
 
 @app.command("init-db")
 def init_db() -> None:
     """Cria extensoes e tabelas no Postgres."""
 
-    async def _run() -> None:
-        async with engine.begin() as conn:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
-            await conn.run_sync(Base.metadata.create_all)
-
-    asyncio.run(_run())
+    asyncio.run(_ensure_schema())
     typer.echo("init-db: ok")
+
+
+@app.command("upgrade-db")
+def upgrade_db() -> None:
+    """Aplica ajustes idempotentes em bancos ja existentes."""
+
+    asyncio.run(_ensure_schema())
+    typer.echo("upgrade-db: ok")
 
 
 @app.command("seed-sources")
@@ -226,6 +238,56 @@ def repair_images(
             f"{stats['removed']} removed, {stats['failed']} failures"
         )
     typer.echo(f"report: {result['report_path']}")
+
+
+@app.command("normalize-tags")
+def normalize_tags(
+    source: str = typer.Option("all", help="fonte ou all"),
+    apply: bool = typer.Option(False, "--apply", help="grava as tag_keys no banco"),
+    limit: int = typer.Option(None, help="max de novels para processar"),
+) -> None:
+    """Preenche novel.tag_keys usando a taxonomia versionada."""
+
+    async def _run() -> None:
+        await _ensure_schema()
+        dry_run = not apply
+        changed = 0
+        scanned = 0
+        unknown: dict[str, int] = {}
+        by_source: dict[str, dict[str, int]] = {}
+        async with SessionLocal() as s:
+            stmt = select(Novel).order_by(Novel.source_id, Novel.id)
+            if source != "all":
+                stmt = stmt.where(Novel.source_id == source)
+            if limit:
+                stmt = stmt.limit(limit)
+            rows = (await s.scalars(stmt)).all()
+            for novel in rows:
+                scanned += 1
+                keys = canonical_tag_keys(novel.tags or [])
+                source_stats = by_source.setdefault(novel.source_id, {"novels": 0, "changed": 0})
+                source_stats["novels"] += 1
+                if keys != list(novel.tag_keys or []):
+                    changed += 1
+                    source_stats["changed"] += 1
+                    if not dry_run:
+                        novel.tag_keys = keys
+                for raw in novel.tags or []:
+                    key = normalize_tag_key(raw)
+                    if key.startswith("raw."):
+                        unknown[raw] = unknown.get(raw, 0) + 1
+            if not dry_run:
+                await s.commit()
+        suffix = " (dry-run)" if dry_run else ""
+        typer.echo(f"normalize-tags{suffix}: {scanned} novels, {changed} alteradas")
+        for source_id, stats in sorted(by_source.items()):
+            typer.echo(f"- {source_id}: {stats['novels']} novels, {stats['changed']} alteradas")
+        if unknown:
+            typer.echo("tags desconhecidas:")
+            for tag, count in sorted(unknown.items(), key=lambda item: (-item[1], item[0].casefold()))[:80]:
+                typer.echo(f"- {tag}: {count}")
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

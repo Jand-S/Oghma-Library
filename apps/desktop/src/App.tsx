@@ -39,6 +39,7 @@ import type {
   Novel,
   QueueItem,
   ServerProbe,
+  TagCatalogItem,
 } from "./core/types";
 import { getErrorMessage, type BackendClient } from "./services/backendClient";
 import { sanitizeFileName } from "./services/downloadManager";
@@ -77,6 +78,7 @@ export function App({ backend }: AppProps) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
+  const [tagCatalog, setTagCatalog] = useState<TagCatalogItem[]>([]);
   const [serverProbe, setServerProbe] = useState<ServerProbe | null>(null);
   const [probingServer, setProbingServer] = useState(false);
   const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
@@ -140,6 +142,24 @@ export function App({ backend }: AppProps) {
       setFilters((current) => ({ ...current, sourceId: fallback.id, language: "all" }));
     }
   }, [filters.sourceId, sources]);
+
+  useEffect(() => {
+    if (loading || bootError || activeView !== "discover") return;
+    let cancelled = false;
+    void backend.getTags(filters.sourceId)
+      .then((items) => {
+        if (!cancelled) setTagCatalog(items);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setTagCatalog([]);
+          setToast(getErrorMessage(error, "Nao foi possivel carregar as tags."));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeView, backend, bootError, filters.sourceId, loading, setToast]);
 
   const kindleConnected = kindleStatus?.connected ?? false;
   useDownloadProcessor({
@@ -425,6 +445,7 @@ export function App({ backend }: AppProps) {
             <DiscoverView
               sources={sources}
               filters={filters}
+              tagCatalog={tagCatalog}
               results={results}
               selectedNovels={selectedNovels}
               loading={loading || searching || filters.sourceId === "all"}

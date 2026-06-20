@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -52,6 +53,7 @@ class Novel(Base):
     language: Mapped[str] = mapped_column(String(16), default="pt-BR")
     status: Mapped[str] = mapped_column(String(16), default="ongoing")
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    tag_keys: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, server_default=text("'{}'::varchar[]"))
     chapter_count: Mapped[int] = mapped_column(Integer, default=0)
     source_url: Mapped[str] = mapped_column(String(700))
     extra: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -79,6 +81,7 @@ class Novel(Base):
         ),
         Index("ix_novel_search_tsv", "search_tsv", postgresql_using="gin"),
         Index("ix_novel_tags", "tags", postgresql_using="gin"),
+        Index("ix_novel_tag_keys", "tag_keys", postgresql_using="gin"),
         Index("ix_novel_status", "status"),
         Index("ix_novel_chapter_count", "chapter_count"),
     )

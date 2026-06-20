@@ -23,6 +23,7 @@ export type Novel = {
   sourceId: string;
   sourceName: string;
   tags: string[];
+  tagKeys: string[];
   status: NovelStatus;
   chapters: number;
   language: string;
@@ -140,12 +141,26 @@ export type LibraryItem = {
   exportedAt: string;
 };
 
+export type TagCategory = "format" | "genre" | "theme";
+export type ContentRatingFilter = "all" | "safe" | "suggestive" | "erotic";
+
+export type TagCatalogItem = {
+  key: string;
+  label: string;
+  category: TagCategory;
+  aliases: string[];
+  count: number;
+  reviewStatus?: "curated" | "inferred" | "unknown";
+};
+
 export type Filters = {
   query: string;
   sourceId: string;
   status: string;
   language: string;
-  tags: string[];
+  contentRating: ContentRatingFilter;
+  includeTags: string[];
+  excludeTags: string[];
   onlyCovered: boolean;
   updatedOnly: boolean;
   minChapters: number;

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import storage
 from ..models import Chapter, CrawlRun, Novel, SourceSite
+from ..taxonomy import canonical_tag_keys
 from . import connectors  # noqa: F401  (registra conectores)
 from . import registry
 from .base import ChapterRef, NovelMeta, NovelRef
@@ -146,6 +147,7 @@ async def _upsert_novel(session: AsyncSession, novel_id: str, meta: NovelMeta) -
     nv.language = meta.language
     nv.status = meta.status
     nv.tags = meta.tags
+    nv.tag_keys = canonical_tag_keys(meta.tags)
     nv.source_url = meta.url
     return nv
 

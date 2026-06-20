@@ -24,7 +24,8 @@ def _novel(with_cover=True):
     return NovelRecord(
         id="central-novel:supreme-magus", source_id="central-novel", slug="supreme-magus",
         title="Supreme Magus", author="JKLLAS", description="desc", language="pt-BR", status="ongoing",
-        tags=["Fantasia", "Aventura"], updated_at="2026-06-16T00:00:00Z",
+        tags=["Fantasia", "Aventura"], tag_keys=["genre.fantasy", "genre.adventure"],
+        updated_at="2026-06-16T00:00:00Z",
         cover_path=("/srv/oghma/covers/central-novel/supreme-magus.jpg" if with_cover else None),
         chapters=chs,
     )
@@ -95,13 +96,14 @@ def test_build_catalog_readback():
         conn = sqlite3.connect(str(out))
         try:
             row = conn.execute(
-                "SELECT title, cover_url, tags, chapter_count, bundle_key, bundle_version FROM novel WHERE id=?",
+                "SELECT title, cover_url, tags, tag_keys, chapter_count, bundle_key, bundle_version FROM novel WHERE id=?",
                 (n.id,),
             ).fetchone()
             assert row[0] == "Supreme Magus"
             assert row[1] == "covers/central-novel/supreme-magus.jpg"
             assert json.loads(row[2]) == ["Fantasia", "Aventura"]
-            assert row[3] == 2 and row[4] == "content/x" and row[5] == 1
+            assert json.loads(row[3]) == ["genre.fantasy", "genre.adventure"]
+            assert row[4] == 2 and row[5] == "content/x" and row[6] == 1
             assert conn.execute("SELECT COUNT(*) FROM chapter WHERE novel_id=?", (n.id,)).fetchone()[0] == 2
             assert conn.execute("SELECT novel_count FROM source").fetchone()[0] == 1
             # FTS (se disponivel)

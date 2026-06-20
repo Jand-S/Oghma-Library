@@ -22,12 +22,12 @@ describe("mockBackend", () => {
     const results = await mockBackend.searchNovels({
       ...filters,
       query: "forest",
-      tags: ["Fantasia"]
+      includeTags: ["genre.fantasy"]
     });
 
     expect(results.length).toBeGreaterThan(0);
     expect(results.every((novel) => novel.title.toLowerCase().includes("forest") || novel.author.toLowerCase().includes("forest"))).toBe(true);
-    expect(results.every((novel) => novel.tags.includes("Fantasia"))).toBe(true);
+    expect(results.every((novel) => novel.tagKeys.includes("genre.fantasy"))).toBe(true);
   });
 
   it("creates queue items from per-novel chapter selections", async () => {
@@ -43,4 +43,3 @@ describe("mockBackend", () => {
     expect(item.chaptersTotal).toBe(estimateChapters(selection, novel!.chapters));
   });
 });
-

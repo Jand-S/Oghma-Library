@@ -36,6 +36,7 @@ class NovelOut(ApiModel):
     source_id: str
     source_name: str = ""
     tags: list[str] = []
+    tag_keys: list[str] = []
     status: str = "ongoing"
     chapters: int = 0
     language: str = "pt-BR"
@@ -68,6 +69,20 @@ class CrawlRunOut(ApiModel):
     error: str = ""
     started_at: str = ""
     finished_at: str = ""
+
+
+class TagOut(ApiModel):
+    key: str
+    label: str
+    category: str
+    aliases: list[str] = []
+    count: int = 0
+    review_status: str = "curated"
+
+
+class TagCatalogOut(ApiModel):
+    taxonomy_version: int
+    items: list[TagOut] = []
 
 
 class BootstrapOut(ApiModel):

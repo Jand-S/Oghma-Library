@@ -8,7 +8,8 @@ import type {
   Novel,
   QueueItem,
   ServerProbe,
-  SourceSite
+  SourceSite,
+  TagCatalogItem
 } from "../core/types";
 
 export type KindleTransferResult = {
@@ -19,6 +20,7 @@ export type KindleTransferResult = {
 export type BackendClient = {
   bootstrap(): Promise<BootstrapPayload>;
   searchNovels(filters: Filters): Promise<Novel[]>;
+  getTags(sourceId?: string): Promise<TagCatalogItem[]>;
   getNovelChapters(novelId: string): Promise<Chapter[]>;
   syncSource(sourceId: string): Promise<SourceSite>;
   createDownloads(selections: ChapterSelection[]): Promise<QueueItem[]>;

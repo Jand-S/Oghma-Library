@@ -1,4 +1,5 @@
 import {
+  Ban,
   BookOpen,
   Check,
   ChevronDown,
@@ -6,8 +7,10 @@ import {
   GripVertical,
   Headphones,
   Languages,
+  Minus,
   Search,
   SlidersHorizontal,
+  Tags,
   Trash2
 } from "lucide-react";
 import {
@@ -21,40 +24,199 @@ import {
   useState
 } from "react";
 import { createPortal } from "react-dom";
-import { statusLabel, tags } from "../constants/ui";
+import { statusLabel } from "../constants/ui";
 import {
   defaultFilters,
   defaultSelection,
   estimateChapters,
   selectionLabel
 } from "../core/defaults";
+import {
+  cycleTagState,
+  tagLabel,
+  tagSearchMatches,
+  type TagFilterDraft
+} from "../core/tagFilters";
 import type {
   ChapterSelection,
   DownloadFormat,
   Filters,
   Novel,
-  SourceSite
+  SourceSite,
+  TagCatalogItem,
+  TagCategory
 } from "../core/types";
 import { downloadFormats } from "../core/types";
 
 type DiscoverSidebarTab = "queue" | "details";
+const tagCategoryLabels: Record<TagCategory, string> = {
+  format: "Formato",
+  genre: "Genero",
+  theme: "Tema"
+};
+const tagCategoryOrder: TagCategory[] = ["format", "genre", "theme"];
+const contentRatingLabels = {
+  safe: "Seguro",
+  suggestive: "Sugestivo",
+  erotic: "Erótico"
+} as const;
+
+function TagStateIcon({ state }: { state: "include" | "exclude" | "neutral" }) {
+  if (state === "include") return <Check size={12} />;
+  if (state === "exclude") return <Ban size={12} />;
+  return null;
+}
+
+function TagFilterSheet({
+  catalog,
+  filters,
+  onApply,
+  onClose
+}: {
+  catalog: TagCatalogItem[];
+  filters: Filters;
+  onApply: (filters: Filters) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Record<TagCategory, boolean>>({ format: false, genre: false, theme: false });
+  const [draft, setDraft] = useState<TagFilterDraft>({
+    includeTags: filters.includeTags,
+    excludeTags: filters.excludeTags
+  });
+
+  useEffect(() => {
+    setDraft({ includeTags: filters.includeTags, excludeTags: filters.excludeTags });
+  }, [filters.includeTags, filters.excludeTags]);
+
+  const activeCount = draft.includeTags.length + draft.excludeTags.length;
+  const filteredCatalog = catalog.filter((tag) => tagSearchMatches(tag, query));
+  const stateFor = (key: string): "include" | "exclude" | "neutral" => {
+    if (draft.includeTags.includes(key)) return "include";
+    if (draft.excludeTags.includes(key)) return "exclude";
+    return "neutral";
+  };
+  const cycle = (key: string) => setDraft((current) => cycleTagState(current, key));
+  const clearDraft = () => setDraft({ includeTags: [], excludeTags: [] });
+  const applyDraft = () => onApply({ ...filters, includeTags: draft.includeTags, excludeTags: draft.excludeTags });
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+    }
+  };
+
+  return (
+    <div className="tag-sheet-scrim" onMouseDown={(event) => event.currentTarget === event.target ? onClose() : undefined}>
+      <section className="tag-filter-sheet" aria-label="Escolher tags" onKeyDown={handleKeyDown} tabIndex={-1}>
+        <div className="tag-sheet-header">
+          <div>
+            <h2>Tags</h2>
+            <span>{activeCount === 0 ? "Nenhuma tag ativa" : `${draft.includeTags.length} obrigatorias, ${draft.excludeTags.length} proibidas`}</span>
+          </div>
+          <button className="button quiet compact" onClick={clearDraft}>Limpar</button>
+        </div>
+        <div className="input-with-icon tag-search-field">
+          <Search size={16} />
+          <input
+            autoFocus
+            aria-label="Buscar tags"
+            placeholder="Buscar tags"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+        <div className="tag-sheet-active">
+          {draft.includeTags.map((key) => (
+            <button className="tag-token include" key={key} onClick={() => cycle(key)} title="Clique para proibir esta tag">
+              <Check size={12} />
+              {tagLabel(key, catalog)}
+            </button>
+          ))}
+          {draft.excludeTags.map((key) => (
+            <button className="tag-token exclude" key={key} onClick={() => cycle(key)} title="Clique para remover esta tag">
+              <Minus size={12} />
+              {tagLabel(key, catalog)}
+            </button>
+          ))}
+          {activeCount === 0 ? <span>Nenhuma tag escolhida</span> : null}
+        </div>
+        <div className="tag-section-list">
+          {tagCategoryOrder.map((category) => {
+            const sectionTags = filteredCatalog
+              .filter((tag) => tag.category === category)
+              .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
+            const showAll = query.trim().length > 0 || expanded[category];
+            const visible = showAll ? sectionTags : sectionTags.slice(0, 28);
+            return (
+              <section className="tag-section" key={category}>
+                <div className="tag-section-title">
+                  <h3>{tagCategoryLabels[category]}</h3>
+                  {sectionTags.length > 28 && !query.trim() ? (
+                    <button onClick={() => setExpanded((current) => ({ ...current, [category]: !current[category] }))}>
+                      {expanded[category] ? "Ver populares" : `Ver todas (${sectionTags.length})`}
+                    </button>
+                  ) : null}
+                </div>
+                {visible.length > 0 ? (
+                  <div className="tag-choice-grid">
+                    {visible.map((tag) => {
+                      const state = stateFor(tag.key);
+                      const title = state === "neutral"
+                        ? `Exigir ${tag.label}`
+                        : state === "include"
+                        ? `Proibir ${tag.label}`
+                        : `Remover filtro ${tag.label}`;
+                      return (
+                        <button
+                          className={`tag-choice ${state}`}
+                          key={tag.key}
+                          onClick={() => cycle(tag.key)}
+                          aria-pressed={state !== "neutral"}
+                          title={title}
+                        >
+                          <TagStateIcon state={state} />
+                          <span>{tag.label}</span>
+                          <small>{tag.count.toLocaleString("pt-BR")}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="tag-empty">Nenhuma tag encontrada.</p>
+                )}
+              </section>
+            );
+          })}
+        </div>
+        <div className="tag-sheet-footer">
+          <button className="button quiet" onClick={onClose}>Cancelar</button>
+          <button className="button primary" onClick={applyDraft}>Aplicar tags</button>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function FiltersPanel({
   filters,
   sources,
+  tagCatalog,
   onChange,
+  onOpenTagEditor,
   onBackgroundClick
 }: {
   filters: Filters;
   sources: SourceSite[];
+  tagCatalog: TagCatalogItem[];
   onChange: (filters: Filters) => void;
+  onOpenTagEditor: () => void;
   onBackgroundClick: (event: MouseEvent<HTMLElement>) => void;
 }) {
   const setFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => onChange({ ...filters, [key]: value });
-  const toggleTag = (tag: string) => {
-    setFilter("tags", filters.tags.includes(tag) ? filters.tags.filter((item) => item !== tag) : [...filters.tags, tag]);
-  };
   const changeSource = (sourceId: string) => onChange({ ...filters, sourceId, language: "all" });
+  const activeTags = [...filters.includeTags.map((key) => ({ key, mode: "include" as const })), ...filters.excludeTags.map((key) => ({ key, mode: "exclude" as const }))];
 
   return (
     <aside className="filter-panel" onClick={onBackgroundClick}>
@@ -85,56 +247,88 @@ function FiltersPanel({
           </select>
         </div>
 
-        <div className="field-group">
-          <label htmlFor="status">Status</label>
-          <select id="status" value={filters.status} onChange={(event) => setFilter("status", event.target.value)}>
-            <option value="any">Qualquer status</option>
-            <option value="ongoing">Em andamento</option>
-            <option value="complete">Completa</option>
-            <option value="paused">Pausada</option>
-          </select>
-        </div>
-
-        <div className="filter-chips" aria-label="Tags">
-          {tags.map((tag) => (
-            <button className={`chip ${filters.tags.includes(tag) ? "active" : ""}`} key={tag} onClick={() => toggleTag(tag)}>
-              {tag}
+        <div className="tag-summary-block">
+          <div className="tag-summary-head">
+            <div>
+              <strong>Tags</strong>
+              <span>{filters.includeTags.length} obrigatorias, {filters.excludeTags.length} proibidas</span>
+            </div>
+            <button className="button quiet compact" onClick={onOpenTagEditor}>
+              <Tags size={14} />
+              Escolher
             </button>
-          ))}
+          </div>
+          <div className="tag-summary-pills">
+            {activeTags.length === 0 ? <span className="muted-tag-pill">Sem filtro de tags</span> : null}
+            {activeTags.slice(0, 6).map((tag) => (
+              <span className={`tag-token ${tag.mode}`} key={`${tag.mode}-${tag.key}`}>
+                {tag.mode === "include" ? <Check size={12} /> : <Minus size={12} />}
+                {tagLabel(tag.key, tagCatalog)}
+              </span>
+            ))}
+            {activeTags.length > 6 ? <span className="muted-tag-pill">+{activeTags.length - 6}</span> : null}
+          </div>
         </div>
 
-        <div className="field-grid two">
+        <div className="content-rating-filter">
+          <strong>Classificação de conteúdo</strong>
+          <div className="content-rating-options">
+            {(Object.entries(contentRatingLabels) as Array<[keyof typeof contentRatingLabels, string]>).map(([value, label]) => (
+              <button
+                key={value}
+                className={filters.contentRating === value ? "active" : ""}
+                onClick={() => setFilter("contentRating", filters.contentRating === value ? "all" : value)}
+                aria-pressed={filters.contentRating === value}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <details className="more-filters">
+          <summary>Mais filtros</summary>
           <div className="field-group">
-            <label htmlFor="language">Idioma</label>
-            <select id="language" value={filters.language} onChange={(event) => setFilter("language", event.target.value)}>
-              <option value="pt-br">PT-BR</option>
-              <option value="en">EN</option>
-              <option value="all">Todos</option>
+            <label htmlFor="status">Status</label>
+            <select id="status" value={filters.status} onChange={(event) => setFilter("status", event.target.value)}>
+              <option value="any">Qualquer status</option>
+              <option value="ongoing">Em andamento</option>
+              <option value="complete">Completa</option>
+              <option value="paused">Pausada</option>
             </select>
           </div>
-          <div className="field-group">
-            <label htmlFor="max-chapters">Max.</label>
-            <input
-              id="max-chapters"
-              type="number"
-              min={1}
-              max={9999}
-              value={filters.maxChapters}
-              onChange={(event) => setFilter("maxChapters", Number(event.target.value))}
-            />
+          <div className="field-grid two">
+            <div className="field-group">
+              <label htmlFor="language">Idioma</label>
+              <select id="language" value={filters.language} onChange={(event) => setFilter("language", event.target.value)}>
+                <option value="all">Todos</option>
+                <option value="pt-br">PT-BR</option>
+                <option value="en">EN</option>
+              </select>
+            </div>
+            <div className="field-group">
+              <label htmlFor="max-chapters">Max.</label>
+              <input
+                id="max-chapters"
+                type="number"
+                min={1}
+                max={9999}
+                value={filters.maxChapters}
+                onChange={(event) => setFilter("maxChapters", Number(event.target.value))}
+              />
+            </div>
           </div>
-        </div>
-
-        <label className="toggle-line">
-          <input type="checkbox" checked={filters.onlyCovered} onChange={(event) => setFilter("onlyCovered", event.target.checked)} />
-          <span className="toggle" />
-          <span>Mostrar apenas com capa</span>
-        </label>
-        <label className="toggle-line">
-          <input type="checkbox" checked={filters.updatedOnly} onChange={(event) => setFilter("updatedOnly", event.target.checked)} />
-          <span className="toggle" />
-          <span>Somente atualizadas</span>
-        </label>
+          <label className="toggle-line">
+            <input type="checkbox" checked={filters.onlyCovered} onChange={(event) => setFilter("onlyCovered", event.target.checked)} />
+            <span className="toggle" />
+            <span>Mostrar apenas com capa</span>
+          </label>
+          <label className="toggle-line">
+            <input type="checkbox" checked={filters.updatedOnly} onChange={(event) => setFilter("updatedOnly", event.target.checked)} />
+            <span className="toggle" />
+            <span>Somente atualizadas</span>
+          </label>
+        </details>
       </>
     </aside>
   );
@@ -700,6 +894,7 @@ function DiscoverDetailsPanel({
 export function DiscoverView({
   sources,
   filters,
+  tagCatalog,
   results,
   selectedNovels,
   loading,
@@ -721,6 +916,7 @@ export function DiscoverView({
 }: {
   sources: SourceSite[];
   filters: Filters;
+  tagCatalog: TagCatalogItem[];
   results: Novel[];
   selectedNovels: Novel[];
   loading: boolean;
@@ -744,6 +940,7 @@ export function DiscoverView({
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [dragState, setDragState] = useState({ active: false, overTrash: false });
   const [sidebarTab, setSidebarTab] = useState<DiscoverSidebarTab>("queue");
+  const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const contentRef = useRef<HTMLElement>(null);
   useEffect(() => setVisibleCount(pageSize), [results]);
   useEffect(() => {
@@ -772,6 +969,7 @@ export function DiscoverView({
     if (!(target instanceof HTMLElement)) return;
     if (
       target.closest(".book-card, button, input, select, label, .selection-drawer, .filter-panel")
+      || target.closest(".tag-filter-sheet")
       || target.tagName === "H2"
       || target.tagName === "SPAN"
       || target.tagName === "P"
@@ -828,7 +1026,9 @@ export function DiscoverView({
         <FiltersPanel
           filters={filters}
           sources={sources}
+          tagCatalog={tagCatalog}
           onChange={onFiltersChange}
+          onOpenTagEditor={() => setTagEditorOpen(true)}
           onBackgroundClick={handleFilterBackgroundClick}
         />
       ) : null}
@@ -864,10 +1064,23 @@ export function DiscoverView({
 
         <div className="active-filter-row">
           <span>{sources.find((source) => source.id === filters.sourceId)?.name ?? "Fonte obrigatoria"}</span>
-          {filters.tags.map((tag) => <span key={tag}>{tag}</span>)}
-          <span>{filters.language.toUpperCase()}</span>
+          {filters.includeTags.map((key) => <span className="include" key={`include-${key}`}>+ {tagLabel(key, tagCatalog)}</span>)}
+          {filters.excludeTags.map((key) => <span className="exclude" key={`exclude-${key}`}>- {tagLabel(key, tagCatalog)}</span>)}
+          {filters.contentRating !== "all" ? <span>{contentRatingLabels[filters.contentRating]}</span> : null}
+          {filters.language !== "all" ? <span>{filters.language.toUpperCase()}</span> : null}
           <button onClick={() => onFiltersChange(defaultFilters(filters.sourceId))}>Limpar</button>
         </div>
+        {tagEditorOpen ? (
+          <TagFilterSheet
+            catalog={tagCatalog}
+            filters={filters}
+            onApply={(next) => {
+              onFiltersChange(next);
+              setTagEditorOpen(false);
+            }}
+            onClose={() => setTagEditorOpen(false)}
+          />
+        ) : null}
 
         {loading ? (
           <SkeletonGrid />

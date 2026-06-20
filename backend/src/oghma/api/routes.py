@@ -13,11 +13,44 @@ from ..schemas import (
     CrawlRunOut,
     NovelOut,
     SourceOut,
+    TagCatalogOut,
 )
+from ..taxonomy import TAXONOMY_VERSION, build_tag_items, canonical_tag_keys
 from .deps import get_db
 from . import publish_jobs
 
 router = APIRouter(prefix="/api")
+
+EROTIC_TAG_KEYS = {
+    "genre.adult",
+    "genre.erotic",
+    "genre.explicit_erotic",
+    "theme.bdsm",
+    "theme.dirty_talk",
+    "theme.dominance",
+    "theme.incest",
+    "theme.milf",
+    "theme.dilf",
+    "theme.nonconsensual",
+    "theme.sex_friends",
+    "theme.sex_slaves",
+    "theme.threesome",
+    "theme.voyeurism",
+}
+
+SUGGESTIVE_TAG_KEYS = {
+    "genre.ecchi",
+    "theme.cross_dressing",
+    "theme.gender_bender",
+    "theme.genderswap",
+    "theme.harem",
+    "theme.loli",
+    "theme.monster_girls",
+    "theme.reverse_harem",
+    "theme.shota",
+    "theme.slow_burn_romance",
+    "theme.tsundere",
+}
 
 
 def _source_out(s: SourceSite) -> SourceOut:
@@ -42,6 +75,7 @@ def _novel_out(n: Novel, source_name: str = "") -> NovelOut:
         source_id=n.source_id,
         source_name=source_name,
         tags=list(n.tags or []),
+        tag_keys=list(n.tag_keys or []),
         status=n.status,
         chapters=n.chapter_count,
         language=n.language,
@@ -76,6 +110,9 @@ async def search_novels(
     sourceId: str | None = None,
     status: str | None = None,
     language: str | None = None,
+    includeTag: list[str] = Query(default=[]),
+    excludeTag: list[str] = Query(default=[]),
+    contentRating: str | None = None,
     minChapters: int = 0,
     maxChapters: int | None = None,
     limit: int = Query(60, le=200),
@@ -90,6 +127,26 @@ async def search_novels(
         stmt = stmt.where(Novel.status == status)
     if language and language not in ("all", ""):
         stmt = stmt.where(Novel.language.ilike(language))
+    if includeTag:
+        if len(includeTag) > 32:
+            raise HTTPException(status_code=400, detail="tags obrigatorias demais")
+        stmt = stmt.where(Novel.tag_keys.contains(includeTag))
+    if excludeTag:
+        if len(excludeTag) > 32:
+            raise HTTPException(status_code=400, detail="tags proibidas demais")
+        stmt = stmt.where(~Novel.tag_keys.overlap(excludeTag))
+    if contentRating and contentRating != "all":
+        if contentRating not in ("safe", "suggestive", "erotic"):
+            raise HTTPException(status_code=400, detail="classificacao de conteudo invalida")
+        erotic_keys = sorted(EROTIC_TAG_KEYS)
+        suggestive_keys = sorted(SUGGESTIVE_TAG_KEYS)
+        if contentRating == "erotic":
+            stmt = stmt.where(Novel.tag_keys.overlap(erotic_keys))
+        elif contentRating == "suggestive":
+            stmt = stmt.where(Novel.tag_keys.overlap(suggestive_keys))
+            stmt = stmt.where(~Novel.tag_keys.overlap(erotic_keys))
+        else:
+            stmt = stmt.where(~Novel.tag_keys.overlap(sorted(EROTIC_TAG_KEYS | SUGGESTIVE_TAG_KEYS)))
     if minChapters:
         stmt = stmt.where(Novel.chapter_count >= minChapters)
     if maxChapters is not None:
@@ -98,6 +155,33 @@ async def search_novels(
     rows = (await db.scalars(stmt)).all()
     names = dict((await db.execute(select(SourceSite.id, SourceSite.name))).all())
     return [_novel_out(n, names.get(n.source_id, "")) for n in rows]
+
+
+@router.get("/tags", response_model=TagCatalogOut)
+async def list_tags(
+    db: AsyncSession = Depends(get_db),
+    sourceId: str | None = None,
+):
+    stmt = select(Novel.tags, Novel.tag_keys)
+    if sourceId and sourceId != "all":
+        stmt = stmt.where(Novel.source_id == sourceId)
+    rows = (await db.execute(stmt)).all()
+    counts: dict[str, int] = {}
+    raw_labels: dict[str, set[str]] = {}
+    for raw_tags, tag_keys in rows:
+        raw_tags = list(raw_tags or [])
+        keys = list(tag_keys or []) or canonical_tag_keys(raw_tags)
+        for key in set(keys):
+            counts[key] = counts.get(key, 0) + 1
+        for raw in raw_tags:
+            key = canonical_tag_keys([raw])
+            if not key:
+                continue
+            raw_labels.setdefault(key[0], set()).add(raw)
+    return TagCatalogOut(
+        taxonomy_version=TAXONOMY_VERSION,
+        items=build_tag_items(counts, raw_labels),
+    )
 
 
 @router.get("/novels/{novel_id}/chapters", response_model=ChapterPage)

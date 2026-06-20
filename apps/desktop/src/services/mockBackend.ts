@@ -10,9 +10,11 @@ import type {
   Novel,
   QueueItem,
   ServerProbe,
-  SourceSite
+  SourceSite,
+  TagCatalogItem
 } from "../core/types";
 import type { BackendClient } from "./backendClient";
+import { buildFallbackTagCatalog, matchesContentRating, matchesTagFilters } from "../core/tagFilters";
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 const jitter = (base = 420) => wait(base + Math.round(Math.random() * 420));
@@ -92,6 +94,7 @@ const novels: Novel[] = [
     sourceId: "central-novel",
     sourceName: "Central Novel",
     tags: ["Fantasia", "Misterio"],
+    tagKeys: ["genre.fantasy", "genre.mystery"],
     status: "ongoing",
     chapters: 142,
     language: "PT-BR",
@@ -105,7 +108,8 @@ const novels: Novel[] = [
     author: "Edgar Allan Poe",
     sourceId: "novel-mania",
     sourceName: "Novel Mania",
-    tags: ["Misterio", "Drama"],
+    tags: ["Misterio", "Drama", "Ecchi"],
+    tagKeys: ["genre.mystery", "genre.drama", "genre.ecchi"],
     status: "complete",
     chapters: 58,
     language: "PT-BR",
@@ -120,6 +124,7 @@ const novels: Novel[] = [
     sourceId: "central-novel",
     sourceName: "Central Novel",
     tags: ["Aventura"],
+    tagKeys: ["genre.adventure"],
     status: "ongoing",
     chapters: 211,
     language: "PT-BR",
@@ -134,6 +139,7 @@ const novels: Novel[] = [
     sourceId: "novel-mania",
     sourceName: "Novel Mania",
     tags: ["Fantasia"],
+    tagKeys: ["genre.fantasy"],
     status: "paused",
     chapters: 36,
     language: "PT-BR",
@@ -148,6 +154,7 @@ const novels: Novel[] = [
     sourceId: "central-novel",
     sourceName: "Central Novel",
     tags: ["Fantasia", "Drama"],
+    tagKeys: ["genre.fantasy", "genre.drama"],
     status: "complete",
     chapters: 89,
     language: "PT-BR",
@@ -162,6 +169,7 @@ const novels: Novel[] = [
     sourceId: "novel-mania",
     sourceName: "Novel Mania",
     tags: ["Misterio"],
+    tagKeys: ["genre.mystery"],
     status: "complete",
     chapters: 74,
     language: "PT-BR",
@@ -176,6 +184,7 @@ const novels: Novel[] = [
     sourceId: "central-novel",
     sourceName: "Central Novel",
     tags: ["Aventura"],
+    tagKeys: ["genre.adventure"],
     status: "ongoing",
     chapters: 19,
     language: "PT-BR",
@@ -190,6 +199,7 @@ const novels: Novel[] = [
     sourceId: "local",
     sourceName: "Servidor local",
     tags: ["Drama"],
+    tagKeys: ["genre.drama"],
     status: "complete",
     chapters: 31,
     language: "PT-BR",
@@ -204,6 +214,7 @@ const novels: Novel[] = [
     sourceId: "novel-mania",
     sourceName: "Novel Mania",
     tags: ["Fantasia", "Misterio"],
+    tagKeys: ["genre.fantasy", "genre.mystery"],
     status: "ongoing",
     chapters: 126,
     language: "PT-BR",
@@ -218,6 +229,7 @@ const novels: Novel[] = [
     sourceId: "central-novel",
     sourceName: "Central Novel",
     tags: ["Isekai", "Aventura"],
+    tagKeys: ["genre.isekai", "genre.adventure"],
     status: "ongoing",
     chapters: 2064,
     language: "PT-BR",
@@ -232,6 +244,7 @@ const novels: Novel[] = [
     sourceId: "central-novel",
     sourceName: "Central Novel",
     tags: ["Fantasia"],
+    tagKeys: ["genre.fantasy"],
     status: "ongoing",
     chapters: 487,
     language: "PT-BR",
@@ -245,7 +258,8 @@ const novels: Novel[] = [
     author: "R. A. Lima",
     sourceId: "novel-mania",
     sourceName: "Novel Mania",
-    tags: ["Isekai", "Drama"],
+    tags: ["Isekai", "Drama", "Adulto"],
+    tagKeys: ["genre.isekai", "genre.drama", "genre.adult"],
     status: "paused",
     chapters: 233,
     language: "PT-BR",
@@ -351,6 +365,17 @@ const queue: QueueItem[] = [
   }
 ];
 
+const tagCatalog: TagCatalogItem[] = buildFallbackTagCatalog(novels).map((tag) => {
+  const labels: Record<string, string> = {
+    "genre.fantasy": "Fantasia",
+    "genre.mystery": "Misterio",
+    "genre.drama": "Drama",
+    "genre.adventure": "Aventura",
+    "genre.isekai": "Isekai"
+  };
+  return labels[tag.key] ? { ...tag, label: labels[tag.key], reviewStatus: "curated" } : tag;
+});
+
 function chapterTitle(index: number) {
   const names = ["O bosque desperta", "Uma carta sem remetente", "O mapa incompleto", "A torre submersa", "Notas do tradutor", "A porta no arquivo"];
   return names[(index - 1) % names.length];
@@ -381,11 +406,19 @@ export const mockBackendClient: BackendClient = {
       const matchesSource = filters.sourceId === "all" || novel.sourceId === filters.sourceId;
       const matchesStatus = filters.status === "any" || novel.status === filters.status;
       const matchesLanguage = filters.language === "all" || novel.language.toLowerCase() === filters.language;
-      const matchesTags = filters.tags.length === 0 || filters.tags.every((tag) => novel.tags.includes(tag));
+      const matchesContent = matchesContentRating(novel, filters.contentRating);
+      const matchesTags = matchesTagFilters(novel, filters.includeTags, filters.excludeTags);
       const matchesChapters = novel.chapters >= filters.minChapters && novel.chapters <= filters.maxChapters;
       const matchesUpdated = !filters.updatedOnly || novel.updatedAt === "Hoje" || novel.updatedAt === "Ontem";
-      return matchesQuery && matchesSource && matchesStatus && matchesLanguage && matchesTags && matchesChapters && matchesUpdated;
+      return matchesQuery && matchesSource && matchesStatus && matchesLanguage && matchesContent && matchesTags && matchesChapters && matchesUpdated;
     });
+  },
+
+  async getTags(sourceId?: string): Promise<TagCatalogItem[]> {
+    await jitter(120);
+    if (!sourceId || sourceId === "all") return structuredClone(tagCatalog);
+    const scoped = novels.filter((novel) => novel.sourceId === sourceId);
+    return buildFallbackTagCatalog(scoped);
   },
 
   async getNovelChapters(novelId: string): Promise<Chapter[]> {
@@ -480,7 +513,9 @@ export function defaultFilters(): Filters {
     sourceId: "all",
     status: "any",
     language: "pt-br",
-    tags: [],
+    contentRating: "all",
+    includeTags: [],
+    excludeTags: [],
     onlyCovered: true,
     updatedOnly: false,
     minChapters: 1,
