@@ -167,7 +167,7 @@ pub fn list_export_library(output_dir: String) -> Result<Vec<ExportLibraryItem>,
                         cover_data_url = Some(format!("data:{};base64,{}", mime_from_name(&name), base64_encode(&bytes)));
                     }
                 }
-            } else if lower.ends_with(".epub") || lower.ends_with(".pdf") || lower.ends_with(".txt") || lower.ends_with(".html") {
+            } else if lower.ends_with(".epub") || lower.ends_with(".pdf") || lower.ends_with(".txt") || lower.ends_with(".html") || lower.ends_with(".azw3") {
                 files.push(name);
             }
         }
@@ -188,4 +188,24 @@ pub fn list_export_library(output_dir: String) -> Result<Vec<ExportLibraryItem>,
 
     items.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
     Ok(items)
+}
+
+#[tauri::command]
+pub fn delete_export_library_item(output_dir: String, item_dir: String) -> Result<(), String> {
+    let root = expand_home(&output_dir)
+        .canonicalize()
+        .map_err(|err| format!("Nao foi possivel resolver a pasta de saida: {err}"))?;
+    let target = expand_home(&item_dir)
+        .canonicalize()
+        .map_err(|err| format!("Nao foi possivel resolver a pasta do livro: {err}"))?;
+
+    if target == root || !target.starts_with(&root) {
+        return Err("Recusa de seguranca: item fora da pasta de saida".to_string());
+    }
+    if !target.is_dir() {
+        return Err("A pasta do livro nao existe".to_string());
+    }
+
+    fs::remove_dir_all(&target).map_err(|err| format!("Nao foi possivel excluir os arquivos do livro: {err}"))?;
+    Ok(())
 }

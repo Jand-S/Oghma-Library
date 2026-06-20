@@ -49,7 +49,7 @@ export type ChapterPreset = "all" | "range";
 
 export type DownloadFormat = "EPUB" | "PDF" | "TXT" | "AZW3";
 
-export const downloadFormats: DownloadFormat[] = ["EPUB", "PDF", "TXT"];
+export const downloadFormats: DownloadFormat[] = ["EPUB", "PDF", "TXT", "AZW3"];
 
 export type IndexMode = "catalog_only" | "incremental_recent" | "guarded_refresh";
 
@@ -139,6 +139,20 @@ export type LibraryItem = {
   outputDir?: string;
   files?: string[];
   exportedAt: string;
+  favorite?: boolean;
+  readingStatus?: LibraryReadingStatus;
+  personalTags?: string[];
+  hidden?: boolean;
+};
+
+export type LibraryReadingStatus = "unread" | "reading" | "paused" | "completed" | "dropped";
+
+export type LibraryMeta = {
+  key: string;
+  favorite: boolean;
+  readingStatus: LibraryReadingStatus;
+  tags: string[];
+  hidden: boolean;
 };
 
 export type TagCategory = "format" | "genre" | "theme";

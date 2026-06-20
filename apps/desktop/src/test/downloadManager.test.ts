@@ -88,6 +88,23 @@ describe("downloadManager", () => {
     expect(html[0].data).toContain("width: 100%");
   });
 
+  it("embeds the novel cover in EPUB metadata", async () => {
+    const epub = await buildOutputs(
+      sampleBundle,
+      "Shadow Slave",
+      ["EPUB"],
+      undefined,
+      undefined,
+      { name: "cover.jpg", mediaType: "image/jpeg", data: new TextEncoder().encode("cover-bytes") }
+    );
+    const raw = new TextDecoder().decode(epub[0].data as Uint8Array);
+
+    expect(raw).toContain('properties="cover-image"');
+    expect(raw).toContain('<meta name="cover" content="cover-image"/>');
+    expect(raw).toContain("OEBPS/cover.jpg");
+    expect(raw).toContain("OEBPS/cover.xhtml");
+  });
+
   it("runDownload fetches, builds and saves with progress", async () => {
     const gz = await gzipBytes(buildTar([
       { name: "meta.json", body: JSON.stringify({ title: "Shadow Slave", chapters: [] }) },

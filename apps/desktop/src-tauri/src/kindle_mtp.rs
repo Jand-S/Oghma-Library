@@ -25,11 +25,11 @@ fn fmt<E: std::fmt::Debug>(prefix: &str, err: E) -> String {
 
 /// Copia um arquivo local para a pasta `documents` do Kindle conectado por MTP.
 pub fn send_file_to_kindle(local_path: &Path, file_name: &str) -> Result<(), String> {
-    let bytes = fs::read(local_path).map_err(|e| format!("Nao foi possivel ler o AZW3: {e}"))?;
+    let bytes = fs::read(local_path).map_err(|e| format!("Nao foi possivel ler o arquivo: {e}"))?;
     unsafe {
         let hr = CoInitializeEx(None, COINIT_MULTITHREADED);
         let did_init = hr.is_ok() || hr == S_FALSE;
-        let result = send_inner(file_name, &bytes);
+        let result = send_inner(file_name, &bytes, &["documents"]);
         if did_init {
             CoUninitialize();
         }
@@ -37,7 +37,19 @@ pub fn send_file_to_kindle(local_path: &Path, file_name: &str) -> Result<(), Str
     }
 }
 
-unsafe fn send_inner(file_name: &str, bytes: &[u8]) -> Result<(), String> {
+pub fn send_thumbnail_to_kindle(file_name: &str, bytes: &[u8]) -> Result<(), String> {
+    unsafe {
+        let hr = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let did_init = hr.is_ok() || hr == S_FALSE;
+        let result = send_inner(file_name, bytes, &["system", "thumbnails"]);
+        if did_init {
+            CoUninitialize();
+        }
+        result
+    }
+}
+
+unsafe fn send_inner(file_name: &str, bytes: &[u8], folder_path: &[&str]) -> Result<(), String> {
     let device_id = find_kindle_device()?.ok_or_else(|| "Kindle nao encontrado via WPD".to_string())?;
 
     let device: IPortableDevice = CoCreateInstance(&PortableDevice, None, CLSCTX_INPROC_SERVER)
@@ -50,8 +62,8 @@ unsafe fn send_inner(file_name: &str, bytes: &[u8]) -> Result<(), String> {
 
     let content: IPortableDeviceContent = device.Content().map_err(|e| fmt("Content", e))?;
 
-    let parent_id = find_documents_object_id(&content)?
-        .ok_or_else(|| "Pasta 'documents' nao encontrada no Kindle".to_string())?;
+    let parent_id = find_folder_object_id(&content, folder_path)?
+        .ok_or_else(|| format!("Pasta '{}' nao encontrada no Kindle", folder_path.join("/")))?;
 
     let values: IPortableDeviceValues =
         CoCreateInstance(&PortableDeviceValues, None, CLSCTX_INPROC_SERVER).map_err(|e| fmt("values", e))?;
@@ -178,7 +190,7 @@ unsafe fn object_name(
     s
 }
 
-unsafe fn find_documents_object_id(content: &IPortableDeviceContent) -> Result<Option<Vec<u16>>, String> {
+unsafe fn find_folder_object_id(content: &IPortableDeviceContent, folder_path: &[&str]) -> Result<Option<Vec<u16>>, String> {
     let props: IPortableDeviceProperties = content.Properties().map_err(|e| fmt("Properties", e))?;
     let keys: IPortableDeviceKeyCollection =
         CoCreateInstance(&PortableDeviceKeyCollection, None, CLSCTX_INPROC_SERVER).map_err(|e| fmt("key collection", e))?;
@@ -186,14 +198,26 @@ unsafe fn find_documents_object_id(content: &IPortableDeviceContent) -> Result<O
 
     let root = wide("DEVICE");
     let storages = enum_children(content, PCWSTR(root.as_ptr()));
-    for storage in &storages {
-        let kids = enum_children(content, PCWSTR(storage.as_ptr()));
-        for kid in &kids {
-            if let Some(name) = object_name(&props, &keys, PCWSTR(kid.as_ptr())) {
-                if name.trim().eq_ignore_ascii_case("documents") {
-                    return Ok(Some(kid.clone()));
+    for storage in storages {
+        let mut current = storage;
+        let mut found = true;
+        for component in folder_path {
+            let kids = enum_children(content, PCWSTR(current.as_ptr()));
+            let next = kids.into_iter().find(|kid| {
+                object_name(&props, &keys, PCWSTR(kid.as_ptr()))
+                    .map(|name| name.trim().eq_ignore_ascii_case(component))
+                    .unwrap_or(false)
+            });
+            match next {
+                Some(id) => current = id,
+                None => {
+                    found = false;
+                    break;
                 }
             }
+        }
+        if found {
+            return Ok(Some(current));
         }
     }
     Ok(None)

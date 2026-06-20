@@ -7,7 +7,7 @@ import {
   fetchBundle,
   type ExtractedBundle
 } from "./bundle";
-import { saveLocalFile, type FileData } from "./localFiles";
+import { convertLocalEpubToAzw3, saveLocalFile, type FileData } from "./localFiles";
 
 export type SaveFile = (fileName: string, data: FileData) => Promise<void>;
 
@@ -15,6 +15,7 @@ export type DownloadNovelInput = {
   id: string;
   title: string;
   bundleKey?: string;
+  coverUrl?: string;
 };
 
 export type DownloadRequest = {
@@ -28,6 +29,12 @@ export type DownloadRequest = {
 export function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim() || "novel";
 }
+
+type EpubCover = {
+  name: string;
+  mediaType: string;
+  data: Uint8Array;
+};
 
 function xmlEscape(value: string): string {
   return value
@@ -149,11 +156,40 @@ function referencedAssetNames(chapters: ExtractedBundle["chapters"]): Set<string
   return names;
 }
 
+function coverMediaType(contentType: string, url: string): { mediaType: string; ext: string } | null {
+  const type = contentType.split(";")[0].trim().toLowerCase();
+  if (type === "image/jpeg" || type === "image/jpg") return { mediaType: "image/jpeg", ext: "jpg" };
+  if (type === "image/png") return { mediaType: "image/png", ext: "png" };
+  if (type === "image/webp") return { mediaType: "image/webp", ext: "webp" };
+  const path = url.split("?")[0].toLowerCase();
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return { mediaType: "image/jpeg", ext: "jpg" };
+  if (path.endsWith(".png")) return { mediaType: "image/png", ext: "png" };
+  if (path.endsWith(".webp")) return { mediaType: "image/webp", ext: "webp" };
+  return null;
+}
+
+async function fetchEpubCover(coverUrl?: string): Promise<EpubCover | undefined> {
+  if (!coverUrl) return undefined;
+  try {
+    const response = await fetch(coverUrl, { cache: "no-store" });
+    if (!response.ok) return undefined;
+    const contentType = response.headers.get("content-type") ?? "";
+    const media = coverMediaType(contentType, coverUrl);
+    if (!media) return undefined;
+    const data = new Uint8Array(await response.arrayBuffer());
+    if (data.length === 0) return undefined;
+    return { name: `cover.${media.ext}`, mediaType: media.mediaType, data };
+  } catch {
+    return undefined;
+  }
+}
+
 async function buildEpub(
   bundle: ExtractedBundle,
   title: string,
   range?: { start: number; end: number },
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  cover?: EpubCover
 ): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const chapters = bundle.chapters.filter((chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end));
@@ -172,6 +208,10 @@ async function buildEpub(
   const spineItems = chapterFiles.map((file) => `<itemref idref="${file.id}"/>`).join("\n    ");
   const navItems = chapterFiles.map((file) => `<li><a href="${file.href}">${xmlEscape(file.title)}</a></li>`).join("\n      ");
   const assetManifest = assets.map((asset, index) => `<item id="asset-${index + 1}" href="assets/${asset.name}" media-type="${asset.mediaType}"/>`).join("\n    ");
+  const coverManifest = cover
+    ? `<item id="cover-page" href="cover.xhtml" media-type="application/xhtml+xml"/>\n    <item id="cover-image" href="${xmlEscape(cover.name)}" media-type="${cover.mediaType}" properties="cover-image"/>`
+    : "";
+  const coverSpine = cover ? '<itemref idref="cover-page" linear="no"/>' : "";
   const plainDescription = stripHtml(chapters[0]?.html ?? title);
 
   return createZip([
@@ -184,19 +224,26 @@ async function buildEpub(
     <dc:title>${xmlEscape(title)}</dc:title>
     <dc:language>pt-BR</dc:language>
     <dc:description>${xmlEscape(plainDescription)}</dc:description>
+    ${cover ? '<meta name="cover" content="cover-image"/>' : ""}
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
+    ${coverManifest}
     ${manifestItems}
     ${assetManifest}
   </manifest>
   <spine>
+    ${coverSpine}
     ${spineItems}
   </spine>
 </package>`) },
     { name: "OEBPS/nav.xhtml", data: enc.encode(xhtmlDoc("Sumario", `<nav epub:type="toc" xmlns:epub="http://www.idpf.org/2007/ops"><h1>Sumario</h1><ol>${navItems}</ol></nav>`)) },
-    { name: "OEBPS/style.css", data: enc.encode("body{font-family:serif;line-height:1.55;margin:5%;} h1{font-size:1.35em;} img{display:block;width:100%;max-width:100%;height:auto;object-fit:contain;margin:1em auto;}") },
+    ...(cover ? [
+      { name: "OEBPS/cover.xhtml", data: enc.encode(xhtmlDoc("Capa", `<section class="cover-page"><img src="${xmlEscape(cover.name)}" alt="${xmlEscape(title)}" /></section>`)) },
+      { name: `OEBPS/${cover.name}`, data: cover.data }
+    ] : []),
+    { name: "OEBPS/style.css", data: enc.encode("body{font-family:serif;line-height:1.55;margin:5%;} h1{font-size:1.35em;} img{display:block;width:100%;max-width:100%;height:auto;object-fit:contain;margin:1em auto;} .cover-page{margin:0;text-align:center;} .cover-page img{width:100%;max-height:95vh;object-fit:contain;}") },
     ...chapterFiles.map((file) => ({ name: `OEBPS/${file.href}`, data: enc.encode(file.html) })),
     ...assets.map((asset) => ({ name: `OEBPS/assets/${asset.name}`, data: asset.data }))
   ], onProgress);
@@ -207,12 +254,13 @@ export async function buildOutputs(
   title: string,
   formats: DownloadFormat[],
   range?: { start: number; end: number },
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  cover?: EpubCover
 ): Promise<Array<{ fileName: string; data: FileData }>> {
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
   if (formats.includes("EPUB")) {
-    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress) });
+    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress, cover) });
   }
   if (formats.includes("TXT")) {
     outputs.push({ fileName: `${base}.txt`, data: bundleToText(title, bundle.chapters, range) });
@@ -247,20 +295,36 @@ export async function runDownload(
   if (!req.novel.bundleKey) throw new Error(`"${req.novel.title}" ainda nao tem bundle publicado`);
   const bundle = await fetchBundle(req.serverUrl, req.novel.bundleKey);
   onProgress?.(60);
+  const cover = await fetchEpubCover(req.novel.coverUrl);
+  const needsAzw3 = req.formats.includes("AZW3");
+  const buildFormats = req.formats.filter((format) => format !== "AZW3");
+  if (needsAzw3 && !buildFormats.includes("EPUB")) buildFormats.push("EPUB");
   const outputs = await buildOutputs(
     bundle,
     req.novel.title,
-    req.formats,
+    buildFormats,
     req.range,
-    (percent) => onProgress?.(60 + Math.round(percent * 0.2))
+    (percent) => onProgress?.(60 + Math.round(percent * 0.2)),
+    cover
   );
   onProgress?.(80);
   const save = opts.save ?? (await defaultSaveFile(req.outputDir));
+  const savedFiles: string[] = [];
+  const saveProgressRange = needsAzw3 ? 14 : 20;
   for (let i = 0; i < outputs.length; i += 1) {
     await save(outputs[i].fileName, outputs[i].data);
+    savedFiles.push(outputs[i].fileName);
     await yieldToUi();
-    onProgress?.(80 + Math.round((20 * (i + 1)) / outputs.length));
+    onProgress?.(80 + Math.round((saveProgressRange * (i + 1)) / outputs.length));
+  }
+  if (needsAzw3) {
+    onProgress?.(96);
+    const azw3 = await convertLocalEpubToAzw3(req.novel.title, req.outputDir, savedFiles);
+    if (!azw3) {
+      throw new Error("Conversao AZW3 exige o app desktop com Calibre/ebook-convert instalado.");
+    }
+    savedFiles.push(azw3);
   }
   onProgress?.(100);
-  return outputs.map((o) => o.fileName);
+  return Array.from(new Set(savedFiles));
 }

@@ -13,7 +13,6 @@ import { useNovelSearch } from "./app/useNovelSearch";
 import { useOnboardingSync } from "./app/useOnboardingSync";
 import { useToast } from "./app/useToast";
 import {
-  ConversionModal,
   DiscoverView,
   DownloadsView,
   LibraryView,
@@ -40,12 +39,16 @@ import type {
   QueueItem,
   ServerProbe,
   TagCatalogItem,
+  LibraryMeta,
 } from "./core/types";
 import { getErrorMessage, type BackendClient } from "./services/backendClient";
 import { sanitizeFileName } from "./services/downloadManager";
 import {
+  deleteLibraryMetadata,
+  deleteLocalLibraryFiles,
   joinPath,
-  openLocalPath
+  openLocalPath,
+  saveLibraryMetadata
 } from "./services/localFiles";
 
 type AppProps = {
@@ -181,23 +184,24 @@ export function App({ backend }: AppProps) {
   const selectedDetailNovel = selectedNovels[selectedNovels.length - 1];
   const detailNovel = previewNovel ?? selectedDetailNovel;
   const selectedCompletedItems = useMemo(
-    () => libraryToQueueItems(library.filter((item) => selectedLibraryIds.includes(item.id))),
+    () => selectedLibraryIds
+      .map((id) => library.find((item) => item.id === id))
+      .filter((item): item is LibraryItem => Boolean(item))
+      .map((item) => libraryToQueueItems([item])[0]),
     [library, selectedLibraryIds]
   );
   const {
-    closeConverter,
     converterAudiobook,
+    converterCurrentItemId,
     converterFormats,
-    converterOpen,
     converterProgress,
     converterRunning,
     converterTranslate,
-    openConverter,
     startConversion,
     toggleConverterAudiobook,
     toggleConverterFormat,
     toggleConverterTranslate
-  } = useConversionManager({ appConfig, refreshLocalLibrary, selectedCompletedItems, setQueue, setToast });
+  } = useConversionManager({ appConfig, kindleConnected, refreshLocalLibrary, selectedCompletedItems, setQueue, setToast });
   const buildDefaultSelection = (novel: Novel) => ({
     ...defaultSelection(novel),
     formats: appConfig.defaultFormats,
@@ -307,8 +311,81 @@ export function App({ backend }: AppProps) {
 
   const openQueueItemFolder = (item: QueueItem) => openFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`);
   const openLibraryItemFolder = (item: LibraryItem) => openFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`);
+  const libraryMetaKey = (item: LibraryItem) => item.outputDir ?? item.id;
+  const metadataFromItem = (item: LibraryItem): LibraryMeta => ({
+    key: libraryMetaKey(item),
+    favorite: Boolean(item.favorite),
+    readingStatus: item.readingStatus ?? "unread",
+    tags: item.personalTags ?? [],
+    hidden: Boolean(item.hidden)
+  });
+  const updateLibraryMeta = (item: LibraryItem, patch: Partial<Omit<LibraryMeta, "key">>) => {
+    const nextMeta = { ...metadataFromItem(item), ...patch };
+    setLibrary((items) => items.map((entry) => {
+      if (libraryMetaKey(entry) !== nextMeta.key) return entry;
+      return {
+        ...entry,
+        favorite: nextMeta.favorite,
+        readingStatus: nextMeta.readingStatus,
+        personalTags: nextMeta.tags,
+        hidden: nextMeta.hidden
+      };
+    }).filter((entry) => !entry.hidden));
+    if (nextMeta.hidden) {
+      setSelectedLibraryIds((ids) => ids.filter((id) => id !== item.id));
+    }
+    void saveLibraryMetadata(nextMeta).catch((error: unknown) => {
+      setToast(getErrorMessage(error, "Nao foi possivel salvar os metadados da biblioteca."));
+    });
+  };
+  const deleteLibraryItems = (items: LibraryItem[], deleteFiles: boolean) => {
+    if (items.length === 0) return;
+    const keys = new Set(items.map(libraryMetaKey));
+    const ids = new Set(items.map((item) => item.id));
+    if (!deleteFiles) {
+      const hiddenRows = items.map((item) => ({ ...metadataFromItem(item), hidden: true }));
+      setLibrary((current) => current.filter((entry) => !keys.has(libraryMetaKey(entry))));
+      setSelectedLibraryIds((current) => current.filter((id) => !ids.has(id)));
+      void Promise.all(hiddenRows.map((meta) => saveLibraryMetadata(meta))).catch((error: unknown) => {
+        setToast(getErrorMessage(error, "Nao foi possivel salvar os metadados da biblioteca."));
+      });
+      setToast(`${items.length} livro(s) removido(s) da biblioteca. Os arquivos foram mantidos.`);
+      return;
+    }
+    const deletable = items.filter((item) => Boolean(item.outputDir));
+    if (deletable.length === 0) {
+      setToast("Nao foi possivel localizar a pasta dos livros selecionados.");
+      return;
+    }
+    void Promise.allSettled(deletable.map((item) => deleteLocalLibraryFiles(appConfig.outputPath, item.outputDir ?? "")))
+      .then((results) => {
+        const deletedItems = deletable.filter((_, index) => {
+          const result = results[index];
+          return result.status === "fulfilled" && result.value === true;
+        });
+        if (deletedItems.length === 0) {
+          setToast("Exclusao de arquivos so esta disponivel no app desktop.");
+          return;
+        }
+        const deletedKeys = new Set(deletedItems.map(libraryMetaKey));
+        const deletedIds = new Set(deletedItems.map((item) => item.id));
+        setLibrary((current) => current.filter((entry) => !deletedKeys.has(libraryMetaKey(entry))));
+        setSelectedLibraryIds((current) => current.filter((id) => !deletedIds.has(id)));
+        void Promise.all(deletedItems.map((item) => deleteLibraryMetadata(libraryMetaKey(item)))).catch(() => undefined);
+        const failedCount = items.length - deletedItems.length;
+        setToast(failedCount > 0
+          ? `${deletedItems.length} livro(s) excluido(s); ${failedCount} nao puderam ser removidos.`
+          : `${deletedItems.length} livro(s) e arquivos locais excluidos.`);
+        refreshLocalLibrary();
+      })
+      .catch((error: unknown) => {
+        setToast(getErrorMessage(error, "Nao foi possivel excluir os arquivos locais."));
+      });
+  };
   const toggleLibrarySelect = (id: string) =>
-    setSelectedLibraryIds((ids) => (ids.includes(id) ? [] : [id]));
+    setSelectedLibraryIds((ids) => (ids.includes(id) ? ids.filter((itemId) => itemId !== id) : [...ids, id]));
+  const removeSelectedLibraryItem = (id: string) =>
+    setSelectedLibraryIds((ids) => ids.filter((itemId) => itemId !== id));
 
   const runSourceSync = async (sourceId: string, options?: { silentError?: boolean }) => {
     if (syncing.includes(sourceId)) return;
@@ -480,10 +557,24 @@ export function App({ backend }: AppProps) {
           {!bootError && activeView === "library" ? (
             <LibraryView
               library={library}
+              kindleConnected={kindleConnected}
               selectedIds={selectedLibraryIds}
               onToggleSelect={toggleLibrarySelect}
-              onConvertSelected={openConverter}
+              conversionFormats={converterFormats}
+              conversionTranslate={converterTranslate}
+              conversionAudiobook={converterAudiobook}
+              conversionProgress={converterProgress}
+              conversionRunning={converterRunning}
+              conversionCurrentItemId={converterCurrentItemId}
+              onConvertSelected={startConversion}
+              onToggleConversionFormat={toggleConverterFormat}
+              onToggleConversionTranslate={toggleConverterTranslate}
+              onToggleConversionAudiobook={toggleConverterAudiobook}
+              onRemoveSelected={removeSelectedLibraryItem}
+              onReorderSelected={setSelectedLibraryIds}
               onOpenItemFolder={openLibraryItemFolder}
+              onUpdateMeta={updateLibraryMeta}
+              onDeleteItems={deleteLibraryItems}
             />
           ) : null}
           {activeView === "settings" ? <SettingsView config={appConfig} onConfigChange={patchConfig} onOpenOnboarding={openOnboarding} /> : null}
@@ -505,20 +596,6 @@ export function App({ backend }: AppProps) {
           onBack={rewindOnboarding}
           onNext={advanceOnboarding}
           onClose={closeOnboarding}
-        />
-        <ConversionModal
-          open={converterOpen}
-          items={selectedCompletedItems}
-          formats={converterFormats}
-          translate={converterTranslate}
-          audiobook={converterAudiobook}
-          progress={converterProgress}
-          running={converterRunning}
-          onToggleFormat={toggleConverterFormat}
-          onToggleTranslate={toggleConverterTranslate}
-          onToggleAudiobook={toggleConverterAudiobook}
-          onClose={closeConverter}
-          onStart={startConversion}
         />
         <footer className="statusbar">
           <div className="footer-meta">

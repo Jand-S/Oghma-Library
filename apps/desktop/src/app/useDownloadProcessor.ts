@@ -48,7 +48,7 @@ export function useDownloadProcessor({
     void runDownload(
       {
         serverUrl: appConfig.serverUrl,
-        novel: { id: item.novelId, title: item.title, bundleKey },
+        novel: { id: item.novelId, title: item.title, bundleKey, coverUrl: item.coverUrl ?? sourceNovel?.coverUrl },
         formats: item.formats,
         outputDir: itemOutputDir,
         range

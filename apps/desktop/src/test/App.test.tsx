@@ -204,7 +204,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Ocultar filtros" }));
 
     expect(screen.queryByRole("heading", { name: "Filtros" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Filtros" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mostrar filtros" })).toBeInTheDocument();
   });
 
   it("clicking the card selects the novel and opens the details tab", async () => {
@@ -519,7 +519,7 @@ describe("App", () => {
     expect(screen.queryByText("The Labyrinth's Secret")).not.toBeInTheDocument();
   });
 
-  it("moves conversion actions to the local library", async () => {
+  it("switches the local library queue to Kindle mode when connected", async () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
@@ -527,7 +527,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Filtros" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ocultar filtros" }));
     expect(screen.queryByRole("heading", { name: "Filtros" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Filtros" }));
+    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
     expect(screen.getByRole("heading", { name: "Filtros" })).toBeInTheDocument();
     expect(screen.queryByText("Sinopse")).not.toBeInTheDocument();
 
@@ -538,10 +538,14 @@ describe("App", () => {
     await user.click(title);
     const detail = screen.getByText("Sinopse").closest(".library-detail-panel") as HTMLElement;
     expect(detail.querySelector<HTMLElement>(".detail-cover")?.style.backgroundImage).toContain("oghma-icon.svg");
-    expect(screen.getByRole("button", { name: "Converter" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Converter" }));
-
-    expect(screen.getByRole("heading", { name: "Converter downloads" })).toBeInTheDocument();
-    expect(screen.getAllByText("To Kill a Mockingbird").some((element) => element.closest(".modal-panel"))).toBe(true);
+    await user.click(screen.getByRole("tab", { name: /Fila/i }));
+    expect(screen.getByRole("heading", { name: "Envio ao Kindle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "EPUB" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "PDF" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "TXT" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "AZW3" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Traduzir" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Audiobook" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Enviar para o Kindle" })).toBeInTheDocument();
   });
 });

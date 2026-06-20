@@ -1,5 +1,6 @@
 mod files;
 mod kindle;
+mod library_meta;
 mod paths;
 
 #[cfg(target_os = "windows")]
@@ -12,8 +13,13 @@ pub fn run() {
             files::save_export_file,
             files::open_local_path,
             files::list_export_library,
+            files::delete_export_library_item,
             kindle::detect_kindle,
-            kindle::send_to_kindle
+            kindle::convert_export_to_azw3,
+            kindle::send_to_kindle,
+            library_meta::list_library_meta,
+            library_meta::save_library_meta,
+            library_meta::delete_library_meta
         ])
         .run(tauri::generate_context!())
         .expect("error while running Oghma Library");

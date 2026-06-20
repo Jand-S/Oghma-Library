@@ -1,4 +1,6 @@
 import {
+  ArrowDownAZ,
+  ArrowUpAZ,
   Ban,
   BookOpen,
   Check,
@@ -7,9 +9,13 @@ import {
   GripVertical,
   Headphones,
   Languages,
+  LayoutGrid,
+  List,
   Minus,
   Search,
+  ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Tags,
   Trash2
 } from "lucide-react";
@@ -20,6 +26,7 @@ import {
   RefObject,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState
 } from "react";
@@ -49,6 +56,8 @@ import type {
 import { downloadFormats } from "../core/types";
 
 type DiscoverSidebarTab = "queue" | "details";
+type ResultSortDirection = "asc" | "desc";
+type ResultLayout = "grid" | "list";
 const tagCategoryLabels: Record<TagCategory, string> = {
   format: "Formato",
   genre: "Genero",
@@ -60,7 +69,32 @@ const contentRatingLabels = {
   suggestive: "Sugestivo",
   erotic: "Erótico"
 } as const;
+const contentRatingIcons = {
+  all: <ShieldCheck size={15} />,
+  safe: <ShieldCheck size={15} />,
+  suggestive: <Sparkles size={15} />,
+  erotic: <span className="rating-text-icon">+18</span>
+} as const;
+const contentRatingCycle = ["all", "safe", "suggestive", "erotic"] as const;
+const statusCycle = ["any", "ongoing", "complete", "paused"] as const;
+const statusQuickLabels = {
+  any: "Qualquer status",
+  ongoing: statusLabel.ongoing,
+  complete: statusLabel.complete,
+  paused: statusLabel.paused
+} as const;
+const languageCycle = ["all", "pt-br", "en"] as const;
+const languageQuickLabels = {
+  all: "Todos os idiomas",
+  "pt-br": "PT-BR",
+  en: "EN"
+} as const;
 
+function nextCycleValue<T extends string>(cycle: readonly T[], value: T, skipFirst = false): T {
+  const values = skipFirst ? cycle.slice(1) : cycle;
+  const currentIndex = values.indexOf(value);
+  return values[currentIndex >= 0 ? (currentIndex + 1) % values.length : 0] ?? value;
+}
 function TagStateIcon({ state }: { state: "include" | "exclude" | "neutral" }) {
   if (state === "include") return <Check size={12} />;
   if (state === "exclude") return <Ban size={12} />;
@@ -236,17 +270,6 @@ function FiltersPanel({
           </div>
         </div>
 
-        <div className="field-group">
-          <label htmlFor="source">Fonte</label>
-          <select id="source" value={filters.sourceId} onChange={(event) => changeSource(event.target.value)} required>
-            {sources.filter((source) => source.enabled).map((source) => (
-              <option value={source.id} key={source.id}>
-                {source.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="tag-summary-block">
           <div className="tag-summary-head">
             <div>
@@ -270,65 +293,35 @@ function FiltersPanel({
           </div>
         </div>
 
-        <div className="content-rating-filter">
-          <strong>Classificação de conteúdo</strong>
-          <div className="content-rating-options">
-            {(Object.entries(contentRatingLabels) as Array<[keyof typeof contentRatingLabels, string]>).map(([value, label]) => (
-              <button
-                key={value}
-                className={filters.contentRating === value ? "active" : ""}
-                onClick={() => setFilter("contentRating", filters.contentRating === value ? "all" : value)}
-                aria-pressed={filters.contentRating === value}
-              >
-                {label}
-              </button>
+        <div className="field-group">
+          <label htmlFor="source">Fonte</label>
+          <select id="source" value={filters.sourceId} onChange={(event) => changeSource(event.target.value)} required>
+            {sources.filter((source) => source.enabled).map((source) => (
+              <option value={source.id} key={source.id}>
+                {source.name}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
-        <details className="more-filters">
-          <summary>Mais filtros</summary>
-          <div className="field-group">
-            <label htmlFor="status">Status</label>
-            <select id="status" value={filters.status} onChange={(event) => setFilter("status", event.target.value)}>
-              <option value="any">Qualquer status</option>
-              <option value="ongoing">Em andamento</option>
-              <option value="complete">Completa</option>
-              <option value="paused">Pausada</option>
-            </select>
-          </div>
-          <div className="field-grid two">
-            <div className="field-group">
-              <label htmlFor="language">Idioma</label>
-              <select id="language" value={filters.language} onChange={(event) => setFilter("language", event.target.value)}>
-                <option value="all">Todos</option>
-                <option value="pt-br">PT-BR</option>
-                <option value="en">EN</option>
-              </select>
-            </div>
-            <div className="field-group">
-              <label htmlFor="max-chapters">Max.</label>
-              <input
-                id="max-chapters"
-                type="number"
-                min={1}
-                max={9999}
-                value={filters.maxChapters}
-                onChange={(event) => setFilter("maxChapters", Number(event.target.value))}
-              />
-            </div>
-          </div>
-          <label className="toggle-line">
-            <input type="checkbox" checked={filters.onlyCovered} onChange={(event) => setFilter("onlyCovered", event.target.checked)} />
-            <span className="toggle" />
-            <span>Mostrar apenas com capa</span>
-          </label>
-          <label className="toggle-line">
-            <input type="checkbox" checked={filters.updatedOnly} onChange={(event) => setFilter("updatedOnly", event.target.checked)} />
-            <span className="toggle" />
-            <span>Somente atualizadas</span>
-          </label>
-        </details>
+        <div className="field-group">
+          <label htmlFor="language">Idioma</label>
+          <select id="language" value={filters.language} onChange={(event) => setFilter("language", event.target.value)}>
+            <option value="all">Todos</option>
+            <option value="pt-br">PT-BR</option>
+            <option value="en">EN</option>
+          </select>
+        </div>
+
+        <div className="field-group">
+          <label htmlFor="status">Status</label>
+          <select id="status" value={filters.status} onChange={(event) => setFilter("status", event.target.value)}>
+            <option value="any">Qualquer status</option>
+            <option value="ongoing">Em andamento</option>
+            <option value="complete">Completa</option>
+            <option value="paused">Pausada</option>
+          </select>
+        </div>
       </>
     </aside>
   );
@@ -657,7 +650,7 @@ function SelectionConfigurator({
           <span>{selectedNovels.length === 0 ? "Selecione livros" : `${selectedNovels.length} livro(s)`}</span>
         </div>
         <button
-          className="button primary compact"
+          className="button primary queue-add-button"
           disabled={selectedNovels.length === 0 || addingToQueue}
           onClick={handleAdd}
           aria-busy={addingToQueue}
@@ -941,8 +934,10 @@ export function DiscoverView({
   const [dragState, setDragState] = useState({ active: false, overTrash: false });
   const [sidebarTab, setSidebarTab] = useState<DiscoverSidebarTab>("queue");
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
+  const [sortDirection, setSortDirection] = useState<ResultSortDirection>("asc");
+  const [resultLayout, setResultLayout] = useState<ResultLayout>("grid");
   const contentRef = useRef<HTMLElement>(null);
-  useEffect(() => setVisibleCount(pageSize), [results]);
+  useEffect(() => setVisibleCount(pageSize), [results, sortDirection]);
   useEffect(() => {
     if (detailFromPreview) {
       contentRef.current?.focus();
@@ -954,7 +949,39 @@ export function DiscoverView({
       return;
     }
   }, [detailFromPreview, selectedNovels.length]);
-  const visibleResults = results.slice(0, visibleCount);
+  const sortedResults = useMemo(() => {
+    return [...results].sort((a, b) => {
+      const comparison = a.title.localeCompare(b.title, "pt-BR", { numeric: true, sensitivity: "base" });
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [results, sortDirection]);
+  const visibleResults = sortedResults.slice(0, visibleCount);
+  const nextContentRating = nextCycleValue(contentRatingCycle, filters.contentRating);
+  const nextQuickContentRating = nextCycleValue(contentRatingCycle, filters.contentRating, true);
+  const contentRatingLabel = filters.contentRating === "all" ? "Sem filtro" : contentRatingLabels[filters.contentRating];
+  const nextContentRatingLabel = nextContentRating === "all" ? "sem filtro" : contentRatingLabels[nextContentRating];
+  const nextQuickContentRatingLabel = nextQuickContentRating === "all" ? "sem filtro" : contentRatingLabels[nextQuickContentRating];
+  const cycleContentRating = () => onFiltersChange({ ...filters, contentRating: nextContentRating });
+  const cycleQuickContentRating = () => onFiltersChange({ ...filters, contentRating: nextQuickContentRating });
+  const enabledSources = sources.filter((source) => source.enabled);
+  const currentSource = enabledSources.find((source) => source.id === filters.sourceId);
+  const currentSourceIndex = Math.max(0, enabledSources.findIndex((source) => source.id === filters.sourceId));
+  const nextSource = enabledSources.length > 0 ? enabledSources[(currentSourceIndex + 1) % enabledSources.length] : undefined;
+  const cycleSource = () => {
+    if (!nextSource || enabledSources.length < 2) return;
+    onFiltersChange({ ...filters, sourceId: nextSource.id, language: "all" });
+  };
+  const nextStatus = nextCycleValue(statusCycle, filters.status as typeof statusCycle[number], true);
+  const cycleStatus = () => onFiltersChange({ ...filters, status: nextStatus });
+  const nextLanguage = nextCycleValue(languageCycle, filters.language as typeof languageCycle[number], true);
+  const cycleLanguage = () => onFiltersChange({ ...filters, language: nextLanguage });
+  const clearQuery = () => onFiltersChange({ ...filters, query: "" });
+  const hasClearableFilters = filters.query.trim().length > 0
+    || filters.status !== "any"
+    || filters.language !== "all"
+    || filters.contentRating !== "all"
+    || filters.includeTags.length > 0
+    || filters.excludeTags.length > 0;
   const handleSelectNovel = (novel: Novel) => {
     setSidebarTab("details");
     onSelectNovel(novel);
@@ -1055,20 +1082,101 @@ export function DiscoverView({
             </span>
           </div>
           <div className="toolbar-actions">
-            <button className="button quiet" onClick={onToggleFilters}>
-              <SlidersHorizontal size={16} />
-              {filterCollapsed ? "Filtros" : "Ocultar filtros"}
+            <button
+              className={`toolbar-control content-rating-toolbar ${filters.contentRating !== "all" ? "active" : ""} ${filters.contentRating}`}
+              onClick={cycleContentRating}
+              title={`Classificação: ${contentRatingLabel}. Clique para ${nextContentRatingLabel}.`}
+              aria-label={`Classificação: ${contentRatingLabel}. Clique para ${nextContentRatingLabel}.`}
+            >
+              {contentRatingIcons[filters.contentRating]}
             </button>
+            <button
+              className="toolbar-control"
+              onClick={() => setSortDirection((direction) => direction === "asc" ? "desc" : "asc")}
+              title={`Ordem alfabética ${sortDirection === "asc" ? "A-Z" : "Z-A"}`}
+              aria-label={`Ordem alfabética ${sortDirection === "asc" ? "A-Z" : "Z-A"}`}
+            >
+              {sortDirection === "asc" ? <ArrowDownAZ size={16} /> : <ArrowUpAZ size={16} />}
+            </button>
+            <div className="toolbar-segmented" aria-label="Disposição dos cards">
+              <button
+                className={resultLayout === "grid" ? "active" : ""}
+                onClick={() => setResultLayout("grid")}
+                title="Cards"
+                aria-label="Cards"
+                aria-pressed={resultLayout === "grid"}
+              >
+                <LayoutGrid size={16} />
+              </button>
+              <button
+                className={resultLayout === "list" ? "active" : ""}
+                onClick={() => setResultLayout("list")}
+                title="Lista compacta"
+                aria-label="Lista compacta"
+                aria-pressed={resultLayout === "list"}
+              >
+                <List size={16} />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="active-filter-row">
-          <span>{sources.find((source) => source.id === filters.sourceId)?.name ?? "Fonte obrigatoria"}</span>
+          <button
+            className={`toolbar-control filter-row-toggle ${!filterCollapsed || hasClearableFilters ? "active" : ""}`}
+            onClick={onToggleFilters}
+            title={filterCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
+            aria-label={filterCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
+          >
+            <SlidersHorizontal size={13} />
+          </button>
+          <button
+            className={`quick-filter-pill ${enabledSources.length > 1 ? "cycleable" : ""}`}
+            onClick={cycleSource}
+            aria-disabled={enabledSources.length < 2}
+            title={enabledSources.length > 1 ? `Fonte: ${currentSource?.name ?? "Fonte obrigatoria"}. Clique para ${nextSource?.name}.` : "Fonte obrigatoria"}
+          >
+            {currentSource?.name ?? "Fonte obrigatoria"}
+          </button>
+          {filters.query.trim() ? (
+            <button
+              className="quick-filter-pill clearable"
+              onClick={clearQuery}
+              title="Busca ativa. Clique para limpar."
+            >
+              Busca: {filters.query.trim()}
+            </button>
+          ) : null}
+          {filters.status !== "any" ? (
+            <button
+              className="quick-filter-pill cycleable"
+              onClick={cycleStatus}
+              title={`Status: ${statusQuickLabels[filters.status as keyof typeof statusQuickLabels] ?? filters.status}. Clique para ${statusQuickLabels[nextStatus]}.`}
+            >
+              {statusQuickLabels[filters.status as keyof typeof statusQuickLabels] ?? filters.status}
+            </button>
+          ) : null}
+          {filters.language !== "all" ? (
+            <button
+              className="quick-filter-pill cycleable"
+              onClick={cycleLanguage}
+              title={`Idioma: ${languageQuickLabels[filters.language as keyof typeof languageQuickLabels] ?? filters.language}. Clique para ${languageQuickLabels[nextLanguage]}.`}
+            >
+              {languageQuickLabels[filters.language as keyof typeof languageQuickLabels] ?? filters.language.toUpperCase()}
+            </button>
+          ) : null}
+          {filters.contentRating !== "all" ? (
+            <button
+              className={`quick-filter-pill cycleable content-${filters.contentRating}`}
+              onClick={cycleQuickContentRating}
+              title={`Classificação: ${contentRatingLabel}. Clique para ${nextQuickContentRatingLabel}.`}
+            >
+              {contentRatingLabels[filters.contentRating]}
+            </button>
+          ) : null}
           {filters.includeTags.map((key) => <span className="include" key={`include-${key}`}>+ {tagLabel(key, tagCatalog)}</span>)}
           {filters.excludeTags.map((key) => <span className="exclude" key={`exclude-${key}`}>- {tagLabel(key, tagCatalog)}</span>)}
-          {filters.contentRating !== "all" ? <span>{contentRatingLabels[filters.contentRating]}</span> : null}
-          {filters.language !== "all" ? <span>{filters.language.toUpperCase()}</span> : null}
-          <button onClick={() => onFiltersChange(defaultFilters(filters.sourceId))}>Limpar</button>
+          {hasClearableFilters ? <button onClick={() => onFiltersChange(defaultFilters(filters.sourceId))}>Limpar</button> : null}
         </div>
         {tagEditorOpen ? (
           <TagFilterSheet
@@ -1084,8 +1192,14 @@ export function DiscoverView({
 
         {loading ? (
           <SkeletonGrid />
+        ) : results.length === 0 ? (
+          <div className="results-empty-state">
+            <strong>Nenhum resultado com esses filtros</strong>
+            <span>Ajuste as tags, a fonte ou a Classificação.</span>
+            <button className="button quiet" onClick={() => onFiltersChange(defaultFilters(filters.sourceId))}>Limpar filtros</button>
+          </div>
         ) : (
-          <div className="book-grid compact">
+          <div className={`book-grid compact ${resultLayout === "list" ? "list" : ""}`}>
             {visibleResults.map((novel) => (
               <NovelCard
                 key={novel.id}
@@ -1150,3 +1264,4 @@ export function DiscoverView({
     </>
   );
 }
+

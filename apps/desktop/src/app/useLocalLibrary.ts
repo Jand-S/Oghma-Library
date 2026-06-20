@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from "react";
-import type { AppConfig, LibraryItem, Novel, QueueItem } from "../core/types";
+import type { AppConfig, DownloadFormat, LibraryItem, LibraryMeta, Novel, QueueItem } from "../core/types";
+import { downloadFormats } from "../core/types";
 import { sanitizeFileName } from "../services/downloadManager";
-import { listLocalLibrary, saveLocalFile } from "../services/localFiles";
+import { listLibraryMetadata, listLocalLibrary, saveLocalFile } from "../services/localFiles";
 
 type LocalLibraryArgs = {
   appConfig: AppConfig;
@@ -12,19 +13,27 @@ type LocalLibraryArgs = {
 
 export function useLocalLibrary({ appConfig, loading, results, setLibrary }: LocalLibraryArgs) {
   const refreshLocalLibrary = useCallback(() => {
-    void listLocalLibrary(appConfig.outputPath)
-      .then((items) => {
+    void Promise.all([listLocalLibrary(appConfig.outputPath), listLibraryMetadata()])
+      .then(([items, metaRows]) => {
         if (!items) return;
+        const metaByKey = new Map(metaRows.map((meta) => [meta.key, meta]));
         setLibrary(items.map((item) => {
           const formats = item.files
             .map((file) => file.split(".").pop()?.toUpperCase())
-            .filter((format): format is "EPUB" | "PDF" | "TXT" => format === "EPUB" || format === "PDF" || format === "TXT");
+            .filter((format): format is DownloadFormat => downloadFormats.includes(format as DownloadFormat));
           const known = results.find((novel) => sanitizeFileName(novel.title) === item.title || novel.title === item.title);
+          const meta: LibraryMeta = metaByKey.get(item.outputDir) ?? {
+            key: item.outputDir,
+            favorite: false,
+            readingStatus: "unread",
+            tags: [],
+            hidden: false
+          };
           return {
             id: `local-${item.outputDir}`,
             novelId: known?.id,
             title: item.title,
-            author: known?.author ?? "Desconhecido",
+            author: known?.author ?? "",
             format: formats[0] ?? "EPUB",
             formats,
             chapters: known?.chapters ?? 0,
@@ -36,9 +45,13 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary }: Loc
             sourceName: known?.sourceName,
             outputDir: item.outputDir,
             files: item.files,
-            exportedAt: "Local"
+            exportedAt: "Local",
+            favorite: meta.favorite,
+            readingStatus: meta.readingStatus,
+            personalTags: meta.tags,
+            hidden: meta.hidden
           };
-        }));
+        }).filter((item) => !item.hidden));
       })
       .catch(() => undefined);
   }, [appConfig.outputPath, results, setLibrary]);

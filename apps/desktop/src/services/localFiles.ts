@@ -1,4 +1,4 @@
-import type { KindleDeviceStatus, QueueItem } from "../core/types";
+import type { KindleDeviceStatus, LibraryMeta, QueueItem } from "../core/types";
 import { isTauriRuntime } from "../core/windowControls";
 
 export type FileData = string | Uint8Array;
@@ -93,6 +93,44 @@ export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryE
     coverDataUrl: row.cover_data_url ?? undefined,
     sizeBytes: row.size_bytes
   })));
+}
+
+export async function listLibraryMetadata(): Promise<LibraryMeta[]> {
+  const invoke = await loadInvoke();
+  if (!invoke) return [];
+  return invoke<LibraryMeta[]>("list_library_meta");
+}
+
+export async function saveLibraryMetadata(meta: LibraryMeta): Promise<boolean> {
+  const invoke = await loadInvoke();
+  if (!invoke) return false;
+  await invoke("save_library_meta", { meta });
+  return true;
+}
+
+export async function deleteLibraryMetadata(key: string): Promise<boolean> {
+  const invoke = await loadInvoke();
+  if (!invoke) return false;
+  await invoke("delete_library_meta", { key });
+  return true;
+}
+
+export async function deleteLocalLibraryFiles(outputDir: string, itemDir: string): Promise<boolean> {
+  const invoke = await loadInvoke();
+  if (!invoke) return false;
+  await invoke("delete_export_library_item", { outputDir, itemDir });
+  return true;
+}
+
+export async function convertLocalEpubToAzw3(title: string, outputDir: string, outputFiles: string[]): Promise<string | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  const result = await invoke<{ fileName: string }>("convert_export_to_azw3", {
+    title,
+    outputDir,
+    outputFiles
+  });
+  return result.fileName;
 }
 
 export async function detectKindleDevice(): Promise<KindleDeviceStatus | null> {

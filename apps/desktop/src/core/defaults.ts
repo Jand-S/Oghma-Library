@@ -14,10 +14,10 @@ export function defaultFilters(sourceId = "all"): Filters {
     contentRating: "all",
     includeTags: [],
     excludeTags: [],
-    onlyCovered: true,
+    onlyCovered: false,
     updatedOnly: false,
     minChapters: 1,
-    maxChapters: 2500
+    maxChapters: 999999
   };
 }
 
