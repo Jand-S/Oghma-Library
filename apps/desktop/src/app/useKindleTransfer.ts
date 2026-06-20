@@ -36,7 +36,7 @@ export function useKindleTransfer({
     if (selectedCompletedItems.some((item) => !item.formats.includes("EPUB"))) {
       return "Somente livros com EPUB podem ser enviados ao Kindle.";
     }
-    if (kindleStatus?.converterAvailable === false) return "Calibre/ebook-convert nao encontrado para converter EPUB em AZW3.";
+    if (kindleStatus?.converterAvailable === false) return "Conversor AZW3 indisponivel nesta instalacao.";
     return undefined;
   }, [kindleConnected, kindleStatus?.converterAvailable, selectedCompletedItems]);
 

@@ -321,7 +321,7 @@ export async function runDownload(
     onProgress?.(96);
     const azw3 = await convertLocalEpubToAzw3(req.novel.title, req.outputDir, savedFiles);
     if (!azw3) {
-      throw new Error("Conversao AZW3 exige o app desktop com Calibre/ebook-convert instalado.");
+      throw new Error("Conversao AZW3 esta disponivel no app desktop.");
     }
     savedFiles.push(azw3);
   }

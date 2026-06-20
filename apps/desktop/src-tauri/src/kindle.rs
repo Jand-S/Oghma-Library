@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use image::codecs::jpeg::JpegEncoder;
+use kindling::extracted::ExtractedEpub;
+use kindling::mobi_rewrite::{rewrite_mobi_metadata, MetadataUpdates};
 use serde::Serialize;
 
 use crate::paths::{expand_home, safe_export_stem, safe_relative_path};
@@ -74,7 +76,7 @@ fn thumbnail_filename_from_record0(record0: &[u8]) -> Result<String, String> {
     let exth_offset = 16usize
         .checked_add(mobi_length)
         .ok_or_else(|| "Offset EXTH invalido".to_string())?;
-    if record0.get(exth_offset..exth_offset + 4) != Some(b"EXTH") {
+    if record0.get(exth_offset..exth_offset + 4) != Some(&b"EXTH"[..]) {
         return Err("AZW3 nao contem cabecalho EXTH".to_string());
     }
     let exth_length = be_u32(record0, exth_offset + 4)
@@ -199,12 +201,16 @@ fn sync_mass_storage_thumbnail_cache(documents_dir: &Path) -> Result<(), String>
     Ok(())
 }
 
-fn converter_available() -> bool {
+fn calibre_converter_available() -> bool {
     Command::new("ebook-convert")
         .arg("--version")
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
+}
+
+fn converter_available() -> bool {
+    true
 }
 
 fn find_cover_file(output_dir: &PathBuf) -> Option<PathBuf> {
@@ -224,7 +230,93 @@ fn find_cover_file(output_dir: &PathBuf) -> Option<PathBuf> {
     })
 }
 
-fn convert_epub_to_azw3(epub: &PathBuf, target: &PathBuf, cover: Option<PathBuf>) -> Result<(), String> {
+fn oghma_content_id(title: &str) -> String {
+    let mut hash = 0xcbf29ce484222325u64;
+    for byte in title.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("oghma-{hash:016x}")
+}
+
+fn install_kindling_cover(extracted: &mut ExtractedEpub, cover: &Path) -> Result<(), String> {
+    let image = image::ImageReader::open(cover)
+        .map_err(|err| format!("Nao foi possivel abrir a capa local: {err}"))?
+        .with_guessed_format()
+        .map_err(|err| format!("Formato de capa local invalido: {err}"))?
+        .decode()
+        .map_err(|err| format!("Nao foi possivel decodificar a capa local: {err}"))?;
+    let mut bytes = Vec::new();
+    JpegEncoder::new_with_quality(&mut bytes, 90)
+        .encode_image(&image)
+        .map_err(|err| format!("Nao foi possivel preparar a capa para o AZW3: {err}"))?;
+
+    let cover_name = "oghma-cover.jpg";
+    fs::write(extracted.root.join(cover_name), bytes)
+        .map_err(|err| format!("Nao foi possivel preparar a capa no EPUB extraido: {err}"))?;
+    let cover_id = "oghma-cover-image".to_string();
+    extracted.opf.manifest.insert(
+        cover_id.clone(),
+        (cover_name.to_string(), "image/jpeg".to_string()),
+    );
+    extracted.opf.coverimage_id = Some(cover_id);
+    Ok(())
+}
+
+fn convert_epub_with_kindling(
+    epub: &Path,
+    target: &Path,
+    cover: Option<&Path>,
+    title: &str,
+) -> Result<(), String> {
+    let source_data = fs::read(epub)
+        .map_err(|err| format!("Nao foi possivel ler o EPUB: {err}"))?;
+    let mut extracted = ExtractedEpub::from_epub_path(epub)
+        .map_err(|err| format!("Kindling nao conseguiu abrir o EPUB: {err}"))?;
+    if let Some(cover) = cover {
+        install_kindling_cover(&mut extracted, cover)?;
+    }
+
+    let staging = target.with_extension("kindling.azw3");
+    let _ = fs::remove_file(&staging);
+    let build_result = kindling::mobi::build_mobi_from_extracted(
+        &extracted,
+        &staging,
+        false,
+        false,
+        Some(&source_data),
+        false,
+        false,
+        true,
+        true,
+        Some("PDOC"),
+        false,
+        true,
+        false,
+        false,
+    )
+    .map_err(|err| format!("Kindling nao conseguiu gerar o AZW3: {err}"));
+    if let Err(err) = build_result {
+        let _ = fs::remove_file(&staging);
+        return Err(err);
+    }
+
+    let content_id = oghma_content_id(title);
+    // Kindle's thumbnail lookup uses EXTH 113 as its content UUID. Kindling's
+    // rewrite API exposes that record as series_index, so emit both known IDs.
+    let updates = MetadataUpdates {
+        asin: Some(content_id.clone()),
+        series_index: Some(content_id),
+        ..MetadataUpdates::default()
+    };
+    let rewrite_result = rewrite_mobi_metadata(&staging, target, &updates)
+        .map(|_| ())
+        .map_err(|err| format!("Nao foi possivel finalizar os metadados do AZW3: {err}"));
+    let _ = fs::remove_file(&staging);
+    rewrite_result
+}
+
+fn convert_epub_with_calibre(epub: &Path, target: &Path, cover: Option<&Path>) -> Result<(), String> {
     let mut command = Command::new("ebook-convert");
     command.arg(epub).arg(target);
     if let Some(cover_path) = cover {
@@ -237,6 +329,30 @@ fn convert_epub_to_azw3(epub: &PathBuf, target: &PathBuf, cover: Option<PathBuf>
         Ok(())
     } else {
         Err("Falha ao converter para AZW3".to_string())
+    }
+}
+
+fn convert_epub_to_azw3(
+    epub: &Path,
+    target: &Path,
+    cover: Option<PathBuf>,
+    title: &str,
+) -> Result<(), String> {
+    match convert_epub_with_kindling(epub, target, cover.as_deref(), title) {
+        Ok(()) => {
+            eprintln!("AZW3 converter=kindling title={title:?}");
+            Ok(())
+        }
+        Err(kindling_error) if calibre_converter_available() => {
+            eprintln!(
+                "Warning: Kindling failed for {title:?}; trying Calibre fallback: {kindling_error}"
+            );
+            let _ = fs::remove_file(target);
+            convert_epub_with_calibre(epub, target, cover.as_deref()).map_err(|calibre_error| {
+                format!("Kindling: {kindling_error}. Fallback do Calibre: {calibre_error}")
+            })
+        }
+        Err(kindling_error) => Err(kindling_error),
     }
 }
 
@@ -287,13 +403,9 @@ pub fn convert_export_to_azw3(
         })
         .ok_or_else(|| format!("{title} nao tem EPUB para converter em AZW3"))?;
 
-    if !converter_available() {
-        return Err("Calibre/ebook-convert nao encontrado no PATH. Instale o Calibre para converter EPUB em AZW3.".to_string());
-    }
-
     let file_name = format!("{}.azw3", safe_export_stem(&title));
     let target = output_dir.join(&file_name);
-    convert_epub_to_azw3(&epub, &target, find_cover_file(&output_dir))
+    convert_epub_to_azw3(&epub, &target, find_cover_file(&output_dir), &title)
         .map_err(|err| format!("Falha ao converter {title} para AZW3: {err}"))?;
 
     Ok(Azw3ConversionResult { file_name })
@@ -417,11 +529,8 @@ pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, St
                 .find(|name| name.to_lowercase().ends_with(".epub"))
                 .map(|name| output_dir.join(name))
                 .ok_or_else(|| format!("{} nao tem EPUB para converter", item.title))?;
-            if !converter_available() {
-                return Err("Calibre/ebook-convert nao encontrado no PATH. Instale o Calibre para converter EPUB em AZW3.".to_string());
-            }
             let target = output_dir.join(format!("{}.azw3", safe_export_stem(&item.title)));
-            convert_epub_to_azw3(&epub, &target, find_cover_file(&output_dir))
+            convert_epub_to_azw3(&epub, &target, find_cover_file(&output_dir), &item.title)
                 .map_err(|err| format!("Falha ao converter {} para AZW3: {err}", item.title))?;
             azw3 = Some(target);
         }
@@ -465,7 +574,17 @@ pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, St
 
 #[cfg(test)]
 mod tests {
-    use super::thumbnail_filename_from_record0;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use image::{DynamicImage, Rgb, RgbImage};
+    use zip::write::SimpleFileOptions;
+    use zip::{CompressionMethod, ZipWriter};
+
+    use super::{
+        convert_epub_with_kindling, oghma_content_id, thumbnail_filename_from_record0,
+    };
 
     fn exth_record(id: u32, content: &[u8]) -> Vec<u8> {
         let mut record = Vec::new();
@@ -491,5 +610,59 @@ mod tests {
 
         let name = thumbnail_filename_from_record0(&record0).expect("valid EXTH metadata");
         assert_eq!(name, "thumbnail_aecccc50-50d7-419f-9bc9-25a13871f389_EBOK_portrait.jpg");
+    }
+
+    #[test]
+    fn converts_epub_with_local_cover_using_kindling() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("oghma-kindling-{suffix}"));
+        fs::create_dir_all(&dir).expect("temp directory");
+        let epub = dir.join("book.epub");
+        let target = dir.join("book.azw3");
+        let cover = dir.join("cover.png");
+
+        DynamicImage::ImageRgb8(RgbImage::from_pixel(40, 60, Rgb([30, 120, 180])))
+            .save(&cover)
+            .expect("test cover");
+
+        let file = File::create(&epub).expect("epub file");
+        let mut zip = ZipWriter::new(file);
+        zip.start_file(
+            "mimetype",
+            SimpleFileOptions::default().compression_method(CompressionMethod::Stored),
+        )
+        .expect("mimetype entry");
+        zip.write_all(b"application/epub+zip").expect("mimetype");
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+        zip.start_file("META-INF/container.xml", options)
+            .expect("container entry");
+        zip.write_all(br#"<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>"#)
+            .expect("container");
+        zip.start_file("OEBPS/content.opf", options)
+            .expect("opf entry");
+        zip.write_all(br#"<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">oghma:test</dc:identifier><dc:title>Livro de teste</dc:title><dc:creator>Oghma</dc:creator><dc:language>pt-BR</dc:language></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#)
+            .expect("opf");
+        zip.start_file("OEBPS/chapter.xhtml", options)
+            .expect("chapter entry");
+        zip.write_all(br#"<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Capitulo</title></head><body><h1>Capitulo 1</h1><p>Conteudo de teste.</p></body></html>"#)
+            .expect("chapter");
+        zip.finish().expect("finish epub");
+
+        convert_epub_with_kindling(&epub, &target, Some(&cover), "Livro de teste")
+            .expect("Kindling conversion");
+        assert!(target.is_file());
+        let thumbnail = super::kindle_thumbnail_filename(&target).expect("thumbnail metadata");
+        assert_eq!(
+            thumbnail,
+            format!(
+                "thumbnail_{}_PDOC_portrait.jpg",
+                oghma_content_id("Livro de teste")
+            )
+        );
+
+        fs::remove_dir_all(dir).expect("remove temp directory");
     }
 }
