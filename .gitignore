@@ -22,6 +22,7 @@ venv/
 *.tar.gz
 publish_state.json
 exports/
+backend/translation-workspace/
 
 # SO / editor
 .DS_Store
