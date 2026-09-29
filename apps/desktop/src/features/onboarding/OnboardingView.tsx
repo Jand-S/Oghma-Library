@@ -8,7 +8,7 @@ import { Badge, Button, cx, IconButton, ProgressBar, Switch, TextField } from ".
 import { getFocusable } from "../../ui/focus";
 import { FolderField } from "../settings/FolderField";
 import { FormatPicker } from "../settings/FormatPicker";
-import { sourceDomain } from "../sources/SourcesView";
+import { sourceDomain } from "../sources/sourceIcons";
 import "./onboarding.css";
 
 export type OnboardingWizardProps = {
