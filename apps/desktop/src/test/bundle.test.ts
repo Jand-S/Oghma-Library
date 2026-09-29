@@ -11,8 +11,31 @@ import {
   extractBundle,
   fetchBundle,
   htmlToText,
+  isAbortError,
   untar
 } from "../services/bundle";
+
+// Response whose body is a ReadableStream that emits `bytes` in small chunks.
+function chunkedResponse(bytes: Uint8Array, chunkSize: number, opts: { contentLength?: boolean; onPull?: (index: number) => void } = {}) {
+  let offset = 0;
+  let index = 0;
+  const cancel = vi.fn();
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      opts.onPull?.(index);
+      index += 1;
+      if (offset >= bytes.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(bytes.slice(offset, offset + chunkSize));
+      offset += chunkSize;
+    },
+    cancel
+  });
+  const headers: Record<string, string> = opts.contentLength === false ? {} : { "content-length": String(bytes.length) };
+  return { response: new Response(stream, { status: 200, headers }), cancel };
+}
 
 // --- mini tar writer (so para o teste) ---
 function tarHeader(name: string, size: number): Uint8Array {
@@ -114,6 +137,74 @@ describe("bundle", () => {
     const res = await fetchBundle("https://b2.example", "content/central-novel/lord/lord.v1.tar.gz");
     expect(res.chapters).toHaveLength(2);
     expect(res.meta?.slug).toBe("lord");
+  });
+
+  it("fetchBundle streams the body in small chunks and reports byte progress", async () => {
+    const gz = new Uint8Array(await gzipBytes(buildTar(files)));
+    const { response } = chunkedResponse(gz, 7);
+    const fetchMock = vi.fn(async () => response);
+    vi.stubGlobal("fetch", fetchMock);
+    const progress: Array<{ bytesReceived: number; bytesTotal?: number }> = [];
+    const res = await fetchBundle("https://b2.example/", "/content/lord.tar.gz", { onProgress: (p) => progress.push(p) });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://b2.example/content/lord.tar.gz", expect.objectContaining({ cache: "no-store" }));
+    expect(res.chapters.map((c) => [c.number, c.title])).toEqual([[1, "Crimson"], [2, "Lunatic"]]);
+    expect(res.chapters[0].html).toContain("Klein");
+    expect(new TextDecoder().decode(res.assets[0].data)).toBe("RIFFxxxxWEBPimage");
+    expect(progress.length).toBeGreaterThan(2);
+    expect(progress.every((p, i) => i === 0 || p.bytesReceived > progress[i - 1].bytesReceived)).toBe(true);
+    expect(progress[progress.length - 1]).toEqual({ bytesReceived: gz.length, bytesTotal: gz.length });
+  });
+
+  it("fetchBundle accepts a full URL and works without content-length", async () => {
+    const gz = new Uint8Array(await gzipBytes(buildTar(files)));
+    const { response } = chunkedResponse(gz, 4096, { contentLength: false });
+    const fetchMock = vi.fn(async () => response);
+    vi.stubGlobal("fetch", fetchMock);
+    const progress: Array<{ bytesReceived: number; bytesTotal?: number }> = [];
+    const res = await fetchBundle("https://b2.example/lord.tar.gz", { onProgress: (p) => progress.push(p) });
+    expect(fetchMock).toHaveBeenCalledWith("https://b2.example/lord.tar.gz", expect.anything());
+    expect(res.chapters).toHaveLength(2);
+    expect(progress[progress.length - 1].bytesTotal).toBeUndefined();
+  });
+
+  it("fetchBundle stops reading and rejects with AbortError when aborted mid-stream", async () => {
+    const gz = new Uint8Array(await gzipBytes(buildTar(files)));
+    const controller = new AbortController();
+    const { response } = chunkedResponse(gz, 5, { onPull: (index) => { if (index === 3) controller.abort(); } });
+    vi.stubGlobal("fetch", vi.fn(async () => response));
+    const error = await fetchBundle("https://b2.example", "lord.tar.gz", { signal: controller.signal }).catch((e: unknown) => e);
+    expect(isAbortError(error)).toBe(true);
+    expect(error).toBeInstanceOf(DOMException);
+  });
+
+  it("fetchBundle rejects immediately when the signal is already aborted", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(fetchBundle("https://b2.example", "x.tar.gz", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fetchBundle falls back to arrayBuffer when the body is not a stream", async () => {
+    const gz = await gzipBytes(buildTar(files));
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      body: null,
+      headers: new Headers(),
+      arrayBuffer: async () => gz
+    })));
+    const progress: Array<{ bytesReceived: number; bytesTotal?: number }> = [];
+    const res = await fetchBundle("https://b2.example", "lord.tar.gz", { onProgress: (p) => progress.push(p) });
+    expect(res.chapters).toHaveLength(2);
+    expect(progress).toEqual([{ bytesReceived: gz.byteLength, bytesTotal: gz.byteLength }]);
+  });
+
+  it("fetchBundle surfaces HTTP errors", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 404 })));
+    await expect(fetchBundle("https://b2.example", "x.tar.gz")).rejects.toThrow(/HTTP 404/);
   });
 });
 

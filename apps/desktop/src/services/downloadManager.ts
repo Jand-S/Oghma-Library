@@ -1,12 +1,17 @@
 // Orquestra o download real: bundle do B2 -> saidas (TXT/HTML) -> grava em disco.
 // Sem acoplar a UI: recebe dados + callbacks de progresso.
-import type { DownloadFormat } from "../core/types";
+import type { DownloadFormat, JobProgress } from "../core/types";
 import {
   bundleToHtml,
   bundleToText,
+  createAbortError,
   fetchBundle,
+  isAbortError,
+  throwIfAborted,
   type ExtractedBundle
 } from "./bundle";
+
+export { createAbortError, isAbortError };
 import { convertLocalEpubToAzw3, saveLocalFile, type FileData } from "./localFiles";
 
 export type SaveFile = (fileName: string, data: FileData) => Promise<void>;
@@ -34,6 +39,24 @@ type EpubCover = {
   name: string;
   mediaType: string;
   data: Uint8Array;
+};
+
+/** Progress detail reported by runDownload (second argument of onProgress). */
+export type DownloadProgress = JobProgress;
+
+export type RunDownloadOptions = {
+  /** Custom writer; defaults to saveLocalFile into `outputDir`. */
+  save?: SaveFile;
+  /** `percent` keeps the old contract; `detail` carries stage, bytes, speed and ETA. */
+  onProgress?: (percent: number, detail: DownloadProgress) => void;
+  /** Cancels network and disk work; runDownload then rejects with a DOMException AbortError. */
+  signal?: AbortSignal;
+  /** Overrides `req.outputDir` (e.g. an export staging dir). */
+  outputDir?: string;
+  /** Also writes the cover as `cover.<ext>` (before any AZW3 conversion, which embeds it). */
+  saveCover?: boolean;
+  /** Clock for speed/ETA (ms). Defaults to performance.now/Date.now. */
+  now?: () => number;
 };
 
 export const LOCAL_BOOK_MANIFEST = ".oghma-book.json";
@@ -89,18 +112,26 @@ function u32(value: number): number[] {
   return [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff];
 }
 
-async function yieldToUi(): Promise<void> {
+async function yieldToUi(signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal);
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  throwIfAborted(signal);
 }
 
+const EMPTY_BYTES = new Uint8Array(0);
+
+// Stored (uncompressed) zip. Takes ownership of `files`: each entry's data is
+// released as soon as it has been copied into the output buffer.
 async function createZip(
   files: Array<{ name: string; data: Uint8Array }>,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal
 ): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const prepared: Array<{
     name: Uint8Array;
     data: Uint8Array;
+    size: number;
     crc: number;
     offset: number;
   }> = [];
@@ -110,10 +141,11 @@ async function createZip(
     const file = files[index];
     const name = enc.encode(file.name);
     const crc = crc32(file.data);
-    prepared.push({ name, data: file.data, crc, offset });
+    prepared.push({ name, data: file.data, size: file.data.length, crc, offset });
+    files[index] = { name: file.name, data: EMPTY_BYTES };
     offset += 30 + name.length + file.data.length;
     onProgress?.(Math.round((45 * (index + 1)) / Math.max(files.length, 1)));
-    if (index % 8 === 7 || file.data.length >= 1024 * 1024) await yieldToUi();
+    if (index % 8 === 7 || file.data.length >= 1024 * 1024) await yieldToUi(signal);
   }
 
   const centralSize = prepared.reduce((sum, file) => sum + 46 + file.name.length, 0);
@@ -123,22 +155,23 @@ async function createZip(
     const file = prepared[index];
     const localHeader = new Uint8Array([
       ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
-      ...u32(file.crc), ...u32(file.data.length), ...u32(file.data.length),
+      ...u32(file.crc), ...u32(file.size), ...u32(file.size),
       ...u16(file.name.length), ...u16(0), ...file.name
     ]);
     out.set(localHeader, cursor);
     cursor += localHeader.length;
     out.set(file.data, cursor);
-    cursor += file.data.length;
+    cursor += file.size;
+    file.data = EMPTY_BYTES;
     onProgress?.(45 + Math.round((45 * (index + 1)) / Math.max(prepared.length, 1)));
-    if (index % 8 === 7 || file.data.length >= 1024 * 1024) await yieldToUi();
+    if (index % 8 === 7 || file.size >= 1024 * 1024) await yieldToUi(signal);
   }
 
   const centralOffset = cursor;
   for (const file of prepared) {
     const central = new Uint8Array([
       ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
-      ...u32(file.crc), ...u32(file.data.length), ...u32(file.data.length),
+      ...u32(file.crc), ...u32(file.size), ...u32(file.size),
       ...u16(file.name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
       ...u32(0), ...u32(file.offset), ...file.name
     ]);
@@ -178,7 +211,8 @@ function referencedAssetNames(chapters: ExtractedBundle["chapters"]): Set<string
 export async function buildLocalBookManifest(
   bundle: ExtractedBundle,
   novel: DownloadNovelInput,
-  range?: { start: number; end: number }
+  range?: { start: number; end: number },
+  signal?: AbortSignal
 ): Promise<LocalBookManifest> {
   const selected = bundle.chapters.filter(
     (chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end)
@@ -192,7 +226,7 @@ export async function buildLocalBookManifest(
       source_chars: Array.from(text).length,
       word_count: text ? text.split(/\s+/).length : 0
     });
-    if (index % 25 === 24) await yieldToUi();
+    if (index % 25 === 24) await yieldToUi(signal);
   }
   return {
     schema_version: 1,
@@ -221,18 +255,27 @@ function coverMediaType(contentType: string, url: string): { mediaType: string; 
   return null;
 }
 
-async function fetchEpubCover(coverUrl?: string): Promise<EpubCover | undefined> {
+type FetchedCover = {
+  data: Uint8Array;
+  /** File extension for `cover.<ext>` (jpg when the type is unknown). */
+  ext: string;
+  /** Only set when the image type is known, i.e. when it can be embedded in the EPUB. */
+  epub?: EpubCover;
+};
+
+async function fetchCover(coverUrl: string | undefined, signal?: AbortSignal): Promise<FetchedCover | undefined> {
   if (!coverUrl) return undefined;
   try {
-    const response = await fetch(coverUrl, { cache: "no-store" });
+    const response = await fetch(coverUrl, { cache: "no-store", signal });
     if (!response.ok) return undefined;
     const contentType = response.headers.get("content-type") ?? "";
     const media = coverMediaType(contentType, coverUrl);
-    if (!media) return undefined;
     const data = new Uint8Array(await response.arrayBuffer());
     if (data.length === 0) return undefined;
-    return { name: `cover.${media.ext}`, mediaType: media.mediaType, data };
-  } catch {
+    if (!media) return { data, ext: "jpg" };
+    return { data, ext: media.ext, epub: { name: `cover.${media.ext}`, mediaType: media.mediaType, data } };
+  } catch (error) {
+    if (signal?.aborted || isAbortError(error)) throw createAbortError();
     return undefined;
   }
 }
@@ -242,7 +285,8 @@ async function buildEpub(
   title: string,
   range?: { start: number; end: number },
   onProgress?: (percent: number) => void,
-  cover?: EpubCover
+  cover?: EpubCover,
+  signal?: AbortSignal
 ): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const chapters = bundle.chapters.filter((chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end));
@@ -300,7 +344,7 @@ async function buildEpub(
     { name: "OEBPS/style.css", data: enc.encode("body{font-family:serif;line-height:1.55;margin:5%;} h1{font-size:1.35em;} img{display:block;width:100%;max-width:100%;height:auto;object-fit:contain;margin:1em auto;} .cover-page{margin:0;text-align:center;} .cover-page img{width:100%;max-height:95vh;object-fit:contain;}") },
     ...chapterFiles.map((file) => ({ name: `OEBPS/${file.href}`, data: enc.encode(file.html) })),
     ...assets.map((asset) => ({ name: `OEBPS/assets/${asset.name}`, data: asset.data }))
-  ], onProgress);
+  ], onProgress, signal);
 }
 
 export async function buildOutputs(
@@ -309,8 +353,10 @@ export async function buildOutputs(
   formats: DownloadFormat[],
   range?: { start: number; end: number },
   onProgress?: (percent: number) => void,
-  cover?: EpubCover
+  cover?: EpubCover,
+  signal?: AbortSignal
 ): Promise<Array<{ fileName: string; data: FileData }>> {
+  throwIfAborted(signal);
   const empty = bundle.chapters.filter((chapter) => {
     if (range && (chapter.number < range.start || chapter.number > range.end)) return false;
     const doc = new DOMParser().parseFromString(chapter.html, "text/html");
@@ -324,7 +370,8 @@ export async function buildOutputs(
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
   if (formats.includes("EPUB")) {
-    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress, cover) });
+    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress, cover, signal) });
+    throwIfAborted(signal);
   }
   if (formats.includes("TXT")) {
     outputs.push({ fileName: `${base}.txt`, data: bundleToText(title, bundle.chapters, range) });
@@ -350,47 +397,133 @@ export async function defaultSaveFile(outputDir: string): Promise<SaveFile> {
   return async (fileName, data) => saveLocalFile(outputDir, fileName, data);
 }
 
-export async function runDownload(
-  req: DownloadRequest,
-  opts: { save?: SaveFile; onProgress?: (percent: number) => void } = {}
-): Promise<string[]> {
-  const { onProgress } = opts;
-  onProgress?.(5);
+// Smoothed transfer speed: EWMA over ~250ms samples.
+export function createSpeedMeter(now: () => number, alpha = 0.3, sampleMs = 250) {
+  let lastTime: number | null = null;
+  let lastBytes = 0;
+  let speed: number | undefined;
+  return {
+    /** Feeds the cumulative byte count; returns the current smoothed speed (bytes/s). */
+    sample(bytes: number, force = false): number | undefined {
+      const t = now();
+      if (lastTime === null) {
+        lastTime = t;
+        lastBytes = bytes;
+        return speed;
+      }
+      const dt = t - lastTime;
+      if (dt <= 0 || (!force && dt < sampleMs)) return speed;
+      const instant = ((bytes - lastBytes) * 1000) / dt;
+      speed = speed === undefined ? instant : alpha * instant + (1 - alpha) * speed;
+      lastTime = t;
+      lastBytes = bytes;
+      return speed;
+    },
+    get speed() {
+      return speed;
+    }
+  };
+}
+
+function defaultNow(): number {
+  return (globalThis.performance ?? Date).now();
+}
+
+// Percent budget of a download: fetch 5-60, build 60-80, save 80-94/100, AZW3 96-100.
+export async function runDownload(req: DownloadRequest, opts: RunDownloadOptions = {}): Promise<string[]> {
+  const { signal } = opts;
+  const now = opts.now ?? defaultNow;
+  const outputDir = opts.outputDir ?? req.outputDir;
+  let last: DownloadProgress = { stage: "fetching", percent: 0 };
+  const report = (patch: Partial<DownloadProgress> & { percent: number }) => {
+    last = { ...last, ...patch, percent: Math.max(0, Math.min(100, Math.round(patch.percent))) };
+    opts.onProgress?.(last.percent, last);
+  };
+
+  report({ stage: "fetching", percent: 5 });
   if (!req.novel.bundleKey) throw new Error(`"${req.novel.title}" ainda nao tem bundle publicado`);
-  const bundle = await fetchBundle(req.serverUrl, req.novel.bundleKey);
-  onProgress?.(60);
-  const cover = await fetchEpubCover(req.novel.coverUrl);
+  throwIfAborted(signal);
+
+  // 1. Network: stream + extract the bundle.
+  const meter = createSpeedMeter(now);
+  let lastReport = -Infinity;
+  let bundle: ExtractedBundle | null = await fetchBundle(req.serverUrl, req.novel.bundleKey, {
+    signal,
+    onProgress: ({ bytesReceived, bytesTotal }) => {
+      const complete = bytesTotal !== undefined && bytesReceived >= bytesTotal;
+      const speedBps = meter.sample(bytesReceived, complete);
+      const t = now();
+      if (!complete && t - lastReport < 100) return;
+      lastReport = t;
+      const etaSec = speedBps && bytesTotal !== undefined
+        ? Math.max(0, Math.round((bytesTotal - bytesReceived) / speedBps))
+        : undefined;
+      const fraction = bytesTotal ? bytesReceived / bytesTotal : 0;
+      report({ stage: "fetching", percent: 5 + fraction * 55, bytesReceived, bytesTotal, speedBps, etaSec });
+    }
+  });
+  throwIfAborted(signal);
+  const cover = await fetchCover(req.novel.coverUrl, signal);
+  throwIfAborted(signal);
+
+  // 2. Build outputs.
+  const chaptersTotal = bundle.chapters.filter(
+    (chapter) => !req.range || (chapter.number >= req.range.start && chapter.number <= req.range.end)
+  ).length;
+  report({ stage: "building", percent: 60, speedBps: undefined, etaSec: undefined, chaptersDone: 0, chaptersTotal });
   const needsAzw3 = req.formats.includes("AZW3");
   const buildFormats = req.formats.filter((format) => format !== "AZW3");
   if (needsAzw3 && !buildFormats.includes("EPUB")) buildFormats.push("EPUB");
-  const outputs = await buildOutputs(
+  const manifest = await buildLocalBookManifest(bundle, req.novel, req.range, signal);
+  let outputs: Array<{ fileName: string; data: FileData } | null> = await buildOutputs(
     bundle,
     req.novel.title,
     buildFormats,
     req.range,
-    (percent) => onProgress?.(60 + Math.round(percent * 0.2)),
-    cover
+    (percent) => report({
+      stage: "building",
+      percent: 60 + percent * 0.2,
+      chaptersDone: Math.min(chaptersTotal, Math.round((percent / 100) * chaptersTotal))
+    }),
+    cover?.epub,
+    signal
   );
-  onProgress?.(80);
-  const save = opts.save ?? (await defaultSaveFile(req.outputDir));
+  bundle = null; // Outputs are built; let the extracted bundle go before writing.
+  throwIfAborted(signal);
+
+  // 3. Save.
+  report({ stage: "saving", percent: 80, chaptersDone: chaptersTotal });
+  const save = opts.save ?? (await defaultSaveFile(outputDir));
   const savedFiles: string[] = [];
   const saveProgressRange = needsAzw3 ? 14 : 20;
   for (let i = 0; i < outputs.length; i += 1) {
-    await save(outputs[i].fileName, outputs[i].data);
-    savedFiles.push(outputs[i].fileName);
-    await yieldToUi();
-    onProgress?.(80 + Math.round((saveProgressRange * (i + 1)) / outputs.length));
+    throwIfAborted(signal);
+    const output = outputs[i];
+    if (!output) continue;
+    await save(output.fileName, output.data);
+    outputs[i] = null;
+    savedFiles.push(output.fileName);
+    await yieldToUi(signal);
+    report({ stage: "saving", percent: 80 + (saveProgressRange * (i + 1)) / outputs.length });
   }
-  const manifest = await buildLocalBookManifest(bundle, req.novel, req.range);
+  outputs = [];
+  if (opts.saveCover && cover) {
+    throwIfAborted(signal);
+    await save(`cover.${cover.ext}`, cover.data);
+  }
+  throwIfAborted(signal);
   await save(LOCAL_BOOK_MANIFEST, JSON.stringify(manifest, null, 2));
+
+  // 4. Optional AZW3 (native only). The conversion itself cannot be interrupted.
   if (needsAzw3) {
-    onProgress?.(96);
-    const azw3 = await convertLocalEpubToAzw3(req.novel.title, req.outputDir, savedFiles);
+    throwIfAborted(signal);
+    report({ stage: "converting", percent: 96 });
+    const azw3 = await convertLocalEpubToAzw3(req.novel.title, outputDir, savedFiles);
     if (!azw3) {
       throw new Error("Conversao AZW3 esta disponivel no app desktop.");
     }
     savedFiles.push(azw3);
   }
-  onProgress?.(100);
+  report({ stage: "done", percent: 100 });
   return Array.from(new Set(savedFiles));
 }

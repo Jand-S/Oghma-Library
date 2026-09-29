@@ -7,7 +7,15 @@ import {
   vi
 } from "vitest";
 import type { ExtractedBundle } from "../services/bundle";
-import { buildLocalBookManifest, buildOutputs, runDownload, sanitizeFileName } from "../services/downloadManager";
+import {
+  buildLocalBookManifest,
+  buildOutputs,
+  createSpeedMeter,
+  isAbortError,
+  runDownload,
+  sanitizeFileName,
+  type DownloadProgress
+} from "../services/downloadManager";
 
 function tarHeader(name: string, size: number): Uint8Array {
   const h = new Uint8Array(512);
@@ -159,6 +167,126 @@ describe("downloadManager", () => {
     expect(saved["Shadow Slave.txt"]).toContain("um");
     expect(JSON.parse(saved[".oghma-book.json"]).chapter_count).toBe(2);
     expect(progress[progress.length - 1]).toBe(100);
+  });
+
+  async function sampleGz() {
+    return gzipBytes(buildTar([
+      { name: "meta.json", body: JSON.stringify({ title: "Shadow Slave", chapters: [] }) },
+      { name: "chapters/1.html", body: "<p>um</p>" },
+      { name: "chapters/2.html", body: "<p>dois</p>" }
+    ]));
+  }
+
+  const request = {
+    serverUrl: "https://b2.example",
+    novel: { id: "central-novel:ss", title: "Shadow Slave", bundleKey: "content/central-novel/ss/ss.v1.tar.gz", coverUrl: "https://cdn.example/ss.png" },
+    formats: ["TXT", "EPUB"] as Array<"TXT" | "EPUB">,
+    outputDir: "C:/out"
+  };
+
+  function stubNetwork(gz: ArrayBuffer, chunkSize = 64) {
+    const bytes = new Uint8Array(gz);
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.endsWith(".png")) return new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { "content-type": "image/png" } });
+      let offset = 0;
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (offset >= bytes.length) return controller.close();
+          controller.enqueue(bytes.slice(offset, offset + chunkSize));
+          offset += chunkSize;
+        }
+      });
+      return new Response(body, { status: 200, headers: { "content-length": String(bytes.length) } });
+    }));
+  }
+
+  it("runDownload reports stages, bytes, speed and ETA, and saves the cover", async () => {
+    stubNetwork(await sampleGz(), 16);
+    let clock = 0;
+    const details: DownloadProgress[] = [];
+    const saved: string[] = [];
+    const files = await runDownload(request, {
+      save: async (name) => { saved.push(name); },
+      saveCover: true,
+      now: () => (clock += 60),
+      onProgress: (_percent, detail) => details.push(detail)
+    });
+
+    expect(files).toEqual(["Shadow Slave.epub", "Shadow Slave.txt"]);
+    expect(saved).toEqual(["Shadow Slave.epub", "Shadow Slave.txt", "cover.png", ".oghma-book.json"]);
+    const stages = Array.from(new Set(details.map((d) => d.stage)));
+    expect(stages).toEqual(["fetching", "building", "saving", "done"]);
+    const fetching = details.filter((d) => d.stage === "fetching" && d.bytesTotal);
+    expect(fetching.length).toBeGreaterThan(0);
+    expect(fetching.some((d) => (d.speedBps ?? 0) > 0 && d.etaSec !== undefined)).toBe(true);
+    expect(fetching[fetching.length - 1].bytesReceived).toBe(fetching[fetching.length - 1].bytesTotal);
+    expect(details.find((d) => d.stage === "saving")?.chaptersDone).toBe(2);
+    const percents = details.map((d) => d.percent);
+    expect(percents.every((p, i) => i === 0 || p >= percents[i - 1])).toBe(true);
+    expect(percents[percents.length - 1]).toBe(100);
+  });
+
+  it("runDownload writes to opts.outputDir when given", async () => {
+    stubNetwork(await sampleGz());
+    const mod = await import("../services/localFiles");
+    const spy = vi.spyOn(mod, "saveLocalFile").mockResolvedValue(undefined);
+    await runDownload({ ...request, formats: ["TXT"] }, { outputDir: "/books/.oghma-staging/ss-1" });
+    expect(spy).toHaveBeenCalled();
+    expect(spy.mock.calls.every(([dir]) => dir === "/books/.oghma-staging/ss-1")).toBe(true);
+    spy.mockRestore();
+  });
+
+  it("runDownload rejects with AbortError before touching the network when already aborted", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    controller.abort();
+    const save = vi.fn();
+    const error = await runDownload(request, { signal: controller.signal, save }).catch((e: unknown) => e);
+    expect(isAbortError(error)).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("runDownload stops between file saves when aborted", async () => {
+    stubNetwork(await sampleGz());
+    const controller = new AbortController();
+    const saved: string[] = [];
+    const error = await runDownload(request, {
+      signal: controller.signal,
+      save: async (name) => {
+        saved.push(name);
+        controller.abort();
+      }
+    }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DOMException);
+    expect(isAbortError(error)).toBe(true);
+    expect(saved).toEqual(["Shadow Slave.epub"]);
+  });
+
+  it("runDownload aborts while building the EPUB", async () => {
+    stubNetwork(await sampleGz());
+    const controller = new AbortController();
+    const save = vi.fn();
+    const error = await runDownload(request, {
+      signal: controller.signal,
+      save,
+      onProgress: (_p, detail) => { if (detail.stage === "building" && detail.percent > 60) controller.abort(); }
+    }).catch((e: unknown) => e);
+    expect(isAbortError(error)).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("createSpeedMeter smooths samples with an EWMA", () => {
+    let t = 0;
+    const meter = createSpeedMeter(() => t, 0.5, 100);
+    meter.sample(0);
+    t = 1000;
+    expect(meter.sample(1000)).toBe(1000);
+    t = 2000;
+    expect(meter.sample(4000)).toBe(2000); // 0.5 * 3000 + 0.5 * 1000
+    t = 2050;
+    expect(meter.sample(9000)).toBe(2000); // below the sample window
   });
 
   it("runDownload rejects a novel without a bundle", async () => {

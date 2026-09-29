@@ -463,3 +463,95 @@ export type BootstrapPayload = {
   queue: QueueItem[];
   library: LibraryItem[];
 };
+
+// --- Download queue (services/downloadQueue.ts) ---
+
+export type JobKind = "download" | "convert";
+
+export type JobStatus =
+  | "queued"
+  | "downloading"
+  | "converting"
+  | "saving"
+  | "paused"
+  | "done"
+  | "error"
+  | "canceled";
+
+/** Fine-grained step inside a running job. */
+export type JobStage =
+  | "waiting"
+  | "preparing"
+  | "fetching"
+  | "building"
+  | "saving"
+  | "converting"
+  | "committing"
+  | "done";
+
+export type JobProgress = {
+  stage: JobStage;
+  /** 0..100 for the whole job. */
+  percent: number;
+  bytesReceived?: number;
+  bytesTotal?: number;
+  /** Smoothed (EWMA) network speed in bytes per second. */
+  speedBps?: number;
+  /** Estimated seconds left for the network transfer. */
+  etaSec?: number;
+  chaptersDone?: number;
+  chaptersTotal?: number;
+};
+
+/** Everything the runner needs; mirrors QueueItem plus the config captured at enqueue time. */
+export type DownloadJobRequest = {
+  serverUrl: string;
+  /** Library root (AppConfig.outputPath). The book folder is resolved by begin_export. */
+  outputRoot: string;
+  bundleKey?: string;
+  formats: DownloadFormat[];
+  preset: ChapterPreset;
+  rangeStart?: number;
+  rangeEnd?: number;
+  rangeLabel: string;
+  chaptersTotal: number;
+  translate: boolean;
+  audiobook: boolean;
+  coverClass?: string;
+  /** kind "convert": folder that already holds the book. */
+  sourceDir?: string;
+  /** kind "convert": files already present in sourceDir. */
+  existingFiles?: string[];
+  /** kind "convert": formats already present in sourceDir. */
+  existingFormats?: DownloadFormat[];
+};
+
+export type DownloadJob = {
+  id: string;
+  novelId: string;
+  title: string;
+  coverUrl?: string;
+  kind: JobKind;
+  request: DownloadJobRequest;
+  status: JobStatus;
+  progress: JobProgress;
+  error?: string;
+  outputFiles?: string[];
+  finalDir?: string;
+  createdAt: number;
+  startedAt?: number;
+  finishedAt?: number;
+};
+
+export type EnqueueResult = {
+  result: "added" | "duplicate" | "full";
+  /** The new job ("added") or the job already covering this novel ("duplicate"). */
+  job?: DownloadJob;
+};
+
+export type DownloadQueueSnapshot = {
+  active: DownloadJob | null;
+  queued: DownloadJob[];
+  completed: DownloadJob[];
+  paused: boolean;
+};
