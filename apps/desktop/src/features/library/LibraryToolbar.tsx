@@ -46,9 +46,9 @@ export function LibraryToolbar({
 }: LibraryToolbarProps) {
   const filtered = shown !== total;
   return (
-    <div className="library-toolbar" data-testid="library-toolbar">
-      <div className="library-toolbar__main">
-        <Badge tone={filtered ? "accent" : "neutral"} className="library-toolbar__count" data-testid="library-count">
+    <div className="library-bar" data-testid="library-toolbar">
+      <div className="library-bar__main">
+        <Badge tone={filtered ? "accent" : "neutral"} className="library-bar__count" data-testid="library-count">
           {filtered ? libraryStrings.countFiltered(shown, total) : libraryStrings.count(total)}
         </Badge>
         <TextField
@@ -69,9 +69,9 @@ export function LibraryToolbar({
             <IconButton label={libraryStrings.clearSearch} icon={<X />} size="sm" onClick={() => onQueryChange("")} />
           ) : undefined}
           data-testid="library-search"
-          fieldClassName="library-toolbar__search"
+          fieldClassName="library-bar__search"
         />
-        <div className="library-toolbar__filters" role="group" aria-label={libraryStrings.formatFilterLabel}>
+        <div className="library-bar__filters" role="group" aria-label={libraryStrings.formatFilterLabel}>
           {formats.map((format) => (
             <Chip key={format} selected={selectedFormats.has(format)} onToggle={() => onToggleFormat(format)}>
               {format}
@@ -82,14 +82,14 @@ export function LibraryToolbar({
           </Chip>
         </div>
       </div>
-      <div className="library-toolbar__side">
+      <div className="library-bar__side">
         <SelectField
           label={libraryStrings.sortLabel}
           hideLabel
           options={sortOptions}
           value={sort}
           onChange={(event) => onSortChange(event.target.value as LibrarySort)}
-          fieldClassName="library-toolbar__sort"
+          fieldClassName="library-bar__sort"
         />
         <SegmentedControl
           aria-label={libraryStrings.viewLabel}

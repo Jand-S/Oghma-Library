@@ -78,48 +78,48 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                   </div>
                 ))}
               </dl>
+              {jobState ? (
+                <div className="library-hero__job" role="status">
+                  <span>{jobLabel(jobState)}</span>
+                  <ProgressBar
+                    label={jobLabel(jobState)}
+                    value={jobState.percent}
+                    indeterminate={jobState.phase === "queued" || jobState.percent <= 0}
+                    size="sm"
+                  />
+                </div>
+              ) : null}
+              <div className="library-actions" role="toolbar" aria-label={libraryStrings.moreActions}>
+                {kindle ? (
+                  <Button variant="primary" icon={<Send />} onClick={() => actions.sendToKindle(item)} disabled={running || busy}>
+                    {libraryStrings.sendToKindle}
+                  </Button>
+                ) : (
+                  <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
+                    {libraryStrings.openFolder}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  icon={<Download />}
+                  data-testid="library-redownload"
+                  onClick={() => library.redownloadItem(item)}
+                  disabled={Boolean(redownloadReason)}
+                  title={redownloadReason ?? libraryStrings.redownloadHint}
+                >
+                  {libraryStrings.downloadAgain}
+                </Button>
+                <Button variant="outline" icon={<FileCog />} onClick={() => actions.openConvert(item)} disabled={running || busy}>
+                  {libraryStrings.convert}
+                </Button>
+                <DropdownMenu
+                  label={libraryStrings.moreActions}
+                  align="start"
+                  items={overflow}
+                  trigger={<IconButton label={libraryStrings.moreActions} icon={<MoreVertical />} variant="outline" />}
+                />
+              </div>
             </div>
-          </div>
-          {jobState ? (
-            <div className="library-hero__job" role="status">
-              <span>{jobLabel(jobState)}</span>
-              <ProgressBar
-                label={jobLabel(jobState)}
-                value={jobState.percent}
-                indeterminate={jobState.phase === "queued" || jobState.percent <= 0}
-                size="sm"
-              />
-            </div>
-          ) : null}
-          <div className="library-actions" role="toolbar" aria-label={libraryStrings.moreActions}>
-            {kindle ? (
-              <Button variant="primary" icon={<Send />} onClick={() => actions.sendToKindle(item)} disabled={running || busy}>
-                {libraryStrings.sendToKindle}
-              </Button>
-            ) : (
-              <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
-                {libraryStrings.openFolder}
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              icon={<Download />}
-              data-testid="library-redownload"
-              onClick={() => library.redownloadItem(item)}
-              disabled={Boolean(redownloadReason)}
-              title={redownloadReason ?? libraryStrings.redownloadHint}
-            >
-              {libraryStrings.downloadAgain}
-            </Button>
-            <Button variant="outline" icon={<FileCog />} onClick={() => actions.openConvert(item)} disabled={running || busy}>
-              {libraryStrings.convert}
-            </Button>
-            <DropdownMenu
-              label={libraryStrings.moreActions}
-              align="start"
-              items={overflow}
-              trigger={<IconButton label={libraryStrings.moreActions} icon={<MoreVertical />} variant="outline" />}
-            />
           </div>
         </div>
       </header>

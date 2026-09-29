@@ -189,7 +189,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
 
   return (
     <div className="library-page" data-testid="library-page" aria-busy={loading || undefined}>
-      {noOutput ? null : (
+      {noOutput || (!loading && library.library.length === 0) ? null : (
         <LibraryToolbar
           total={library.library.length}
           shown={filtered.length}

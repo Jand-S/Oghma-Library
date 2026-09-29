@@ -73,35 +73,35 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
             return (
               <li key={item.id} className="library-grid__cell">
                 <article
-                  className={cx("library-card", state && "is-busy")}
+                  className={cx("library-tile", state && "is-busy")}
                   data-testid="library-card"
                   onClick={openItem(item)}
                   onContextMenu={openContext(item)}
                 >
-                  <div className="library-card__media">
-                    <Cover src={item.coverUrl} title={item.title} size="fill" sheen className="library-card__cover" />
-                    <div className="library-card__overlay" aria-hidden="true" />
-                    <span className="library-card__formats" title={formatsOf(item).join(", ")}>{formatSummary(item)}</span>
-                    {state ? <JobBadge state={state} className="library-card__status" /> : null}
+                  <div className="library-tile__media">
+                    <Cover src={item.coverUrl} title={item.title} size="fill" sheen className="library-tile__cover" />
+                    <div className="library-tile__overlay" aria-hidden="true" />
+                    <span className="library-tile__formats" title={formatsOf(item).join(", ")}>{formatSummary(item)}</span>
+                    {state ? <JobBadge state={state} className="library-tile__status" /> : null}
                     {item.favorite ? (
-                      <span className="library-card__favorite" title={libraryStrings.favorite}>
+                      <span className="library-tile__favorite" title={libraryStrings.favorite}>
                         <Heart aria-hidden="true" />
                         <span className="sr-only">{libraryStrings.favorite}</span>
                       </span>
                     ) : null}
-                    {moreMenu(item, "library-card__menu", "glass")}
+                    {moreMenu(item, "library-tile__menu", "glass")}
                   </div>
-                  <div className="library-card__body">
+                  <div className="library-tile__body">
                     <button
                       type="button"
-                      className="library-card__title"
+                      className="library-tile__title"
                       data-testid="card-title"
                       title={item.title}
                       aria-label={libraryStrings.openDetailsOf(item.title)}
                     >
                       {item.title}
                     </button>
-                    <span className="library-card__meta">
+                    <span className="library-tile__meta">
                       {[item.author, item.chapters ? libraryStrings.chapters(item.chapters) : libraryStrings.size(item.sizeMb)]
                         .filter(Boolean)
                         .join(" · ")}
