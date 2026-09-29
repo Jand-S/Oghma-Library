@@ -17,6 +17,8 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { DownloadFormat, LibraryItem, LibraryMeta, LibraryReadingStatus } from "../core/types";
 import { downloadFormats } from "../core/types";
+import { commonStrings } from "../strings/common";
+import { libraryStrings } from "../strings/library";
 
 type LibraryViewProps = {
   library: LibraryItem[];
@@ -295,15 +297,15 @@ export function LibraryView({
       onKeyDown={handleKeyDown}
     >
       {!filtersCollapsed ? (
-        <aside className="filter-panel library-filter-panel">
+        <aside className="filter-panel library-filter-panel" data-testid="library-filter-panel">
           <div className="panel-header">
             <div>
-              <h2>Filtros</h2>
+              <h2>{commonStrings.filters}</h2>
               <span>Biblioteca local</span>
             </div>
           </div>
           <div className="field-group">
-            <label htmlFor="library-query">Busca</label>
+            <label htmlFor="library-query">{commonStrings.search}</label>
             <div className="input-with-icon">
               <Search size={16} />
               <input id="library-query" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -334,12 +336,18 @@ export function LibraryView({
 
       <section
         className={`library-results ${dragId ? "drop-delete" : ""} ${dragOverTrash ? "drop-delete-over" : ""}`}
+        data-testid="library-results"
         ref={resultsRef}
       >
         {dragId ? (
-          <div className={`content-delete-overlay ${dragOverTrash ? "over" : ""}`} aria-hidden="true">
+          <div
+            className={`content-delete-overlay ${dragOverTrash ? "over" : ""}`}
+            data-testid="delete-overlay"
+            data-over={dragOverTrash}
+            aria-hidden="true"
+          >
             <Trash2 size={28} />
-            <strong>Solte para remover</strong>
+            <strong>{commonStrings.dropToRemove}</strong>
             <span>Remove o livro da fila de conversao.</span>
           </div>
         ) : null}
@@ -366,8 +374,8 @@ export function LibraryView({
           <button
             className={`toolbar-control filter-row-toggle ${!filtersCollapsed || hasActiveFilters ? "active" : ""}`}
             onClick={() => setFiltersCollapsed((value) => !value)}
-            title={filtersCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
-            aria-label={filtersCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
+            title={filtersCollapsed ? commonStrings.showFilters : commonStrings.hideFilters}
+            aria-label={filtersCollapsed ? commonStrings.showFilters : commonStrings.hideFilters}
           >
             <SlidersHorizontal size={13} />
           </button>
@@ -408,6 +416,7 @@ export function LibraryView({
               return (
                 <article
                   className={`book-card library-book-card ${selected ? "selected" : ""}`}
+                  data-testid="library-card"
                   key={item.id}
                   role="button"
                   aria-pressed={selected}
@@ -429,6 +438,7 @@ export function LibraryView({
                   </button>
                   <div
                     className={`book-cover ${item.coverClass}`}
+                    data-testid="book-cover"
                     style={item.coverUrl ? { backgroundImage: `url("${item.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
                   />
                   <div className="book-info">
@@ -459,7 +469,7 @@ export function LibraryView({
       </section>
 
       {detailItem || selectedCount > 0 ? (
-        <aside className="library-detail-panel library-sidebar">
+        <aside className="library-detail-panel library-sidebar" data-testid="library-sidebar">
           <div className="discover-sidebar-tabs" role="tablist" aria-label="Biblioteca lateral">
             <button
               className={`discover-sidebar-tab ${sidebarTab === "queue" ? "active" : ""}`}
@@ -467,7 +477,7 @@ export function LibraryView({
               aria-selected={sidebarTab === "queue"}
               onClick={() => setSidebarTab("queue")}
             >
-              Fila <span>{selectedCount}</span>
+              {commonStrings.queueTab} <span>{selectedCount}</span>
             </button>
             <button
               className={`discover-sidebar-tab ${sidebarTab === "details" ? "active" : ""}`}
@@ -475,7 +485,7 @@ export function LibraryView({
               aria-selected={sidebarTab === "details"}
               onClick={() => setSidebarTab("details")}
             >
-              Detalhes
+              {commonStrings.detailsTab}
             </button>
           </div>
 
@@ -483,12 +493,12 @@ export function LibraryView({
             <div className="library-conversion-queue">
               <div className="library-detail-heading">
                 <div>
-                  <h3>{kindleConnected ? "Envio ao Kindle" : "Conversão"}</h3>
+                  <h3>{kindleConnected ? libraryStrings.kindleQueueHeading : libraryStrings.conversionQueueHeading}</h3>
                   <span>{selectedCount} livro(s) selecionado(s)</span>
                 </div>
               </div>
               <div className="library-conversion-section">
-                <span className="field-caption">Formatos</span>
+                <span className="field-caption">{commonStrings.formats}</span>
                 <div className="format-options library-format-options">
                   {downloadFormats.map((itemFormat) => (
                     <button
@@ -510,11 +520,12 @@ export function LibraryView({
                   <button
                     className={`option-toggle ${conversionAudiobook ? "active" : ""}`}
                     onClick={onToggleConversionAudiobook}
+                    aria-pressed={conversionAudiobook}
                     disabled={conversionRunning || kindleConnected}
                     title={kindleConnected ? "Audiobook nao faz parte do envio ao Kindle" : "Gerar audiobook"}
                   >
                     <Headphones size={13} />
-                    Audiobook
+                    {commonStrings.audiobook}
                   </button>
                 </div>
               </div>
@@ -542,11 +553,13 @@ export function LibraryView({
                   return (
                     <article
                       className={`selection-card library-selected-card collapsed ${dragId === item.id ? "dragging" : ""} ${active ? "running" : ""} ${done ? "done" : ""}`}
+                      data-testid="library-queue-card"
                       key={item.id}
                       data-library-queue-id={item.id}
                     >
                       <span
                         className={`drag-handle ${conversionRunning ? "disabled" : ""}`}
+                        data-testid="drag-handle"
                         title={conversionRunning ? "Aguarde a conversao terminar" : "Arraste para reordenar ou remover"}
                         aria-label="Arraste para reordenar ou remover"
                         onPointerDown={startQueueDrag}
@@ -569,8 +582,8 @@ export function LibraryView({
               <button className="button primary queue-add-button library-convert-button" onClick={onConvertSelected} disabled={selectedCount === 0 || conversionRunning}>
                 {kindleConnected ? <Send size={15} /> : <RefreshCcw size={15} />}
                 {conversionRunning
-                  ? (kindleConnected ? "Enviando..." : "Convertendo...")
-                  : (kindleConnected ? "Enviar para o Kindle" : "Converter fila")}
+                  ? (kindleConnected ? commonStrings.sending : libraryStrings.converting)
+                  : (kindleConnected ? libraryStrings.sendToKindle : libraryStrings.convertQueue)}
               </button>
             </div>
           ) : detailItem ? (
@@ -591,6 +604,7 @@ export function LibraryView({
               </div>
               <div
                 className={`book-cover detail-cover ${detailItem.coverClass}`}
+                data-testid="detail-cover"
                 style={detailItem.coverUrl ? { backgroundImage: `url("${detailItem.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
               />
               <h2>{detailItem.title}</h2>
@@ -662,7 +676,7 @@ export function LibraryView({
                 <span>{detailItem.sizeMb} MB</span>
               </div>
               <div className="library-synopsis">
-                <h3>Sinopse</h3>
+                <h3>{commonStrings.synopsis}</h3>
                 <p>{detailItem.description?.trim() || "Sem sinopse local para este livro. Quando o item vier de um indice conhecido, a sinopse aparece aqui."}</p>
               </div>
             </>

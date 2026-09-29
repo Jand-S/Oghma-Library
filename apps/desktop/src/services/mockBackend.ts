@@ -31,7 +31,17 @@ import type {
 import type { BackendClient } from "./backendClient";
 import { buildFallbackTagCatalog, matchesContentRating, matchesTagFilters } from "../core/tagFilters";
 
-const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+let latencyScale = 1;
+
+/**
+ * Scales every simulated network delay of the mock backend. Tests set it to 0
+ * so async flows still resolve on a later macrotask, just without real waits.
+ */
+export function setMockLatencyScale(scale: number) {
+  latencyScale = Math.max(0, scale);
+}
+
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms * latencyScale));
 const jitter = (base = 420) => wait(base + Math.round(Math.random() * 420));
 
 export const mockEndpoints = [

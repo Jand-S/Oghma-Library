@@ -51,6 +51,7 @@ import {
   openLocalPath,
   saveLibraryMetadata
 } from "./services/localFiles";
+import { kindleStrings } from "./strings/common";
 
 type AppProps = {
   backend: BackendClient;
@@ -612,10 +613,10 @@ export function App({ backend }: AppProps) {
           <div className="footer-meta">
             <span
               className="kindle-status"
-              title={kindleConnected && kindleStatus ? `${kindleStatus.deviceName} - ${kindleStatus.mountPath}` : "Kindle desconectado"}
+              title={kindleConnected && kindleStatus ? `${kindleStatus.deviceName} - ${kindleStatus.mountPath}` : kindleStrings.disconnected}
             >
               <span className={`kindle-dot ${kindleConnected ? "online" : "offline"}`} aria-hidden="true" />
-              {kindleConnected ? "Kindle conectado" : "Kindle desconectado"}
+              {kindleConnected ? kindleStrings.connected : kindleStrings.disconnected}
             </span>
           </div>
         </footer>

@@ -33,6 +33,7 @@ import type {
   TranslationSelectionRecord
 } from "../core/types";
 import { getErrorMessage, type BackendClient } from "../services/backendClient";
+import { translationStrings } from "../strings/translation";
 
 type TranslationScope = "pilot" | "range" | "all";
 type TranslationQuality = "conservative" | "balanced" | "literary";
@@ -699,7 +700,7 @@ export function TranslationView({
       <aside className="filter-panel translation-library-panel">
         <div className="panel-header">
           <div>
-            <h2>Projetos</h2>
+            <h2>{translationStrings.projectsHeading}</h2>
             <span>Biblioteca local</span>
           </div>
           <Languages size={18} />
@@ -763,7 +764,7 @@ export function TranslationView({
       <section className="translation-main-panel">
         <div className="toolbar translation-toolbar">
           <div>
-            <h2>Sessao de traducao</h2>
+            <h2>{translationStrings.sessionHeading}</h2>
             <span>{selectedItem ? selectedItem.title : "Selecione uma obra local"}</span>
           </div>
           <div className="toolbar-actions">
@@ -773,7 +774,7 @@ export function TranslationView({
             </button>
             <button className="button primary" onClick={addSessionItem} disabled={!selectedItem}>
               <ListPlus size={15} />
-              Adicionar lote
+              {translationStrings.addBatch}
             </button>
           </div>
         </div>
@@ -1140,7 +1141,7 @@ export function TranslationView({
       <aside className="library-detail-panel translation-side-panel">
         <div className="library-detail-heading">
           <div>
-            <h3>Glossario</h3>
+            <h3>{translationStrings.glossaryHeading}</h3>
             <span>{glossaryTerms.length} termo(s) manuais - {memoryTerms.length} auto - {memoryConflicts.length} alerta(s)</span>
           </div>
         </div>

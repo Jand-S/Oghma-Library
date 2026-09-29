@@ -9,6 +9,7 @@ import { MouseEvent, useEffect, useState } from "react";
 import { views } from "../constants/ui";
 import type { ViewId } from "../core/types";
 import { runWindowAction } from "../core/windowControls";
+import { windowControlStrings } from "../strings/common";
 
 export function SplashScreen({ done }: { done: boolean }) {
   const [step, setStep] = useState(0);
@@ -42,13 +43,13 @@ export function Titlebar({ title }: { title: string }) {
         <span data-tauri-drag-region>{title}</span>
       </div>
       <div className="window-controls" aria-label="Controles da janela">
-        <button onMouseDown={stopDrag} onClick={() => void runWindowAction("minimize")} aria-label="Minimizar">
+        <button onMouseDown={stopDrag} onClick={() => void runWindowAction("minimize")} aria-label={windowControlStrings.minimize}>
           <Minus size={13} />
         </button>
-        <button onMouseDown={stopDrag} onClick={() => void runWindowAction("maximize")} aria-label="Maximizar">
+        <button onMouseDown={stopDrag} onClick={() => void runWindowAction("maximize")} aria-label={windowControlStrings.maximize}>
           <Square size={11} />
         </button>
-        <button className="close" onMouseDown={stopDrag} onClick={() => void runWindowAction("close")} aria-label="Fechar">
+        <button className="close" onMouseDown={stopDrag} onClick={() => void runWindowAction("close")} aria-label={windowControlStrings.close}>
           <X size={13} />
         </button>
       </div>

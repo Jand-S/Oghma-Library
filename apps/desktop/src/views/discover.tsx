@@ -53,6 +53,8 @@ import type {
   TagCategory
 } from "../core/types";
 import { downloadFormats } from "../core/types";
+import { commonStrings } from "../strings/common";
+import { discoverStrings } from "../strings/discover";
 
 type DiscoverSidebarTab = "queue" | "details";
 type ResultSortDirection = "asc" | "desc";
@@ -252,17 +254,17 @@ function FiltersPanel({
   const activeTags = [...filters.includeTags.map((key) => ({ key, mode: "include" as const })), ...filters.excludeTags.map((key) => ({ key, mode: "exclude" as const }))];
 
   return (
-    <aside className="filter-panel" onClick={onBackgroundClick}>
+    <aside className="filter-panel" data-testid="filter-panel" onClick={onBackgroundClick}>
       <div className="panel-header">
         <div>
-          <h2>Filtros</h2>
+          <h2>{commonStrings.filters}</h2>
           <span>Busca no acervo</span>
         </div>
       </div>
 
       <>
-        <div className="field-group">
-          <label htmlFor="query">Busca</label>
+        <div className="field-group" data-testid="filter-field">
+          <label htmlFor="query">{commonStrings.search}</label>
           <div className="input-with-icon">
             <Search size={16} />
             <input id="query" value={filters.query} onChange={(event) => setFilter("query", event.target.value)} />
@@ -292,8 +294,8 @@ function FiltersPanel({
           </div>
         </div>
 
-        <div className="field-group">
-          <label htmlFor="source">Fonte</label>
+        <div className="field-group" data-testid="filter-field">
+          <label htmlFor="source">{discoverStrings.source}</label>
           <select id="source" value={filters.sourceId} onChange={(event) => changeSource(event.target.value)} required>
             {sources.filter((source) => source.enabled).map((source) => (
               <option value={source.id} key={source.id}>
@@ -303,7 +305,7 @@ function FiltersPanel({
           </select>
         </div>
 
-        <div className="field-group">
+        <div className="field-group" data-testid="filter-field">
           <label htmlFor="language">Idioma</label>
           <select id="language" value={filters.language} onChange={(event) => setFilter("language", event.target.value)}>
             <option value="all">Todos</option>
@@ -312,7 +314,7 @@ function FiltersPanel({
           </select>
         </div>
 
-        <div className="field-group">
+        <div className="field-group" data-testid="filter-field">
           <label htmlFor="status">Status</label>
           <select id="status" value={filters.status} onChange={(event) => setFilter("status", event.target.value)}>
             <option value="any">Qualquer status</option>
@@ -354,18 +356,20 @@ function NovelCard({
   return (
     <article
       className={`book-card ${selected ? "selected" : ""} ${focused ? "focused" : ""}`}
+      data-testid="book-card"
       onClick={onSelect}
       onContextMenu={handleContextMenu}
     >
       <button
         className={`card-check ${selected ? "active" : ""}`}
-        aria-label={selected ? `Remover ${novel.title} da fila` : `Selecionar ${novel.title} para a fila`}
+        aria-label={selected ? discoverStrings.removeFromQueue(novel.title) : discoverStrings.selectForQueue(novel.title)}
         onClick={handleCheckClick}
       >
         {selected ? <Check size={11} /> : null}
       </button>
       <div
         className={`book-cover ${novel.coverClass}`}
+        data-testid="book-cover"
         style={novel.coverUrl ? { backgroundImage: `url("${novel.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       />
       <div className="book-info">
@@ -642,10 +646,10 @@ function SelectionConfigurator({
   const draggedNovel = selectedNovels.find((novel) => novel.id === dragId);
 
   return (
-    <section className="discover-sidebar-panel queue-panel">
+    <section className="discover-sidebar-panel queue-panel" data-testid="queue-panel">
       <div className="panel-header">
         <div>
-          <h2>Capitulos</h2>
+          <h2>{discoverStrings.queueHeading}</h2>
           <span>{selectedNovels.length === 0 ? "Selecione livros" : `${selectedNovels.length} livro(s)`}</span>
         </div>
         <button
@@ -655,7 +659,7 @@ function SelectionConfigurator({
           aria-busy={addingToQueue}
         >
           <Download size={15} />
-          {addingToQueue ? "Enviando..." : "Adicionar a fila"}
+          {addingToQueue ? commonStrings.sending : discoverStrings.addToQueue}
         </button>
       </div>
       {!addingToQueue && selectedNovels.length > 1 ? (
@@ -687,12 +691,14 @@ function SelectionConfigurator({
             return (
               <article
                 className={`selection-card ${expanded ? "expanded" : "collapsed"} ${dragId === novel.id ? "dragging" : ""}`}
+                data-testid="selection-card"
                 key={novel.id}
                 data-card-id={novel.id}
               >
                 <div className="selection-card-head">
                   <span
                     className="drag-handle"
+                    data-testid="drag-handle"
                     title="Arraste para reordenar a prioridade"
                     aria-label="Arraste para reordenar"
                     onPointerDown={startDrag}
@@ -702,7 +708,7 @@ function SelectionConfigurator({
                   <button
                     className="selection-summary"
                     aria-expanded={expanded}
-                    aria-label={`${expanded ? "Recolher" : "Expandir"} configuracao de ${novel.title}`}
+                    aria-label={expanded ? discoverStrings.collapseSelection(novel.title) : discoverStrings.expandSelection(novel.title)}
                     onClick={() => setExpandedId((current) => current === novel.id ? null : novel.id)}
                   >
                     <div className="selection-title">
@@ -715,9 +721,10 @@ function SelectionConfigurator({
                 {expanded ? (
                   <div className="selection-body">
                     <div className="segmented presets">
-                      {([["all", "Todos"], ["range", "Faixa"]] as const).map(([value, label]) => (
+                      {([["all", discoverStrings.presetAll], ["range", discoverStrings.presetRange]] as const).map(([value, label]) => (
                         <button
                           className={selection.preset === value ? "active" : ""}
+                          aria-pressed={selection.preset === value}
                           key={value}
                           onClick={() =>
                             update(value === "range" ? { preset: "range", start: 1, end: novel.chapters } : { preset: "all" })
@@ -758,7 +765,7 @@ function SelectionConfigurator({
                       </div>
                     ) : null}
                     <div className="format-group">
-                      <span className="field-caption">Formatos</span>
+                      <span className="field-caption">{commonStrings.formats}</span>
                       <div className="format-options">
                         {downloadFormats.map((format) => (
                           <button
@@ -779,7 +786,7 @@ function SelectionConfigurator({
                         aria-pressed={selection.audiobook}
                       >
                         <Headphones size={14} />
-                        Audiobook
+                        {commonStrings.audiobook}
                       </button>
                     </div>
                     <p>{selectionLabel(selection, novel.chapters)} - {estimateChapters(selection, novel.chapters).toLocaleString("pt-BR")} capitulos</p>
@@ -822,7 +829,7 @@ function DiscoverDetailsPanel({
 }) {
   if (!novel) {
     return (
-      <section className="discover-sidebar-panel discover-detail-panel empty">
+      <section className="discover-sidebar-panel discover-detail-panel empty" data-testid="discover-detail-panel">
         <div className="panel-header discover-detail-header">
           <div>
             <h2>Detalhes</h2>
@@ -838,7 +845,7 @@ function DiscoverDetailsPanel({
   }
 
   return (
-    <section className="discover-sidebar-panel discover-detail-panel">
+    <section className="discover-sidebar-panel discover-detail-panel" data-testid="discover-detail-panel">
       <div className="panel-header discover-detail-header">
         <div>
           <h2>Detalhes</h2>
@@ -847,6 +854,7 @@ function DiscoverDetailsPanel({
       </div>
       <div
         className={`book-cover detail-cover ${novel.coverClass}`}
+        data-testid="detail-cover"
         style={novel.coverUrl ? { backgroundImage: `url("${novel.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       />
       <div className="discover-detail-copy">
@@ -868,7 +876,7 @@ function DiscoverDetailsPanel({
         </div>
       ) : null}
       <div className="discover-detail-section">
-        <h3>Sinopse</h3>
+        <h3>{commonStrings.synopsis}</h3>
         <p>{novel.description.trim() || "Sem sinopse cadastrada para esta novel."}</p>
       </div>
     </section>
@@ -1052,24 +1060,30 @@ export function DiscoverView({
       ) : null}
       <section
         className={`content-area ${dragState.active ? "drop-delete" : ""} ${dragState.overTrash ? "drop-delete-over" : ""}`}
+        data-testid="content-area"
         ref={contentRef}
         tabIndex={detailFromPreview ? 0 : -1}
         onClick={handleContentClick}
         onKeyDown={handleContentKeyDown}
       >
         {dragState.active ? (
-          <div className={`content-delete-overlay ${dragState.overTrash ? "over" : ""}`} aria-hidden="true">
+          <div
+            className={`content-delete-overlay ${dragState.overTrash ? "over" : ""}`}
+            data-testid="delete-overlay"
+            data-over={dragState.overTrash}
+            aria-hidden="true"
+          >
             <Trash2 size={30} />
-            <strong>Solte para remover</strong>
+            <strong>{commonStrings.dropToRemove}</strong>
           </div>
         ) : null}
-        <div className="toolbar">
+        <div className="toolbar" data-testid="toolbar">
           <div>
-            <h2>Resultados</h2>
+            <h2>{discoverStrings.results}</h2>
             <span>
               {loading
                 ? "Buscando..."
-                : `${Math.min(visibleCount, results.length)} de ${results.length} livros`}
+                : discoverStrings.resultCount(Math.min(visibleCount, results.length), results.length)}
             </span>
           </div>
           <div className="toolbar-actions">
@@ -1112,12 +1126,12 @@ export function DiscoverView({
           </div>
         </div>
 
-        <div className="active-filter-row">
+        <div className="active-filter-row" data-testid="active-filter-row">
           <button
             className={`toolbar-control filter-row-toggle ${!filterCollapsed || hasClearableFilters ? "active" : ""}`}
             onClick={onToggleFilters}
-            title={filterCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
-            aria-label={filterCollapsed ? "Mostrar filtros" : "Ocultar filtros"}
+            title={filterCollapsed ? commonStrings.showFilters : commonStrings.hideFilters}
+            aria-label={filterCollapsed ? commonStrings.showFilters : commonStrings.hideFilters}
           >
             <SlidersHorizontal size={13} />
           </button>
@@ -1190,7 +1204,7 @@ export function DiscoverView({
             <button className="button quiet" onClick={() => onFiltersChange(defaultFilters(filters.sourceId))}>Limpar filtros</button>
           </div>
         ) : (
-          <div className={`book-grid compact ${resultLayout === "list" ? "list" : ""}`}>
+          <div className={`book-grid compact ${resultLayout === "list" ? "list" : ""}`} data-testid="book-grid">
             {visibleResults.map((novel) => (
               <NovelCard
                 key={novel.id}
@@ -1205,7 +1219,7 @@ export function DiscoverView({
             {visibleCount < results.length ? (
               <div className="results-more">
                 <button className="button quiet" onClick={() => setVisibleCount((count) => count + pageSize)}>
-                  Mostrar mais
+                  {discoverStrings.showMore}
                 </button>
               </div>
             ) : null}
@@ -1214,7 +1228,7 @@ export function DiscoverView({
 
       </section>
       {selectedNovels.length > 0 || detailFromPreview ? (
-        <aside className="selection-drawer discover-sidebar">
+        <aside className="selection-drawer discover-sidebar" data-testid="discover-sidebar">
           <div className="discover-sidebar-tabs" role="tablist" aria-label="Painel lateral da descoberta">
             <button
               className={`discover-sidebar-tab ${sidebarTab === "queue" ? "active" : ""}`}
@@ -1223,7 +1237,7 @@ export function DiscoverView({
               disabled={selectedNovels.length === 0}
               onClick={() => setSidebarTab("queue")}
             >
-              Fila
+              {commonStrings.queueTab}
               {selectedNovels.length > 0 ? <span>{selectedNovels.length}</span> : null}
             </button>
             <button
@@ -1233,7 +1247,7 @@ export function DiscoverView({
               disabled={!detailNovel}
               onClick={() => setSidebarTab("details")}
             >
-              Detalhes
+              {commonStrings.detailsTab}
             </button>
           </div>
           {sidebarTab === "queue" ? (

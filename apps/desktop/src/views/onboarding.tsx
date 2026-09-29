@@ -18,6 +18,7 @@ import type {
   SourceSite
 } from "../core/types";
 import { downloadFormats } from "../core/types";
+import { onboardingStrings } from "../strings/onboarding";
 
 export function OnboardingWizard({
   open,
@@ -103,7 +104,7 @@ export function OnboardingWizard({
               </div>
               <div className="setup-grid three">
                 <article className="setup-info-card">
-                  <strong>Servidor de index</strong>
+                  <strong>{onboardingStrings.serverUrlLabel}</strong>
                   <p>Conecta ao node que mantem catalogo, fontes suportadas e estado de sincronizacao.</p>
                 </article>
                 <article className="setup-info-card">
@@ -126,7 +127,7 @@ export function OnboardingWizard({
               <p>Este servidor entrega o catalogo inicial e a lista de fontes disponiveis para preservacao.</p>
             </div>
             <div className="field-group">
-              <label htmlFor="setup-server-url">Servidor de index</label>
+              <label htmlFor="setup-server-url">{onboardingStrings.serverUrlLabel}</label>
               <input
                 id="setup-server-url"
                 value={config.serverUrl}
@@ -153,7 +154,7 @@ export function OnboardingWizard({
             <div className="setup-inline-actions">
               <button className="button primary" onClick={onValidateServer} disabled={probingServer || config.serverUrl.trim().length === 0}>
                 {probingServer ? <Loader2 className="spin" size={15} /> : <Globe2 size={15} />}
-                {probingServer ? "Validando..." : "Verificar servidor"}
+                {probingServer ? onboardingStrings.validatingServer : onboardingStrings.validateServer}
               </button>
             </div>
             {serverProbe && serverProbe.serverUrl === config.serverUrl ? (
@@ -165,7 +166,7 @@ export function OnboardingWizard({
                 <div className="setup-grid three">
                   <div><span>Versao</span><strong>{serverProbe.version}</strong></div>
                   <div><span>Latencia</span><strong>{serverProbe.latencyMs} ms</strong></div>
-                  <div><span>Fontes</span><strong>{serverProbe.sourceCount} disponiveis</strong></div>
+                  <div><span>Fontes</span><strong>{onboardingStrings.sourcesAvailable(serverProbe.sourceCount)}</strong></div>
                 </div>
                 <small>Storage informado pelo servidor: {serverProbe.storageRoot}</small>
               </div>
@@ -180,7 +181,7 @@ export function OnboardingWizard({
               <p>Use uma pasta previsivel para EPUBs, PDFs, conversoes para Kindle e artefatos auxiliares.</p>
             </div>
             <div className="field-group">
-              <label htmlFor="setup-output">Pasta local de saida</label>
+              <label htmlFor="setup-output">{onboardingStrings.outputPathLabel}</label>
               <input
                 id="setup-output"
                 value={config.outputPath}
@@ -204,7 +205,7 @@ export function OnboardingWizard({
         {step === 3 ? (
           <div className="setup-content">
             <div className="setup-copy">
-              <h2>Selecione as fontes para indexar</h2>
+              <h2>{onboardingStrings.sourcesHeading}</h2>
               <p>A lista abaixo foi entregue pelo servidor configurado. Voce pode ativar so o que realmente quer preservar agora.</p>
             </div>
             <div className="setup-source-grid">
@@ -236,7 +237,7 @@ export function OnboardingWizard({
         {step === 4 ? (
           <div className="setup-content">
             <div className="setup-copy">
-              <h2>Preferencias iniciais</h2>
+              <h2>{onboardingStrings.preferencesHeading}</h2>
               <p>Esses valores entram como padrao nos downloads e servem como base para o fluxo local.</p>
             </div>
             <div className="field-group">
@@ -278,7 +279,7 @@ export function OnboardingWizard({
         {step === 5 ? (
           <div className="setup-content">
             <div className="setup-copy">
-              <h2>Resumo da configuracao</h2>
+              <h2>{onboardingStrings.summaryHeading}</h2>
               <p>Se estiver tudo certo, seguimos para a sincronizacao inicial dos indices das fontes selecionadas.</p>
             </div>
             <div className="setup-summary">
@@ -295,7 +296,7 @@ export function OnboardingWizard({
         {step === 6 ? (
           <div className="setup-content">
             <div className="setup-copy">
-              <h2>Sincronizacao inicial dos indices</h2>
+              <h2>{onboardingStrings.syncHeading}</h2>
               <p>Agora o app esta baixando os indices e metadados basicos das fontes selecionadas para deixar a busca pronta no primeiro uso.</p>
             </div>
             <div className="setup-status-card">
@@ -334,10 +335,10 @@ export function OnboardingWizard({
 
         <div className="setup-footer">
           <button className="button quiet" onClick={onBack} disabled={step === 0 || setupSyncRunning}>
-            Voltar
+            {onboardingStrings.back}
           </button>
           <button className="button primary" onClick={onNext} disabled={!canProceed}>
-            {isLastStep ? "Entrar no app" : step === summaryStep ? "Concluir e baixar indices" : "Proximo"}
+            {isLastStep ? onboardingStrings.enterApp : step === summaryStep ? onboardingStrings.finishAndSync : onboardingStrings.next}
           </button>
         </div>
       </section>

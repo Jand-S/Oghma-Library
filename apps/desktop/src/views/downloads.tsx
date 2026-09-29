@@ -6,6 +6,7 @@ import {
   Trash2
 } from "lucide-react";
 import type { QueueItem } from "../core/types";
+import { downloadsStrings } from "../strings/downloads";
 
 export function DownloadsView({
   queue,
@@ -28,7 +29,7 @@ export function DownloadsView({
   return (
     <section className="page-area full-span">
       <div className="downloads-split">
-        <section className="downloads-pane">
+        <section className="downloads-pane" data-testid="downloads-pending">
           <div className="pane-header">
             <div>
               <h3>Em andamento</h3>
@@ -52,7 +53,7 @@ export function DownloadsView({
                 const eta = `${Math.floor(etaSeconds / 60)}:${String(etaSeconds % 60).padStart(2, "0")}`;
                 const speed = `${(1.4 + (item.progress % 12) * 0.05).toFixed(1)} MB/s`;
                 return (
-                  <article className={`download-row pending ${item.state}`} key={item.id}>
+                  <article className={`download-row pending ${item.state}`} data-testid="queue-item" key={item.id}>
                     <div
                       className={`queue-thumb ${item.coverClass}`}
                       style={item.coverUrl ? { backgroundImage: `url("${item.coverUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
@@ -77,7 +78,7 @@ export function DownloadsView({
           </div>
         </section>
 
-        <section className="downloads-pane">
+        <section className="downloads-pane" data-testid="downloads-completed">
           <div className="pane-header">
             <div>
               <h3>Concluidos</h3>
@@ -86,7 +87,7 @@ export function DownloadsView({
             <div className="pane-actions">
               <button className="button quiet" onClick={onClearCompleted} disabled={completed.length === 0}>
                 <Trash2 size={15} />
-                Limpar
+                {downloadsStrings.clearCompleted}
               </button>
             </div>
           </div>
@@ -98,6 +99,7 @@ export function DownloadsView({
                 return (
                   <article
                     className="download-row complete"
+                    data-testid="queue-item"
                     key={item.id}
                   >
                     <div

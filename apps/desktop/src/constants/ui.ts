@@ -7,16 +7,18 @@ import {
   Settings
 } from "lucide-react";
 import type { IndexMode, TranslationEngine, ViewId } from "../core/types";
+import { navStrings } from "../strings/common";
+import { onboardingStrings } from "../strings/onboarding";
 
 export const tags = ["Fantasia", "Romance", "Misterio", "Isekai", "Aventura", "Drama"];
 
 export const views: Array<{ id: ViewId; label: string; icon: typeof Home }> = [
-  { id: "discover", label: "Buscar", icon: Home },
-  { id: "sources", label: "Fontes", icon: Globe2 },
-  { id: "downloads", label: "Downloads", icon: Download },
-  { id: "library", label: "Biblioteca", icon: Library },
-  { id: "translation", label: "Traducao", icon: Languages },
-  { id: "settings", label: "Ajustes", icon: Settings }
+  { id: "discover", label: navStrings.discover, icon: Home },
+  { id: "sources", label: navStrings.sources, icon: Globe2 },
+  { id: "downloads", label: navStrings.downloads, icon: Download },
+  { id: "library", label: navStrings.library, icon: Library },
+  { id: "translation", label: navStrings.translation, icon: Languages },
+  { id: "settings", label: navStrings.settings, icon: Settings }
 ];
 
 export const statusLabel = {
@@ -34,7 +36,7 @@ export const pageTitle: Record<ViewId, string> = {
   settings: "Ajustes"
 };
 
-export const onboardingSteps = ["Bem-vindo", "Servidor", "Saida", "Fontes", "Preferencias", "Resumo", "Sincronizacao"];
+export const onboardingSteps: string[] = [...onboardingStrings.steps];
 
 export const indexModeOptions: Array<{ value: IndexMode; label: string; description: string }> = [
   { value: "incremental_recent", label: "Incremental", description: "Atualiza novidades e preserva o catalogo sem recrawlar tudo." },
