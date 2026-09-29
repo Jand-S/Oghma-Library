@@ -13,10 +13,17 @@ import {
   renderReadyApp,
   resetAppState,
   seedSetup,
-  setupUser
+  setupUser,
+  type TestUser
 } from "../renderApp";
 
-const filtersToggle = () => screen.getByRole("button", { name: new RegExp(`^${discoverStrings.filtersToggle}`) });
+const filterTrigger = (label: string) =>
+  within(screen.getByTestId("filter-panel")).getByRole("button", { name: new RegExp(`^${label}`) });
+
+async function openFilterPopover(user: TestUser, label: string) {
+  await user.click(filterTrigger(label));
+  await waitFor(() => expect(screen.getByRole("dialog", { name: label })).toBeInTheDocument());
+}
 
 describe("Discover", () => {
   beforeEach(resetAppState);
@@ -69,64 +76,96 @@ describe("Discover", () => {
     expect(screen.queryByRole("button", { name: discoverStrings.showMore })).not.toBeInTheDocument();
   });
 
-  it("toggles the filter drawer from a single 'Filtros' button", async () => {
-    const user = setupUser();
+  it("shows a compact filter bar with one pill per filter and no 'Filtros' toggle", async () => {
     await renderReadyApp();
 
-    // The drawer starts closed so the grid gets the room.
-    expect(screen.queryByTestId("filter-panel")).not.toBeInTheDocument();
-    expect(filtersToggle()).toHaveAttribute("aria-expanded", "false");
-
-    await user.click(filtersToggle());
-    expect(screen.getByRole("heading", { name: discoverStrings.filtersHeading })).toBeInTheDocument();
-    expect(screen.getByTestId("filter-panel")).toBeInTheDocument();
-    expect(filtersToggle()).toHaveAttribute("aria-expanded", "true");
-
-    await user.click(filtersToggle());
-    expect(screen.queryByRole("heading", { name: discoverStrings.filtersHeading })).not.toBeInTheDocument();
-    expect(screen.queryByTestId("filter-panel")).not.toBeInTheDocument();
-  });
-
-  it("remembers whether the filter drawer was open", async () => {
-    const user = setupUser();
-    const { unmount } = await renderReadyApp();
-    await user.click(filtersToggle());
-    unmount();
-
-    renderApp();
-    await findBookCardTitle(defaultBookTitle);
-    expect(screen.getByTestId("filter-panel")).toBeInTheDocument();
-  });
-
-  it("filters by status and shows removable active-filter chips", async () => {
-    const user = setupUser();
-    await renderReadyApp();
+    const bar = screen.getByTestId("filter-panel");
+    for (const name of [discoverStrings.status, discoverStrings.language, discoverStrings.contentRating, discoverStrings.chapters, discoverStrings.tags]) {
+      expect(within(bar).getByRole("button", { name })).toHaveAttribute("aria-expanded", "false");
+    }
+    expect(screen.queryByRole("button", { name: /^Filtros/ })).not.toBeInTheDocument();
+    // The bar is not inside the scrolling results, so it stays reachable.
+    expect(screen.getByTestId("content-area")).not.toContainElement(bar);
     expect(screen.queryByTestId("active-filter-row")).not.toBeInTheDocument();
+  });
 
-    await user.click(filtersToggle());
-    await user.selectOptions(screen.getByLabelText(discoverStrings.status), "complete");
+  it("ignores the legacy filtersCollapsed key", async () => {
+    window.localStorage.setItem("oghma.discover.filtersCollapsed", "0");
+    await renderReadyApp();
 
+    expect(screen.getByTestId("filter-panel")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("filters by status from its popover and shows removable active-filter chips", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    await openFilterPopover(user, discoverStrings.status);
+    const popover = screen.getByRole("dialog", { name: discoverStrings.status });
+    await user.click(within(popover).getByRole("radio", { name: "Completa" }));
+
+    // Picking a value applies it and closes the popover; the trigger shows the value.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const trigger = filterTrigger(discoverStrings.status);
+    expect(trigger).toHaveAccessibleName("Status: Completa");
+    expect(trigger).toHaveFocus();
     const row = await screen.findByTestId("active-filter-row");
     expect(within(row).getByText("Completa")).toBeInTheDocument();
-    // The toggle counts the drawer filters in use.
-    expect(filtersToggle()).toHaveTextContent("1");
 
     await user.click(within(row).getByRole("button", { name: discoverStrings.removeFilter("Completa") }));
     await waitFor(() => expect(screen.queryByTestId("active-filter-row")).not.toBeInTheDocument());
+    expect(filterTrigger(discoverStrings.status)).toHaveAccessibleName(discoverStrings.status);
+  });
+
+  it("closes a filter popover with Esc and with an outside click", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    await openFilterPopover(user, discoverStrings.language);
+    expect(screen.getByRole("dialog", { name: discoverStrings.language })).toBeInTheDocument();
+    // Focus moves into the popover, on the checked option.
+    expect(within(screen.getByRole("dialog")).getByRole("radio", { name: discoverStrings.languageAll })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(filterTrigger(discoverStrings.language)).toHaveFocus();
+
+    await openFilterPopover(user, discoverStrings.contentRating);
+    expect(screen.getByRole("dialog", { name: discoverStrings.contentRating })).toBeInTheDocument();
+    await user.click(screen.getByTestId("content-area"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("sets a chapter range from the Capítulos popover", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    await openFilterPopover(user, discoverStrings.chapters);
+    await user.click(within(screen.getByRole("dialog")).getByRole("radio", { name: discoverStrings.chaptersBetween(100, 500) }));
+
+    expect(filterTrigger(discoverStrings.chapters)).toHaveAccessibleName("Capítulos: 100–500");
+    expect(within(screen.getByTestId("active-filter-row")).getByText(discoverStrings.chaptersSummary(100, 500))).toBeInTheDocument();
+
+    await openFilterPopover(user, discoverStrings.chapters);
+    await user.clear(screen.getByLabelText(discoverStrings.chaptersMax));
+    expect(within(screen.getByTestId("active-filter-row")).getByText(discoverStrings.chaptersSummary(100, null))).toBeInTheDocument();
   });
 
   it("cycles tag chips through include, exclude and neutral", async () => {
     const user = setupUser();
     await renderReadyApp();
-    await user.click(filtersToggle());
+    await openFilterPopover(user, discoverStrings.tags);
 
-    const tags = within(screen.getByTestId("filter-panel")).getByRole("group", { name: discoverStrings.tags });
+    const popover = screen.getByRole("dialog", { name: discoverStrings.tags });
+    expect(within(popover).getByLabelText(discoverStrings.tagSearch)).toHaveFocus();
+    const tags = within(popover).getByRole("group", { name: discoverStrings.tags });
     const tag = await within(tags).findByRole("button", { name: /^Fantasia(,|$)/ });
     expect(tag).toHaveAttribute("aria-pressed", "false");
 
     await user.click(tag);
     expect(within(tags).getByRole("button", { name: /^Fantasia, exigida$/ })).toHaveAttribute("aria-pressed", "true");
     expect(within(screen.getByTestId("active-filter-row")).getByText("Fantasia")).toBeInTheDocument();
+    expect(filterTrigger(discoverStrings.tags)).toHaveAccessibleName(discoverStrings.tagsCount(1));
 
     await user.click(within(tags).getByRole("button", { name: /^Fantasia(,|$)/ }));
     expect(within(tags).getByRole("button", { name: /^Fantasia, excluída$/ })).toBeInTheDocument();
@@ -134,6 +173,25 @@ describe("Discover", () => {
     await user.click(within(tags).getByRole("button", { name: /^Fantasia(,|$)/ }));
     expect(within(tags).getByRole("button", { name: /^Fantasia(,|$)/ })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByTestId("active-filter-row")).not.toBeInTheDocument();
+  });
+
+  it("'Limpar tags' and 'Limpar tudo' reset the filters", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+    await openFilterPopover(user, discoverStrings.tags);
+    const popover = screen.getByRole("dialog", { name: discoverStrings.tags });
+    const clearTags = within(popover).getByRole("button", { name: discoverStrings.clearTags });
+    expect(clearTags).toBeDisabled();
+
+    await user.click(await within(popover).findByRole("button", { name: /^Fantasia(,|$)/ }));
+    await user.click(clearTags);
+    expect(screen.queryByTestId("active-filter-row")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await openFilterPopover(user, discoverStrings.status);
+    await user.click(screen.getByRole("radio", { name: "Completa" }));
+    await user.click(within(screen.getByTestId("active-filter-row")).getByRole("button", { name: discoverStrings.clearAll }));
+    await waitFor(() => expect(screen.queryByTestId("active-filter-row")).not.toBeInTheDocument());
   });
 
   it("debounces the search and offers to clear filters when nothing matches", async () => {

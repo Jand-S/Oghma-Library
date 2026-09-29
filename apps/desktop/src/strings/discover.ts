@@ -5,7 +5,6 @@ export const discoverStrings = {
   search: "Buscar livros",
   searchPlaceholder: "Buscar por título ou autor",
   clearSearch: "Limpar busca",
-  filtersToggle: "Filtros",
   sortAsc: "Ordem alfabética: A–Z",
   sortDesc: "Ordem alfabética: Z–A",
   resultsTotal: (total: number) => `${total.toLocaleString("pt-BR")} ${total === 1 ? "livro" : "livros"}`,
@@ -21,11 +20,11 @@ export const discoverStrings = {
   chaptersShort: (count: number) => `${count.toLocaleString("pt-BR")} cap.`,
   gridHint: "Use as setas para navegar e Enter para selecionar.",
 
-  // Filter panel
+  // Filter bar and popovers
   filtersHeading: "Filtros",
-  filtersDescription: "Refine o acervo da fonte escolhida.",
   clearFilters: "Limpar filtros",
   clear: "Limpar",
+  clearAll: "Limpar tudo",
   status: "Status",
   statusAny: "Qualquer status",
   language: "Idioma",
@@ -40,6 +39,11 @@ export const discoverStrings = {
   chaptersMax: "Máximo de capítulos",
   chaptersMinPlaceholder: "Mín.",
   chaptersMaxPlaceholder: "Máx.",
+  chaptersCustom: "Personalizado",
+  chaptersAny: "Qualquer quantidade",
+  chaptersUpTo: (max: number) => `Até ${max.toLocaleString("pt-BR")}`,
+  chaptersFrom: (min: number) => `${min.toLocaleString("pt-BR")}+`,
+  chaptersBetween: (min: number, max: number) => `${min.toLocaleString("pt-BR")}–${max.toLocaleString("pt-BR")}`,
   tags: "Tags",
   tagsHint: "Clique uma vez para exigir e de novo para excluir.",
   tagSearch: "Buscar tags",
@@ -49,8 +53,8 @@ export const discoverStrings = {
   tagCategoryGenre: "Gênero",
   tagCategoryTheme: "Tema",
   tagsEmpty: "Nenhuma tag encontrada.",
-  tagsShowAll: (count: number) => `Ver todas (${count})`,
-  tagsShowPopular: "Ver só as populares",
+  tagsCount: (count: number) => `Tags · ${count.toLocaleString("pt-BR")}`,
+  clearTags: "Limpar tags",
   tagIncluded: "exigida",
   tagExcluded: "excluída",
 
@@ -88,6 +92,10 @@ export const discoverStrings = {
   noSynopsis: "Sem sinopse cadastrada para este livro.",
   showMoreSynopsis: "Mostrar mais",
   showLessSynopsis: "Mostrar menos",
+  moreTags: (count: number) => `+${count.toLocaleString("pt-BR")}`,
+  moreTagsLabel: (count: number) => `Mostrar mais ${count.toLocaleString("pt-BR")} ${count === 1 ? "tag" : "tags"}`,
+  lessTags: "Menos",
+  lessTagsLabel: "Mostrar menos tags",
 
   // Download configurator
   queueHeading: "Download",
@@ -106,7 +114,6 @@ export const discoverStrings = {
   adding: "Preparando…",
   replaceHint: "Este livro já está na biblioteca. A cópia existente será substituída.",
   alreadyQueuedHint: "Este livro já está na fila de downloads.",
-  oneAtATime: "Downloads são feitos um por vez; os próximos esperam na fila.",
   selectFromPreview: "Selecionar para baixar",
   previewHint: "Pré-visualização. Esc fecha."
 } as const;

@@ -38,7 +38,18 @@ export const ratingOptions: Array<{ value: ContentRatingFilter; label: string }>
   { value: "erotic", label: discoverStrings.ratingErotic }
 ];
 
-const optionLabel = (options: Array<{ value: string; label: string }>, value: string) =>
+export type ChapterRangePreset = { value: string; label: string; min: number | null; max: number | null };
+
+/** Quick picks of the "Capítulos" popover (null = no limit on that side). */
+export const chapterPresets: ChapterRangePreset[] = [
+  { value: "any", label: discoverStrings.chaptersAny, min: null, max: null },
+  { value: "short", label: discoverStrings.chaptersUpTo(100), min: null, max: 100 },
+  { value: "medium", label: discoverStrings.chaptersBetween(100, 500), min: 100, max: 500 },
+  { value: "long", label: discoverStrings.chaptersBetween(500, 1000), min: 500, max: 1000 },
+  { value: "epic", label: discoverStrings.chaptersFrom(1000), min: 1000, max: null }
+];
+
+export const optionLabel = (options: ReadonlyArray<{ value: string; label: string }>, value: string) =>
   options.find((option) => option.value === value)?.label ?? value;
 
 export function chapterBounds(filters: Filters) {
@@ -108,15 +119,13 @@ export function activeFilters(filters: Filters, catalog: TagCatalogItem[]): Acti
   return items;
 }
 
-/** How many drawer filters are set (the search query lives in the toolbar, so it is not counted). */
-export function drawerFilterCount(filters: Filters) {
+/** Short chapter-range value for the "Capítulos" trigger ("100–500", "1.000+", "Até 100"), or null. */
+export function chaptersValue(filters: Filters) {
   const { min, max } = chapterBounds(filters);
-  return (filters.status !== "any" ? 1 : 0)
-    + (filters.language !== "all" ? 1 : 0)
-    + (filters.contentRating !== "all" ? 1 : 0)
-    + (min != null || max != null ? 1 : 0)
-    + filters.includeTags.length
-    + filters.excludeTags.length;
+  if (min != null && max != null) return discoverStrings.chaptersBetween(min, max);
+  if (min != null) return discoverStrings.chaptersFrom(min);
+  if (max != null) return discoverStrings.chaptersUpTo(max);
+  return null;
 }
 
 /** Resets everything except the (mandatory) source. */
