@@ -19,6 +19,7 @@ import type {
 } from "../core/types";
 import { downloadFormats } from "../core/types";
 import { onboardingStrings } from "../strings/onboarding";
+import { FolderPickButton } from "./settings";
 
 export function OnboardingWizard({
   open,
@@ -190,6 +191,7 @@ export function OnboardingWizard({
               />
             </div>
             <div className="setup-inline-actions">
+              <FolderPickButton value={config.outputPath} onPick={(outputPath) => onChange({ outputPath })} />
               <button className="button quiet" onClick={() => onChange({ outputPath: defaultAppConfig().outputPath })}>
                 <FolderOpen size={15} />
                 Usar pasta padrao

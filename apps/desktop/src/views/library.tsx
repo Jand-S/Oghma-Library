@@ -1,5 +1,6 @@
 import {
   Check,
+  Download,
   FolderOpen,
   GripVertical,
   Heart,
@@ -38,6 +39,12 @@ type LibraryViewProps = {
   onOpenItemFolder: (item: LibraryItem) => void;
   onUpdateMeta: (item: LibraryItem, patch: Partial<Omit<LibraryMeta, "key">>) => void;
   onDeleteItems: (items: LibraryItem[], deleteFiles: boolean) => void;
+  /** Enqueues a fresh download of the book (replaces the folder on commit). */
+  onRedownload: (item: LibraryItem) => void;
+  /** Whether the item can be re-downloaded (has a catalog/manifest novel id). */
+  canRedownload: (item: LibraryItem) => boolean;
+  /** Whether the item's novel is already active or waiting in the download queue. */
+  isQueued: (novelId: string) => boolean;
 };
 type LibrarySidebarTab = "queue" | "details";
 
@@ -73,14 +80,19 @@ export function LibraryView({
   onToggleConversionAudiobook,
   onOpenItemFolder,
   onUpdateMeta,
-  onDeleteItems
+  onDeleteItems,
+  onRedownload,
+  canRedownload,
+  isQueued
 }: LibraryViewProps) {
   const [query, setQuery] = useState("");
   const [format, setFormat] = useState<DownloadFormat | "all">("all");
   const [statusFilter, setStatusFilter] = useState<LibraryReadingStatus | "all" | "favorite">("all");
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<LibrarySidebarTab>("queue");
-  const [previewItem, setPreviewItem] = useState<LibraryItem | null>(null);
+  // Keep only the id so the preview follows the refreshed library list (e.g. after a re-download).
+  const [previewItemId, setPreviewItemId] = useState<string | null>(null);
+  const previewItem = previewItemId ? library.find((item) => item.id === previewItemId) ?? null : null;
   const [tagInput, setTagInput] = useState("");
   const [deleteChoiceItems, setDeleteChoiceItems] = useState<LibraryItem[] | null>(null);
   const selectedListRef = useRef<HTMLDivElement>(null);
@@ -151,15 +163,15 @@ export function LibraryView({
   }, [selectedIds]);
 
   const selectItem = (item: LibraryItem) => {
-    setPreviewItem(null);
+    setPreviewItemId(null);
     setSidebarTab("details");
     onToggleSelect(item.id);
   };
   const previewOnly = (item: LibraryItem) => {
-    setPreviewItem(item);
+    setPreviewItemId(item.id);
     setSidebarTab("details");
   };
-  const clearPreview = () => setPreviewItem(null);
+  const clearPreview = () => setPreviewItemId(null);
   const clearFilters = () => {
     setQuery("");
     setFormat("all");
@@ -616,6 +628,18 @@ export function LibraryView({
                 >
                   <Heart size={14} />
                   {detailItem.favorite ? "Favorito" : "Favoritar"}
+                </button>
+                <button
+                  className="button quiet compact"
+                  data-testid="library-redownload"
+                  onClick={() => onRedownload(detailItem)}
+                  disabled={!canRedownload(detailItem) || Boolean(detailItem.novelId && isQueued(detailItem.novelId))}
+                  title={!canRedownload(detailItem)
+                    ? libraryStrings.notInCatalog
+                    : detailItem.novelId && isQueued(detailItem.novelId) ? libraryStrings.alreadyQueued : undefined}
+                >
+                  <Download size={14} />
+                  {libraryStrings.downloadAgain}
                 </button>
                 <button className="button danger compact" onClick={() => setDeleteChoiceItems([detailItem])}>
                   <Trash2 size={14} />

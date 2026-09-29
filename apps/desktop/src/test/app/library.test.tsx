@@ -1,8 +1,20 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
+import type { BackendClient } from "../../services/backendClient";
+import { mockBackendClient } from "../../services/mockBackend";
 import { commonStrings, navStrings } from "../../strings/common";
+import { downloadsStrings } from "../../strings/downloads";
 import { libraryStrings } from "../../strings/library";
-import { getLibraryCard, renderReadyApp, resetAppState, setupUser, tabName } from "../renderApp";
+import {
+  createTestQueue,
+  getLibraryCard,
+  getToastRegion,
+  instantRunner,
+  renderReadyApp,
+  resetAppState,
+  setupUser,
+  tabName
+} from "../renderApp";
 
 describe("Library", () => {
   beforeEach(resetAppState);
@@ -36,5 +48,58 @@ describe("Library", () => {
     expect(screen.queryByRole("button", { name: /Traduzir/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: commonStrings.audiobook })).toBeDisabled();
     expect(screen.getByRole("button", { name: libraryStrings.sendToKindle })).toBeInTheDocument();
+  });
+});
+
+describe("Library re-download and conversion", () => {
+  beforeEach(resetAppState);
+
+  it("re-downloads a library book from the catalog", async () => {
+    const user = setupUser();
+    const { queue } = await renderReadyApp();
+
+    await user.click(screen.getByRole("button", { name: navStrings.library }));
+    await user.click(getLibraryCard("Mystery of the Lost Temple").title);
+    const sidebar = screen.getByTestId("library-sidebar");
+    await user.click(within(sidebar).getByRole("button", { name: libraryStrings.downloadAgain }));
+
+    await waitFor(() => expect(within(getToastRegion()).getByText(downloadsStrings.started)).toBeInTheDocument());
+    expect(queue.getSnapshot().active).toMatchObject({ novelId: "lost-temple", kind: "download" });
+    await waitFor(() => expect(within(sidebar).getByRole("button", { name: libraryStrings.downloadAgain })).toBeDisabled());
+  });
+
+  it("disables re-download when the book has no catalog match", async () => {
+    const user = setupUser();
+    const backend: BackendClient = {
+      ...mockBackendClient,
+      async bootstrap() {
+        const payload = await mockBackendClient.bootstrap();
+        return { ...payload, library: payload.library.map((item) => ({ ...item, novelId: undefined })) };
+      }
+    };
+    await renderReadyApp(backend);
+
+    await user.click(screen.getByRole("button", { name: navStrings.library }));
+    await user.click(getLibraryCard("Mystery of the Lost Temple").title);
+    const button = within(screen.getByTestId("library-sidebar")).getByRole("button", { name: libraryStrings.downloadAgain });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", libraryStrings.notInCatalog);
+  });
+
+  it("runs Kindle conversions as convert jobs in the download queue", async () => {
+    const user = setupUser();
+    const queue = createTestQueue({ runJob: instantRunner });
+    await renderReadyApp(undefined, queue);
+
+    await user.click(screen.getByRole("button", { name: navStrings.library }));
+    await user.click(getLibraryCard("Mystery of the Lost Temple").title);
+    await user.click(screen.getByRole("tab", { name: tabName(commonStrings.queueTab) }));
+    await user.click(screen.getByRole("button", { name: libraryStrings.sendToKindle }));
+
+    await waitFor(() => expect(queue.getSnapshot().completed).toHaveLength(1));
+    expect(queue.getSnapshot().completed[0]).toMatchObject({ kind: "convert", novelId: "lost-temple", status: "done" });
+    expect(queue.getSnapshot().completed[0].request.formats).toEqual(["AZW3"]);
+    // Outside Tauri the device transfer itself is unavailable.
+    await waitFor(() => expect(within(getToastRegion()).getByText(/Envio direto ao Kindle/)).toBeInTheDocument());
   });
 });

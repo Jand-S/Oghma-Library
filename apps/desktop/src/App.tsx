@@ -6,6 +6,7 @@ import { useKindleDetection } from "./app/useKindleDetection";
 import { useLocalLibrary } from "./app/useLocalLibrary";
 import { contentClassFor, viewRegistry, type AppControllers } from "./app/viewRegistry";
 import { hasCompletedSetup } from "./core/appConfig";
+import { isTauriRuntime } from "./core/windowControls";
 import { useDiscoverController } from "./features/discover/useDiscoverController";
 import { useDownloadsController } from "./features/downloads/useDownloadsController";
 import { useLibraryController } from "./features/library/useLibraryController";
@@ -14,28 +15,33 @@ import { useSettingsController } from "./features/settings/useSettingsController
 import { useSourcesController } from "./features/sources/useSourcesController";
 import { useTranslationController } from "./features/translation/useTranslationController";
 import type { BackendClient } from "./services/backendClient";
+import { getDownloadQueue, type DownloadQueue } from "./services/downloadQueue";
+import { openLocalPath } from "./services/localFiles";
 import { AppShell, SplashScreen, type BootStep } from "./shell";
 import { bootStrings, shellStrings } from "./strings/common";
+import { downloadsStrings } from "./strings/downloads";
 import { Button, EmptyState, ToastProvider, useToast, type ToastTone } from "./ui";
 import { OnboardingWizard } from "./views/onboarding";
 
 type AppProps = {
   backend: BackendClient;
+  /** Download queue store; defaults to the app-wide singleton (tests inject their own). */
+  downloadQueue?: DownloadQueue;
 };
 
 const ERROR_MESSAGE = /^n[aã]o foi poss[ií]vel/i;
 
-export function App({ backend }: AppProps) {
+export function App({ backend, downloadQueue }: AppProps) {
   return (
     <ToastProvider>
       <NavigationProvider initialView="discover">
-        <AppContent backend={backend} />
+        <AppContent backend={backend} downloadQueue={downloadQueue} />
       </NavigationProvider>
     </ToastProvider>
   );
 }
 
-function AppContent({ backend }: AppProps) {
+function AppContent({ backend, downloadQueue }: AppProps) {
   const navigation = useNavigation();
   const { view, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
@@ -51,18 +57,15 @@ function AppContent({ backend }: AppProps) {
   const bootstrap = useBootstrapState({ backend, setKindleStatus });
   const {
     appConfig,
-    autoSelectedRef,
     bootDone,
     bootError,
     focusedNovelId,
     library,
     loading,
-    queue,
     results,
     setAppConfig,
     setFocusedNovelId,
     setLibrary,
-    setQueue,
     setResults,
     setShowOnboarding,
     setSources,
@@ -72,18 +75,41 @@ function AppContent({ backend }: AppProps) {
   } = bootstrap;
   const kindleConnected = kindleStatus?.connected ?? false;
 
-  const { refreshLocalLibrary, saveCoverForItem } = useLocalLibrary({ appConfig, loading, results, setLibrary });
+  const { refresh: refreshLocalLibrary } = useLocalLibrary({ appConfig, loading, results, setLibrary });
 
-  const downloads = useDownloadsController({
-    appConfig,
-    autoSelectedRef,
-    queue,
-    setQueue,
-    refreshLocalLibrary,
-    results,
-    saveCoverForItem,
-    notify
-  });
+  const [queue] = useState(() => downloadQueue ?? getDownloadQueue());
+  const downloads = useDownloadsController({ appConfig, queue, notify, toast });
+
+  // Jobs restored from the previous session resume once the catalog/config are loaded.
+  useEffect(() => {
+    if (!loading && !bootError) queue.start();
+  }, [bootError, loading, queue]);
+
+  // Finished jobs: refresh the library and tell the user. Conversion jobs report through
+  // the library's conversion flow instead.
+  useEffect(() => {
+    const unsubscribe = queue.onEvent(({ type, job }) => {
+      if (type === "committed") refreshLocalLibrary();
+      if (job.kind !== "download") return;
+      if (type === "committed") {
+        const finalDir = job.finalDir;
+        toast({
+          message: downloadsStrings.committed(job.title),
+          tone: "success",
+          action: finalDir && isTauriRuntime()
+            ? { label: downloadsStrings.openFolder, onClick: () => void openLocalPath(finalDir).catch(() => undefined) }
+            : undefined
+        });
+      } else if (type === "failed") {
+        toast({ message: downloadsStrings.failedToast(job.title, job.error), tone: "danger" });
+      } else {
+        toast({ message: downloadsStrings.canceledToast(job.title), tone: "info" });
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [queue, refreshLocalLibrary, toast]);
   const discover = useDiscoverController({
     backend,
     view,
@@ -95,11 +121,22 @@ function AppContent({ backend }: AppProps) {
     bootError,
     focusedNovelId,
     setFocusedNovelId,
-    setQueue,
-    notify,
-    onQueued: downloads.flash
+    library,
+    isQueued: downloads.isQueued,
+    enqueueDownload: downloads.enqueueDownload,
+    notify
   });
-  const libraryController = useLibraryController({ appConfig, library, setLibrary, setQueue, kindleConnected, refreshLocalLibrary, notify });
+  const libraryController = useLibraryController({
+    backend,
+    appConfig,
+    library,
+    setLibrary,
+    queue,
+    enqueueDownload: downloads.enqueueDownload,
+    kindleConnected,
+    refreshLocalLibrary,
+    notify
+  });
   const sourcesController = useSourcesController({ backend, sources, setSources, setAppConfig, notify });
   const onboarding = useOnboardingController({
     backend,

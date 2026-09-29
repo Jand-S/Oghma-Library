@@ -1,9 +1,11 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useConversionManager } from "../../app/useConversionManager";
-import type { AppConfig, LibraryItem, LibraryMeta, QueueItem } from "../../core/types";
-import { getErrorMessage } from "../../services/backendClient";
+import type { AppConfig, EnqueueResult, LibraryItem, LibraryMeta, QueueItem } from "../../core/types";
+import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { sanitizeFileName } from "../../services/downloadManager";
+import type { DownloadQueue } from "../../services/downloadQueue";
 import { deleteLibraryMetadata, deleteLocalLibraryFiles, joinPath, saveLibraryMetadata } from "../../services/localFiles";
+import { libraryStrings } from "../../strings/library";
 import { openOutputFolder } from "../downloads/useDownloadsController";
 
 export function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
@@ -28,21 +30,34 @@ export function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
 }
 
 type LibraryControllerArgs = {
+  backend: BackendClient;
   appConfig: AppConfig;
   library: LibraryItem[];
   setLibrary: Dispatch<SetStateAction<LibraryItem[]>>;
-  setQueue: Dispatch<SetStateAction<QueueItem[]>>;
+  queue: DownloadQueue;
+  /** Enqueues a shaped download with added/duplicate/full feedback (downloads controller). */
+  enqueueDownload: (item: QueueItem) => EnqueueResult;
   kindleConnected: boolean;
   refreshLocalLibrary: () => void;
   notify: (message: string) => void;
 };
 
-/** Local library selection, metadata, deletion and conversion. Moved from App.tsx unchanged. */
+/**
+ * Whether "Baixar novamente" can work for a library item: it needs a novel id, which
+ * comes from the folder's `.oghma-book.json` or from a catalog match.
+ */
+export function canRedownload(item: LibraryItem) {
+  return Boolean(item.novelId);
+}
+
+/** Local library selection, metadata, deletion, conversion and re-download. */
 export function useLibraryController({
+  backend,
   appConfig,
   library,
   setLibrary,
-  setQueue,
+  queue,
+  enqueueDownload,
   kindleConnected,
   refreshLocalLibrary,
   notify
@@ -57,7 +72,33 @@ export function useLibraryController({
     [library, selectedLibraryIds]
   );
 
-  const conversion = useConversionManager({ appConfig, kindleConnected, refreshLocalLibrary, selectedCompletedItems, setQueue, setToast: notify });
+  const conversion = useConversionManager({ appConfig, kindleConnected, selectedCompletedItems, queue, setToast: notify });
+
+  /**
+   * Re-downloads a library book from the catalog (all chapters, same formats). The
+   * export staging replaces the existing folder atomically once the download commits.
+   */
+  const redownloadItem = (item: LibraryItem) => {
+    if (!item.novelId) {
+      notify(libraryStrings.notInCatalog);
+      return;
+    }
+    const formats = item.formats?.length ? item.formats : [item.format];
+    void backend.createDownloads([{
+      novelId: item.novelId,
+      preset: "all",
+      start: 1,
+      end: Math.max(1, item.chapters || 1),
+      formats,
+      translate: false,
+      audiobook: false
+    }])
+      .then(([queued]) => {
+        if (!queued) throw new Error(libraryStrings.notInCatalog);
+        enqueueDownload({ ...queued, coverUrl: queued.coverUrl ?? item.coverUrl });
+      })
+      .catch(() => notify(libraryStrings.notInCatalog));
+  };
 
   const openLibraryItemFolder = (item: LibraryItem) =>
     openOutputFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`, notify);
@@ -151,6 +192,7 @@ export function useLibraryController({
     openLibraryItemFolder,
     updateLibraryMeta,
     deleteLibraryItems,
+    redownloadItem,
     conversion
   };
 }

@@ -1,26 +1,29 @@
 import { useEffect, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import type { AppConfig, DownloadFormat, QueueItem } from "../core/types";
-import { downloadFormats } from "../core/types";
+import type { AppConfig, DownloadFormat, DownloadJob, QueueItem } from "../core/types";
 import { getErrorMessage } from "../services/backendClient";
-import { runDownload, sanitizeFileName } from "../services/downloadManager";
-import { convertLocalEpubToAzw3, joinPath, sendItemsToKindle } from "../services/localFiles";
+import { convertInputFromQueueItem, type DownloadQueue } from "../services/downloadQueue";
+import { sendItemsToKindle } from "../services/localFiles";
+import { downloadsStrings } from "../strings/downloads";
+import { libraryStrings } from "../strings/library";
 
 type ConversionManagerArgs = {
   appConfig: AppConfig;
   kindleConnected: boolean;
-  refreshLocalLibrary: () => void;
   selectedCompletedItems: QueueItem[];
-  setQueue: Dispatch<SetStateAction<QueueItem[]>>;
+  queue: DownloadQueue;
   setToast: (message: string) => void;
 };
 
+/**
+ * Library conversion / Kindle send. Each book becomes a `kind: "convert"` job in the
+ * download queue (so it never runs concurrently with a download of the same folder);
+ * this hook awaits the jobs and, for the Kindle, sends the settled folders.
+ */
 export function useConversionManager({
   appConfig,
   kindleConnected,
-  refreshLocalLibrary,
   selectedCompletedItems,
-  setQueue,
+  queue,
   setToast
 }: ConversionManagerArgs) {
   const [converterOpen, setConverterOpen] = useState(false);
@@ -57,64 +60,62 @@ export function useConversionManager({
 
   const startConversion = () => {
     const items = selectedCompletedItems;
-    if (items.length === 0) return;
+    if (items.length === 0 || converterRunning) return;
     const sendToKindle = kindleConnected;
     const requestedFormats: DownloadFormat[] = sendToKindle ? ["AZW3"] : Array.from(converterFormats);
     setConverterRunning(true);
     setConverterProgress(5);
     setConverterCurrentItemId(items[0]?.id ?? null);
     void (async () => {
-      const preparedItems: QueueItem[] = [];
-      for (let index = 0; index < items.length; index += 1) {
-        const item = items[index];
-        setConverterCurrentItemId(item.id);
-        const outputDir = item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title));
-        let missing = requestedFormats.filter((format) => !item.formats.includes(format));
-        let generated: string[] = [];
-        if (missing.includes("AZW3") && item.outputFiles?.some((file) => file.toLowerCase().endsWith(".epub"))) {
-          const azw3 = await convertLocalEpubToAzw3(item.title, outputDir, item.outputFiles);
-          if (azw3) {
-            generated.push(azw3);
-            missing = missing.filter((format) => format !== "AZW3");
-          }
-        }
-        if (missing.length > 0) {
-          generated = [...generated, ...await runDownload({
-            serverUrl: appConfig.serverUrl,
-            novel: { id: item.novelId, title: item.title, bundleKey: item.bundleKey, coverUrl: item.coverUrl },
-            formats: missing,
-            outputDir,
-            range: item.preset === "range" && item.rangeStart && item.rangeEnd ? { start: item.rangeStart, end: item.rangeEnd } : undefined
-          })];
-        }
-        const generatedFormats = generated
-          .map((file) => file.split(".").pop()?.toUpperCase())
-          .filter((format): format is DownloadFormat => downloadFormats.includes(format as DownloadFormat));
-        const preparedItem: QueueItem = {
-          ...item,
-          formats: Array.from(new Set([...item.formats, ...requestedFormats, ...generatedFormats])),
-          outputDir,
-          outputFiles: Array.from(new Set([...(item.outputFiles ?? []), ...generated])),
+      // Enqueue every book first (queue order = selection order), then await them in order.
+      const enqueued: Array<{ item: QueueItem; jobId: string }> = [];
+      for (const item of items) {
+        const outcome = queue.enqueue(convertInputFromQueueItem(item, appConfig, requestedFormats, {
           translate: item.translate || converterTranslate,
           audiobook: sendToKindle ? false : item.audiobook || converterAudiobook
-        };
-        preparedItems.push(preparedItem);
-        setQueue((current) => current.map((entry) => entry.id === item.id ? {
-          ...entry,
-          ...preparedItem
-        } : entry));
-        const conversionShare = sendToKindle ? 90 : 100;
-        setConverterProgress(Math.round(((index + 1) / items.length) * conversionShare));
+        }));
+        if (outcome.result === "added" && outcome.job) {
+          enqueued.push({ item, jobId: outcome.job.id });
+        } else if (outcome.result === "duplicate") {
+          setToast(libraryStrings.conversionSkipped(item.title));
+        } else {
+          setToast(downloadsStrings.full);
+          break;
+        }
       }
-      refreshLocalLibrary();
-      if (sendToKindle) {
+
+      const share = sendToKindle ? 90 : 100;
+      const settled: Array<{ item: QueueItem; job: DownloadJob }> = [];
+      for (let index = 0; index < enqueued.length; index += 1) {
+        const { item, jobId } = enqueued[index];
+        setConverterCurrentItemId(item.id);
+        const job = await queue.whenSettled(jobId);
+        settled.push({ item, job });
+        setConverterProgress(Math.max(5, Math.round(((index + 1) / enqueued.length) * share)));
+      }
+
+      const done = settled.filter(({ job }) => job.status === "done");
+      const failed = settled.filter(({ job }) => job.status === "error");
+      if (failed.length > 0) {
+        const detail = failed[0].job.error;
+        setToast(`${libraryStrings.conversionFailed(failed.length)}${detail ? ` ${detail}` : ""}`);
+      }
+
+      if (sendToKindle && done.length > 0) {
         setConverterProgress(95);
-        const result = await sendItemsToKindle(preparedItems);
-        if (!result) throw new Error("Envio direto ao Kindle so esta disponivel no app desktop.");
+        const prepared: QueueItem[] = done.map(({ item, job }) => ({
+          ...item,
+          formats: Array.from(new Set([...item.formats, ...requestedFormats])),
+          outputDir: job.finalDir ?? item.outputDir,
+          outputFiles: job.outputFiles ?? item.outputFiles
+        }));
+        const result = await sendItemsToKindle(prepared);
+        if (!result) throw new Error("Envio direto ao Kindle só está disponível no app desktop.");
         setConverterProgress(100);
-        setToast(`${result.sentIds.length} livro(s) enviado(s) ao Kindle na ordem da fila.`);
-      } else {
-        setToast("Conversao concluida.");
+        setToast(libraryStrings.kindleSent(result.sentIds.length));
+      } else if (!sendToKindle && done.length > 0) {
+        setConverterProgress(100);
+        setToast(libraryStrings.conversionDone);
       }
       setConverterRunning(false);
       setConverterCurrentItemId(null);
@@ -122,7 +123,7 @@ export function useConversionManager({
     })().catch((error: unknown) => {
       setConverterRunning(false);
       setConverterCurrentItemId(null);
-      setToast(getErrorMessage(error, sendToKindle ? "Nao foi possivel enviar os itens ao Kindle." : "Nao foi possivel converter os itens."));
+      setToast(getErrorMessage(error, sendToKindle ? "Não foi possível enviar os itens ao Kindle." : "Não foi possível converter os itens."));
     });
   };
 

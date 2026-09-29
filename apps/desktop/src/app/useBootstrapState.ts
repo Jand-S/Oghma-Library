@@ -11,7 +11,6 @@ import type {
   KindleDeviceStatus,
   LibraryItem,
   Novel,
-  QueueItem,
   SourceSite,
   ViewId
 } from "../core/types";
@@ -25,7 +24,6 @@ type BootstrapStateArgs = {
 export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateArgs) {
   const storedConfigRef = useRef(readStoredConfig());
   const storedConfig = storedConfigRef.current;
-  const autoSelectedRef = useRef<Set<string>>(new Set());
 
   const [bootDone, setBootDone] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -36,7 +34,6 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
   const [sources, setSources] = useState<SourceSite[]>([]);
   const [results, setResults] = useState<Novel[]>([]);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [focusedNovelId, setFocusedNovelId] = useState("");
 
@@ -64,8 +61,6 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
         setSources(payload.sources.map((source) => ({ ...source, enabled: effectiveConfig.enabledSourceIds.includes(source.id) })));
         setResults(initialNovels);
         setLibrary(payload.library);
-        autoSelectedRef.current = new Set(payload.queue.filter((item) => item.state === "done").map((item) => item.id));
-        setQueue(payload.queue);
         setKindleStatus(deviceStatus);
         setFocusedNovelId(initialNovels[0]?.id ?? "");
         setLoading(false);
@@ -94,20 +89,17 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
   return {
     activeView,
     appConfig,
-    autoSelectedRef,
     bootDone,
     bootError,
     focusedNovelId,
     library,
     loading,
-    queue,
     results,
     setActiveView,
     setAppConfig,
     setBootError,
     setFocusedNovelId,
     setLibrary,
-    setQueue,
     setResults,
     setShowOnboarding,
     setSources,

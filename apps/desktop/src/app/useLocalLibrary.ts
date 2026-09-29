@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { AppConfig, DownloadFormat, LibraryItem, LibraryMeta, Novel, QueueItem } from "../core/types";
+import type { AppConfig, DownloadFormat, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import { downloadFormats } from "../core/types";
 import { sanitizeFileName } from "../services/downloadManager";
 import {
@@ -7,7 +7,6 @@ import {
   listLocalLibrary,
   novelMetaKey,
   prepareExportRoot,
-  saveLocalFile,
   type LocalLibraryEntry
 } from "../services/localFiles";
 
@@ -155,15 +154,6 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary }: Loc
       .catch(() => undefined);
   }, [outputPath, setLibrary]);
 
-  const saveCoverForItem = useCallback(async (item: QueueItem, outputDir: string) => {
-    if (!item.coverUrl) return;
-    const res = await fetch(item.coverUrl, { cache: "no-store" });
-    if (!res.ok) return;
-    const contentType = res.headers.get("content-type") ?? "";
-    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-    await saveLocalFile(outputDir, `cover.${ext}`, new Uint8Array(await res.arrayBuffer()));
-  }, []);
-
   // Output path changes (typing in Settings) and the end of boot loading.
   useEffect(() => {
     if (loading) return;
@@ -193,5 +183,5 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary }: Loc
     setLibrary((current) => enrichLibraryItems(current, entriesRef.current, results));
   }, [results, setLibrary]);
 
-  return { refresh, refreshLocalLibrary: refresh, saveCoverForItem };
+  return { refresh, refreshLocalLibrary: refresh };
 }

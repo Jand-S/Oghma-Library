@@ -2,7 +2,7 @@ import { createElement as h, type ComponentType } from "react";
 import { BookOpenText, Tablet } from "lucide-react";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
 import type { DownloadsController } from "../features/downloads/useDownloadsController";
-import type { LibraryController } from "../features/library/useLibraryController";
+import { canRedownload, type LibraryController } from "../features/library/useLibraryController";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
 import type { TranslationController } from "../features/translation/useTranslationController";
@@ -49,35 +49,39 @@ function DiscoverPage({ app }: ViewProps) {
     filters: discover.filters,
     tagCatalog: discover.tagCatalog,
     results: discover.results,
-    selectedNovels: discover.selectedNovels,
+    selectedNovel: discover.selectedNovel ?? undefined,
+    selection: discover.selection,
     loading: app.loading || discover.searching || discover.filters.sourceId === "all",
-    selectedIds: discover.selectedIds,
     detailNovel: discover.detailNovel,
     detailFromPreview: Boolean(discover.previewNovel),
     filterCollapsed: discover.filtersCollapsed,
-    selections: discover.selections,
+    adding: discover.adding,
+    selectedInLibrary: discover.selectedInLibrary,
+    selectedQueued: discover.selectedQueued,
     onFiltersChange: discover.setFilters,
     onToggleFilters: discover.toggleFilters,
-    onToggleNovel: discover.toggleNovel,
     onSelectNovel: discover.selectNovel,
     onPreviewNovel: discover.openPreviewNovel,
     onClearPreview: discover.clearPreviewNovel,
     onSelectionChange: discover.updateSelection,
-    onAddSelected: discover.addSelectedToQueue,
-    onReorder: discover.setSelectedIds,
-    onRemoveSelected: discover.removeSelectedNovel
+    onAddSelected: discover.addSelectedToQueue
   });
 }
 
 function DownloadsPage({ app }: ViewProps) {
   const downloads = app.downloads;
   return h(DownloadsView, {
-    queue: downloads.queue,
-    paused: downloads.queuePaused,
+    activeJob: downloads.activeJob,
+    queuedJobs: downloads.queuedJobs,
+    completedJobs: downloads.completedJobs,
+    paused: downloads.paused,
     onPauseToggle: downloads.togglePaused,
+    onCancel: downloads.cancel,
+    onMove: downloads.move,
+    onRemove: downloads.remove,
+    onRetry: downloads.retry,
     onClearCompleted: downloads.clearCompleted,
-    onCancel: downloads.cancelDownload,
-    onOpenItemFolder: downloads.openQueueItemFolder
+    onOpenFolder: downloads.openJobFolder
   });
 }
 
@@ -101,7 +105,10 @@ function LibraryPage({ app }: ViewProps) {
     onReorderSelected: library.setSelectedLibraryIds,
     onOpenItemFolder: library.openLibraryItemFolder,
     onUpdateMeta: library.updateLibraryMeta,
-    onDeleteItems: library.deleteLibraryItems
+    onDeleteItems: library.deleteLibraryItems,
+    onRedownload: library.redownloadItem,
+    canRedownload,
+    isQueued: app.downloads.isQueued
   });
 }
 
