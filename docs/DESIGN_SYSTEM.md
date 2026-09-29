@@ -1154,3 +1154,28 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
   - O card inteiro é clicável; um botão invisível por cima dá foco, nome acessível e navegação por setas (tabindex móvel). Enter seleciona, clique direito abre a prévia.
   - Um só painel de detalhes substitui as abas Fila/Detalhes. Esc fecha a prévia e, depois, a seleção. Em janelas baixas (≤ 820 px) o hero vira capa pequena ao lado do título.
   - Botão principal "Baixar" / "Baixar novamente" (com aviso) / "Na fila" (desativado).
+
+### Ajustes (`src/features/settings/`)
+
+- Prefixo CSS: `.settings-*`; arquivo `settings.css` em `@layer features`. A área de conteúdo usa `settings-content` (rolagem).
+- Controller: `useSettingsController` (`patchConfig`). O status do servidor e a sincronização vêm de `useSourcesController` (`serverCheck`, `verifyServer`, `syncEnabledSources`, `lastSyncedAt`).
+- Estrutura: um cartão (`--surface-1`) com lista vertical de categorias (`role="tablist"`, setas/Home/End) e o painel da categoria. Cada grupo tem `h3` + descrição e linhas "rótulo à esquerda, controle à direita" (`SettingsRow`), ou empilhadas para campos largos.
+- Salvamento imediato: switches, selects e chips salvam na hora; campos de texto (pasta, servidor) salvam no blur/Enter depois de validar, com erro inline no campo. Cada gravação mostra um toast discreto "Salvo" (substitui o anterior).
+- Componentes compartilhados com o onboarding: `FormatPicker` (chips; nunca deixa zero formatos), `FolderField` ("Escolher…" com `data-testid="pick-output-folder"` e "Abrir pasta"; desabilitados fora do Tauri), `ServerStatusBadge`.
+- Preferências fora do `AppConfig` (tela inicial e capítulos padrão) ficam em `preferences.ts` (`oghma.prefs.v1`).
+- `navigate("settings", { section: "server" })` abre direto uma categoria.
+- `data-testid`: `settings-page`, `settings-tab-<id>`, `settings-section-<id>`, `server-status`, `last-sync`, `kindle-status`, `format-picker`, `app-version`.
+
+### Onboarding (`src/features/onboarding/`)
+
+- Prefixo CSS: `.onboarding-*`; arquivo `onboarding.css`. Tela cheia abaixo da titlebar (arrastável no topo no macOS), cartão central de altura fixa com rodapé Voltar/Próximo sempre no mesmo lugar.
+- Passos como dados (`steps[]` em `OnboardingView.tsx`): Boas-vindas, Servidor, Pasta da biblioteca, Preferências (formatos + fontes + sincronizar ao abrir), Sincronização (progresso por fonte + resumo). A contagem vem de `onboardingStrings.steps`.
+- Teclado: Enter avança (no campo do servidor, verifica), Esc volta (não faz nada no passo 1), Tab fica preso no cartão.
+- Falha na sincronização não prende o usuário: aparece "Tentar de novo" e "Entrar no app" continua disponível.
+- `data-testid`: `onboarding`, `onboarding-step`, `onboarding-server-status`, `onboarding-sync-list`.
+
+### Fontes (`src/features/sources/`)
+
+- Prefixo CSS: `.sources-*`; arquivo `sources.css`. Grade de cartões (nome, domínio, idioma, novels, última sincronização, tipo), `Switch` "Incluir na busca", badge de status e "Sincronizar".
+- `lastSync.ts` guarda a hora da última sincronização bem-sucedida (`oghma.sources.lastSync`), compartilhada com Ajustes e o onboarding.
+- `data-testid`: `sources-page`, `source-card`, `source-status`.

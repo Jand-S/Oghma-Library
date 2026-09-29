@@ -12,10 +12,10 @@ import type { SourcesController } from "../features/sources/useSourcesController
 import type { TranslationController } from "../features/translation/useTranslationController";
 import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
 import { pageTitleStrings } from "../strings/common";
-import { SettingsView } from "../views/settings";
-import { SourcesView } from "../views/sources";
 import { TranslationView } from "../features/translation/TranslationView";
-import type { AppView, NavParams } from "./NavigationContext";
+import { isSettingsCategory, SettingsView } from "../features/settings/SettingsView";
+import { SourcesView } from "../features/sources/SourcesView";
+import { useNavigation, type AppView, type NavParams } from "./NavigationContext";
 
 /** Everything a view needs, assembled by App from the feature controllers. */
 export type AppControllers = {
@@ -113,12 +113,37 @@ function TranslationPage({ app }: ViewProps) {
 
 function SourcesPage({ app }: ViewProps) {
   const sources = app.sources;
-  return h(SourcesView, { sources: sources.sources, syncing: sources.syncing, onToggle: sources.toggleSourceEnabled, onSync: sources.syncSource });
+  return h(SourcesView, {
+    sources: sources.sources,
+    syncing: sources.syncing,
+    loading: app.loading,
+    novels: app.discover.results,
+    onToggle: sources.toggleSourceEnabled,
+    onSync: sources.syncSource,
+    onSyncAll: () => void sources.syncEnabledSources(),
+    onOpenSettings: () => app.navigate("settings", { section: "server" })
+  });
 }
 
+/** Ajustes; `navigate("settings", { section: "server" })` opens a given category. */
 function SettingsPage({ app }: ViewProps) {
+  const { params } = useNavigation();
   const settings = app.settings;
-  return h(SettingsView, { config: settings.config, onConfigChange: settings.patchConfig, onOpenOnboarding: settings.openOnboarding });
+  const sources = app.sources;
+  return h(SettingsView, {
+    config: settings.config,
+    onConfigChange: settings.patchConfig,
+    onOpenOnboarding: settings.openOnboarding,
+    sources: sources.sources,
+    syncingSourceIds: sources.syncing,
+    lastSyncedAt: sources.lastSyncedAt,
+    onSyncSources: sources.syncEnabledSources,
+    serverCheck: sources.serverCheck,
+    onVerifyServer: sources.verifyServer,
+    kindleConnected: app.library.kindleConnected,
+    onNavigate: (view: AppView) => app.navigate(view),
+    initialCategory: isSettingsCategory(params.section) ? params.section : undefined
+  });
 }
 
 const iconFor = (id: AppView) => [...navItems, settingsNavItem].find((item) => item.id === id)?.icon ?? BookOpenText;
@@ -147,8 +172,8 @@ export const viewRegistry: Record<AppView, ViewDefinition> = {
     component: TranslationPage,
     contentClassName: () => "translation-page"
   },
-  sources: { id: "sources", title: pageTitleStrings.sources, icon: iconFor("sources"), component: SourcesPage },
-  settings: { id: "settings", title: pageTitleStrings.settings, icon: iconFor("settings"), component: SettingsPage }
+  sources: { id: "sources", title: pageTitleStrings.sources, icon: iconFor("sources"), component: SourcesPage, contentClassName: () => "sources-content" },
+  settings: { id: "settings", title: pageTitleStrings.settings, icon: iconFor("settings"), component: SettingsPage, contentClassName: () => "settings-content" }
 };
 
 export function contentClassFor(view: AppView, app: AppControllers) {

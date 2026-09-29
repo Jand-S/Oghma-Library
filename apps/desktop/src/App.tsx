@@ -21,7 +21,8 @@ import { AppShell, SplashScreen, type BootStep } from "./shell";
 import { bootStrings, shellStrings } from "./strings/common";
 import { downloadsStrings } from "./strings/downloads";
 import { Button, EmptyState, ToastProvider, useToast, type ToastTone } from "./ui";
-import { OnboardingWizard } from "./views/onboarding";
+import { OnboardingWizard } from "./features/onboarding/OnboardingView";
+import { readUiPreferences } from "./features/settings/preferences";
 
 type AppProps = {
   backend: BackendClient;
@@ -34,7 +35,7 @@ const ERROR_MESSAGE = /^n[aã]o foi poss[ií]vel/i;
 export function App({ backend, downloadQueue }: AppProps) {
   return (
     <ToastProvider>
-      <NavigationProvider initialView="discover">
+      <NavigationProvider initialView={readUiPreferences().startPage}>
         <AppContent backend={backend} downloadQueue={downloadQueue} />
       </NavigationProvider>
     </ToastProvider>
@@ -220,12 +221,14 @@ function AppContent({ backend, downloadQueue }: AppProps) {
             sources={sources}
             serverProbe={onboarding.serverProbe}
             probingServer={onboarding.probingServer}
+            serverError={onboarding.serverError}
             setupSync={onboarding.setupSync}
             setupSyncRunning={onboarding.setupSyncRunning}
             setupSyncCompleted={onboarding.setupSyncCompleted}
             onChange={settings.patchConfig}
             onToggleSource={onboarding.toggleOnboardingSource}
             onValidateServer={onboarding.validateServer}
+            onRetrySync={onboarding.retrySync}
             onBack={onboarding.rewindOnboarding}
             onNext={onboarding.advanceOnboarding}
             onClose={onboarding.closeOnboarding}

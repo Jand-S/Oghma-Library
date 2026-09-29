@@ -1,9 +1,9 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import { useOnboardingSync } from "../../app/useOnboardingSync";
-import { onboardingSteps } from "../../constants/ui";
 import { hasCompletedSetup, markSetupComplete } from "../../core/appConfig";
 import type { AppConfig, ServerProbe, SourceSite } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
+import { onboardingStrings } from "../../strings/onboarding";
+import { useOnboardingSync } from "./useOnboardingSync";
 
 type OnboardingControllerArgs = {
   backend: BackendClient;
@@ -16,7 +16,9 @@ type OnboardingControllerArgs = {
   notify: (message: string) => void;
 };
 
-/** First-run wizard state: steps, server probe and initial source sync. Moved from App.tsx unchanged. */
+const LAST_STEP = onboardingStrings.steps.length - 1;
+
+/** First-run wizard state: steps, server probe and initial source sync. */
 export function useOnboardingController({
   backend,
   appConfig,
@@ -30,16 +32,22 @@ export function useOnboardingController({
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [serverProbe, setServerProbe] = useState<ServerProbe | null>(null);
   const [probingServer, setProbingServer] = useState(false);
+  /** Last probe error and the URL it was for; shown inline in the Servidor step. */
+  const [serverError, setServerError] = useState<{ url: string; message: string } | null>(null);
   const {
     setupSync,
     setupSyncRunning,
     setupSyncCompleted,
     setSetupSync,
     setSetupSyncRunning,
-    setSetupSyncCompleted
-  } = useOnboardingSync({ showOnboarding, onboardingStep, appConfig, backend, setSources, setSyncing, setToast: notify });
+    setSetupSyncCompleted,
+    retry: retrySync
+  } = useOnboardingSync({ showOnboarding, onboardingStep, appConfig, backend, setSources, setSyncing });
 
-  const resetServerProbe = useCallback(() => setServerProbe(null), []);
+  const resetServerProbe = useCallback(() => {
+    setServerProbe(null);
+    setServerError(null);
+  }, []);
 
   const toggleOnboardingSource = (sourceId: string) => {
     setAppConfig((current) => {
@@ -51,15 +59,20 @@ export function useOnboardingController({
   };
 
   const validateServer = () => {
-    if (probingServer || appConfig.serverUrl.trim().length === 0) return;
+    const url = appConfig.serverUrl;
+    if (probingServer || url.trim().length === 0) return;
     setProbingServer(true);
-    void backend.validateServer(appConfig.serverUrl, appConfig.indexMode)
+    setServerError(null);
+    void backend.validateServer(url, appConfig.indexMode)
       .then((probe) => {
         setServerProbe(probe);
       })
       .catch((error: unknown) => {
+        const message = getErrorMessage(error, onboardingStrings.validateFailed);
         setServerProbe(null);
-        notify(getErrorMessage(error, "Nao foi possivel validar o servidor informado."));
+        setServerError({ url, message });
+        // Also a toast: the inline error needs App to pass `serverError` to the wizard.
+        notify(message);
       })
       .finally(() => {
         setProbingServer(false);
@@ -90,15 +103,15 @@ export function useOnboardingController({
     setShowOnboarding(false);
     setOnboardingStep(0);
     resetSync();
-    notify("Configuracao inicial salva.");
+    notify(onboardingStrings.setupSaved);
   };
 
   const advanceOnboarding = () => {
-    if (onboardingStep === onboardingSteps.length - 1) {
+    if (onboardingStep === LAST_STEP) {
       completeOnboarding();
       return;
     }
-    setOnboardingStep((value) => Math.min(value + 1, onboardingSteps.length - 1));
+    setOnboardingStep((value) => Math.min(value + 1, LAST_STEP));
   };
 
   const rewindOnboarding = () => setOnboardingStep((value) => Math.max(value - 1, 0));
@@ -108,10 +121,12 @@ export function useOnboardingController({
     onboardingStep,
     serverProbe,
     probingServer,
+    serverError: serverError && serverError.url === appConfig.serverUrl ? serverError.message : null,
     resetServerProbe,
     setupSync,
     setupSyncRunning,
     setupSyncCompleted,
+    retrySync,
     toggleOnboardingSource,
     validateServer,
     openOnboarding,

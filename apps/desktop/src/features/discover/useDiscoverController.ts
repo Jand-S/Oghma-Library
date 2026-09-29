@@ -4,6 +4,7 @@ import { useNovelSearch } from "../../app/useNovelSearch";
 import { defaultFilters, defaultSelection } from "../../core/defaults";
 import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, Novel, QueueItem, SourceSite, TagCatalogItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
+import { readUiPreferences } from "../settings/preferences";
 
 type DiscoverControllerArgs = {
   backend: BackendClient;
@@ -137,6 +138,7 @@ export function useDiscoverController({
 
   const buildDefaultSelection = (novel: Novel): ChapterSelection => ({
     ...defaultSelection(novel),
+    preset: readUiPreferences().chapterPreset,
     formats: appConfig.defaultFormats,
     translate: false,
     audiobook: appConfig.audiobookDefault
