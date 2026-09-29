@@ -1,3 +1,5 @@
+@import "../../styles/layers.css";
+
 /* Discover ("Buscar"): filter bar + popovers, cover grid and the detail panel. The toolbar lives in the PageHeader. */
 @layer features {
   .discover {
@@ -759,6 +761,7 @@
     padding: var(--space-2) var(--space-3);
     border-top: 1px solid var(--border);
     background: var(--glass);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
   }
 
