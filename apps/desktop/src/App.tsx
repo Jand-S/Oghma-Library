@@ -134,6 +134,7 @@ function AppContent({ backend, downloadQueue }: AppProps) {
     queue,
     enqueueDownload: downloads.enqueueDownload,
     kindleConnected,
+    kindleStatus,
     refreshLocalLibrary,
     notify
   });

@@ -93,7 +93,7 @@ export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: Librar
       coverUrl: entry.coverUrl,
       outputDir: entry.outputDir,
       files: entry.files,
-      exportedAt: "Local",
+      exportedAt: entry.mtimeMs ? new Date(entry.mtimeMs).toISOString() : "Local",
       favorite: meta.favorite,
       readingStatus: meta.readingStatus,
       personalTags: meta.tags,
