@@ -1,10 +1,5 @@
 @layer features {
   /* ---------- Page frame ---------- */
-  .library-content {
-    display: flex;
-    flex-direction: column;
-  }
-
   .library-page {
     display: flex;
     flex: 1 1 auto;
@@ -24,71 +19,41 @@
     padding: 0;
   }
 
+  /* "No match" sits near the top, under the filters; a page with nothing to browse centers it. */
   .library-scroll > .o-empty {
     margin-top: var(--space-6);
   }
 
-  /* ---------- Toolbar ---------- */
+  .library-scroll--center {
+    display: grid;
+    place-items: center;
+  }
+
+  .library-scroll--center > .o-empty {
+    margin-top: 0;
+  }
+
+  /* ---------- Sub-bar (chips + sort; search/count/view live in the PageHeader) ---------- */
   .library-bar {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-1-5) var(--space-2);
-    padding: var(--space-1-5) var(--space-3);
+    gap: var(--space-2);
+    min-height: calc(var(--control-sm) + var(--space-2));
+    padding: var(--space-1) var(--space-3);
     border-bottom: 1px solid var(--border);
     background: var(--bg-app);
-  }
-
-  .library-bar__main,
-  .library-bar__side {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-1);
-    min-width: 0;
-  }
-
-  .library-bar__main {
-    flex: 1 1 auto;
-  }
-
-  .library-bar__count {
-    min-height: var(--control-sm);
-    padding: 0 var(--space-1-5);
-    border-radius: var(--radius-pill);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .library-bar__search {
-    flex: 0 1 calc(var(--space-8) * 4.5);
-    min-width: calc(var(--space-8) * 3);
-  }
-
-  .library-bar__search .o-field__control,
-  .library-bar__sort .o-field__control {
-    min-height: var(--control-sm);
-  }
-
-  .library-bar__search .o-field__input,
-  .library-bar__sort .o-field__select {
-    height: calc(var(--control-sm) - 2 * var(--hairline));
-    font-size: var(--fs-sm);
-  }
-
-  .library-bar__search .o-field__input::-webkit-search-cancel-button {
-    display: none;
   }
 
   .library-bar__filters {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-0-5);
-    padding-left: var(--space-1);
-    border-left: 1px solid var(--border);
+    min-width: 0;
   }
 
   .library-bar__sort {
+    flex: 0 0 auto;
     width: calc(var(--space-8) * 2);
   }
 

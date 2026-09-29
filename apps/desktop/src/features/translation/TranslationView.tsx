@@ -1,7 +1,7 @@
 import { BookOpenText, Info, Search } from "lucide-react";
 import { useState } from "react";
 import { translationStrings as t } from "../../strings/translation";
-import { Badge, Button, EmptyState, SegmentedControl } from "../../ui";
+import { Button, EmptyState, SegmentedControl } from "../../ui";
 import { ConfigTab } from "./ConfigTab";
 import { GlossaryTab } from "./GlossaryTab";
 import { ProjectHeader } from "./ProjectHeader";
@@ -20,7 +20,6 @@ function PreviewBanner() {
       <div className="translation-banner__text">
         <strong>{t.previewBanner}</strong> {t.previewBannerDetail}
       </div>
-      <Badge tone="warning">{t.beta}</Badge>
     </div>
   );
 }

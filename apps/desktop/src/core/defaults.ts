@@ -35,8 +35,8 @@ export function defaultSelection(novel: Novel): ChapterSelection {
 
 export function selectionLabel(selection: ChapterSelection, max: number) {
   const labels: Record<ChapterPreset, string> = {
-    all: `Todos os ${max.toLocaleString("pt-BR")} capitulos`,
-    range: `Capitulos ${Math.max(1, selection.start)}-${Math.min(selection.end, max)}`
+    all: `Todos os ${max.toLocaleString("pt-BR")} capítulos`,
+    range: `Capítulos ${Math.max(1, selection.start)}-${Math.min(selection.end, max)}`
   };
   return labels[selection.preset];
 }

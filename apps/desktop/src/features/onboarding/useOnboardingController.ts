@@ -71,8 +71,6 @@ export function useOnboardingController({
         const message = getErrorMessage(error, onboardingStrings.validateFailed);
         setServerProbe(null);
         setServerError({ url, message });
-        // Also a toast: the inline error needs App to pass `serverError` to the wizard.
-        notify(message);
       })
       .finally(() => {
         setProbingServer(false);
@@ -136,4 +134,3 @@ export function useOnboardingController({
   };
 }
 
-export type OnboardingController = ReturnType<typeof useOnboardingController>;

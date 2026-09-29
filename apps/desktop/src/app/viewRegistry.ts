@@ -1,19 +1,25 @@
-import { createElement as h, type ComponentType } from "react";
+import { createElement as h, type ComponentType, type ReactNode } from "react";
 import { BookOpenText } from "lucide-react";
+import { discoverHeader } from "../features/discover/DiscoverHeader";
 import { DiscoverView } from "../features/discover/DiscoverView";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
 import type { DownloadsController } from "../features/downloads/useDownloadsController";
+import { downloadsHeader } from "../features/downloads/DownloadsHeader";
 import { DownloadsView } from "../features/downloads/DownloadsView";
 import { KindleView } from "../features/kindle/KindleView";
+import { libraryHeader } from "../features/library/LibraryHeader";
 import { LibraryView } from "../features/library/LibraryView";
 import type { LibraryController } from "../features/library/useLibraryController";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
 import type { TranslationController } from "../features/translation/useTranslationController";
 import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
+import type { ContentLayout, PageHeaderProps } from "../shell";
 import { pageTitleStrings } from "../strings/common";
+import { translationHeader } from "../features/translation/TranslationHeader";
 import { TranslationView } from "../features/translation/TranslationView";
 import { isSettingsCategory, SettingsView } from "../features/settings/SettingsView";
+import { sourcesHeader } from "../features/sources/SourcesHeader";
 import { SourcesView } from "../features/sources/SourcesView";
 import { useNavigation, type AppView, type NavParams } from "./NavigationContext";
 
@@ -21,6 +27,8 @@ import { useNavigation, type AppView, type NavParams } from "./NavigationContext
 export type AppControllers = {
   loading: boolean;
   navigate: (view: AppView, params?: NavParams) => void;
+  /** Params of the current navigation entry (e.g. `{ book }` on the Library details). */
+  params: NavParams;
   discover: DiscoverController;
   downloads: DownloadsController;
   library: LibraryController;
@@ -36,11 +44,20 @@ export type ViewDefinition = {
   title: string;
   icon: NavItem["icon"];
   component: ComponentType<ViewProps>;
-  /** Classes for the content area; legacy views rely on the `workspace …` grid. */
-  contentClassName?: (app: AppControllers) => string;
+  /**
+   * Content-area variant (`shell/layout.css`): "scroll" pages scroll as a whole;
+   * "fill" (full-bleed/split) views get the exact visible height and scroll inside.
+   */
+  layout: ContentLayout;
+  /** PageHeader content for the view: badge next to the title, search and right-side actions. */
+  header?: (app: AppControllers) => ViewHeader;
 };
 
-const LEGACY_SINGLE = "workspace single";
+/**
+ * What a view puts in the PageHeader. `onBackgroundClick` fires on clicks that do not
+ * hit a control (Discover uses it to dismiss a preview).
+ */
+export type ViewHeader = Partial<Pick<PageHeaderProps, "search" | "actions" | "onBackgroundClick">> & { badge?: ReactNode };
 
 function DiscoverPage({ app }: ViewProps) {
   const discover = app.discover;
@@ -56,11 +73,11 @@ function DiscoverPage({ app }: ViewProps) {
     detailNovel: discover.detailNovel,
     detailFromPreview: Boolean(discover.previewNovel),
     filterCollapsed: discover.filtersCollapsed,
+    sortDirection: discover.sortDirection,
     adding: discover.adding,
     selectedInLibrary: discover.selectedInLibrary,
     selectedQueued: discover.selectedQueued,
     onFiltersChange: discover.setFilters,
-    onToggleFilters: discover.toggleFilters,
     onSelectNovel: discover.selectNovel,
     onClearSelection: discover.clearSelection,
     onPreviewNovel: discover.openPreviewNovel,
@@ -87,7 +104,6 @@ function DownloadsPage({ app }: ViewProps) {
     onReorder: downloads.reorder,
     onRemove: downloads.remove,
     onRetry: downloads.retry,
-    onClearCompleted: downloads.clearCompleted,
     onOpenFolder: downloads.openJobFolder
   });
 }
@@ -120,7 +136,6 @@ function SourcesPage({ app }: ViewProps) {
     novels: app.discover.results,
     onToggle: sources.toggleSourceEnabled,
     onSync: sources.syncSource,
-    onSyncAll: () => void sources.syncEnabledSources(),
     onOpenSettings: () => app.navigate("settings", { section: "server" })
   });
 }
@@ -154,28 +169,41 @@ export const viewRegistry: Record<AppView, ViewDefinition> = {
     title: pageTitleStrings.discover,
     icon: iconFor("discover"),
     component: DiscoverPage,
-    contentClassName: () => "discover-host"
+    layout: "fill",
+    header: discoverHeader
   },
   downloads: {
     id: "downloads",
     title: pageTitleStrings.downloads,
     icon: iconFor("downloads"),
     component: DownloadsPage,
-    contentClassName: () => "o-app__content--scroll downloads-content"
+    layout: "scroll",
+    header: downloadsHeader
   },
-  library: { id: "library", title: pageTitleStrings.library, icon: iconFor("library"), component: LibraryPage, contentClassName: () => "library-content" },
-  kindle: { id: "kindle", title: pageTitleStrings.kindle, icon: iconFor("kindle"), component: KindlePage, contentClassName: () => "kindle-content" },
+  library: {
+    id: "library",
+    title: pageTitleStrings.library,
+    icon: iconFor("library"),
+    component: LibraryPage,
+    layout: "fill",
+    header: libraryHeader
+  },
+  kindle: { id: "kindle", title: pageTitleStrings.kindle, icon: iconFor("kindle"), component: KindlePage, layout: "scroll" },
   translation: {
     id: "translation",
     title: pageTitleStrings.translation,
     icon: iconFor("translation"),
     component: TranslationPage,
-    contentClassName: () => "translation-page"
+    layout: "fill",
+    header: translationHeader
   },
-  sources: { id: "sources", title: pageTitleStrings.sources, icon: iconFor("sources"), component: SourcesPage, contentClassName: () => "sources-content" },
-  settings: { id: "settings", title: pageTitleStrings.settings, icon: iconFor("settings"), component: SettingsPage, contentClassName: () => "settings-content" }
+  sources: {
+    id: "sources",
+    title: pageTitleStrings.sources,
+    icon: iconFor("sources"),
+    component: SourcesPage,
+    layout: "scroll",
+    header: sourcesHeader
+  },
+  settings: { id: "settings", title: pageTitleStrings.settings, icon: iconFor("settings"), component: SettingsPage, layout: "scroll" }
 };
-
-export function contentClassFor(view: AppView, app: AppControllers) {
-  return viewRegistry[view].contentClassName?.(app) ?? LEGACY_SINGLE;
-}

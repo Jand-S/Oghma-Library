@@ -4,22 +4,6 @@
  * Views render these constants and tests query by them, so copy can change in
  * one place without breaking the suite.
  */
-export const commonStrings = {
-  filters: "Filtros",
-  showFilters: "Mostrar filtros",
-  hideFilters: "Ocultar filtros",
-  search: "Busca",
-  clear: "Limpar",
-  all: "Todos",
-  formats: "Formatos",
-  audiobook: "Audiobook",
-  synopsis: "Sinopse",
-  queueTab: "Fila",
-  detailsTab: "Detalhes",
-  dropToRemove: "Solte para remover",
-  sending: "Enviando..."
-} as const;
-
 export const windowControlStrings = {
   group: "Controles da janela",
   minimize: "Minimizar",
@@ -65,10 +49,7 @@ export const shellStrings = {
   bootErrorDescription:
     "O app não conseguiu falar com o servidor de índice configurado. Ajuste o endereço do servidor em Ajustes e rode o assistente inicial novamente.",
   retry: "Tentar novamente",
-  openSettings: "Abrir Ajustes",
-  kindlePageDescription:
-    "Conecte o Kindle por USB. Com ele conectado, a fila da Biblioteca converte para AZW3 e envia direto ao aparelho.",
-  kindleOpenLibrary: "Escolher livros na Biblioteca"
+  openSettings: "Abrir Ajustes"
 } as const;
 
 export const bootStrings = {

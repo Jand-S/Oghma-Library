@@ -1,3 +1,8 @@
+/*
+ * Page header: [back] Title [badge] [search ........] [spacer] [actions]
+ * Views fill badge/search/actions through `ViewDefinition.header`. Controls in the
+ * header use the dense size (`--control-sm`) and `--icon-sm` icons.
+ */
 @layer layout {
   .o-page-header {
     position: relative;
@@ -13,7 +18,9 @@
   }
 
   .o-page-header__title {
+    flex: 0 0 auto;
     min-width: 0;
+    max-width: 40%;
     overflow: hidden;
     color: var(--text);
     font-size: var(--fs-lg);
@@ -22,9 +29,17 @@
     text-overflow: ellipsis;
   }
 
+  .o-page-header__badge {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--space-0-5);
+  }
+
   .o-page-header__search {
     flex: 0 1 calc(var(--space-8) * 6);
-    min-width: 0;
+    min-width: calc(var(--space-8) * 2.5);
+    margin-left: var(--space-1);
   }
 
   .o-page-header__spacer {

@@ -69,7 +69,7 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
       })
       .catch((error: unknown) => {
         if (!mounted) return;
-        setBootError(getErrorMessage(error, "Nao foi possivel carregar o estado inicial do app."));
+        setBootError(getErrorMessage(error, "Não foi possível carregar o estado inicial do app."));
         setLoading(false);
         setBootDone(true);
         setShowSplash(false);

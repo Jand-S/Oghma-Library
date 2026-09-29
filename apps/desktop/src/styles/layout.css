@@ -65,8 +65,18 @@
     background: var(--bg-app);
   }
 
+  /*
+   * Content area below the PageHeader. Every view picks one variant through
+   * `ViewDefinition.layout`:
+   *   --scroll  the whole page scrolls; the view root grows to at least the
+   *             visible height (so empty states can center).
+   *   --fill    full-bleed / split views: the view root gets exactly the visible
+   *             height and manages its own scroll regions (grids, side panels).
+   */
   .o-app__content {
     position: relative;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -75,6 +85,33 @@
 
   .o-app__content--scroll {
     overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .o-app__content--scroll > * {
+    flex: 1 0 auto;
+  }
+
+  .o-app__content--fill > * {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  /*
+   * Page frame used by the view roots: the standard 24px gutter and 24px
+   * vertical rhythm. `--narrow` centers reading/form pages at --page-max-w.
+   */
+  .o-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3);
+  }
+
+  .o-page--narrow {
+    max-width: var(--page-max-w);
+    margin-inline: auto;
   }
 
   .o-app__center {

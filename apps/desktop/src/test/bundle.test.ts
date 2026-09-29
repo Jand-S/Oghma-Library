@@ -124,8 +124,8 @@ describe("bundle", () => {
   it("bundleToText respects the chapter range", () => {
     const res = extractBundle(buildTar(files));
     const txt = bundleToText("Lord of Mysteries", res.chapters, { start: 2, end: 2 });
-    expect(txt).toContain("Capitulo 2 - Lunatic");
-    expect(txt).not.toContain("Capitulo 1");
+    expect(txt).toContain("Capítulo 2 - Lunatic");
+    expect(txt).not.toContain("Capítulo 1");
   });
 
   it("fetchBundle downloads, gunzips and extracts", async () => {

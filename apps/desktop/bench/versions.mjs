@@ -267,60 +267,80 @@ function legacyFlows(v) {
 export const oldVersion = legacyFlows(makeVersion(legacyDef({ id: "old", label: "v1.0.0", appDir: V1_DIR })));
 
 // ---------------------------------------------------------------------------------------------
-// New UI (redesign branch). Uses testid-OR-legacy selectors and tolerant names so it keeps working
-// while P2 restyles the views. Download model: ONE book selected at a time in Discover, enqueued
-// individually (1 active + up to 10 queued); cancel asks for confirmation.
+// New UI (redesign branch): data-testid selectors only (no legacy fallbacks).
+// Download model: ONE book selected at a time in Discover, enqueued with the detail panel's
+// "Baixar" button (1 active + up to 10 queued); cancel asks for confirmation.
 // ---------------------------------------------------------------------------------------------
-const newDef = legacyDef({ id: "new", label: "redesign (current branch)", appDir: DESKTOP_DIR });
-newDef.toastSelector = ".o-toast-region [role=status], .o-toast-region [role=alert], .app-toast";
-newDef.maxQueueSelection = 11; // 1 active + MAX_QUEUED (10), enqueued one by one
-newDef.sel = {
-  ...newDef.sel,
-  shell: tid("app-shell", newDef.sel.shell),
-  titlebar: tid("titlebar", newDef.sel.titlebar),
-  discoverSearch: tid("discover-search", newDef.sel.discoverSearch),
-  discoverCard: tid("discover-card", newDef.sel.discoverCard),
-  discoverCardTitle: tid("card-title", newDef.sel.discoverCardTitle),
-  discoverCardSelect: tid("card-select", newDef.sel.discoverCardSelect),
-  discoverDetailPanel: tid("discover-detail", newDef.sel.discoverDetailPanel),
-  discoverAddButton: tid("add-to-queue", ".queue-add-button"),
-  libraryCard: tid("library-card", newDef.sel.libraryCard),
-  libraryCardTitle: tid("card-title", newDef.sel.libraryCardTitle),
-  librarySearch: tid("library-search", newDef.sel.librarySearch),
-  libraryDetail: tid("library-detail", newDef.sel.libraryDetail),
-  libraryRedownload: tid("library-redownload"),
-  downloadRow: tid("download-row", newDef.sel.downloadRow),
-  downloadActiveRow: tid("download-active", newDef.sel.downloadActiveRow),
-  downloadQueuedRow: tid("download-queued", newDef.sel.downloadQueuedRow),
-  outputFolderPicker: tid("pick-output-folder"),
-  onboardingDialog: tid("onboarding", newDef.sel.onboardingDialog),
-  kindleConnected: tid("kindle-connected", newDef.sel.kindleConnected)
-};
-newDef.names = {
-  ...newDef.names,
-  navLandmark: /Principal|Main/i,
-  nav: {
-    discover: /^(Buscar|Descobrir|Explorar)$/,
-    sources: /^Fontes$/,
-    downloads: /^Downloads?$/,
-    library: /^Biblioteca$/,
-    translation: /^Tradu[cç][aã]o$/,
-    settings: /^(Ajustes|Configura[cç][oõ]es)$/
+const newDef = {
+  id: "new",
+  label: "redesign (current branch)",
+  appDir: DESKTOP_DIR,
+  distDir: path.join(DESKTOP_DIR, "dist-bench"),
+  defaultPort: 4173,
+  toastSelector: ".o-toast-region [role=status], .o-toast-region [role=alert]",
+  discoverPageSize: 60, // DISCOVER_PAGE_SIZE: "Mostrar mais" / infinite scroll adds 60 more
+  maxQueueSelection: 11, // 1 active + MAX_QUEUED (10), enqueued one by one
+  sel: {
+    shell: tid("app-shell"),
+    splash: tid("splash-screen"),
+    titlebar: tid("titlebar"),
+    sidebar: tid("sidebar"),
+    statusbar: tid("bottom-panel"),
+    pageHeader: tid("page-header"),
+    discoverSearch: tid("discover-search"),
+    discoverCard: tid("book-card"),
+    discoverCardTitle: tid("card-title"),
+    discoverCardSelect: tid("card-select"),
+    discoverDetailPanel: tid("discover-detail-panel"),
+    discoverScroller: tid("content-area"),
+    discoverAddButton: tid("add-to-queue"),
+    libraryCard: tid("library-card"),
+    libraryCardTitle: tid("card-title"),
+    librarySearch: tid("library-search"),
+    libraryDetail: tid("library-detail"),
+    libraryRedownload: tid("library-redownload"),
+    downloadRow: `${tid("download-active")}, ${tid("download-queued")}`,
+    downloadActiveRow: tid("download-active"),
+    downloadQueuedRow: tid("download-queued"),
+    settingsTabDownloads: tid("settings-tab-downloads"),
+    outputFolderPicker: tid("pick-output-folder"),
+    onboardingDialog: tid("onboarding"),
+    onboardingStep: tid("onboarding-step"),
+    kindleConnected: '[data-testid="bottom-panel-kindle"][data-connected="true"]',
+    viewReady: {
+      discover: tid("content-area"),
+      downloads: `${tid("downloads-pending")}, ${tid("downloads-completed")}, .downloads-page`,
+      library: tid("library-page"),
+      kindle: tid("kindle-page"),
+      sources: tid("sources-page"),
+      settings: tid("settings-page")
+    }
   },
-  addToQueue: /^(Adicionar [aà] fila|Baixar novamente|Baixar)$/,
-  showMore: /^Mostrar mais$/,
-  cancel: /^Cancelar$/,
-  confirmCancel: /^Cancelar download$/,
-  redownload: /^Baixar novamente$/,
-  pickFolder: /^Escolher/,
-  sendToKindle: /^Enviar (para o|ao) Kindle$/,
-  outputFolderLabel: /^Pasta de sa[ií]da$/
+  names: {
+    navLandmark: "Principal",
+    nav: {
+      discover: "Buscar",
+      sources: "Fontes",
+      downloads: "Downloads",
+      library: "Biblioteca",
+      kindle: "Kindle",
+      translation: "Tradução",
+      settings: "Ajustes"
+    },
+    onboardingHeading: "Bem-vindo ao Oghma Library",
+    addToQueue: /^(Baixar|Baixar novamente)$/,
+    showMore: "Mostrar mais",
+    cancel: "Cancelar",
+    confirmCancel: "Cancelar download",
+    redownload: "Baixar novamente",
+    sendToKindle: "Enviar ao Kindle"
+  }
 };
 /** Queue feedback toasts (added / started / duplicate / full). */
 const ENQUEUE_TOAST = /Adicionado [aà] fila|Download iniciado|j[aá] est[aá] na fila|fila est[aá] cheia/i;
 
 function newFlows(v) {
-  legacyFlows(v);
+  legacyFlows(v); // shared: expandResults ("Mostrar mais"); everything else is overridden below
   const { sel, names } = v;
 
   /** Marks the current toasts so waitNewToast only matches toasts shown afterwards. */
@@ -338,15 +358,17 @@ function newFlows(v) {
       { timeout: 15000 }
     );
 
-  /** Single select: the card's select button (or the card itself) selects exactly one book. */
+  /** Single select: clicking the card selects exactly one book and opens the detail panel. */
   v.selectForDownload = async (page, card, act) => {
     const check = card.locator(sel.discoverCardSelect).first();
     const target = (await check.count()) ? check : card;
     if (act) await act.click(target);
     else await target.click();
+    await page.locator(sel.discoverDetailPanel).first().waitFor({ state: "visible", timeout: 10000 });
     await page.locator(sel.discoverAddButton).first().waitFor({ state: "visible", timeout: 10000 });
   };
 
+  /** "Baixar" (or "Baixar novamente") in the detail panel. */
   v.addSelectedToQueue = async (page, act) => {
     const button = page.locator(sel.discoverAddButton).filter({ hasText: names.addToQueue }).first();
     await markToastsSeen(page);
@@ -355,7 +377,7 @@ function newFlows(v) {
     await waitNewToast(page, ENQUEUE_TOAST);
   };
 
-  /** Enqueue up to n books one by one (select -> add); returns how many the queue accepted. */
+  /** Enqueue up to n books one by one (select -> Baixar); returns how many the queue accepted. */
   v.enqueueMany = async (page, n) => {
     const target = Math.min(n, v.maxQueueSelection);
     await v.expandResults(page, target);
@@ -371,35 +393,80 @@ function newFlows(v) {
     return accepted;
   };
 
-  /** Cancel the active download (Cancelar -> confirmation "Cancelar download"); returns its title. */
+  /** Detail panel: right-click previews a book without selecting it. */
+  v.openDiscoverDetail = async (page) => {
+    await page.locator(sel.discoverCard).first().click({ button: "right" });
+    await page.locator(sel.discoverDetailPanel).first().waitFor({ state: "visible" });
+  };
+
+  /** Library: the card title opens the details page. */
+  v.openLibraryDetail = async (page) => {
+    await page.locator(sel.libraryCard).first().locator(sel.libraryCardTitle).first().click();
+    await page.locator(sel.libraryDetail).first().waitFor({ state: "visible" });
+  };
+
+  /** Cancel the active download ("Cancelar" -> confirmation "Cancelar download"); returns its title. */
   v.cancelActiveDownload = async (page, act) => {
     const row = page.locator(sel.downloadActiveRow).first();
     await row.waitFor({ state: "visible", timeout: 15000 });
-    const title = (await row.locator("strong").first().textContent())?.trim();
+    const title = (await row.getAttribute("aria-label"))?.trim();
     const button = row.getByRole("button", nameOpt(names.cancel));
     if (act) await act.click(button);
     else await button.click();
     const confirm = page.getByRole("dialog").getByRole("button", nameOpt(names.confirmCancel));
     if (act) await act.click(confirm);
     else await confirm.click();
-    await row.waitFor({ state: "detached", timeout: 15000 }).catch(() => undefined);
+    await page.locator(sel.downloadActiveRow).filter({ hasText: title || "__none__" }).first()
+      .waitFor({ state: "detached", timeout: 15000 }).catch(() => undefined);
     return title;
   };
 
+  /**
+   * Library cards show the catalog title (matched by novel id), while the harness may pass the
+   * folder name, where sanitizeFileName turned characters such as ":" into "_".
+   */
+  const libraryTitlePattern = (title) =>
+    new RegExp(`^\\s*${escapeRe(title).replace(/_/g, '[_<>:"/\\\\|?*]')}\\s*$`);
+
+  /** Opens a library book's details page (search, then the card title). */
+  const openLibraryBook = async (page, act, target) => {
+    await act.fill(v.librarySearchBox(page), target.query);
+    const card = page.locator(sel.libraryCard)
+      .filter({ has: page.locator(sel.libraryCardTitle, { hasText: libraryTitlePattern(target.title) }) })
+      .first();
+    await card.waitFor({ state: "visible" });
+    await act.click(card.locator(sel.libraryCardTitle).first());
+    await page.locator(sel.libraryDetail).first().waitFor({ state: "visible" });
+  };
+
   v.tasks = {
-    ...v.tasks,
-    async redownload({ page, act, target }) {
-      await act.fill(v.librarySearchBox(page), target.query);
-      const card = v.libraryCardByTitle(page, target.title);
+    async downloadOne({ page, act, target }) {
+      await act.fill(v.searchBox(page), target.query);
+      const card = v.discoverCardByTitle(page, target.title);
       await card.waitFor({ state: "visible" });
-      await act.click(card); // opens the details tab
+      await v.selectForDownload(page, card, act);
+      await v.addSelectedToQueue(page, act);
+      return { note: "card -> detail panel -> Baixar" };
+    },
+    async cancelActive({ page, act }) {
+      await v.goto(page, "downloads", act);
+      return v.cancelActiveDownload(page, act);
+    },
+    async redownload({ page, act, target }) {
+      await openLibraryBook(page, act, target);
       await act.click(page.locator(sel.libraryRedownload).first());
-      return { note: "Library details -> Baixar novamente" };
+      return { note: "Library card -> details -> Baixar novamente" };
+    },
+    async sendToKindle({ page, act, target }) {
+      await openLibraryBook(page, act, target);
+      await act.click(page.locator(sel.libraryDetail).getByRole("button", nameOpt(names.sendToKindle)).first());
+      return { note: "Library card -> details -> Enviar ao Kindle" };
     },
     async changeOutputFolder({ page, act }) {
       await v.goto(page, "settings", act);
+      await act.click(page.locator(sel.settingsTabDownloads).first());
       await act.click(page.locator(sel.outputFolderPicker).first()); // shim answers plugin:dialog|open
-      return { note: "native folder picker (Escolher…)" };
+      return { note: "Ajustes -> Downloads -> Escolher… (native folder picker)" };
     }
   };
   return v;

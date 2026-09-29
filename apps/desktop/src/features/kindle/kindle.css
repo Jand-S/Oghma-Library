@@ -1,14 +1,7 @@
 @layer features {
-  .kindle-content {
-    overflow-y: auto;
-  }
-
+  /* Page frame (padding, gap) comes from .o-page; Kindle stays full width like the other grids. */
   .kindle-page {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
     min-height: 100%;
-    padding: var(--space-3);
   }
 
   .kindle-muted {

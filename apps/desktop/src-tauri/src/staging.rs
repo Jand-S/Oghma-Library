@@ -157,10 +157,10 @@ pub(crate) fn begin_export_at(root: &Path, novel_id: &str, title: &str) -> Resul
         return Err("Identificador do livro ausente".to_string());
     }
     fs::create_dir_all(root)
-        .map_err(|err| format!("Nao foi possivel criar a pasta de saida: {err}"))?;
+        .map_err(|err| format!("Não foi possível criar a pasta de saída: {err}"))?;
     let staging_root = root.join(STAGING_DIR);
     fs::create_dir_all(&staging_root)
-        .map_err(|err| format!("Nao foi possivel criar a pasta temporaria: {err}"))?;
+        .map_err(|err| format!("Não foi possível criar a pasta temporária: {err}"))?;
 
     let id_part = safe_id_component(novel_id);
     let mut millis = now_millis();
@@ -169,7 +169,7 @@ pub(crate) fn begin_export_at(root: &Path, novel_id: &str, title: &str) -> Resul
         match fs::create_dir(&candidate) {
             Ok(()) => break candidate,
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => millis += 1,
-            Err(err) => return Err(format!("Nao foi possivel criar a pasta temporaria: {err}")),
+            Err(err) => return Err(format!("Não foi possível criar a pasta temporária: {err}")),
         }
     };
     mark_active(&staging);
@@ -190,17 +190,17 @@ fn is_plain_name(name: &Path) -> bool {
 fn validate_staging(staging: &Path) -> Result<(PathBuf, PathBuf), String> {
     let staging = staging
         .canonicalize()
-        .map_err(|err| format!("Pasta temporaria invalida: {err}"))?;
+        .map_err(|err| format!("Pasta temporária inválida: {err}"))?;
     let parent = staging
         .parent()
         .filter(|parent| parent.file_name().is_some_and(|name| name == STAGING_DIR))
-        .ok_or_else(|| "Recusa de seguranca: pasta temporaria fora da area de staging".to_string())?;
+        .ok_or_else(|| "Recusa de segurança: pasta temporária fora da area de staging".to_string())?;
     let root = parent
         .parent()
-        .ok_or_else(|| "Recusa de seguranca: pasta temporaria sem raiz".to_string())?
+        .ok_or_else(|| "Recusa de segurança: pasta temporária sem raiz".to_string())?
         .to_path_buf();
     if !staging.is_dir() {
-        return Err("A pasta temporaria nao existe".to_string());
+        return Err("A pasta temporária não existe".to_string());
     }
     Ok((root, staging))
 }
@@ -209,17 +209,17 @@ fn validate_staging(staging: &Path) -> Result<(PathBuf, PathBuf), String> {
 fn validate_final(root: &Path, final_dir: &Path) -> Result<PathBuf, String> {
     let name = final_dir
         .file_name()
-        .ok_or_else(|| "Pasta final invalida".to_string())?;
+        .ok_or_else(|| "Pasta final inválida".to_string())?;
     if !is_plain_name(Path::new(name)) || is_hidden_name(&name.to_string_lossy()) {
-        return Err("Pasta final invalida".to_string());
+        return Err("Pasta final inválida".to_string());
     }
     let parent = final_dir
         .parent()
-        .ok_or_else(|| "Pasta final invalida".to_string())?
+        .ok_or_else(|| "Pasta final inválida".to_string())?
         .canonicalize()
-        .map_err(|err| format!("Pasta final invalida: {err}"))?;
+        .map_err(|err| format!("Pasta final inválida: {err}"))?;
     if parent != root {
-        return Err("Recusa de seguranca: pasta final fora da pasta de saida".to_string());
+        return Err("Recusa de segurança: pasta final fora da pasta de saída".to_string());
     }
     Ok(root.join(name))
 }
@@ -243,7 +243,7 @@ fn commit_export_with(staging: &Path, final_dir: &Path, rename: &RenameFn) -> Re
     if final_dir.symlink_metadata().is_ok() {
         let trash_root = root.join(TRASH_DIR);
         fs::create_dir_all(&trash_root)
-            .map_err(|err| format!("Nao foi possivel preparar a substituicao: {err}"))?;
+            .map_err(|err| format!("Não foi possível preparar a substituição: {err}"))?;
         let name = final_dir
             .file_name()
             .map(|name| name.to_string_lossy().to_string())
@@ -254,18 +254,18 @@ fn commit_export_with(staging: &Path, final_dir: &Path, rename: &RenameFn) -> Re
             unmark_active(&trash);
             remove_dir_if_empty(&trash_root);
             return Err(format!(
-                "Nao foi possivel substituir a versao anterior (algum arquivo esta aberto?): {err}"
+                "Não foi possível substituir a versão anterior (algum arquivo está aberto?): {err}"
             ));
         }
         trashed = Some(trash);
     }
 
     if let Err(err) = rename(&staging, &final_dir) {
-        let mut message = format!("Nao foi possivel mover o livro para a pasta final: {err}");
+        let mut message = format!("Não foi possível mover o livro para a pasta final: {err}");
         if let Some(trash) = &trashed {
             if let Err(rollback) = rename(trash, &final_dir) {
                 message.push_str(&format!(
-                    ". A versao anterior ficou em {}: {rollback}",
+                    ". A versão anterior ficou em {}: {rollback}",
                     trash.to_string_lossy()
                 ));
             } else {
@@ -293,7 +293,7 @@ pub(crate) fn abort_export_at(staging: &Path) -> Result<(), String> {
     }
     let (root, staging) = validate_staging(staging)?;
     fs::remove_dir_all(&staging)
-        .map_err(|err| format!("Nao foi possivel apagar a pasta temporaria: {err}"))?;
+        .map_err(|err| format!("Não foi possível apagar a pasta temporária: {err}"))?;
     unmark_active(&staging);
     remove_dir_if_empty(&root.join(STAGING_DIR));
     Ok(())

@@ -10,6 +10,9 @@ import { TitleBar } from "./TitleBar";
 const WIDTH_KEY = "oghma.sidebar.width";
 const COLLAPSED_KEY = "oghma.sidebar.collapsed";
 
+/** Content-area variants defined in styles/layout.css. */
+export type ContentLayout = "scroll" | "fill";
+
 function readNumber(key: string, fallback: number) {
   try {
     const value = Number(window.localStorage.getItem(key));
@@ -41,8 +44,8 @@ export type AppShellProps = {
   sidebarStatus?: SidebarStatus;
   header: PageHeaderProps;
   bottomPanel: BottomPanelProps;
-  /** Class names for the content area (legacy views use `workspace …` grid classes). */
-  contentClassName?: string;
+  /** Content-area variant: the page scrolls as a whole, or the view fills it (see layout.css). */
+  contentLayout?: ContentLayout;
   children: ReactNode;
   /** Rendered after the grid (overlays such as the onboarding wizard). */
   overlays?: ReactNode;
@@ -55,7 +58,7 @@ export function AppShell({
   sidebarStatus,
   header,
   bottomPanel,
-  contentClassName,
+  contentLayout = "scroll",
   children,
   overlays,
   platform = getPlatform()
@@ -95,8 +98,8 @@ export function AppShell({
         />
       </div>
       <main className="o-app__main">
-        <PageHeader {...header} />
-        <div className={cx("o-app__content", contentClassName)} key={active}>
+        <PageHeader {...header} key={`header-${active}`} />
+        <div className={cx("o-app__content", `o-app__content--${contentLayout}`)} key={`content-${active}`} data-layout={contentLayout}>
           {children}
         </div>
       </main>

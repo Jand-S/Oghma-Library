@@ -551,37 +551,6 @@ export function convertInputFromQueueItem(
   };
 }
 
-/** Legacy QueueItem view of a job, for UI that still renders QueueItem. */
-export function jobToQueueItem(job: DownloadJob): QueueItem {
-  const state: QueueItem["state"] =
-    job.status === "queued" ? "queued"
-    : job.status === "paused" ? "paused"
-    : job.status === "done" ? "done"
-    : job.status === "error" || job.status === "canceled" ? "error"
-    : "downloading";
-  return {
-    id: job.id,
-    novelId: job.novelId,
-    title: job.title,
-    coverClass: job.request.coverClass ?? "cover-c",
-    coverUrl: job.coverUrl,
-    bundleKey: job.request.bundleKey,
-    preset: job.request.preset,
-    rangeStart: job.request.rangeStart,
-    rangeEnd: job.request.rangeEnd,
-    rangeLabel: job.request.rangeLabel,
-    progress: job.progress.percent,
-    state,
-    chaptersTotal: job.request.chaptersTotal,
-    formats: job.request.formats,
-    translate: job.request.translate,
-    audiobook: job.request.audiobook,
-    outputDir: job.finalDir ?? job.request.sourceDir,
-    outputFiles: job.outputFiles,
-    error: job.status === "canceled" ? "Cancelado." : job.error
-  };
-}
-
 let singleton: DownloadQueue | null = null;
 
 /**

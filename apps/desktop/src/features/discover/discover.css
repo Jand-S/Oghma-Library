@@ -1,4 +1,4 @@
-/* Discover ("Buscar"): toolbar, filter drawer, cover grid and the detail panel. */
+/* Discover ("Buscar"): filter drawer, cover grid and the detail panel. The toolbar lives in the PageHeader. */
 @layer features {
   .discover {
     --discover-detail-w: clamp(calc(var(--space-8) * 5), 30vw, calc(var(--space-8) * 6.5));
@@ -25,7 +25,7 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 var(--space-3) var(--space-3);
+    padding: var(--space-3);
     outline: none;
   }
 
@@ -33,46 +33,19 @@
     min-width: 0;
   }
 
-  /* ---------- Toolbar ---------- */
+  /* ---------- PageHeader content (DiscoverHeader) ---------- */
 
-  .discover-toolbar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1-5);
-    min-width: 0;
-    padding: var(--space-2) var(--space-3);
+  .discover-header__source {
+    width: calc(var(--space-8) * 2.5);
   }
 
-  .discover-toolbar__source {
-    flex: 0 1 calc(var(--space-8) * 3);
-    min-width: calc(var(--space-8) * 2);
-  }
-
-  .discover-toolbar__search {
-    flex: 1 1 calc(var(--space-8) * 6);
-    min-width: calc(var(--space-8) * 2);
-    max-width: calc(var(--space-8) * 7);
-  }
-
-  .discover-toolbar__clear {
-    margin-right: calc(var(--space-1) * -1);
-  }
-
-  .discover-toolbar__count {
-    flex: 0 0 auto;
-  }
-
-  .discover-toolbar__spacer {
-    flex: 1 1 auto;
-  }
-
-  .discover-toolbar__filters.is-active {
+  .discover-header__filters.is-active {
     border-color: rgb(var(--accent-rgb) / 0.6);
     background: rgb(var(--accent-rgb) / 0.14);
     color: var(--accent-text);
   }
 
-  .discover-toolbar__filter-count {
+  .discover-header__filter-count {
     margin-left: var(--space-0-5);
   }
 
@@ -85,7 +58,7 @@
     margin-bottom: var(--space-2);
     padding: var(--space-2) var(--space-3) var(--space-3);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     background: var(--surface-1);
     animation: discover-drawer-in var(--dur-base) var(--ease) both;
   }
@@ -635,10 +608,6 @@
 
   /* Narrow results column (minimum window with the detail panel open). */
   @container discover-main (max-width: 720px) {
-    .discover-toolbar__count {
-      display: none;
-    }
-
     .discover-grid {
       --discover-card-min: calc(var(--space-8) * 2 + var(--space-1));
     }

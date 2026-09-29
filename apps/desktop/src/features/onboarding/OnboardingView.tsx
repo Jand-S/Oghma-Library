@@ -370,7 +370,9 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
     }
     if (event.key === "Escape") {
       event.preventDefault();
-      if (index > 0 && !setupSyncRunning) props.onBack();
+      if (setupSyncRunning) return;
+      if (index > 0) props.onBack();
+      else if (props.allowClose) props.onClose();
       return;
     }
     if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -425,7 +427,7 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
         <div className="onboarding__body" key={definition.id}>
           {welcome ? <img className="onboarding__hero-logo" src="/icons/oghma-icon.svg" alt="" draggable={false} /> : null}
           {welcome ? null : <span className="onboarding__eyebrow">{onboardingStrings.steps[index]}</span>}
-          <h1 className="onboarding__title" id={titleId} ref={titleRef} tabIndex={-1}>{definition.title}</h1>
+          <h2 className="onboarding__title" id={titleId} ref={titleRef} tabIndex={-1}>{definition.title}</h2>
           <p className="onboarding__lead" id={`${titleId}-lead`}>{definition.lead}</p>
           <div className="onboarding__content">{definition.render(ctx)}</div>
         </div>

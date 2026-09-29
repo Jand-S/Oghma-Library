@@ -120,7 +120,7 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
 
   if (!library.kindleConnected) {
     return (
-      <div className="kindle-page" data-testid="kindle-page">
+      <div className="o-page kindle-page" data-testid="kindle-page">
         <DeviceHero library={library} />
         <ConnectTips onOpenLibrary={() => navigate("library")} />
       </div>
@@ -128,7 +128,7 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
   }
 
   return (
-    <div className="kindle-page" data-testid="kindle-page">
+    <div className="o-page kindle-page" data-testid="kindle-page">
       <DeviceHero library={library} />
 
       <div className="kindle-send">

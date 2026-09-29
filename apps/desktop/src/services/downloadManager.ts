@@ -296,10 +296,10 @@ async function buildEpub(
   const chapterFiles = chapters.map((chapter, index) => ({
     id: `chapter-${index + 1}`,
     href: `chapters/chapter-${index + 1}.xhtml`,
-    title: chapter.title || `Capitulo ${chapter.number}`,
+    title: chapter.title || `Capítulo ${chapter.number}`,
     html: xhtmlDoc(
-      chapter.title || `Capitulo ${chapter.number}`,
-      `<h1>${xmlEscape(chapter.title || `Capitulo ${chapter.number}`)}</h1>${chapter.html}`,
+      chapter.title || `Capítulo ${chapter.number}`,
+      `<h1>${xmlEscape(chapter.title || `Capítulo ${chapter.number}`)}</h1>${chapter.html}`,
       "../style.css"
     )
   }));
@@ -368,7 +368,7 @@ export async function buildOutputs(
   });
   if (empty.length) {
     const numbers = empty.slice(0, 12).map((chapter) => chapter.number).join(", ");
-    throw new Error(`O acervo publicado possui ${empty.length} capitulo(s) sem conteudo: ${numbers}${empty.length > 12 ? ", ..." : ""}. O download foi interrompido para evitar um livro incompleto.`);
+    throw new Error(`O acervo publicado possui ${empty.length} capítulo(s) sem conteúdo: ${numbers}${empty.length > 12 ? ", ..." : ""}. O download foi interrompido para evitar um livro incompleto.`);
   }
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
@@ -444,7 +444,7 @@ export async function runDownload(req: DownloadRequest, opts: RunDownloadOptions
   };
 
   report({ stage: "fetching", percent: 5 });
-  if (!req.novel.bundleKey) throw new Error(`"${req.novel.title}" ainda nao tem bundle publicado`);
+  if (!req.novel.bundleKey) throw new Error(`"${req.novel.title}" ainda não tem bundle publicado`);
   throwIfAborted(signal);
 
   // 1. Network: stream + extract the bundle.
@@ -524,7 +524,7 @@ export async function runDownload(req: DownloadRequest, opts: RunDownloadOptions
     report({ stage: "converting", percent: 96 });
     const azw3 = await convertLocalEpubToAzw3(req.novel.title, outputDir, savedFiles);
     if (!azw3) {
-      throw new Error("Conversao AZW3 esta disponivel no app desktop.");
+      throw new Error("A conversão para AZW3 só está disponível no app desktop.");
     }
     savedFiles.push(azw3);
   }

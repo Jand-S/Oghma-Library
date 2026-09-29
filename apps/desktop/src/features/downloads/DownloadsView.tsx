@@ -1,10 +1,10 @@
-import { Download, Inbox, Pause, Play, Search, Trash2 } from "lucide-react";
+import { Download, Inbox, Search } from "lucide-react";
 import { useState } from "react";
 import { useNavigation } from "../../app/NavigationContext";
 import type { DownloadJob } from "../../core/types";
 import type { MoveDirection } from "../../services/downloadQueue";
 import { downloadsStrings } from "../../strings/downloads";
-import { Badge, Button, ConfirmationModal, EmptyState, Section } from "../../ui";
+import { Button, ConfirmationModal, EmptyState, Section } from "../../ui";
 import { ActiveDownloadCard } from "./ActiveDownloadCard";
 import { CompletedList } from "./CompletedList";
 import { QueueList } from "./QueueList";
@@ -26,47 +26,8 @@ export type DownloadsViewProps = {
   onReorder: (ids: string[]) => void;
   onRemove: (id: string) => void;
   onRetry: (id: string) => void;
-  onClearCompleted: () => void;
   onOpenFolder: (job: DownloadJob) => void;
-  /** Renders the summary/actions bar above the sections (off when the PageHeader hosts them). */
-  toolbar?: boolean;
 };
-
-type ToolbarProps = Pick<DownloadsViewProps, "paused" | "onPause" | "onResume" | "onClearCompleted"> & {
-  pendingCount: number;
-  completedCount: number;
-};
-
-/** Pending count badge plus the global queue actions ("Pausar fila", "Limpar concluídos"). */
-export function DownloadsToolbar({ paused, pendingCount, completedCount, onPause, onResume, onClearCompleted }: ToolbarProps) {
-  return (
-    <div className="downloads-toolbar">
-      <div className="downloads-toolbar__summary">
-        <Badge tone={pendingCount > 0 ? "accent" : "neutral"} data-testid="downloads-count">
-          {downloadsStrings.pendingCount(pendingCount)}
-        </Badge>
-        {paused ? (
-          <Badge tone="warning">
-            <Pause aria-hidden="true" />
-            {downloadsStrings.queuePaused}
-          </Badge>
-        ) : null}
-      </div>
-      <div className="downloads-toolbar__actions">
-        {paused ? (
-          <Button size="sm" variant="outline" icon={<Play />} onClick={onResume}>{downloadsStrings.resumeQueue}</Button>
-        ) : (
-          <Button size="sm" variant="outline" icon={<Pause />} onClick={onPause} disabled={pendingCount === 0}>
-            {downloadsStrings.pauseQueue}
-          </Button>
-        )}
-        <Button size="sm" variant="ghost" icon={<Trash2 />} onClick={onClearCompleted} disabled={completedCount === 0}>
-          {downloadsStrings.clearCompleted}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export function DownloadsView({
   activeJob,
@@ -80,9 +41,7 @@ export function DownloadsView({
   onReorder,
   onRemove,
   onRetry,
-  onClearCompleted,
-  onOpenFolder,
-  toolbar = true
+  onOpenFolder
 }: DownloadsViewProps) {
   const { navigate } = useNavigation();
   const [confirmCancel, setConfirmCancel] = useState<DownloadJob | null>(null);
@@ -120,7 +79,7 @@ export function DownloadsView({
 
   if (pendingCount === 0 && completedJobs.length === 0 && !paused) {
     return (
-      <div className="downloads-page downloads-page--empty">
+      <div className="o-page o-page--narrow downloads-page downloads-page--empty">
         <EmptyState
           className="downloads-empty"
           icon={<Download />}
@@ -134,81 +93,68 @@ export function DownloadsView({
   }
 
   return (
-    <div className="downloads-page">
-      <div className="downloads-page__inner">
-        {toolbar ? (
-          <DownloadsToolbar
-            paused={paused}
-            pendingCount={pendingCount}
-            completedCount={completedJobs.length}
-            onPause={onPause}
-            onResume={onResume}
-            onClearCompleted={onClearCompleted}
-          />
-        ) : null}
-
-        <div className="downloads-pending" data-testid="downloads-pending">
-          <Section title={downloadsStrings.pendingHeading} className="downloads-section">
-            {heroJob ? (
-              <ActiveDownloadCard
-                key={heroJob.id}
-                job={heroJob}
-                paused={heroPaused}
-                onPause={onPause}
-                onResume={onResume}
-                onCancel={setConfirmCancel}
-              />
-            ) : (
-              <div className="downloads-idle">
-                <span className="downloads-idle__icon" aria-hidden="true"><Inbox /></span>
-                <div className="downloads-idle__text">
-                  <strong>{downloadsStrings.idleTitle}</strong>
-                  <span>{paused ? downloadsStrings.pausedIdle : downloadsStrings.idleDescription}</span>
-                </div>
-                <Button size="sm" variant="ghost" icon={<Search />} onClick={goToDiscover}>{downloadsStrings.goToDiscover}</Button>
+    <div className="o-page o-page--narrow downloads-page">
+      <div className="downloads-pending" data-testid="downloads-pending">
+        <Section title={downloadsStrings.pendingHeading} className="downloads-section">
+          {heroJob ? (
+            <ActiveDownloadCard
+              key={heroJob.id}
+              job={heroJob}
+              paused={heroPaused}
+              onPause={onPause}
+              onResume={onResume}
+              onCancel={setConfirmCancel}
+            />
+          ) : (
+            <div className="downloads-idle">
+              <span className="downloads-idle__icon" aria-hidden="true"><Inbox /></span>
+              <div className="downloads-idle__text">
+                <strong>{downloadsStrings.idleTitle}</strong>
+                <span>{paused ? downloadsStrings.pausedIdle : downloadsStrings.idleDescription}</span>
               </div>
+              <Button size="sm" variant="ghost" icon={<Search />} onClick={goToDiscover}>{downloadsStrings.goToDiscover}</Button>
+            </div>
+          )}
+        </Section>
+
+        {listed.length > 0 ? (
+          <Section
+            title={(
+              <span className="downloads-section__title">
+                {downloadsStrings.queuedHeading}
+                <span className="downloads-section__count">{listed.length}</span>
+              </span>
             )}
+            description={downloadsStrings.queuedNote}
+            className="downloads-section"
+          >
+            <QueueList
+              jobs={listed}
+              offset={offset}
+              total={queuedJobs.length}
+              onMove={onMove}
+              onRemove={onRemove}
+              onReorder={reorder}
+            />
           </Section>
-
-          {listed.length > 0 ? (
-            <Section
-              title={(
-                <span className="downloads-section__title">
-                  {downloadsStrings.queuedHeading}
-                  <span className="downloads-section__count">{listed.length}</span>
-                </span>
-              )}
-              description={downloadsStrings.queuedNote}
-              className="downloads-section"
-            >
-              <QueueList
-                jobs={listed}
-                offset={offset}
-                total={queuedJobs.length}
-                onMove={onMove}
-                onRemove={onRemove}
-                onReorder={reorder}
-              />
-            </Section>
-          ) : null}
-        </div>
-
-        {completedJobs.length > 0 ? (
-          <div className="downloads-completed" data-testid="downloads-completed">
-            <Section
-              title={(
-                <span className="downloads-section__title">
-                  {downloadsStrings.completedHeading}
-                  <span className="downloads-section__count">{completedJobs.length}</span>
-                </span>
-              )}
-              className="downloads-section"
-            >
-              <CompletedList jobs={completedJobs} onRetry={onRetry} onRemove={onRemove} onOpenFolder={onOpenFolder} />
-            </Section>
-          </div>
         ) : null}
       </div>
+
+      {completedJobs.length > 0 ? (
+        <div className="downloads-completed" data-testid="downloads-completed">
+          <Section
+            title={(
+              <span className="downloads-section__title">
+                {downloadsStrings.completedHeading}
+                <span className="downloads-section__count">{completedJobs.length}</span>
+              </span>
+            )}
+            className="downloads-section"
+          >
+            <CompletedList jobs={completedJobs} onRetry={onRetry} onRemove={onRemove} onOpenFolder={onOpenFolder} />
+          </Section>
+        </div>
+      ) : null}
       {confirmation}
     </div>
   );

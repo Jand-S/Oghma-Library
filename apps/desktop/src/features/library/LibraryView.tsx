@@ -1,19 +1,13 @@
 import { BookOpenText, FolderCog, SearchX } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigation, type AppView } from "../../app/NavigationContext";
-import type { DownloadFormat, DownloadJob, LibraryItem } from "../../core/types";
+import type { DownloadJob, LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
-import { Button, EmptyState, Skeleton } from "../../ui";
+import { Button, EmptyState, Skeleton, cx } from "../../ui";
 import { LibraryCollection } from "./LibraryCollection";
 import { LibraryDetails } from "./LibraryDetails";
-import { LibraryToolbar } from "./LibraryToolbar";
-import {
-  availableFormats,
-  bookJobState,
-  filterLibrary,
-  type LibrarySort,
-  type LibraryViewMode
-} from "./libraryModel";
+import { LibraryFilterBar } from "./LibraryHeader";
+import { bookJobState } from "./libraryModel";
 import { useBookActions } from "./useBookActions";
 import { canRedownload, type LibraryController } from "./useLibraryController";
 import "./library.css";
@@ -25,26 +19,6 @@ type LibraryViewProps = {
   loading: boolean;
   navigate: (view: AppView) => void;
 };
-
-const VIEW_KEY = "oghma.library.view";
-const SORT_KEY = "oghma.library.sort";
-
-function readPref<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
-  try {
-    const value = window.localStorage.getItem(key) as T | null;
-    return value && allowed.includes(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writePref(key: string, value: string) {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // Storage can be unavailable; the preference is just not remembered.
-  }
-}
 
 function LoadingGrid() {
   return (
@@ -66,19 +40,11 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
   const detailId = typeof navigation.params.book === "string" ? navigation.params.book : null;
   const detailItem = detailId ? library.library.find((item) => item.id === detailId) ?? null : null;
 
-  const [query, setQuery] = useState("");
-  const [selectedFormats, setSelectedFormats] = useState<Set<DownloadFormat>>(() => new Set());
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [sort, setSort] = useState<LibrarySort>(() => readPref(SORT_KEY, ["recent", "title", "size"], "recent"));
-  const [view, setView] = useState<LibraryViewMode>(() => readPref(VIEW_KEY, ["grid", "list"], "grid"));
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedScroll = useRef(0);
 
-  const formats = useMemo(() => availableFormats(library.library), [library.library]);
-  const filtered = useMemo(
-    () => filterLibrary(library.library, { query, formats: selectedFormats, favoritesOnly, sort }),
-    [favoritesOnly, library.library, query, selectedFormats, sort]
-  );
+  const browse = library.browse;
+  const filtered = browse.filtered;
 
   const jobs = { activeJob, queuedJobs };
   const jobState = (item: LibraryItem) => bookJobState(item, jobs);
@@ -118,20 +84,6 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
     return () => window.removeEventListener("keydown", onKey);
   }, [closeDetails, detailId]);
 
-  const clearFilters = () => {
-    setQuery("");
-    setSelectedFormats(new Set());
-    setFavoritesOnly(false);
-  };
-
-  const toggleFormat = (format: DownloadFormat) =>
-    setSelectedFormats((current) => {
-      const next = new Set(current);
-      if (next.has(format)) next.delete(format);
-      else next.add(format);
-      return next;
-    });
-
   if (detailItem) {
     return (
       <div className="library-page library-page--details" data-testid="library-page">
@@ -144,6 +96,8 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
   }
 
   const noOutput = !library.outputPath.trim();
+  /** Nothing to browse at all (no folder, or an empty library): the empty state centers in the page. */
+  const pageEmpty = noOutput || (!loading && library.library.length === 0);
   let content;
   if (noOutput) {
     content = (
@@ -171,14 +125,14 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
         icon={<SearchX />}
         title={libraryStrings.noMatchTitle}
         description={libraryStrings.noMatchDescription}
-        action={<Button variant="outline" onClick={clearFilters}>{libraryStrings.clearFilters}</Button>}
+        action={<Button variant="outline" onClick={browse.clearFilters}>{libraryStrings.clearFilters}</Button>}
       />
     );
   } else {
     content = (
       <LibraryCollection
         items={filtered}
-        view={view}
+        view={browse.view}
         jobState={jobState}
         actions={actions}
         onOpen={openDetails}
@@ -189,31 +143,10 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
 
   return (
     <div className="library-page" data-testid="library-page" aria-busy={loading || undefined}>
-      {noOutput || (!loading && library.library.length === 0) ? null : (
-        <LibraryToolbar
-          total={library.library.length}
-          shown={filtered.length}
-          query={query}
-          onQueryChange={setQuery}
-          formats={formats}
-          selectedFormats={selectedFormats}
-          onToggleFormat={toggleFormat}
-          favoritesOnly={favoritesOnly}
-          onToggleFavorites={() => setFavoritesOnly((value) => !value)}
-          sort={sort}
-          onSortChange={(value) => {
-            setSort(value);
-            writePref(SORT_KEY, value);
-          }}
-          view={view}
-          onViewChange={(value) => {
-            setView(value);
-            writePref(VIEW_KEY, value);
-          }}
-          onRefresh={library.refresh}
-        />
+      {pageEmpty ? null : (
+        <LibraryFilterBar browse={browse} />
       )}
-      <div className="library-scroll" ref={scrollRef} data-testid="library-results">
+      <div className={cx("library-scroll", pageEmpty && "library-scroll--center")} ref={scrollRef} data-testid="library-results">
         {content}
       </div>
       {actions.dialogs}

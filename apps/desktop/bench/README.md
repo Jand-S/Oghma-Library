@@ -119,6 +119,11 @@ node usability.mjs --old http://127.0.0.1:4174 --new http://127.0.0.1:4173 --out
 
 ## Updating `versions.mjs` when the redesign lands
 
+> Done in P3 (2026-09-29): `newVersion` uses only `data-testid` selectors (`book-card`, `discover-detail-panel`,
+> `content-area`, `add-to-queue` "Baixar", `library-card` → `library-detail` → "Enviar ao Kindle",
+> `download-active`, `onboarding`/`onboarding-step`, `pick-output-folder`, `bottom-panel-kindle`). The notes
+> below describe how it got there.
+
 `newVersion` already accepts `[data-testid=…]`, with the legacy CSS as fallback (`tid()`), and matches
 nav names by regex (for example `Buscar|Descobrir`). Expect to change:
 

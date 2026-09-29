@@ -7,6 +7,7 @@ import type { DownloadQueue } from "../../services/downloadQueue";
 import { deleteLibraryMetadata, deleteLocalLibraryFiles, joinPath, saveLibraryMetadata } from "../../services/localFiles";
 import { libraryStrings } from "../../strings/library";
 import { openOutputFolder } from "../downloads/useDownloadsController";
+import { useLibraryBrowse } from "./useLibraryBrowse";
 
 export function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
   return items.map((item) => ({
@@ -68,6 +69,7 @@ export function useLibraryController({
   refreshLocalLibrary,
   notify
 }: LibraryControllerArgs) {
+  const browse = useLibraryBrowse(library);
   /** Books picked on the Kindle page, in send order. */
   const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
   /** The batch the conversion manager works on (the Kindle send list, or one book to convert). */
@@ -227,6 +229,8 @@ export function useLibraryController({
 
   return {
     library,
+    /** Search, chips, sort and view mode of the Library page (shared with its PageHeader). */
+    browse,
     kindleConnected,
     kindleStatus: kindleStatus ?? null,
     /** Library root; empty when the output folder is not configured. */

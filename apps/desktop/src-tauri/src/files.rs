@@ -190,19 +190,19 @@ pub(crate) fn unique_suffix() -> String {
 pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()
-        .ok_or_else(|| "Caminho de arquivo invalido".to_string())?;
+        .ok_or_else(|| "Caminho de arquivo inválido".to_string())?;
     let name = path
         .file_name()
-        .ok_or_else(|| "Caminho de arquivo invalido".to_string())?
+        .ok_or_else(|| "Caminho de arquivo inválido".to_string())?
         .to_string_lossy();
     let temp = parent.join(format!(".{name}.oghma-tmp-{}", unique_suffix()));
     if let Err(err) = fs::write(&temp, bytes) {
         let _ = fs::remove_file(&temp);
-        return Err(format!("Nao foi possivel salvar o arquivo: {err}"));
+        return Err(format!("Não foi possível salvar o arquivo: {err}"));
     }
     fs::rename(&temp, path).map_err(|err| {
         let _ = fs::remove_file(&temp);
-        format!("Nao foi possivel finalizar o arquivo: {err}")
+        format!("Não foi possível finalizar o arquivo: {err}")
     })
 }
 
@@ -211,14 +211,14 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
 pub(crate) fn write_export_file(dir: &Path, file_name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
     let relative_path = safe_relative_path(file_name)?;
     fs::create_dir_all(dir)
-        .map_err(|err| format!("Nao foi possivel criar a pasta de saida: {err}"))?;
+        .map_err(|err| format!("Não foi possível criar a pasta de saída: {err}"))?;
     let path = dir.join(relative_path);
     let parent = path
         .parent()
-        .ok_or_else(|| "Caminho de arquivo invalido".to_string())?
+        .ok_or_else(|| "Caminho de arquivo inválido".to_string())?
         .to_path_buf();
     fs::create_dir_all(&parent)
-        .map_err(|err| format!("Nao foi possivel criar a pasta de assets: {err}"))?;
+        .map_err(|err| format!("Não foi possível criar a pasta de assets: {err}"))?;
     write_atomic(&path, bytes)?;
 
     let written_name = path
@@ -247,13 +247,13 @@ pub fn save_export_file(request: Request<'_>) -> Result<String, String> {
         while index < source.len() {
             if source[index] == b'%' {
                 if index + 2 >= source.len() {
-                    return Err("Header de arquivo invalido".to_string());
+                    return Err("Header de arquivo inválido".to_string());
                 }
                 let hex = std::str::from_utf8(&source[index + 1..index + 3])
-                    .map_err(|_| "Header de arquivo invalido".to_string())?;
+                    .map_err(|_| "Header de arquivo inválido".to_string())?;
                 decoded.push(
                     u8::from_str_radix(hex, 16)
-                        .map_err(|_| "Header de arquivo invalido".to_string())?,
+                        .map_err(|_| "Header de arquivo inválido".to_string())?,
                 );
                 index += 3;
             } else {
@@ -261,7 +261,7 @@ pub fn save_export_file(request: Request<'_>) -> Result<String, String> {
                 index += 1;
             }
         }
-        String::from_utf8(decoded).map_err(|_| "Header de arquivo invalido".to_string())
+        String::from_utf8(decoded).map_err(|_| "Header de arquivo inválido".to_string())
     }
 
     let payload = match request.body() {
@@ -272,7 +272,7 @@ pub fn save_export_file(request: Request<'_>) -> Result<String, String> {
         .headers()
         .get("x-oghma-output-dir")
         .and_then(|value| value.to_str().ok())
-        .ok_or_else(|| "Pasta de saida ausente".to_string())
+        .ok_or_else(|| "Pasta de saída ausente".to_string())
         .and_then(decode_header)?;
     let file_name = request
         .headers()
@@ -289,10 +289,10 @@ pub fn save_export_file(request: Request<'_>) -> Result<String, String> {
 pub fn open_local_path(path: String) -> Result<(), String> {
     let path = expand_home(&path);
     fs::create_dir_all(&path)
-        .map_err(|err| format!("Nao foi possivel abrir/criar a pasta: {err}"))?;
+        .map_err(|err| format!("Não foi possível abrir/criar a pasta: {err}"))?;
     let path = path
         .canonicalize()
-        .map_err(|err| format!("Nao foi possivel resolver a pasta: {err}"))?;
+        .map_err(|err| format!("Não foi possível resolver a pasta: {err}"))?;
 
     #[cfg(target_os = "windows")]
     let status = Command::new("explorer").arg(path.as_os_str()).status();
@@ -302,7 +302,7 @@ pub fn open_local_path(path: String) -> Result<(), String> {
     let status = Command::new("xdg-open").arg(&path).status();
 
     status
-        .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))
+        .map_err(|err| format!("Não foi possível abrir a pasta: {err}"))
         .and_then(|exit| {
             if exit.success() {
                 Ok(())
@@ -317,9 +317,9 @@ fn scan_book_dir(path: &Path, folder_name: String, include_cover_data: bool) -> 
     let mut size_bytes = 0;
     let mut newest: Option<u64> = None;
     for file in fs::read_dir(path)
-        .map_err(|err| format!("Nao foi possivel ler uma pasta de livro: {err}"))?
+        .map_err(|err| format!("Não foi possível ler uma pasta de livro: {err}"))?
     {
-        let file = file.map_err(|err| format!("Nao foi possivel ler um arquivo exportado: {err}"))?;
+        let file = file.map_err(|err| format!("Não foi possível ler um arquivo exportado: {err}"))?;
         let name = file.file_name().to_string_lossy().to_string();
         if is_hidden_name(&name) {
             continue;
@@ -381,9 +381,9 @@ pub(crate) fn scan_export_library(root: &Path, include_cover_data: bool) -> Resu
 
     let mut items = Vec::new();
     for entry in fs::read_dir(root)
-        .map_err(|err| format!("Nao foi possivel ler a pasta de saida: {err}"))?
+        .map_err(|err| format!("Não foi possível ler a pasta de saída: {err}"))?
     {
-        let entry = entry.map_err(|err| format!("Nao foi possivel ler um item da pasta: {err}"))?;
+        let entry = entry.map_err(|err| format!("Não foi possível ler um item da pasta: {err}"))?;
         let folder_name = entry.file_name().to_string_lossy().to_string();
         let path = entry.path();
         if is_hidden_name(&folder_name) || !path.is_dir() {
@@ -425,20 +425,20 @@ pub fn list_export_library(
 pub fn delete_export_library_item(output_dir: String, item_dir: String) -> Result<(), String> {
     let root = expand_home(&output_dir)
         .canonicalize()
-        .map_err(|err| format!("Nao foi possivel resolver a pasta de saida: {err}"))?;
+        .map_err(|err| format!("Não foi possível resolver a pasta de saída: {err}"))?;
     let target = expand_home(&item_dir)
         .canonicalize()
-        .map_err(|err| format!("Nao foi possivel resolver a pasta do livro: {err}"))?;
+        .map_err(|err| format!("Não foi possível resolver a pasta do livro: {err}"))?;
 
     if target == root || !target.starts_with(&root) {
-        return Err("Recusa de seguranca: item fora da pasta de saida".to_string());
+        return Err("Recusa de segurança: item fora da pasta de saída".to_string());
     }
     if !target.is_dir() {
-        return Err("A pasta do livro nao existe".to_string());
+        return Err("A pasta do livro não existe".to_string());
     }
 
     fs::remove_dir_all(&target)
-        .map_err(|err| format!("Nao foi possivel excluir os arquivos do livro: {err}"))?;
+        .map_err(|err| format!("Não foi possível excluir os arquivos do livro: {err}"))?;
     Ok(())
 }
 

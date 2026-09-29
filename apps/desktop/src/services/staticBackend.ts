@@ -153,8 +153,8 @@ function siteToSource(site: IndexSite, baseUrl: string): SourceSite {
 
 function selectionLabel(selection: ChapterSelection, max: number): string {
   const labels: Record<ChapterPreset, string> = {
-    all: `Todos os ${max.toLocaleString("pt-BR")} capitulos`,
-    range: `Capitulos ${Math.max(1, selection.start)}-${Math.min(selection.end, max)}`
+    all: `Todos os ${max.toLocaleString("pt-BR")} capítulos`,
+    range: `Capítulos ${Math.max(1, selection.start)}-${Math.min(selection.end, max)}`
   };
   return labels[selection.preset];
 }
@@ -301,7 +301,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
 
   function updateTranslationJob(jobId: string, patch: Partial<TranslationJob>): TranslationJob {
     const index = translationJobs.findIndex((job) => job.id === jobId);
-    if (index < 0) throw new Error("Job de traducao nao encontrado");
+    if (index < 0) throw new Error("Trabalho de tradução não encontrado");
     const next = { ...translationJobs[index], ...patch, updatedAt: new Date().toISOString() };
     translationJobs[index] = next;
     return structuredClone(next);
@@ -368,7 +368,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
         id: `${novelId}#${c.number}`,
         novelId,
         number: c.number,
-        title: c.title || `Capitulo ${c.number}`,
+        title: c.title || `Capítulo ${c.number}`,
         pages: 1,
         sizeMb: 0,
         downloaded: false
@@ -379,7 +379,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       loaded = false;
       await ensureLoaded();
       const sc = sites.find((item) => item.site.id === sourceId);
-      if (!sc) throw new Error("Fonte nao encontrada no index");
+      if (!sc) throw new Error("Fonte não encontrada no índice");
       return siteToSource(sc.site, sc.source.baseUrl);
     },
 
@@ -387,7 +387,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       await ensureLoaded();
       return selections.map((selection, index) => {
         const found = findNovel(selection.novelId);
-        if (!found) throw new Error("Novel nao encontrada");
+        if (!found) throw new Error("Novel não encontrada");
         const novel = novelToUi(found.cn, found.source);
         return {
           id: `static-${Date.now()}-${index}`,
@@ -543,7 +543,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
 
     async runTranslationJob(jobId: string, _allowPaidProviders = false, _allowEditorialGrader = false): Promise<TranslationJob> {
       const job = translationJobs.find((item) => item.id === jobId);
-      if (!job) throw new Error("Job de traducao nao encontrado");
+      if (!job) throw new Error("Trabalho de tradução não encontrado");
       return updateTranslationJob(jobId, {
         status: "translating",
         startedAt: job.startedAt ?? new Date().toISOString()
@@ -665,7 +665,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
           target: "Mestre Gu",
           relatedSource: "Gu Cultivator",
           relatedTarget: "Mestre Gu",
-          message: "Termos originais diferentes compartilham a mesma traducao."
+          message: "Termos originais diferentes compartilham a mesma tradução."
         }
       ];
     },

@@ -13,7 +13,8 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-0-5);
-    min-height: calc(var(--control-md) - var(--space-1));
+    /* Option + padding + hairlines = exactly --control-md (and --control-sm for --sm). */
+    min-height: calc(var(--control-md) - var(--space-0-5) - 2 * var(--hairline));
     padding: 0 var(--space-1-5);
     border: 0;
     border-radius: var(--radius-sm);
@@ -25,7 +26,7 @@
   }
 
   .o-segmented--sm .o-segmented__option {
-    min-height: calc(var(--control-sm) - var(--space-1));
+    min-height: calc(var(--control-sm) - var(--space-0-5) - 2 * var(--hairline));
     padding: 0 var(--space-1);
     font-size: var(--fs-xs);
   }

@@ -128,6 +128,9 @@ async function shootVersion(browser, version, url, viewport) {
     try {
       await page.goto(url);
       await page.locator(version.sel.onboardingDialog).first().waitFor({ state: "visible", timeout: 20000 });
+      if (version.names.onboardingHeading) {
+        await page.getByRole("heading", { name: version.names.onboardingHeading }).first().waitFor({ state: "visible", timeout: 20000 });
+      }
       if (version.sel.splash) await page.locator(version.sel.splash).waitFor({ state: "detached", timeout: 20000 });
       await settle(page, version);
       await capture(page, shots, "onboarding");

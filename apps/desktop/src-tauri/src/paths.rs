@@ -21,7 +21,7 @@ pub fn safe_relative_path(file_name: &str) -> Result<PathBuf, String> {
             .components()
             .any(|component| !matches!(component, Component::Normal(_)))
     {
-        return Err("Caminho de arquivo invalido".to_string());
+        return Err("Caminho de arquivo inválido".to_string());
     }
     Ok(path.to_path_buf())
 }

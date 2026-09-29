@@ -61,7 +61,7 @@ O CSS é global e simples, sem CSS-in-JS nem CSS Modules, organizado em **cascad
 `src/styles/index.css` declara a ordem uma única vez, antes de qualquer outro CSS:
 
 ```css
-@layer reset, tokens, base, layout, components, features, legacy, utilities;
+@layer reset, tokens, base, layout, components, features, utilities;
 ```
 
 `main.tsx` importa `./styles/index.css` **antes** de qualquer componente. Assim a declaração de
@@ -71,22 +71,20 @@ ordem sempre chega primeiro, mesmo que o CSS de uma primitiva seja importado por
 |---|---|---|
 | `reset` | `styles/reset.css` | Reset moderno mínimo: `box-sizing`, margens zeradas, `img/svg` em bloco, `[hidden]`. |
 | `tokens` | `styles/tokens.css` | Custom properties em `:root`, override de `[data-platform="macos"]` e zeragem de durações com `prefers-reduced-motion`. É o **único** arquivo com hex, rgba e px crus. |
-| `base` | `styles/base.css` | Estilos de elementos (`body`, `h1–h3`, `a`, inputs simples), `:focus-visible`, scrollbar fina, `@keyframes` e regra global de movimento reduzido. |
-| `layout` | `styles/layout.css` | Grade do shell: `.o-app` e `.o-app__*` (titlebar, sidebar, main, content, bottom). |
+| `base` | `styles/base.css` | Estilos de elementos (`body`, `h1–h3`, `a`, inputs simples), `:focus-visible`, scrollbar fina e `@keyframes`. |
+| `layout` | `styles/layout.css` | Grade do shell (`.o-app` e `.o-app__*`), as variantes da área de conteúdo (`.o-app__content--scroll`/`--fill`) e a moldura de página `.o-page` (veja a [seção 7](#área-de-conteúdo-layout-da-tela)). |
 | `components` | `src/ui/*.css`, `src/shell/*.css` | Primitivas `.o-*` e partes do shell. Cada `.tsx` importa o próprio `.css`. |
 | `features` | CSS colocado junto de cada tela | Estilos de tela com prefixo de feature (`.discover-*`, `.library-*`...). |
-| `legacy` | `styles/legacy/*` | CSS antigo das telas, **temporário**. O P2 o remove tela por tela. |
-| `utilities` | `styles/utilities.css` | Helpers de propósito único (`.sr-only`, `.truncate`, `.stack`, `.cluster`, `.grow`, `.text-muted`). |
+| `utilities` | `styles/utilities.css` | Helpers de propósito único (`.sr-only`, `.truncate`, `.stack`, `.cluster`, `.grow`, `.text-muted`) e a regra global de movimento reduzido. |
 
 **Por que camadas:**
 
 - Com camadas, quem vence é a camada, não a especificidade. Um `.o-button` em `components` perde
   para uma regra de `features`, mesmo que o seletor da feature seja mais fraco. Por isso não precisamos
   de `!important`, que o lint proíbe, nem de seletores inflados.
-- `legacy` fica **acima** de `features` de propósito. Enquanto uma tela antiga não é migrada, o CSS
-  antigo continua valendo como antes. Quando a tela migra, o CSS dela sai de `legacy` e passa a
-  morar em `features`.
-- `utilities` fica no topo para que `.sr-only` e `.truncate` sempre funcionem.
+- `utilities` fica no topo para que `.sr-only` e `.truncate` sempre funcionem. A regra de movimento
+  reduzido também mora ali: animações com duração literal (spinner, pulso, shimmer) ficam em camadas
+  acima de `base`, então só a última camada consegue zerá-las.
 - `tokens` fica abaixo de tudo. Qualquer escopo (`[data-theme]`, `[data-platform]` ou uma variável
   local de componente) pode sobrescrever um token.
 
@@ -178,7 +176,7 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 |---|---|---|
 | `--text` | `#f0f1f7` | Texto principal e títulos. |
 | `--text-2` | `#d0d1d7` | Texto secundário com boa leitura (descrições, corpo de card). |
-| `--text-muted` | `#9a9ba3` | Metadados, hints, `<small>`, rótulos auxiliares. |
+| `--text-muted` | `#a6a7af` | Metadados, hints, `<small>`, rótulos auxiliares. Contraste ≥ 4,5:1 em todas as superfícies (8,1 em `--bg-sidebar`, 7,8 em `--bg-app`, 7,3 em `--surface-1`, 6,6 em `--surface-2`, 5,8 em `--surface-3`, 4,5 em `--active` sobre `--surface-2`). |
 | `--text-disabled` | `#5f6068` | Placeholder e itens desabilitados. |
 
 ### Marca
@@ -278,6 +276,7 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 | `--titlebar-h` | `35px` (`0px` em `[data-platform="macos"]`) | Linha da titlebar customizada na grade do shell. |
 | `--mac-inset-top` | `40px` | Padding superior da sidebar no macOS, que abre espaço para os semáforos nativos. |
 | `--header-h` | `56px` | Altura do PageHeader. |
+| `--page-max-w` | `1152px` | Largura máxima das páginas de leitura/formulário (`.o-page--narrow`: Downloads, Fontes, Ajustes). |
 | `--bottom-panel-h` | `28px` | Altura do BottomPanel. Os toasts também se posicionam acima dele. |
 | `--cover-ratio` | `2 / 3` | `aspect-ratio` das capas. |
 | `--scrollbar` | `9px` | Largura/altura da scrollbar WebKit. |
@@ -331,8 +330,7 @@ animation: scale-fade-in var(--dur-slow) var(--ease) both;
 
 ```bash
 cd apps/desktop
-npm run lint:css             # falha (exit 1) se houver erro fora de styles/legacy/
-node scripts/check-css.mjs --verbose   # também lista os avisos do legacy
+npm run lint:css             # falha (exit 1) em qualquer achado
 ```
 
 O script `scripts/check-css.mjs` não tem dependências. Ele varre `src/**/*.css`, exceto
@@ -350,7 +348,7 @@ O script `scripts/check-css.mjs` não tem dependências. Ele varre `src/**/*.css
 - `url(...)` e strings entre aspas são ignorados, então data URIs e `content: "…"` não disparam o lint.
 - `rem`, `em`, `%`, `vh`, `fr` e números sem unidade são permitidos. Prefira token quando o valor
   representar espaço, tamanho de controle ou tipografia.
-- Arquivos em `styles/legacy/` só geram **avisos** e nunca falham a execução. É dívida do P2.
+- Não há exceções por pasta: todo achado é erro.
 - `style={{ … }}` inline em TSX não é checado. Use inline só para valores dinâmicos, como largura
   de progresso, `--sidebar-current` ou tamanho de Skeleton, e nunca para cores fixas.
 
@@ -796,7 +794,7 @@ O shell fica em `src/shell/` e é exportado por `src/shell/index.ts`.
 ┌───────────────────────── o-app__titlebar (35px; 0 no macOS) ─────────────────────────┐
 │ o-app__sidebar │ o-app__main                                                          │
 │  (Sidebar)     │  PageHeader (56px)                                                   │
-│                │  o-app__content (tela ativa; key=view → anima fade-in)               │
+│                │  o-app__content--scroll | --fill (tela ativa; key → fade-in)         │
 ├────────────────┴──────────────────────────────────────────────────────────────────────┤
 │ o-app__bottom (BottomPanel, 28px)                                                      │
 └────────────────────────────────────────────────────────────────────────────────────────┘
@@ -813,7 +811,7 @@ Monta a grade `.o-app` (`styles/layout.css`).
 | `sidebarStatus` | `{ downloading?, flashKey?, kindleConnected? }` | Indicadores da sidebar. |
 | `header` | `PageHeaderProps` | |
 | `bottomPanel` | `BottomPanelProps` | |
-| `contentClassName` | `string` | Classes da área de conteúdo. Hoje as telas legadas usam `workspace …`. |
+| `contentLayout` | `"scroll" \| "fill"` | Variante da área de conteúdo (padrão `scroll`). Vem de `ViewDefinition.layout`. |
 | `overlays` | `ReactNode` | Renderizados depois da grade, como o onboarding. |
 | `platform` | `Platform` | Padrão `getPlatform()`. Em `macos` não renderiza `TitleBar`. |
 
@@ -843,14 +841,78 @@ A largura e o estado recolhido da sidebar persistem em `localStorage` (`oghma.si
 
 ### PageHeader
 
+`[Voltar] Título [badge] [busca ……] [espaço] [ações]`
+
 | Prop | Tipo | Notas |
 |---|---|---|
-| `title` | `ReactNode` | `<h1>` |
+| `title` | `ReactNode` | O único `<h1>` da página. |
 | `onBack` | `() => void` | Mostra o botão "Voltar". Normalmente é `navigation.back` quando `canGoBack`. |
+| `badge` | `ReactNode` | Contagem ou estado logo depois do título (um `Badge`): "500 livros", "2 pendentes", "Beta". |
+| `search` | `ReactNode` | Busca principal da tela, depois do badge (cresce até 384px e encolhe até 160px). |
 | `actions` | `ReactNode` | À direita. |
-| `search` | `ReactNode` | Controle depois do título. |
+| `onBackgroundClick` | `() => void` | Cliques no fundo do cabeçalho (fora de controles). Buscar usa para fechar a prévia. |
 
-O cabeçalho inteiro é `data-tauri-drag-region`, então a janela pode ser arrastada por ele, inclusive no macOS.
+O cabeçalho inteiro é `data-tauri-drag-region` (`data-testid="page-header"`), então a janela pode ser
+arrastada por ele, inclusive no macOS. O `AppShell` o remonta a cada troca de tela (`key`), então
+estado local de um controle no cabeçalho (o rascunho da busca, por exemplo) não vaza para outra tela.
+
+**Controles no cabeçalho são densos:** `Button size="sm"`, `IconButton size="sm"`,
+`SegmentedControl size="sm"` e campos com `fieldClassName="o-field--sm"`, todos com `--control-sm`
+(32px) e ícones `--icon-sm`. Ação de página com texto é `outline` ("Pausar fila", "Sincronizar
+ativas", "Filtros"); ação só com ícone é `ghost` (ordenar, atualizar).
+
+### Slot de cabeçalho por tela (`ViewDefinition.header`)
+
+Cada tela preenche o PageHeader pelo registro (`src/app/viewRegistry.ts`), sem portais:
+
+```ts
+export type ViewHeader =
+  Partial<Pick<PageHeaderProps, "search" | "actions" | "onBackgroundClick">> & { badge?: ReactNode };
+
+type ViewDefinition = {
+  // …
+  layout: ContentLayout;                          // "scroll" | "fill"
+  header?: (app: AppControllers) => ViewHeader;   // chamado a cada render do App
+};
+```
+
+O `App.tsx` faz `header={{ ...definition.header?.(controllers), title, onBack }}`. Por isso o
+estado que o cabeçalho mostra precisa morar no controller, não na view: a busca e a ordem da
+Buscar (`discover.filters`, `discover.sortDirection`), e a busca, chips, ordenação e modo
+grade/lista da Biblioteca (`library.browse`, de `useLibraryBrowse`). `AppControllers.params`
+traz os params da navegação (a Biblioteca esconde os controles na página de detalhes).
+
+| Tela | badge | search | actions | Sub-barra na página |
+|---|---|---|---|---|
+| Buscar (`discoverHeader`) | total de resultados | busca com debounce | fonte, ordem A–Z, "Filtros" | — (gaveta de filtros e chips ativos no conteúdo) |
+| Downloads (`downloadsHeader`) | pendentes (+ "Fila pausada") | — | "Pausar/Retomar fila", "Limpar concluídos" | — |
+| Biblioteca (`libraryHeader`) | contagem (filtrada) | busca | grade/lista, atualizar | chips de formato + Favoritos, ordenação (`.library-bar`) |
+| Tradução (`translationHeader`) | "Beta" | — | — | — |
+| Fontes (`sourcesHeader`) | "N fontes · M ativas" | — | "Sincronizar ativas" | — |
+
+Uma tela sem nada para mostrar devolve `{}` (Downloads vazio, Biblioteca vazia ou em detalhes).
+Se o cabeçalho não comportar os controles na janela mínima (1120×720), use uma sub-barra
+compacta logo abaixo dele, como a da Biblioteca: `--control-sm`, padding `var(--space-1) var(--space-3)`
+e hairline inferior.
+
+### Área de conteúdo (layout da tela)
+
+`ViewDefinition.layout` escolhe a variante de `.o-app__content` (`styles/layout.css`):
+
+| Variante | Classe | Comportamento | Telas |
+|---|---|---|---|
+| `scroll` | `.o-app__content--scroll` | A página inteira rola. A raiz da view cresce até pelo menos a altura visível (`flex: 1 0 auto`), então um `EmptyState` pode centralizar. | Downloads, Kindle, Fontes, Ajustes |
+| `fill` | `.o-app__content--fill` | Tela cheia/dividida: a raiz da view recebe exatamente a altura visível (`flex: 1 1 0; min-height: 0`) e cuida das próprias regiões de rolagem. | Buscar (grade + painel), Biblioteca (sub-barra + grade), Tradução (lista + projeto) |
+
+Moldura de página (também em `layout.css`), usada na raiz das views:
+
+- `.o-page`: coluna flex com padding `--space-3` (24px) e gap `--space-3`.
+- `.o-page--narrow`: limita a `--page-max-w` (1152px) e centraliza. Use em páginas de leitura e
+  formulário (Downloads, Fontes, Ajustes). Grades de capas (Buscar, Biblioteca, Kindle) ocupam a
+  largura toda.
+
+Telas `fill` aplicam o mesmo padding de 24px nas próprias regiões roláveis
+(`.discover__scroll`, `.library-scroll`, `.translation-view`).
 
 ### BottomPanel
 
@@ -935,9 +997,11 @@ Exemplo: uma tela `history`.
 4. **Registro** (`src/app/viewRegistry.ts`)
    - Adicione o controller em `AppControllers` (montado no `App.tsx`).
    - Crie `HistoryPage({ app })` e a entrada
-     `history: { id: "history", title: pageTitleStrings.history, icon: iconFor("history"), component: HistoryPage }`.
-   - `contentClassName` é opcional. Sem ele, o conteúdo recebe a classe legada `workspace single`.
-     Telas novas devem definir a própria classe (por exemplo `() => "history-page"`).
+     `history: { id: "history", title: pageTitleStrings.history, icon: iconFor("history"), component: HistoryPage, layout: "scroll" }`.
+   - `layout` é obrigatório: `"scroll"` para páginas que rolam inteiras (use `.o-page` na raiz) e
+     `"fill"` para telas divididas que rolam por dentro (veja "Área de conteúdo" na seção 7).
+   - Contagem, busca e ações da página vão no PageHeader por `header: (app) => ({ badge, search, actions })`,
+     não numa barra dentro da tela. O estado que o cabeçalho usa fica no controller.
 5. **Testes** (`src/test/app/history.test.tsx`)
    - Use `renderReadyApp()` e `setupUser()` de `src/test/renderApp.tsx`, e navegue com `getByTestId("nav-history")`.
    - Consulte por `getByRole`, `getByLabelText`, `getByTestId` e pelas strings de `src/strings/*`.
@@ -985,9 +1049,8 @@ Hoje o app só tem tema escuro. Para criar o claro, basta um bloco em `tokens.cs
 
 **Pré-requisitos:**
 
-- Todo CSS fora de `tokens.css` precisa usar só tokens semânticos. O lint já garante isso fora do legacy.
+- Todo CSS fora de `tokens.css` precisa usar só tokens semânticos. O lint já garante isso.
 - Revise usos de `rgb(var(--white-rgb) / …)`, como o brilho da capa, que assumem fundo escuro.
-- O `legacy` precisa ter sido removido antes.
 - A preferência (`data-theme` no `<html>`) entra nos Ajustes. Um valor "Sistema" pode seguir
   `prefers-color-scheme`.
 
@@ -1003,7 +1066,8 @@ Hoje o app só tem tema escuro. Para criar o claro, basta um bloco em `tokens.cs
 - A troca de tela anima com `fade-in`, porque `.o-app__content` tem `key={view}`.
 - **Movimento reduzido.** São duas camadas de proteção:
   1. `tokens.css` zera `--dur-fast`, `--dur-base` e `--dur-slow`.
-  2. `base.css` força `animation-duration: 0ms`, `animation-iteration-count: 1`,
+  2. `utilities.css` (a última camada, para vencer animações com duração literal em
+     `components`/`features`) força `animation-duration: 0ms`, `animation-iteration-count: 1`,
      `transition-duration: 0ms` e `scroll-behavior: auto` em todos os elementos.
 - Com isso, spinner, shimmer e indeterminado ficam parados. Estado importante nunca pode depender
   **só** de animação: o texto ou o ARIA precisa comunicar o mesmo.
@@ -1035,7 +1099,6 @@ Hoje o app só tem tema escuro. Para criar o claro, basta um bloco em `tokens.cs
 - [ ] `npm run lint:css` sem erros. Nenhum hex, rgba ou px cru, nenhum `!important`.
 - [ ] Todo CSS novo está em `@layer components` (primitiva ou shell) ou em `@layer features` (tela).
 - [ ] Classes seguem `.o-` BEM (primitiva) ou o prefixo da feature. Estados usam `is-*` ou atributo ARIA.
-- [ ] Nenhuma regra nova em `styles/legacy/`, que só pode encolher.
 - [ ] Nenhum token novo sem entrada neste guia, com valor e uso.
 
 **Componentes**
@@ -1053,7 +1116,8 @@ Hoje o app só tem tema escuro. Para criar o claro, basta um bloco em `tokens.cs
 - [ ] Nada depende de animação para comunicar estado. A tela foi conferida com movimento reduzido.
 
 **Plataforma e shell**
-- [ ] Layout conferido em 1120px de largura (mínimo) e com a sidebar recolhida e expandida.
+- [ ] Layout conferido em 1120×720 (mínimo) e 1920×1080, com a sidebar recolhida e expandida.
+- [ ] A tela declara `layout` no registro; contagem, busca e ações de página ficam no PageHeader (`header`).
 - [ ] macOS: nada fica sob os semáforos, e o arraste continua funcionando nas áreas `data-tauri-drag-region`.
 - [ ] Mudanças na janela foram feitas em `tauri.conf.json` **e** `tauri.macos.conf.json` (merge patch substitui o array).
 
@@ -1079,22 +1143,22 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 
 ### Downloads (`src/features/downloads/`)
 
-- Prefixo CSS: `.downloads-*`; arquivo `downloads.css` em `@layer features`. Conteúdo: `o-app__content--scroll downloads-content`.
+- Prefixo CSS: `.downloads-*`; arquivo `downloads.css` em `@layer features`. Layout `scroll`, raiz `.o-page.o-page--narrow`.
 - Controller: `useDownloadsController` (também alimenta o BottomPanel: `active`, `queuedCount`).
-- Estrutura: `DownloadsView` → barra de resumo (`DownloadsToolbar`: contagem de pendentes, "Pausar fila"/"Retomar fila", "Limpar concluídos") → "Em andamento" (`ActiveDownloadCard`: capa desfocada ao fundo, % grande animada, barra de 8px, chips de velocidade/tempo/bytes/capítulos) → "Na fila" (`QueueList` sobre `SortableList`, com menu ⋮) → "Concluídos" (`CompletedList`, falhas agrupadas primeiro).
+- Estrutura: PageHeader (`downloadsHeader`: contagem de pendentes, "Fila pausada", "Pausar fila"/"Retomar fila", "Limpar concluídos") → `DownloadsView`: "Em andamento" (`ActiveDownloadCard`: capa desfocada ao fundo, % grande animada, barra de 8px, chips de velocidade/tempo/bytes/capítulos) → "Na fila" (`QueueList` sobre `SortableList`, com menu ⋮) → "Concluídos" (`CompletedList`, falhas agrupadas primeiro).
 - Pausado: o job que roda em seguida fica no card principal (`download-paused`) com "Retomar"; ele sai da lista "Na fila".
 - `data-testid`: `downloads-pending`, `downloads-completed`, `downloads-count`, `download-active`, `download-paused`, `download-queued`, `download-row`, `download-progress`, `queue-item`.
 - Rótulos de intervalo "Todos os N capítulos" são reconstruídos na tela (`describeRange`), então jobs antigos sem acento aparecem corretos.
 
 ### Tradução (`src/features/translation/`)
 
-- Prefixo CSS: `.translation-*`; arquivo `translation.css` em `@layer features`. A área de conteúdo
-  recebe `translation-page` (via `contentClassName` no `viewRegistry`).
+- Prefixo CSS: `.translation-*`; arquivo `translation.css` em `@layer features`. Layout `fill`
+  (a raiz `.translation-view` tem o padding de 24px e as colunas rolam por dentro).
 - Controller: `useTranslationController` (estado que sobrevive à navegação: projeto selecionado,
   ajustes do próximo lote, lotes/trabalhos e glossário manual por projeto). Hooks da página:
   `useTranslationPlanner` (estimativa, cobertura, plano automático) e `useTranslationMemory`
   (memória automática, alertas, histórico). Tipos e funções puras em `translationModel.ts`.
-- Estrutura: faixa "Prévia" com `Badge` Beta; duas colunas — `ProjectList` (Panel "Projetos",
+- Estrutura: badge "Beta" no PageHeader (`translationHeader`, `data-testid="translation-beta"`); faixa "Prévia"; duas colunas — `ProjectList` (Panel "Projetos",
   busca, formato, cartão por livro com status e progresso) e o espaço do projeto (`ProjectHeader`
   com a única ação primária "Iniciar tradução", `SegmentedControl` Sessão/Glossário/Configuração).
   Configuração usa `Section`s com descrição e o `EstimateSummary` (Panel fixo à direita; abaixo
@@ -1110,15 +1174,17 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 
 ### Biblioteca (`src/features/library/`)
 
-- Prefixo CSS: `.library-*`; arquivo `library.css` em `@layer features`. Os cards usam `.library-tile*` e a barra
-  usa `.library-bar*`, porque `.library-card` e `.library-toolbar` ainda existem no CSS legado.
+- Prefixo CSS: `.library-*`; arquivo `library.css` em `@layer features`. Os cards usam `.library-tile*` e a
+  sub-barra usa `.library-bar*` (nomes mantidos da época do CSS legado). Layout `fill`.
 - Controller: `useLibraryController` (seleção do Kindle, `sendToKindle(ids)`, `prepareConversion(ids)`,
   `conversionTarget`/`conversionIds`, `refresh`, `outputPath`, metadados, remover/excluir, baixar novamente).
-- Estrutura: `LibraryView` (página e roteamento por `params.book`), `LibraryToolbar` (contagem, busca, chips de
-  formato + Favoritos, ordenação Recentes/Título/Tamanho, grade/lista, Atualizar), `LibraryCollection` (grade de
+- Estrutura: PageHeader (`libraryHeader` em `LibraryHeader.tsx`: contagem, busca, grade/lista, Atualizar),
+  `LibraryView` (página e roteamento por `params.book`), `LibraryFilterBar` (sub-barra: chips de formato +
+  Favoritos e ordenação Recentes/Título/Tamanho), `LibraryCollection` (grade de
   capas 2:3 e lista densa com menu de contexto único), `LibraryDetails` (hero com capa desfocada, barra de
   ações, Sua leitura, Zona de perigo), `useBookActions` (itens de menu e diálogos), `ConvertDialog`,
-  `libraryModel.ts` (filtro, ordenação, estado de job por livro).
+  `libraryModel.ts` (filtro, ordenação, estado de job por livro), `useLibraryBrowse` (estado de navegação
+  exposto como `library.browse`, compartilhado entre cabeçalho e página).
 - Detalhes são uma "página" dentro da Biblioteca: `navigate("library", { book: id })`. O botão Voltar do
   cabeçalho e o Esc voltam à grade, que mantém busca, filtros e rolagem.
 - `data-testid`: `library-page`, `library-toolbar`, `library-count`, `library-search`, `library-results`,
@@ -1131,7 +1197,7 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 
 ### Kindle (`src/features/kindle/`)
 
-- Prefixo CSS: `.kindle-*`; arquivo `kindle.css` em `@layer features`.
+- Prefixo CSS: `.kindle-*`; arquivo `kindle.css` em `@layer features`. Layout `scroll`, raiz `.o-page` (largura total, como as outras grades).
 - Usa o `LibraryController` (não há controller próprio).
 - Estrutura: hero de status do aparelho (conectado/desconectado, pasta, formato), passos "Como conectar"
   quando não há Kindle, e o fluxo de envio: cards com checkbox à esquerda, painel "Enviar ao Kindle" à
@@ -1146,8 +1212,8 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 
 - Prefixo CSS: `.discover-*`; arquivo `discover.css` em `@layer features`.
 - Controller: `useDiscoverController` (seleção única, prévia, `searchError`/`retrySearch`, estado da gaveta de filtros salvo em `oghma.discover.filtersCollapsed`).
-- Estrutura: `DiscoverView` (layout e Esc/clique no fundo), `DiscoverToolbar` (fonte, busca com debounce de 250 ms, total, ordem A–Z, botão "Filtros"), `DiscoverFilters` (gaveta superior + `ActiveFilterRow`), `DiscoverGrid` (capas 2:3, lotes de 60 com "Mostrar mais" e rolagem infinita), `DiscoverDetailPanel` (hero + configurador fixo embaixo), `filterModel.ts` (chips ativos e contagens).
-- `data-testid`: `toolbar`, `discover-search`, `filter-panel`, `filter-field`, `active-filter-row`, `content-area`, `book-grid`, `book-card`, `card-title`, `card-select`, `discover-sidebar` (painel inteiro), `discover-detail-panel` (hero rolável), `detail-cover`, `queue-panel` (ações), `selection-card`, `selection-hint`, `add-to-queue`.
+- Estrutura: PageHeader (`discoverHeader` em `DiscoverHeader.tsx`: total, busca com debounce de 250 ms, fonte, ordem A–Z, botão "Filtros"; clicar no fundo do cabeçalho fecha a prévia), `DiscoverView` (layout `fill`, Esc/clique no fundo), `DiscoverFilters` (gaveta superior + `ActiveFilterRow`), `DiscoverGrid` (capas 2:3, lotes de 60 com "Mostrar mais" e rolagem infinita), `DiscoverDetailPanel` (hero + configurador fixo embaixo), `filterModel.ts` (chips ativos e contagens).
+- `data-testid`: `page-header` (a barra da tela), `discover-count`, `discover-search`, `filter-panel`, `filter-field`, `active-filter-row`, `content-area`, `book-grid`, `book-card`, `card-title`, `card-select`, `discover-sidebar` (painel inteiro), `discover-detail-panel` (hero rolável), `detail-cover`, `queue-panel` (ações), `selection-card`, `selection-hint`, `add-to-queue`.
 - Decisões:
   - Filtros numa gaveta superior, fechada por padrão: na janela mínima (1120 px) com o painel de detalhes aberto, uma coluna lateral de filtros deixaria a grade com uma coluna só.
   - Tags em `Chip` com três estados (neutra → exigida → excluída); a excluída usa tom de perigo e texto riscado, e o estado vai no nome acessível.
@@ -1157,7 +1223,7 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 
 ### Ajustes (`src/features/settings/`)
 
-- Prefixo CSS: `.settings-*`; arquivo `settings.css` em `@layer features`. A área de conteúdo usa `settings-content` (rolagem).
+- Prefixo CSS: `.settings-*`; arquivo `settings.css` em `@layer features`. Layout `scroll`, raiz `.o-page.o-page--narrow`.
 - Controller: `useSettingsController` (`patchConfig`). O status do servidor e a sincronização vêm de `useSourcesController` (`serverCheck`, `verifyServer`, `syncEnabledSources`, `lastSyncedAt`).
 - Estrutura: um cartão (`--surface-1`) com lista vertical de categorias (`role="tablist"`, setas/Home/End) e o painel da categoria. Cada grupo tem `h3` + descrição e linhas "rótulo à esquerda, controle à direita" (`SettingsRow`), ou empilhadas para campos largos.
 - Salvamento imediato: switches, selects e chips salvam na hora; campos de texto (pasta, servidor) salvam no blur/Enter depois de validar, com erro inline no campo. Cada gravação mostra um toast discreto "Salvo" (substitui o anterior).
@@ -1170,12 +1236,12 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 
 - Prefixo CSS: `.onboarding-*`; arquivo `onboarding.css`. Tela cheia abaixo da titlebar (arrastável no topo no macOS), cartão central de altura fixa com rodapé Voltar/Próximo sempre no mesmo lugar.
 - Passos como dados (`steps[]` em `OnboardingView.tsx`): Boas-vindas, Servidor, Pasta da biblioteca, Preferências (formatos + fontes + sincronizar ao abrir), Sincronização (progresso por fonte + resumo). A contagem vem de `onboardingStrings.steps`.
-- Teclado: Enter avança (no campo do servidor, verifica), Esc volta (não faz nada no passo 1), Tab fica preso no cartão.
+- Teclado: Enter avança (no campo do servidor, verifica), Esc volta (no passo 1 fecha, quando o assistente foi reaberto pelos Ajustes), Tab fica preso no cartão. O título do passo é `h2` (o `h1` da página é o do PageHeader).
 - Falha na sincronização não prende o usuário: aparece "Tentar de novo" e "Entrar no app" continua disponível.
 - `data-testid`: `onboarding`, `onboarding-step`, `onboarding-server-status`, `onboarding-sync-list`.
 
 ### Fontes (`src/features/sources/`)
 
-- Prefixo CSS: `.sources-*`; arquivo `sources.css`. Grade de cartões (nome, domínio, idioma, novels, última sincronização, tipo), `Switch` "Incluir na busca", badge de status e "Sincronizar".
+- Prefixo CSS: `.sources-*`; arquivo `sources.css`. Layout `scroll`, raiz `.o-page.o-page--narrow`; resumo "N fontes · M ativas" e "Sincronizar ativas" no PageHeader (`sourcesHeader`). Grade de cartões (nome, domínio, idioma, novels, última sincronização, tipo), `Switch` "Incluir na busca", badge de status e "Sincronizar".
 - `lastSync.ts` guarda a hora da última sincronização bem-sucedida (`oghma.sources.lastSync`), compartilhada com Ajustes e o onboarding.
 - `data-testid`: `sources-page`, `source-card`, `source-status`.

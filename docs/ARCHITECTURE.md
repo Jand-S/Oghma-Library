@@ -269,9 +269,9 @@ Arquivos:
 | Rust | `apps/desktop/src-tauri/src/kindle.rs` | AZW3 sempre atualizado em relação ao EPUB. |
 | Rust | `apps/desktop/src-tauri/src/library_meta.rs` | `reset_hidden` chamado no commit. |
 
-> Estado em 2026-09-29: a fila e o staging estão implementados e testados, mas a ligação com as
-> telas acontece na integração do P2. Até lá, o `App.tsx` ainda usa `useDownloadProcessor`.
-> `prepareExportRoot` já roda no `useLocalLibrary`.
+> Estado em 2026-09-29: a fila e o staging estão ligados ao app. O `App.tsx` cria o singleton,
+> chama `start()` depois do boot e reage a `onEvent`; as telas usam `useDownloadsController`
+> (sobre `useDownloadQueue`). `prepareExportRoot` roda no `useLocalLibrary`.
 
 ### Store da fila (`downloadQueue.ts`)
 

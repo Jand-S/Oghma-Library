@@ -19,13 +19,13 @@ fn open_db(app: &AppHandle) -> Result<Connection, String> {
     let dir = app
         .path()
         .app_data_dir()
-        .map_err(|err| format!("Nao foi possivel localizar dados do app: {err}"))?;
-    fs::create_dir_all(&dir).map_err(|err| format!("Nao foi possivel criar dados do app: {err}"))?;
+        .map_err(|err| format!("Não foi possível localizar dados do app: {err}"))?;
+    fs::create_dir_all(&dir).map_err(|err| format!("Não foi possível criar dados do app: {err}"))?;
     open_db_at(&dir.join("oghma-library.sqlite"))
 }
 
 fn open_db_at(db_path: &Path) -> Result<Connection, String> {
-    let conn = Connection::open(db_path).map_err(|err| format!("Nao foi possivel abrir o SQLite: {err}"))?;
+    let conn = Connection::open(db_path).map_err(|err| format!("Não foi possível abrir o SQLite: {err}"))?;
     conn.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS library_meta (
@@ -38,7 +38,7 @@ fn open_db_at(db_path: &Path) -> Result<Connection, String> {
         );
         "#,
     )
-    .map_err(|err| format!("Nao foi possivel preparar a tabela da biblioteca: {err}"))?;
+    .map_err(|err| format!("Não foi possível preparar a tabela da biblioteca: {err}"))?;
     Ok(conn)
 }
 
@@ -50,7 +50,7 @@ pub fn list_library_meta(app: AppHandle) -> Result<Vec<LibraryMeta>, String> {
 fn list_meta_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
     let mut stmt = conn
         .prepare("SELECT key, favorite, reading_status, tags_json, hidden FROM library_meta")
-        .map_err(|err| format!("Nao foi possivel ler os metadados da biblioteca: {err}"))?;
+        .map_err(|err| format!("Não foi possível ler os metadados da biblioteca: {err}"))?;
     let rows = stmt
         .query_map([], |row| {
             let tags_json: String = row.get(3)?;
@@ -63,11 +63,11 @@ fn list_meta_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
                 hidden: row.get::<_, i64>(4)? != 0,
             })
         })
-        .map_err(|err| format!("Nao foi possivel consultar os metadados da biblioteca: {err}"))?;
+        .map_err(|err| format!("Não foi possível consultar os metadados da biblioteca: {err}"))?;
 
     let mut items = Vec::new();
     for row in rows {
-        items.push(row.map_err(|err| format!("Metadado de biblioteca invalido: {err}"))?);
+        items.push(row.map_err(|err| format!("Metadado de biblioteca inválido: {err}"))?);
     }
     Ok(items)
 }
@@ -83,10 +83,10 @@ pub fn save_library_meta(app: AppHandle, meta: LibraryMeta, legacy_key: Option<S
 
 fn save_meta_in(conn: &mut Connection, meta: &LibraryMeta, legacy_key: Option<&str>) -> Result<(), String> {
     let tags_json = serde_json::to_string(&meta.tags)
-        .map_err(|err| format!("Nao foi possivel serializar marcadores: {err}"))?;
+        .map_err(|err| format!("Não foi possível serializar marcadores: {err}"))?;
     let tx = conn
         .transaction()
-        .map_err(|err| format!("Nao foi possivel salvar metadados da biblioteca: {err}"))?;
+        .map_err(|err| format!("Não foi possível salvar metadados da biblioteca: {err}"))?;
     tx.execute(
         r#"
         INSERT INTO library_meta (key, favorite, reading_status, tags_json, hidden, updated_at)
@@ -106,13 +106,13 @@ fn save_meta_in(conn: &mut Connection, meta: &LibraryMeta, legacy_key: Option<&s
             if meta.hidden { 1 } else { 0 },
         ],
     )
-    .map_err(|err| format!("Nao foi possivel salvar metadados da biblioteca: {err}"))?;
+    .map_err(|err| format!("Não foi possível salvar metadados da biblioteca: {err}"))?;
     if let Some(legacy) = legacy_key.filter(|legacy| *legacy != meta.key) {
         tx.execute("DELETE FROM library_meta WHERE key = ?1", params![legacy])
-            .map_err(|err| format!("Nao foi possivel migrar metadados da biblioteca: {err}"))?;
+            .map_err(|err| format!("Não foi possível migrar metadados da biblioteca: {err}"))?;
     }
     tx.commit()
-        .map_err(|err| format!("Nao foi possivel salvar metadados da biblioteca: {err}"))
+        .map_err(|err| format!("Não foi possível salvar metadados da biblioteca: {err}"))
 }
 
 /// Clears `hidden` for existing rows (a re-downloaded book reappears in the library).
@@ -128,7 +128,7 @@ fn reset_hidden_in(conn: &Connection, keys: &[String]) -> Result<usize, String> 
                 "UPDATE library_meta SET hidden = 0, updated_at = CURRENT_TIMESTAMP WHERE key = ?1 AND hidden != 0",
                 params![key],
             )
-            .map_err(|err| format!("Nao foi possivel atualizar metadados da biblioteca: {err}"))?;
+            .map_err(|err| format!("Não foi possível atualizar metadados da biblioteca: {err}"))?;
     }
     Ok(changed)
 }
@@ -137,7 +137,7 @@ fn reset_hidden_in(conn: &Connection, keys: &[String]) -> Result<usize, String> 
 pub fn delete_library_meta(app: AppHandle, key: String) -> Result<(), String> {
     let conn = open_db(&app)?;
     conn.execute("DELETE FROM library_meta WHERE key = ?1", params![key])
-        .map_err(|err| format!("Nao foi possivel remover metadados da biblioteca: {err}"))?;
+        .map_err(|err| format!("Não foi possível remover metadados da biblioteca: {err}"))?;
     Ok(())
 }
 

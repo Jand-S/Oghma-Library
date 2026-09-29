@@ -10,8 +10,7 @@
  *   - rules outside an @layer block
  *   - duplicate selectors inside the same layer and at-rule context
  *
- * Files under styles/legacy/ are temporary: their findings are printed as a
- * warning count and never fail the run. Pass --verbose to list them.
+ * Every finding is an error: the run exits 1 if there is any.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
@@ -19,10 +18,8 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcRoot = join(appRoot, "src");
-const verbose = process.argv.includes("--verbose");
 
 const EXCLUDED = new Set(["styles/tokens.css"]);
-const isLegacy = (file) => file.startsWith("styles/legacy/");
 
 function listCssFiles(dir) {
   const out = [];
@@ -190,14 +187,13 @@ const files = listCssFiles(srcRoot)
   .sort((a, b) => a.rel.localeCompare(b.rel));
 
 const errors = [];
-const legacyFindings = [];
 const seenSelectors = new Map();
 
 for (const { full, rel } of files) {
   const css = stripComments(readFileSync(full, "utf8"));
   const report = (index, code, message) => {
     const entry = `src/${rel}:${lineCol(css, index)}  ${code}  ${message}`;
-    (isLegacy(rel) ? legacyFindings : errors).push(entry);
+    errors.push(entry);
   };
 
   for (const event of parse(css)) {
@@ -224,11 +220,5 @@ for (const { full, rel } of files) {
 }
 
 for (const entry of errors) console.error(entry);
-if (verbose) for (const entry of legacyFindings) console.warn(`[legacy] ${entry}`);
-
-const checked = files.filter(({ rel }) => !isLegacy(rel)).length;
-console.log(
-  `\nlint:css  ${errors.length} error(s) in ${checked} file(s)` +
-    `  |  legacy: ${legacyFindings.length} warning(s) (not failing; --verbose to list)`
-);
+console.log(`\nlint:css  ${errors.length} error(s) in ${files.length} file(s)`);
 process.exit(errors.length > 0 ? 1 : 0);

@@ -21,7 +21,7 @@ export function SplashScreen({ steps, leaving = false }: SplashScreenProps) {
     <div className={cx("o-splash", leaving && "o-splash--leaving")} data-testid="splash-screen" data-tauri-drag-region>
       <div className="o-splash__card">
         <img className="o-splash__logo" src="/icons/oghma-loop.svg" alt="" draggable={false} />
-        <h1 className="o-splash__title">{shellStrings.appName}</h1>
+        <p className="o-splash__title">{shellStrings.appName}</p>
         <p className="o-splash__step" role="status">{current?.label}</p>
         <ProgressBar className="o-splash__progress" size="sm" value={done} max={Math.max(steps.length, 1)} label={current?.label ?? shellStrings.appName} />
       </div>

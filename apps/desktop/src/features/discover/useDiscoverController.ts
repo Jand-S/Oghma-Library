@@ -5,6 +5,7 @@ import { defaultFilters, defaultSelection } from "../../core/defaults";
 import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, Novel, QueueItem, SourceSite, TagCatalogItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { readUiPreferences } from "../settings/preferences";
+import type { SortDirection } from "./DiscoverHeader";
 
 type DiscoverControllerArgs = {
   backend: BackendClient;
@@ -67,6 +68,8 @@ export function useDiscoverController({
 }: DiscoverControllerArgs) {
   const [filtersCollapsed, setFiltersCollapsed] = useState(readFiltersCollapsed);
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
+  /** Title order of the result grid (client-side). */
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [tagCatalog, setTagCatalog] = useState<TagCatalogItem[]>([]);
   const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
   const [previewNovel, setPreviewNovel] = useState<Novel | null>(null);
@@ -212,6 +215,8 @@ export function useDiscoverController({
     setFilters,
     filtersCollapsed,
     toggleFilters,
+    sortDirection,
+    setSortDirection,
     tagCatalog,
     searching,
     /** Message of the last failed search, or null once a search succeeds. */

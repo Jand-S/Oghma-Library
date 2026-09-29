@@ -4,16 +4,10 @@
  * Primitives (src/ui/*.css) and shell parts (src/shell/*.css) are imported by
  * their components and declare their own layer.
  */
-@layer reset, tokens, base, layout, components, features, legacy, utilities;
+@layer reset, tokens, base, layout, components, features, utilities;
 
 @import "./reset.css";
 @import "./tokens.css";
 @import "./base.css";
 @import "./layout.css";
-@import "./legacy/aliases.css";
-@import "./legacy/layout.css";
-@import "./legacy/components.css";
-@import "./legacy/views.css";
-@import "./legacy/responsive.css";
-@import "./legacy/consistency.css";
 @import "./utilities.css";

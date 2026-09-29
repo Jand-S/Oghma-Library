@@ -273,7 +273,7 @@ function bundleUrl(serverUrl: string, bundleKey: string): string {
   return `${trimBase(serverUrl)}/${bundleKey.replace(/^\/+/, "")}`;
 }
 
-// Baixa e extrai o bundle de uma novel. `bundleKey` vem do catalogo
+// Baixa e extrai o bundle de uma novel. `bundleKey` vem do catálogo
 // (ex.: content/central-novel/<slug>/<slug>.v1.tar.gz).
 // Forms: fetchBundle(serverUrl, bundleKey, opts?) or fetchBundle(fullUrl, opts?).
 // The body is streamed: gzip and tar are decoded as bytes arrive, so neither the
@@ -337,7 +337,7 @@ export function bundleToText(
 ): string {
   const sel = selectRange(chapters, range);
   const parts = sel.map((c) => {
-    const head = `Capitulo ${c.number}${c.title ? ` - ${c.title}` : ""}`;
+    const head = `Capítulo ${c.number}${c.title ? ` - ${c.title}` : ""}`;
     return `${head}\n\n${htmlToText(c.html)}`;
   });
   return `${title}\n\n\n${parts.join("\n\n\n")}\n`;
@@ -353,7 +353,7 @@ export function bundleToHtml(
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const body = sel
     .map((c) => {
-      const head = `Capitulo ${c.number}${c.title ? ` - ${c.title}` : ""}`;
+      const head = `Capítulo ${c.number}${c.title ? ` - ${c.title}` : ""}`;
       const localHtml = c.html.replace(/\.\.\/assets\/([a-zA-Z0-9._-]+)/g, "assets/$1");
       return `<section class="chapter"><h2>${esc(head)}</h2>${localHtml}</section>`;
     })

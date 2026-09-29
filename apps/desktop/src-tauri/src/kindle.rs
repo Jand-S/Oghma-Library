@@ -68,17 +68,17 @@ fn be_u32(data: &[u8], offset: usize) -> Option<u32> {
 /// Calibre's behavior and producing the correct location bar.
 fn patch_azw3_datp(path: &Path) -> Result<(), String> {
     let mut data = fs::read(path)
-        .map_err(|e| format!("Nao foi possivel ler AZW3 para patch DATP: {e}"))?;
+        .map_err(|e| format!("Não foi possível ler AZW3 para patch DATP: {e}"))?;
     let r0 = be_u32(&data, 78)
-        .ok_or("AZW3 invalido: nao foi possivel ler offset do record 0")? as usize;
+        .ok_or("AZW3 inválido: não foi possível ler offset do record 0")? as usize;
     // mobi header at r0+16; datp_idx field at mobi+240 = r0+256
     let datp_offset = r0 + 256;
     if datp_offset + 4 > data.len() {
-        return Err("AZW3 invalido: arquivo muito pequeno para conter mobi+240".to_string());
+        return Err("AZW3 inválido: arquivo muito pequeno para conter mobi+240".to_string());
     }
     data[datp_offset..datp_offset + 4].copy_from_slice(&0xFFFFFFFFu32.to_be_bytes());
     fs::write(path, &data)
-        .map_err(|e| format!("Nao foi possivel gravar AZW3 com patch DATP: {e}"))
+        .map_err(|e| format!("Não foi possível gravar AZW3 com patch DATP: {e}"))
 }
 
 fn safe_thumbnail_component(value: &[u8]) -> Option<String> {
@@ -97,9 +97,9 @@ fn thumbnail_filename_from_record0(record0: &[u8]) -> Result<String, String> {
     let mobi_length = be_u32(record0, 20).ok_or_else(|| "Cabecalho MOBI incompleto".to_string())? as usize;
     let exth_offset = 16usize
         .checked_add(mobi_length)
-        .ok_or_else(|| "Offset EXTH invalido".to_string())?;
+        .ok_or_else(|| "Offset EXTH inválido".to_string())?;
     if record0.get(exth_offset..exth_offset + 4) != Some(&b"EXTH"[..]) {
-        return Err("AZW3 nao contem cabecalho EXTH".to_string());
+        return Err("AZW3 não contém cabeçalho EXTH".to_string());
     }
     let exth_length = be_u32(record0, exth_offset + 4)
         .ok_or_else(|| "Cabecalho EXTH incompleto".to_string())? as usize;
@@ -108,7 +108,7 @@ fn thumbnail_filename_from_record0(record0: &[u8]) -> Result<String, String> {
     let exth_end = exth_offset
         .checked_add(exth_length)
         .filter(|end| *end <= record0.len())
-        .ok_or_else(|| "Tamanho EXTH invalido".to_string())?;
+        .ok_or_else(|| "Tamanho EXTH inválido".to_string())?;
 
     let mut uuid = None;
     let mut content_type = None;
@@ -117,7 +117,7 @@ fn thumbnail_filename_from_record0(record0: &[u8]) -> Result<String, String> {
         let id = be_u32(record0, position).ok_or_else(|| "Registro EXTH incompleto".to_string())?;
         let size = be_u32(record0, position + 4).ok_or_else(|| "Registro EXTH incompleto".to_string())? as usize;
         if size < 8 || position.checked_add(size).is_none_or(|end| end > exth_end) {
-            return Err("Registro EXTH invalido".to_string());
+            return Err("Registro EXTH inválido".to_string());
         }
         let content = &record0[position + 8..position + size];
         match id {
@@ -128,47 +128,47 @@ fn thumbnail_filename_from_record0(record0: &[u8]) -> Result<String, String> {
         position += size;
     }
 
-    let uuid = uuid.ok_or_else(|| "AZW3 nao contem identificador EXTH 113".to_string())?;
-    let content_type = content_type.ok_or_else(|| "AZW3 nao contem tipo EXTH 501".to_string())?;
+    let uuid = uuid.ok_or_else(|| "AZW3 não contém identificador EXTH 113".to_string())?;
+    let content_type = content_type.ok_or_else(|| "AZW3 não contém tipo EXTH 501".to_string())?;
     Ok(format!("thumbnail_{uuid}_{content_type}_portrait.jpg"))
 }
 
 fn kindle_thumbnail_filename(azw3: &Path) -> Result<String, String> {
-    let mut file = File::open(azw3).map_err(|err| format!("Nao foi possivel ler o AZW3: {err}"))?;
+    let mut file = File::open(azw3).map_err(|err| format!("Não foi possível ler o AZW3: {err}"))?;
     let mut pdb_header = [0u8; 94];
     file.read_exact(&mut pdb_header)
         .map_err(|err| format!("Cabecalho AZW3 incompleto: {err}"))?;
     if &pdb_header[60..68] != b"BOOKMOBI" && &pdb_header[60..68] != b"TEXTREAD" {
-        return Err("Arquivo nao e um AZW3/MOBI valido".to_string());
+        return Err("Arquivo não é um AZW3/MOBI válido".to_string());
     }
     let section_count = be_u16(&pdb_header, 76).unwrap_or(0);
     if section_count < 2 {
-        return Err("AZW3 nao contem secoes suficientes".to_string());
+        return Err("AZW3 não contém seções suficientes".to_string());
     }
     let first = be_u32(&pdb_header, 78).unwrap_or(0) as u64;
     let second = be_u32(&pdb_header, 86).unwrap_or(0) as u64;
     if second <= first || second - first > 16 * 1024 * 1024 {
-        return Err("Secao de metadados AZW3 invalida".to_string());
+        return Err("Seção de metadados AZW3 inválida".to_string());
     }
     let mut record0 = vec![0u8; (second - first) as usize];
     file.seek(SeekFrom::Start(first))
         .and_then(|_| file.read_exact(&mut record0))
-        .map_err(|err| format!("Nao foi possivel ler os metadados AZW3: {err}"))?;
+        .map_err(|err| format!("Não foi possível ler os metadados AZW3: {err}"))?;
     thumbnail_filename_from_record0(&record0)
 }
 
 fn build_kindle_thumbnail(azw3: &Path, cover: &Path) -> Result<KindleThumbnail, String> {
     let image = image::ImageReader::open(cover)
-        .map_err(|err| format!("Nao foi possivel abrir a capa: {err}"))?
+        .map_err(|err| format!("Não foi possível abrir a capa: {err}"))?
         .with_guessed_format()
-        .map_err(|err| format!("Formato de capa invalido: {err}"))?
+        .map_err(|err| format!("Formato de capa inválido: {err}"))?
         .decode()
-        .map_err(|err| format!("Nao foi possivel decodificar a capa: {err}"))?;
+        .map_err(|err| format!("Não foi possível decodificar a capa: {err}"))?;
     let image = image.thumbnail(500, 500);
     let mut data = Vec::new();
     JpegEncoder::new_with_quality(&mut data, 75)
         .encode_image(&image)
-        .map_err(|err| format!("Nao foi possivel gerar a thumbnail Kindle: {err}"))?;
+        .map_err(|err| format!("Não foi possível gerar a thumbnail Kindle: {err}"))?;
     Ok(KindleThumbnail {
         file_name: kindle_thumbnail_filename(azw3)?,
         data,
@@ -178,33 +178,33 @@ fn build_kindle_thumbnail(azw3: &Path, cover: &Path) -> Result<KindleThumbnail, 
 fn install_mass_storage_thumbnail(documents_dir: &Path, thumbnail: &KindleThumbnail) -> Result<(), String> {
     let root = documents_dir
         .parent()
-        .ok_or_else(|| "Nao foi possivel localizar a raiz do Kindle".to_string())?;
+        .ok_or_else(|| "Não foi possível localizar a raiz do Kindle".to_string())?;
     let thumbnail_dir = root.join("system").join("thumbnails");
     let cache_dir = root.join("amazon-cover-bug");
     fs::create_dir_all(&thumbnail_dir)
-        .map_err(|err| format!("Nao foi possivel acessar system/thumbnails: {err}"))?;
+        .map_err(|err| format!("Não foi possível acessar system/thumbnails: {err}"))?;
     fs::create_dir_all(&cache_dir)
-        .map_err(|err| format!("Nao foi possivel criar o cache de capas: {err}"))?;
+        .map_err(|err| format!("Não foi possível criar o cache de capas: {err}"))?;
     fs::write(thumbnail_dir.join(&thumbnail.file_name), &thumbnail.data)
-        .map_err(|err| format!("Nao foi possivel salvar a capa no Kindle: {err}"))?;
+        .map_err(|err| format!("Não foi possível salvar a capa no Kindle: {err}"))?;
     fs::write(cache_dir.join(&thumbnail.file_name), &thumbnail.data)
-        .map_err(|err| format!("Nao foi possivel salvar o cache da capa: {err}"))?;
+        .map_err(|err| format!("Não foi possível salvar o cache da capa: {err}"))?;
     Ok(())
 }
 
 fn sync_mass_storage_thumbnail_cache(documents_dir: &Path) -> Result<(), String> {
     let root = documents_dir
         .parent()
-        .ok_or_else(|| "Nao foi possivel localizar a raiz do Kindle".to_string())?;
+        .ok_or_else(|| "Não foi possível localizar a raiz do Kindle".to_string())?;
     let cache_dir = root.join("amazon-cover-bug");
     if !cache_dir.is_dir() {
         return Ok(());
     }
     let thumbnail_dir = root.join("system").join("thumbnails");
     fs::create_dir_all(&thumbnail_dir)
-        .map_err(|err| format!("Nao foi possivel acessar system/thumbnails: {err}"))?;
-    for entry in fs::read_dir(cache_dir).map_err(|err| format!("Nao foi possivel ler o cache de capas: {err}"))? {
-        let entry = entry.map_err(|err| format!("Nao foi possivel ler uma capa em cache: {err}"))?;
+        .map_err(|err| format!("Não foi possível acessar system/thumbnails: {err}"))?;
+    for entry in fs::read_dir(cache_dir).map_err(|err| format!("Não foi possível ler o cache de capas: {err}"))? {
+        let entry = entry.map_err(|err| format!("Não foi possível ler uma capa em cache: {err}"))?;
         let source = entry.path();
         if !source.is_file() {
             continue;
@@ -217,7 +217,7 @@ fn sync_mass_storage_thumbnail_cache(documents_dir: &Path) -> Result<(), String>
         };
         if needs_restore {
             fs::copy(&source, &target)
-                .map_err(|err| format!("Nao foi possivel restaurar uma capa do Kindle: {err}"))?;
+                .map_err(|err| format!("Não foi possível restaurar uma capa do Kindle: {err}"))?;
         }
     }
     Ok(())
@@ -307,7 +307,7 @@ fn ensure_fresh_azw3(title: &str, output_dir: &Path, listed: &[String]) -> Resul
             return Ok(existing.clone());
         }
     }
-    let epub = epub.ok_or_else(|| format!("{title} nao tem EPUB para converter em AZW3"))?;
+    let epub = epub.ok_or_else(|| format!("{title} não tem EPUB para converter em AZW3"))?;
     let target = output_dir.join(format!("{}.azw3", safe_export_stem(title)));
     let seed = kindle_content_seed(output_dir, title);
     convert_epub_to_azw3(&epub, &target, pick_cover(output_dir), title, &seed)
@@ -352,17 +352,17 @@ fn transcode_unsupported_images_for_kindle(extracted: &mut ExtractedEpub) -> Res
             continue;
         }
         let img = image::ImageReader::open(&path)
-            .map_err(|e| format!("Nao foi possivel abrir imagem {href}: {e}"))?
+            .map_err(|e| format!("Não foi possível abrir imagem {href}: {e}"))?
             .with_guessed_format()
-            .map_err(|e| format!("Formato de imagem invalido {href}: {e}"))?
+            .map_err(|e| format!("Formato de imagem inválido {href}: {e}"))?
             .decode()
-            .map_err(|e| format!("Nao foi possivel decodificar imagem {href}: {e}"))?;
+            .map_err(|e| format!("Não foi possível decodificar imagem {href}: {e}"))?;
         let mut jpeg_bytes = Vec::new();
         JpegEncoder::new_with_quality(&mut jpeg_bytes, 90)
             .encode_image(&img)
-            .map_err(|e| format!("Nao foi possivel recodificar {href} como JPEG: {e}"))?;
+            .map_err(|e| format!("Não foi possível recodificar {href} como JPEG: {e}"))?;
         fs::write(&path, &jpeg_bytes)
-            .map_err(|e| format!("Nao foi possivel salvar JPEG para {href}: {e}"))?;
+            .map_err(|e| format!("Não foi possível salvar JPEG para {href}: {e}"))?;
     }
 
     for (_, (href, media_type)) in extracted.opf.manifest.iter_mut() {
@@ -376,19 +376,19 @@ fn transcode_unsupported_images_for_kindle(extracted: &mut ExtractedEpub) -> Res
 
 fn install_kindling_cover(extracted: &mut ExtractedEpub, cover: &Path) -> Result<(), String> {
     let image = image::ImageReader::open(cover)
-        .map_err(|err| format!("Nao foi possivel abrir a capa local: {err}"))?
+        .map_err(|err| format!("Não foi possível abrir a capa local: {err}"))?
         .with_guessed_format()
-        .map_err(|err| format!("Formato de capa local invalido: {err}"))?
+        .map_err(|err| format!("Formato de capa local inválido: {err}"))?
         .decode()
-        .map_err(|err| format!("Nao foi possivel decodificar a capa local: {err}"))?;
+        .map_err(|err| format!("Não foi possível decodificar a capa local: {err}"))?;
     let mut bytes = Vec::new();
     JpegEncoder::new_with_quality(&mut bytes, 90)
         .encode_image(&image)
-        .map_err(|err| format!("Nao foi possivel preparar a capa para o AZW3: {err}"))?;
+        .map_err(|err| format!("Não foi possível preparar a capa para o AZW3: {err}"))?;
 
     let cover_name = "oghma-cover.jpg";
     fs::write(extracted.root.join(cover_name), bytes)
-        .map_err(|err| format!("Nao foi possivel preparar a capa no EPUB extraido: {err}"))?;
+        .map_err(|err| format!("Não foi possível preparar a capa no EPUB extraído: {err}"))?;
     let cover_id = "oghma-cover-image".to_string();
     extracted.opf.manifest.insert(
         cover_id.clone(),
@@ -405,9 +405,9 @@ fn convert_epub_with_kindling(
     content_seed: &str,
 ) -> Result<(), String> {
     let source_data = fs::read(epub)
-        .map_err(|err| format!("Nao foi possivel ler o EPUB: {err}"))?;
+        .map_err(|err| format!("Não foi possível ler o EPUB: {err}"))?;
     let mut extracted = ExtractedEpub::from_epub_path(epub)
-        .map_err(|err| format!("Kindling nao conseguiu abrir o EPUB: {err}"))?;
+        .map_err(|err| format!("Kindling não conseguiu abrir o EPUB: {err}"))?;
     if let Some(cover) = cover {
         install_kindling_cover(&mut extracted, cover)?;
     }
@@ -431,7 +431,7 @@ fn convert_epub_with_kindling(
         false,
         false,
     )
-    .map_err(|err| format!("Kindling nao conseguiu gerar o AZW3: {err}"));
+    .map_err(|err| format!("Kindling não conseguiu gerar o AZW3: {err}"));
     if let Err(err) = build_result {
         let _ = fs::remove_file(&staging);
         return Err(err);
@@ -447,7 +447,7 @@ fn convert_epub_with_kindling(
     };
     let rewrite_result = rewrite_mobi_metadata(&staging, target, &updates)
         .map(|_| ())
-        .map_err(|err| format!("Nao foi possivel finalizar os metadados do AZW3: {err}"));
+        .map_err(|err| format!("Não foi possível finalizar os metadados do AZW3: {err}"));
     let _ = fs::remove_file(&staging);
     rewrite_result?;
     patch_azw3_datp(target)
@@ -461,7 +461,7 @@ fn convert_epub_with_calibre(epub: &Path, target: &Path, cover: Option<&Path>) -
     }
     let status = command
         .status()
-        .map_err(|err| format!("Nao foi possivel executar ebook-convert: {err}"))?;
+        .map_err(|err| format!("Não foi possível executar ebook-convert: {err}"))?;
     if status.success() {
         Ok(())
     } else {
@@ -505,7 +505,7 @@ fn convert_epub_to_azw3(
     }
     fs::rename(&temp, target).map_err(|err| {
         let _ = fs::remove_file(&temp);
-        format!("Nao foi possivel finalizar o AZW3: {err}")
+        format!("Não foi possível finalizar o AZW3: {err}")
     })
 }
 
@@ -517,7 +517,7 @@ pub fn convert_export_to_azw3(
 ) -> Result<Azw3ConversionResult, String> {
     let output_dir = expand_home(&output_dir);
     fs::create_dir_all(&output_dir)
-        .map_err(|err| format!("Nao foi possivel acessar a pasta de saida: {err}"))?;
+        .map_err(|err| format!("Não foi possível acessar a pasta de saída: {err}"))?;
     let azw3 = ensure_fresh_azw3(&title, &output_dir, &output_files)?;
     let file_name = azw3
         .strip_prefix(&output_dir)
@@ -615,10 +615,10 @@ pub fn detect_kindle() -> KindleStatus {
 pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {
     let ms_dir = find_kindle_documents_dir();
     if ms_dir.is_none() && !kindle_usb_present() {
-        return Err("Kindle nao encontrado por USB".to_string());
+        return Err("Kindle não encontrado por USB".to_string());
     }
     if let Some(dir) = &ms_dir {
-        fs::create_dir_all(dir).map_err(|err| format!("Nao foi possivel acessar a pasta documents do Kindle: {err}"))?;
+        fs::create_dir_all(dir).map_err(|err| format!("Não foi possível acessar a pasta documents do Kindle: {err}"))?;
     }
     #[cfg(not(target_os = "windows"))]
     if ms_dir.is_none() {
@@ -631,22 +631,22 @@ pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, St
             .output_dir
             .as_deref()
             .map(expand_home)
-            .ok_or_else(|| format!("{} nao tem pasta local de saida", item.title))?;
+            .ok_or_else(|| format!("{} não tem pasta local de saída", item.title))?;
         let files = item.output_files.unwrap_or_default();
         let source = ensure_fresh_azw3(&item.title, &output_dir, &files)?;
         let cover = pick_cover(&output_dir)
-            .ok_or_else(|| format!("{} nao tem capa local para enviar ao Kindle", item.title))?;
+            .ok_or_else(|| format!("{} não tem capa local para enviar ao Kindle", item.title))?;
         let thumbnail = build_kindle_thumbnail(&source, &cover)
-            .map_err(|err| format!("Nao foi possivel preparar a capa de {}: {err}", item.title))?;
+            .map_err(|err| format!("Não foi possível preparar a capa de {}: {err}", item.title))?;
         let file_name = source
             .file_name()
-            .ok_or_else(|| "Arquivo AZW3 invalido".to_string())?
+            .ok_or_else(|| "Arquivo AZW3 inválido".to_string())?
             .to_string_lossy()
             .to_string();
         match &ms_dir {
             Some(dir) => {
                 fs::copy(&source, dir.join(&file_name))
-                    .map_err(|err| format!("Nao foi possivel copiar para o Kindle: {err}"))?;
+                    .map_err(|err| format!("Não foi possível copiar para o Kindle: {err}"))?;
                 install_mass_storage_thumbnail(dir, &thumbnail)?;
             }
             None => {

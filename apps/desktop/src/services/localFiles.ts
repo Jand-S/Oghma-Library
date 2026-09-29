@@ -162,11 +162,6 @@ export function novelMetaKey(novelId: string): string {
   return `novel:${novelId}`;
 }
 
-/** Preferred metadata key for a library entry. */
-export function libraryMetaKeyForEntry(entry: Pick<LocalLibraryEntry, "novelId" | "outputDir">): string {
-  return entry.novelId ? novelMetaKey(entry.novelId) : entry.outputDir;
-}
-
 export async function listLocalLibrary(
   outputDir: string,
   options: { includeCoverData?: boolean } = {}

@@ -37,7 +37,7 @@ describe("Translation", () => {
 
     const banner = screen.getByTestId("translation-preview-banner");
     expect(banner).toHaveTextContent(translationStrings.previewBanner);
-    expect(within(banner).getByText(translationStrings.beta)).toBeInTheDocument();
+    expect(within(screen.getByTestId("page-header")).getByText(translationStrings.beta)).toBeInTheDocument();
   });
 
   it("lists library books as projects and selects the first one", async () => {

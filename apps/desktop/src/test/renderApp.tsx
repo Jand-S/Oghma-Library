@@ -114,8 +114,9 @@ export function getContentArea() {
   return screen.getByTestId("content-area");
 }
 
+/** The PageHeader, which hosts each view's toolbar (search, count, actions). */
 export function getToolbar() {
-  return screen.getByTestId("toolbar");
+  return screen.getByTestId("page-header");
 }
 
 export function getActiveFilterRow() {

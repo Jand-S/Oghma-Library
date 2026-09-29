@@ -41,7 +41,7 @@ export function BottomPanel({ active, queuedCount, kindle, onOpenDownloads }: Bo
     : kindleStrings.disconnected;
 
   return (
-    <footer className="o-bottom-panel o-app__bottom">
+    <footer className="o-bottom-panel o-app__bottom" data-testid="bottom-panel">
       <button type="button" className="o-bottom-panel__downloads" onClick={onOpenDownloads} title={shellStrings.openDownloads}>
         <Download className={cx("o-bottom-panel__icon", active && "is-active")} aria-hidden="true" />
         <span className="o-bottom-panel__status">{status}</span>
@@ -51,7 +51,7 @@ export function BottomPanel({ active, queuedCount, kindle, onOpenDownloads }: Bo
         {queuedCount > 0 ? <span className="o-bottom-panel__queued">{shellStrings.queued(queuedCount)}</span> : null}
       </button>
       <div className="o-bottom-panel__right">
-        <span className="o-bottom-panel__kindle" title={kindleTitle}>
+        <span className="o-bottom-panel__kindle" title={kindleTitle} data-testid="bottom-panel-kindle" data-connected={connected}>
           <span className={cx("o-bottom-panel__dot", connected && "is-online")} aria-hidden="true" />
           <span>{connected ? kindleStrings.connected : kindleStrings.disconnected}</span>
         </span>

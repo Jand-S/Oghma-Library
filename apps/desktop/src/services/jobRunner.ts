@@ -99,7 +99,7 @@ export function createJobRunner(overrides: Partial<JobRunnerDeps> = {}): RunJob 
       throwIfAborted(ctx.signal);
       ctx.onProgress({ stage: "converting", percent: 10 });
       const azw3 = await deps.convertAzw3(job.title, request.sourceDir, existingFiles);
-      if (!azw3) throw new Error("Conversao AZW3 esta disponivel no app desktop.");
+      if (!azw3) throw new Error("A conversão para AZW3 só está disponível no app desktop.");
       return { finalDir: request.sourceDir, outputFiles: unique([...existingFiles, azw3]) };
     }
     return exportBook(job, unique([...existingFormats, ...request.formats]), ctx);

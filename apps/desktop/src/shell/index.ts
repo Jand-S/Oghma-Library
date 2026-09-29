@@ -1,4 +1,4 @@
-export { AppShell, type AppShellProps } from "./AppShell";
+export { AppShell, type AppShellProps, type ContentLayout } from "./AppShell";
 export { BottomPanel, describeActiveDownload, type ActiveDownload, type BottomPanelProps, type KindleSummary } from "./BottomPanel";
 export { formatEta, formatSpeed } from "./format";
 export { navItems, settingsNavItem, type NavItem } from "./nav";

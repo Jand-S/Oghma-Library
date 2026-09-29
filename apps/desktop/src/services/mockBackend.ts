@@ -44,24 +44,6 @@ export function setMockLatencyScale(scale: number) {
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms * latencyScale));
 const jitter = (base = 420) => wait(base + Math.round(Math.random() * 420));
 
-export const mockEndpoints = [
-  { method: "GET", path: "/api/bootstrap", description: "Initial app payload" },
-  { method: "POST", path: "/api/server/validate", description: "Validate the configured index server and preview its catalog" },
-  { method: "GET", path: "/api/sources", description: "Supported sites and sync state" },
-  { method: "POST", path: "/api/sources/:id/sync", description: "Start a source metadata sync" },
-  { method: "GET", path: "/api/novels", description: "Search novels with filters" },
-  { method: "GET", path: "/api/novels/:id/chapters", description: "List sampled chapter metadata" },
-  { method: "POST", path: "/api/downloads", description: "Add per-novel chapter selections to queue" },
-  { method: "GET", path: "/api/downloads", description: "List active and completed downloads" },
-  { method: "GET", path: "/api/library", description: "Local downloaded library" },
-  { method: "POST", path: "/api/exports", description: "Generate an export in a chosen format (EPUB, PDF, TXT)" },
-  { method: "POST", path: "/api/translations", description: "Queue an AI translation job for selected chapters" },
-  { method: "POST", path: "/api/translations/estimate", description: "Estimate translation cost and model recommendations" },
-  { method: "POST", path: "/api/audiobooks", description: "Queue a TTS audiobook job for selected chapters" },
-  { method: "GET", path: "/api/devices/kindle/status", description: "Read the USB Kindle connection state" },
-  { method: "POST", path: "/api/devices/kindle/send", description: "Convert selected EPUB downloads to AZW3 and transfer them" }
-];
-
 const kindleDeviceStatus: KindleDeviceStatus = {
   id: "kindle-paperwhite-11",
   deviceName: "Kindle Paperwhite",
@@ -308,7 +290,7 @@ const library: LibraryItem[] = [
     coverClass: "cover-c",
     coverUrl: "/icons/oghma-icon.svg",
     bundleKey: novels[0].bundleKey,
-    description: "A copia local preservada fica disponivel para conversao e leitura mesmo sem depender do site de origem.",
+    description: "A cópia local preservada fica disponível para conversão e leitura mesmo sem depender do site de origem.",
     sourceName: "Central Novel",
     outputDir: "~/Documents/Oghma Library/exports/To Kill a Mockingbird",
     files: ["To Kill a Mockingbird.epub"],
@@ -324,7 +306,7 @@ const library: LibraryItem[] = [
     chapters: 19,
     sizeMb: 11,
     coverClass: "cover-i",
-    description: "Uma aventura local com multiplos formatos ja gerados.",
+    description: "Uma aventura local com múltiplos formatos já gerados.",
     sourceName: "Novel Mania",
     outputDir: "~/Documents/Oghma Library/exports/Mystery of the Lost Temple",
     files: ["Mystery of the Lost Temple.epub", "Mystery of the Lost Temple.pdf"],
@@ -339,7 +321,7 @@ const queue: QueueItem[] = [
     title: "To Kill a Mockingbird",
     coverClass: "cover-j",
     preset: "range",
-    rangeLabel: "Capitulos 1-20",
+    rangeLabel: "Capítulos 1-20",
     progress: 82,
     state: "downloading",
     chaptersTotal: 20,
@@ -353,7 +335,7 @@ const queue: QueueItem[] = [
     title: "Journey to the Forgotten Kingdom",
     coverClass: "cover-l",
     preset: "all",
-    rangeLabel: "Todos os 2.064 capitulos",
+    rangeLabel: "Todos os 2.064 capítulos",
     progress: 0,
     state: "queued",
     chaptersTotal: 2064,
@@ -367,7 +349,7 @@ const queue: QueueItem[] = [
     title: "Whispers of the Night",
     coverClass: "cover-d",
     preset: "all",
-    rangeLabel: "Todos os 58 capitulos",
+    rangeLabel: "Todos os 58 capítulos",
     progress: 100,
     state: "done",
     chaptersTotal: 58,
@@ -381,7 +363,7 @@ const queue: QueueItem[] = [
     title: "The Labyrinth's Secret",
     coverClass: "cover-h",
     preset: "all",
-    rangeLabel: "Todos os 74 capitulos",
+    rangeLabel: "Todos os 74 capítulos",
     progress: 100,
     state: "done",
     chaptersTotal: 74,
@@ -510,7 +492,7 @@ const translationJobs: TranslationJob[] = [];
 
 function updateMockTranslationJob(jobId: string, patch: Partial<TranslationJob>): TranslationJob {
   const index = translationJobs.findIndex((job) => job.id === jobId);
-  if (index < 0) throw new Error("Job de traducao nao encontrado");
+  if (index < 0) throw new Error("Trabalho de tradução não encontrado");
   const next = { ...translationJobs[index], ...patch, updatedAt: new Date().toISOString() };
   translationJobs[index] = next;
   return structuredClone(next);
@@ -786,7 +768,7 @@ export const mockBackendClient: BackendClient = {
   async runTranslationJob(jobId: string, _allowPaidProviders = false, _allowEditorialGrader = false): Promise<TranslationJob> {
     await jitter(180);
     const job = translationJobs.find((item) => item.id === jobId);
-    if (!job) throw new Error("Job de traducao nao encontrado");
+    if (!job) throw new Error("Trabalho de tradução não encontrado");
     return updateMockTranslationJob(jobId, {
       status: "translating",
       startedAt: job.startedAt ?? new Date().toISOString()
@@ -882,7 +864,7 @@ export const mockBackendClient: BackendClient = {
         target: "Mestre Gu",
         relatedSource: "Gu Cultivator",
         relatedTarget: "Mestre Gu",
-        message: "Termos originais diferentes compartilham a mesma traducao."
+        message: "Termos originais diferentes compartilham a mesma tradução."
       }
     ];
   },
@@ -984,8 +966,8 @@ export function defaultSelection(novel: Novel): ChapterSelection {
 
 export function selectionLabel(selection: ChapterSelection, max: number) {
   const labels: Record<ChapterPreset, string> = {
-    all: `Todos os ${max.toLocaleString("pt-BR")} capitulos`,
-    range: `Capitulos ${Math.max(1, selection.start)}-${Math.min(selection.end, max)}`
+    all: `Todos os ${max.toLocaleString("pt-BR")} capítulos`,
+    range: `Capítulos ${Math.max(1, selection.start)}-${Math.min(selection.end, max)}`
   };
   return labels[selection.preset];
 }

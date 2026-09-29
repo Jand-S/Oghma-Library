@@ -13,7 +13,6 @@ export type SourcesViewProps = {
   novels?: Novel[];
   onToggle: (id: string) => void;
   onSync: (id: string) => void;
-  onSyncAll: () => void;
   onOpenSettings: () => void;
 };
 
@@ -112,10 +111,10 @@ function SourceCard({ source, syncing, language, onToggle, onSync }: {
   );
 }
 
-export function SourcesView({ sources, syncing, loading = false, novels = [], onToggle, onSync, onSyncAll, onOpenSettings }: SourcesViewProps) {
+export function SourcesView({ sources, syncing, loading = false, novels = [], onToggle, onSync, onOpenSettings }: SourcesViewProps) {
   if (loading && sources.length === 0) {
     return (
-      <div className="sources-page" aria-busy="true" aria-label={sourcesStrings.loading}>
+      <div className="o-page o-page--narrow sources-page" aria-busy="true" aria-label={sourcesStrings.loading}>
         <div className="sources-grid">
           {[0, 1, 2].map((index) => (
             <div className="sources-card" key={index}>
@@ -142,20 +141,10 @@ export function SourcesView({ sources, syncing, loading = false, novels = [], on
     );
   }
 
-  const enabled = sources.filter((source) => source.enabled);
-  const anySyncing = enabled.some((source) => syncing.includes(source.id));
 
   return (
-    <div className="sources-page" data-testid="sources-page">
-      <div className="sources-toolbar">
-        <div className="sources-toolbar__text">
-          <strong>{sourcesStrings.summary(sources.length, enabled.length)}</strong>
-          <span>{sourcesStrings.lead}</span>
-        </div>
-        <Button icon={<RefreshCcw />} loading={anySyncing} disabled={enabled.length === 0} onClick={onSyncAll}>
-          {sourcesStrings.syncAll}
-        </Button>
-      </div>
+    <div className="o-page o-page--narrow sources-page" data-testid="sources-page">
+      <p className="sources-lead">{sourcesStrings.lead}</p>
       <div className="sources-grid">
         {sources.map((source) => (
           <SourceCard

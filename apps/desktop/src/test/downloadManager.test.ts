@@ -72,7 +72,7 @@ describe("downloadManager", () => {
     const txt = await buildOutputs(sampleBundle, "Shadow Slave", ["TXT"]);
     expect(txt).toHaveLength(1);
     expect(txt[0].fileName).toBe("Shadow Slave.txt");
-    expect(txt[0].data).toContain("Capitulo 1 - Nightmare");
+    expect(txt[0].data).toContain("Capítulo 1 - Nightmare");
 
     const both = await buildOutputs(sampleBundle, "Shadow Slave", ["TXT", "EPUB"]);
     expect(both.map((o) => o.fileName)).toEqual(["Shadow Slave.epub", "Shadow Slave.txt"]);
@@ -124,7 +124,7 @@ describe("downloadManager", () => {
       ...sampleBundle,
       chapters: [...sampleBundle.chapters, { number: 50, html: '<p> </p><hr>' }]
     };
-    await expect(buildOutputs(bundle, "Teste", ["EPUB"])).rejects.toThrow(/sem conteudo: 50/);
+    await expect(buildOutputs(bundle, "Teste", ["EPUB"])).rejects.toThrow(/sem conteúdo: 50/);
     await expect(buildOutputs(bundle, "Teste", ["TXT"], { start: 1, end: 2 })).resolves.toHaveLength(1);
   });
 

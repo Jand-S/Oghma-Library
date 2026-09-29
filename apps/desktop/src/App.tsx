@@ -4,7 +4,7 @@ import { NavigationProvider, useNavigation, type AppView } from "./app/Navigatio
 import { useBootstrapState } from "./app/useBootstrapState";
 import { useKindleDetection } from "./app/useKindleDetection";
 import { useLocalLibrary } from "./app/useLocalLibrary";
-import { contentClassFor, viewRegistry, type AppControllers } from "./app/viewRegistry";
+import { viewRegistry, type AppControllers } from "./app/viewRegistry";
 import { hasCompletedSetup } from "./core/appConfig";
 import { isTauriRuntime } from "./core/windowControls";
 import { useDiscoverController } from "./features/discover/useDiscoverController";
@@ -44,7 +44,7 @@ export function App({ backend, downloadQueue }: AppProps) {
 
 function AppContent({ backend, downloadQueue }: AppProps) {
   const navigation = useNavigation();
-  const { view, navigate, canGoBack, back } = navigation;
+  const { view, params, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
 
   /** String notifications from hooks and views (the old `setToast`). Errors get the danger tone. */
@@ -168,6 +168,7 @@ function AppContent({ backend, downloadQueue }: AppProps) {
   const controllers: AppControllers = {
     loading,
     navigate,
+    params,
     discover,
     downloads,
     library: libraryController,
@@ -194,6 +195,7 @@ function AppContent({ backend, downloadQueue }: AppProps) {
   const showBootError = Boolean(bootError) && view !== "settings";
   const definition = viewRegistry[view];
   const ActiveView = definition.component;
+  const viewHeader = showBootError ? {} : definition.header?.(controllers) ?? {};
 
   const goTo = (target: AppView) => navigate(target, undefined, { root: true });
 
@@ -204,14 +206,14 @@ function AppContent({ backend, downloadQueue }: AppProps) {
         active={view}
         onNavigate={goTo}
         sidebarStatus={{ downloading: downloads.downloading, flashKey: downloads.pulse, kindleConnected }}
-        header={{ title: definition.title, onBack: canGoBack ? back : undefined }}
+        header={{ ...viewHeader, title: definition.title, onBack: canGoBack ? back : undefined }}
         bottomPanel={{
           active: downloads.active,
           queuedCount: downloads.queuedCount,
           kindle: kindleStatus,
           onOpenDownloads: () => navigate("downloads")
         }}
-        contentClassName={showBootError ? "workspace single" : contentClassFor(view, controllers)}
+        contentLayout={showBootError ? "scroll" : definition.layout}
         overlays={(
           <OnboardingWizard
             open={!loading && showOnboarding}

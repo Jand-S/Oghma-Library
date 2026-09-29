@@ -48,7 +48,7 @@ export function useNovelSearch({
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setToast(getErrorMessage(error, "Nao foi possivel atualizar os resultados da busca."));
+        setToast(getErrorMessage(error, "Não foi possível atualizar os resultados da busca."));
       })
       .finally(() => {
         if (cancelled) return;

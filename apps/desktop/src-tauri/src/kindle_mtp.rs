@@ -25,7 +25,7 @@ fn fmt<E: std::fmt::Debug>(prefix: &str, err: E) -> String {
 
 /// Copia um arquivo local para a pasta `documents` do Kindle conectado por MTP.
 pub fn send_file_to_kindle(local_path: &Path, file_name: &str) -> Result<(), String> {
-    let bytes = fs::read(local_path).map_err(|e| format!("Nao foi possivel ler o arquivo: {e}"))?;
+    let bytes = fs::read(local_path).map_err(|e| format!("Não foi possível ler o arquivo: {e}"))?;
     unsafe {
         let hr = CoInitializeEx(None, COINIT_MULTITHREADED);
         let did_init = hr.is_ok() || hr == S_FALSE;
@@ -50,7 +50,7 @@ pub fn send_thumbnail_to_kindle(file_name: &str, bytes: &[u8]) -> Result<(), Str
 }
 
 unsafe fn send_inner(file_name: &str, bytes: &[u8], folder_path: &[&str]) -> Result<(), String> {
-    let device_id = find_kindle_device()?.ok_or_else(|| "Kindle nao encontrado via WPD".to_string())?;
+    let device_id = find_kindle_device()?.ok_or_else(|| "Kindle não encontrado via WPD".to_string())?;
 
     let device: IPortableDevice = CoCreateInstance(&PortableDevice, None, CLSCTX_INPROC_SERVER)
         .map_err(|e| fmt("CoCreateInstance(PortableDevice)", e))?;
@@ -63,7 +63,7 @@ unsafe fn send_inner(file_name: &str, bytes: &[u8], folder_path: &[&str]) -> Res
     let content: IPortableDeviceContent = device.Content().map_err(|e| fmt("Content", e))?;
 
     let parent_id = find_folder_object_id(&content, folder_path)?
-        .ok_or_else(|| format!("Pasta '{}' nao encontrada no Kindle", folder_path.join("/")))?;
+        .ok_or_else(|| format!("Pasta '{}' não encontrada no Kindle", folder_path.join("/")))?;
 
     let values: IPortableDeviceValues =
         CoCreateInstance(&PortableDeviceValues, None, CLSCTX_INPROC_SERVER).map_err(|e| fmt("values", e))?;
@@ -89,7 +89,7 @@ unsafe fn send_inner(file_name: &str, bytes: &[u8], folder_path: &[&str]) -> Res
     content
         .CreateObjectWithPropertiesAndData(&values, &mut stream, &mut optimal, std::ptr::null_mut())
         .map_err(|e| fmt("CreateObjectWithPropertiesAndData", e))?;
-    let stream = stream.ok_or_else(|| "WPD nao retornou stream de escrita".to_string())?;
+    let stream = stream.ok_or_else(|| "WPD não retornou stream de escrita".to_string())?;
 
     let chunk = if optimal == 0 { 262_144usize } else { optimal as usize };
     let mut offset = 0usize;

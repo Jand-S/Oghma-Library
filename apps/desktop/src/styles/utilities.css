@@ -40,4 +40,20 @@
   .text-muted {
     color: var(--text-muted);
   }
+
+  /*
+   * Reduced motion. It lives in the last layer on purpose: feature and component
+   * animations with literal durations (spinners, pulses, shimmer) sit in higher
+   * layers than `base`, so only here does this override win over all of them.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0ms;
+      animation-iteration-count: 1;
+      transition-duration: 0ms;
+      scroll-behavior: auto;
+    }
+  }
 }

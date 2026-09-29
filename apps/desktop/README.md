@@ -41,8 +41,7 @@ cargo test --manifest-path src-tauri/Cargo.toml   # testes Rust (staging, biblio
 ```
 
 - `npm run lint:css` falha quando encontra cor ou px crus, `!important`, regra fora de `@layer` ou
-  seletor duplicado. O CSS em `src/styles/legacy/` só gera aviso (`node scripts/check-css.mjs --verbose`
-  lista esses avisos).
+  seletor duplicado, em qualquer arquivo de `src/` (não há mais CSS legado com exceção).
 - As regras e o catálogo de componentes estão em [`docs/DESIGN_SYSTEM.md`](../../docs/DESIGN_SYSTEM.md).
   A fila de download e a exportação atômica estão descritas em
   [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
@@ -51,12 +50,11 @@ cargo test --manifest-path src-tauri/Cargo.toml   # testes Rust (staging, biblio
 
 ```text
 src/
-  styles/        tokens.css, camadas base/layout/utilities (+ legacy/ temporário)
+  styles/        tokens.css e as camadas reset/base/layout/utilities
   ui/            primitivas (.o-*), cada uma com seu .css
   shell/         AppShell, Sidebar, TitleBar, PageHeader, BottomPanel, SplashScreen
-  app/           NavigationContext, viewRegistry, hooks de app
-  features/      controllers (e CSS) por tela
-  views/         telas
+  app/           NavigationContext, viewRegistry (layout e slot de cabeçalho por tela), hooks de app
+  features/      telas por área: view, controller, cabeçalho e CSS
   services/      downloadQueue, jobRunner, exportStaging, downloadManager, bundle, localFiles
   strings/       textos pt-BR usados pelas telas e pelos testes
   dev/           Gallery (só dev)

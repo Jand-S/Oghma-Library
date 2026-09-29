@@ -133,7 +133,7 @@ export function SettingsView(props: SettingsViewProps) {
   }
 
   return (
-    <div className="settings-page" data-testid="settings-page">
+    <div className="o-page o-page--narrow settings-page" data-testid="settings-page">
       <div className="settings-card">
         <nav className="settings-nav" aria-label={settingsStrings.navLabel}>
           <div role="tablist" aria-orientation="vertical" aria-label={settingsStrings.navLabel} className="settings-nav__list">

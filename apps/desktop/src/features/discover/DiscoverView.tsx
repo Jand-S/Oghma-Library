@@ -6,8 +6,8 @@ import { Button, EmptyState, cx } from "../../ui";
 import { DiscoverDetailPanel } from "./DiscoverDetailPanel";
 import { ActiveFilterRow, DiscoverFilters } from "./DiscoverFilters";
 import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
-import { DiscoverToolbar, type SortDirection } from "./DiscoverToolbar";
-import { activeFilters, clearedFilters, drawerFilterCount } from "./filterModel";
+import type { SortDirection } from "./DiscoverHeader";
+import { activeFilters, clearedFilters } from "./filterModel";
 import "./discover.css";
 
 export type DiscoverViewProps = {
@@ -25,11 +25,12 @@ export type DiscoverViewProps = {
   detailNovel?: Novel;
   detailFromPreview: boolean;
   filterCollapsed: boolean;
+  /** Title order of the grid (the sort toggle lives in the PageHeader). */
+  sortDirection: SortDirection;
   adding: boolean;
   selectedInLibrary: boolean;
   selectedQueued: boolean;
   onFiltersChange: (filters: Filters) => void;
-  onToggleFilters: () => void;
   /** Selects the book, or clears the selection when it is already selected. */
   onSelectNovel: (novel: Novel) => void;
   onClearSelection: () => void;
@@ -59,11 +60,11 @@ export function DiscoverView({
   detailNovel,
   detailFromPreview,
   filterCollapsed,
+  sortDirection,
   adding,
   selectedInLibrary,
   selectedQueued,
   onFiltersChange,
-  onToggleFilters,
   onSelectNovel,
   onClearSelection,
   onPreviewNovel,
@@ -75,7 +76,6 @@ export function DiscoverView({
   onOpenSettings
 }: DiscoverViewProps) {
   const [visibleCount, setVisibleCount] = useState(DISCOVER_PAGE_SIZE);
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setVisibleCount(DISCOVER_PAGE_SIZE), [results, sortDirection]);
@@ -186,18 +186,6 @@ export function DiscoverView({
   return (
     <div className={cx("discover", detailNovel && "discover--with-detail")}>
       <div className="discover__main" onClick={onBackgroundClick}>
-        <DiscoverToolbar
-          filters={filters}
-          sources={sources}
-          total={results.length}
-          loading={loading}
-          sortDirection={sortDirection}
-          filtersOpen={filtersOpen}
-          filterCount={drawerFilterCount(filters)}
-          onFiltersChange={onFiltersChange}
-          onSortChange={setSortDirection}
-          onToggleFilters={onToggleFilters}
-        />
         <div className="discover__scroll" data-testid="content-area" ref={scrollRef}>
           {filtersOpen ? (
             <DiscoverFilters

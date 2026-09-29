@@ -28,7 +28,7 @@
     /* Text */
     --text: #f0f1f7;
     --text-2: #d0d1d7;
-    --text-muted: #9a9ba3;
+    --text-muted: #a6a7af; /* ≥ 4.5:1 on every surface, incl. --active over --surface-2 */
     --text-disabled: #5f6068;
 
     /* Brand */
@@ -109,6 +109,7 @@
     --titlebar-h: 35px;
     --mac-inset-top: 40px;
     --header-h: 56px;
+    --page-max-w: 1152px;
     --bottom-panel-h: 28px;
     --cover-ratio: 2 / 3;
     --scrollbar: 9px;

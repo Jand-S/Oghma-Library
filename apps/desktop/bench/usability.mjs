@@ -117,7 +117,9 @@ async function runTask(browser, version, url, task, targets) {
       verified = Boolean(title) && stillActive === 0;
       evidence = { cancelledTitle: title };
     } else if (task.id === "sendToKindle") {
-      evidence = await waitFor(() => page.evaluate((t) => window.__BENCH__.kindleSends.find((s) => s.items.some((i) => i.title === t)), target.libraryTitle));
+      // The new UI names books by their catalog title (matched by novel id); v1 uses the folder name.
+      const titles = [target.libraryTitle, target.title];
+      evidence = await waitFor(() => page.evaluate((ts) => window.__BENCH__.kindleSends.find((s) => s.items.some((i) => ts.includes(i.title))), titles));
       verified = Boolean(evidence);
     } else if (task.id === "changeOutputFolder") {
       evidence = await waitFor(() => page.evaluate(() => {
