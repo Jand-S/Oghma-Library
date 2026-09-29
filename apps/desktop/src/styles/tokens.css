@@ -1,25 +1,152 @@
-:root {
-  color-scheme: dark;
-  --bg: #0f1114;
-  --panel: #1b1d23;
-  --panel-2: #20242c;
-  --panel-3: #242932;
-  --panel-4: #2e3540;
-  --border: #323946;
-  --border-soft: #252b35;
-  --text: #edf3f1;
-  --text-muted: #b8c3c0;
-  --text-dim: #818d90;
-  --accent: #00796b;
-  --accent-hover: #009889;
-  --accent-soft: rgba(0, 121, 107, 0.12);
-  --accent-muted: rgba(0, 121, 107, 0.28);
-  --focus: #4fb7e8;
-  --warning: #d9a441;
-  --danger: #c94b5b;
-  --success: #76b878;
-  --radius: 8px;
-  --radius-sm: 5px;
-  --shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
-  --font: "Segoe UI", Inter, Roboto, Arial, sans-serif;
+/*
+ * Design tokens. This is the only stylesheet allowed to hold raw colors and
+ * pixel values (enforced by `npm run lint:css`). Tokens are semantic, so a
+ * future light theme only needs a `[data-theme="light"]` block that overrides
+ * the color tokens.
+ */
+@layer tokens {
+  :root {
+    color-scheme: dark;
+
+    /* Surfaces */
+    --bg-app: #121212;
+    --bg-sidebar: #0d0d0d;
+    --surface-1: #1a1a1a;
+    --surface-2: #222;
+    --surface-3: #2c2c2c;
+    --glass: rgba(255, 255, 255, 0.06);
+    --glass-strong: rgba(255, 255, 255, 0.1);
+    --glass-blur: 16px;
+    --backdrop: rgba(0, 0, 0, 0.7);
+    --hover: rgba(255, 255, 255, 0.08);
+    --active: rgba(255, 255, 255, 0.12);
+
+    /* Borders */
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+
+    /* Text */
+    --text: #f0f1f7;
+    --text-2: #d0d1d7;
+    --text-muted: #9a9ba3;
+    --text-disabled: #5f6068;
+
+    /* Brand */
+    --accent: #00796b;
+    --accent-hover: #00897b;
+    --accent-press: #00695c;
+    --accent-fg: #fff;
+    --accent-rgb: 0 121 107;
+    /* Tinted foregrounds for text on soft accent/danger backgrounds (badges, chips). */
+    --accent-text: #d7f4ef;
+    --danger-text: #f2b3bc;
+
+    /* Status */
+    --danger: #c94b5b;
+    --danger-rgb: 201 75 91;
+    --warning: #d9a441;
+    --warning-rgb: 217 164 65;
+    --success: #76b878;
+    --success-rgb: 118 184 120;
+    --info: #4fb7e8;
+    --info-rgb: 79 183 232;
+    --black-rgb: 0 0 0;
+    --white-rgb: 255 255 255;
+
+    /* Focus */
+    --focus-ring: 0 0 0 2px var(--bg-app), 0 0 0 4px rgb(var(--accent-rgb) / 0.7);
+
+    /* Spacing (8px unit) */
+    --space-0-5: 4px;
+    --space-1: 8px;
+    --space-1-5: 12px;
+    --space-2: 16px;
+    --space-3: 24px;
+    --space-4: 32px;
+    --space-5: 40px;
+    --space-6: 48px;
+    --space-8: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    /* Type */
+    --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --fs-md: 14px;
+    --fs-lg: 16px;
+    --fs-xl: 20px;
+    --fs-2xl: 24px;
+    --fs-3xl: 32px;
+    --lh-tight: 1.25;
+    --lh-base: 1.5;
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+
+    /* Controls and icons */
+    --control-sm: 32px;
+    --control-md: 40px;
+    --control-lg: 48px;
+    --icon-sm: 16px;
+    --icon-md: 20px;
+    --icon-lg: 24px;
+
+    /* Layout */
+    --app-min-w: 1120px;
+    --sidebar-w: 240px;
+    --sidebar-w-min: 200px;
+    --sidebar-w-max: 320px;
+    --sidebar-w-collapsed: 72px;
+    --sidebar-handle: 5px;
+    --titlebar-h: 35px;
+    --mac-inset-top: 40px;
+    --header-h: 56px;
+    --bottom-panel-h: 28px;
+    --cover-ratio: 2 / 3;
+    --scrollbar: 9px;
+    --hairline: 1px;
+    --ring-width: 2px;
+
+    /* Z-index */
+    --z-sticky: 10;
+    --z-header: 20;
+    --z-sidebar: 30;
+    --z-dropdown: 40;
+    --z-backdrop: 50;
+    --z-modal: 60;
+    --z-toast: 70;
+    --z-titlebar: 80;
+    --z-splash: 90;
+
+    /* Motion */
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --dur-slow: 320ms;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
+  }
+
+  [data-platform="macos"] {
+    --titlebar-h: 0px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --dur-fast: 0ms;
+      --dur-base: 0ms;
+      --dur-slow: 0ms;
+    }
+  }
 }

@@ -1,0 +1,45 @@
+/* Legacy styles moved from styles/responsive.css. Temporary: views move to src/ui primitives and feature CSS in P2. */
+@layer legacy {
+  @media (max-width: 1180px) {
+    .setup-stepper,
+    .setup-choice-grid,
+    .setup-source-grid,
+    .setup-grid.three {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .setup-backdrop { padding: 12px; }
+    .setup-panel { width: calc(100vw - 24px); padding: 16px; gap: 12px; }
+    .setup-header h1 { font-size: 22px; }
+    .setup-stepper { gap: 4px; }
+  }
+
+  @media (max-height: 720px) {
+    .setup-panel { min-height: calc(100vh - 24px); padding: 16px; gap: 10px; }
+    .setup-header h1 { font-size: 22px; }
+  }
+
+  @media (max-width: 980px) {
+    .downloads-split {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(320px, 1fr) minmax(320px, 1fr);
+    }
+  }
+
+  @media (max-width: 1240px) {
+    .translation-workspace {
+      grid-template-columns: 240px minmax(0, 1fr) 286px;
+    }
+
+    .translation-control-grid {
+      grid-template-columns: 1fr;
+      overflow-y: auto;
+    }
+
+    .translation-metrics-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}

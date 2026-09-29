@@ -583,7 +583,7 @@ function SelectionConfigurator({
   const handleAdd = () => {
     if (addingToQueue || selectedNovels.length === 0) return;
     const list = listRef.current;
-    const target = document.querySelector<HTMLElement>('[data-nav="downloads"] .nav-ico')
+    const target = document.querySelector<HTMLElement>('[data-nav="downloads"] [data-nav-icon]')
       ?? document.querySelector<HTMLElement>('[data-nav="downloads"]');
     if (!list || !target) {
       onAdd();

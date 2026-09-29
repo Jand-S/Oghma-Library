@@ -8,6 +8,7 @@
     "dev:tauri": "node scripts/ensure-dev-server.mjs",
     "build": "tsc && vite build",
     "test": "vitest run",
+    "lint:css": "node scripts/check-css.mjs",
     "serve:dist": "node scripts/serve-dist.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",

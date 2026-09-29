@@ -1,0 +1,119 @@
+@layer components {
+  .o-toast-region {
+    position: fixed;
+    right: var(--space-2);
+    bottom: calc(var(--bottom-panel-h) + var(--space-2));
+    z-index: var(--z-toast);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-1);
+    max-width: min(calc(var(--space-8) * 7), calc(100vw - var(--space-4)));
+    pointer-events: none;
+  }
+
+  .o-toast {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: calc(var(--space-8) * 4);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: var(--bg-sidebar);
+    color: var(--text-2);
+    box-shadow: var(--shadow-md);
+    pointer-events: auto;
+    animation: toast-in var(--dur-base) var(--ease) both;
+  }
+
+  .o-toast__content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    padding: var(--space-1-5) var(--space-2);
+  }
+
+  .o-toast__icon {
+    display: inline-flex;
+    color: var(--info);
+  }
+
+  .o-toast__icon svg,
+  .o-toast__close svg {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
+
+  .o-toast--success .o-toast__icon {
+    color: var(--success);
+  }
+
+  .o-toast--warning .o-toast__icon {
+    color: var(--warning);
+  }
+
+  .o-toast--danger .o-toast__icon {
+    color: var(--danger);
+  }
+
+  .o-toast__message {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--text);
+    font-weight: var(--fw-semibold);
+    overflow-wrap: anywhere;
+  }
+
+  .o-toast__action {
+    flex: 0 0 auto;
+    padding: var(--space-0-5) var(--space-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+  }
+
+  .o-toast__action:hover {
+    background: var(--hover);
+  }
+
+  .o-toast__close {
+    display: inline-flex;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    transition: color var(--dur-base) var(--ease);
+  }
+
+  .o-toast__close:hover {
+    color: var(--text);
+  }
+
+  .o-toast__countdown {
+    display: block;
+    height: calc(var(--space-0-5) - var(--hairline));
+    background: var(--text-2);
+    transform-origin: left center;
+    animation-name: countdown;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+
+  .o-toast--success .o-toast__countdown {
+    background: var(--success);
+  }
+
+  .o-toast--warning .o-toast__countdown {
+    background: var(--warning);
+  }
+
+  .o-toast--danger .o-toast__countdown {
+    background: var(--danger);
+  }
+}

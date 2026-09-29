@@ -1,0 +1,45 @@
+@layer layout {
+  .o-splash {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-splash);
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(circle at 50% 40%, rgb(var(--accent-rgb) / 0.14), transparent 55%),
+      var(--bg-sidebar);
+    animation: splash-in var(--dur-base) var(--ease) both;
+  }
+
+  .o-splash--leaving {
+    animation: splash-out var(--dur-slow) var(--ease) both;
+    pointer-events: none;
+  }
+
+  .o-splash__card {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-1-5);
+    width: calc(var(--space-8) * 5);
+  }
+
+  .o-splash__logo {
+    width: calc(var(--space-8) + var(--space-4));
+    height: calc(var(--space-8) + var(--space-4));
+  }
+
+  .o-splash__title {
+    color: var(--text);
+    font-size: var(--fs-xl);
+  }
+
+  .o-splash__step {
+    min-height: calc(var(--fs-sm) * var(--lh-base));
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .o-splash__progress {
+    width: 100%;
+  }
+}

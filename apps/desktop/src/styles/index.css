@@ -1,7 +1,19 @@
+/*
+ * Stylesheet entry. The layer order below is the whole cascade contract:
+ * later layers win regardless of selector specificity.
+ * Primitives (src/ui/*.css) and shell parts (src/shell/*.css) are imported by
+ * their components and declare their own layer.
+ */
+@layer reset, tokens, base, layout, components, features, legacy, utilities;
+
+@import "./reset.css";
 @import "./tokens.css";
 @import "./base.css";
 @import "./layout.css";
-@import "./components.css";
-@import "./views.css";
-@import "./responsive.css";
-@import "./consistency.css";
+@import "./legacy/aliases.css";
+@import "./legacy/layout.css";
+@import "./legacy/components.css";
+@import "./legacy/views.css";
+@import "./legacy/responsive.css";
+@import "./legacy/consistency.css";
+@import "./utilities.css";

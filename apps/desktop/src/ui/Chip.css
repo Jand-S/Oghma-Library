@@ -1,0 +1,105 @@
+@layer components {
+  .o-chip {
+    --chip-bg: var(--glass);
+    --chip-border: var(--border);
+    --chip-fg: var(--text-2);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    min-height: var(--control-sm);
+    padding: 0 var(--space-1-5);
+    border: 1px solid var(--chip-border);
+    border-radius: var(--radius-pill);
+    background: var(--chip-bg);
+    color: var(--chip-fg);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    transition: all var(--dur-base) var(--ease);
+  }
+
+  .o-chip--interactive {
+    padding: 0;
+  }
+
+  .o-chip--interactive:hover {
+    --chip-bg: var(--glass-strong);
+  }
+
+  .o-chip__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    min-height: calc(var(--control-sm) - 2 * var(--hairline));
+    padding: 0 var(--space-1-5);
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: inherit;
+  }
+
+  .o-chip--interactive:has(.o-chip__remove) .o-chip__toggle {
+    padding-right: var(--space-0-5);
+  }
+
+  .o-chip.is-selected {
+    --chip-bg: rgb(var(--accent-rgb) / 0.18);
+    --chip-border: rgb(var(--accent-rgb) / 0.6);
+    --chip-fg: var(--accent-text);
+  }
+
+  .o-chip--accent {
+    --chip-bg: rgb(var(--accent-rgb) / 0.14);
+    --chip-border: rgb(var(--accent-rgb) / 0.4);
+    --chip-fg: var(--accent-text);
+  }
+
+  .o-chip--danger {
+    --chip-bg: rgb(var(--danger-rgb) / 0.14);
+    --chip-border: rgb(var(--danger-rgb) / 0.4);
+    --chip-fg: var(--danger-text);
+  }
+
+  .o-chip--warning {
+    --chip-bg: rgb(var(--warning-rgb) / 0.14);
+    --chip-border: rgb(var(--warning-rgb) / 0.4);
+    --chip-fg: var(--warning);
+  }
+
+  .o-chip--success {
+    --chip-bg: rgb(var(--success-rgb) / 0.14);
+    --chip-border: rgb(var(--success-rgb) / 0.4);
+    --chip-fg: var(--success);
+  }
+
+  .o-chip__icon,
+  .o-chip__remove {
+    display: inline-flex;
+  }
+
+  .o-chip__icon svg,
+  .o-chip__remove svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .o-chip__remove {
+    align-items: center;
+    justify-content: center;
+    margin-right: calc(var(--space-0-5) * -1);
+    padding: calc(var(--space-0-5) / 2);
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    opacity: 0.7;
+  }
+
+  .o-chip--interactive .o-chip__remove {
+    margin-right: var(--space-0-5);
+  }
+
+  .o-chip__remove:hover {
+    background: var(--hover);
+    opacity: 1;
+  }
+}

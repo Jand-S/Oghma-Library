@@ -1,39 +1,10 @@
-import {
-  Download,
-  Globe2,
-  Home,
-  Languages,
-  Library,
-  Settings
-} from "lucide-react";
-import type { IndexMode, TranslationEngine, ViewId } from "../core/types";
-import { navStrings } from "../strings/common";
+import type { IndexMode, TranslationEngine } from "../core/types";
 import { onboardingStrings } from "../strings/onboarding";
-
-export const tags = ["Fantasia", "Romance", "Misterio", "Isekai", "Aventura", "Drama"];
-
-export const views: Array<{ id: ViewId; label: string; icon: typeof Home }> = [
-  { id: "discover", label: navStrings.discover, icon: Home },
-  { id: "sources", label: navStrings.sources, icon: Globe2 },
-  { id: "downloads", label: navStrings.downloads, icon: Download },
-  { id: "library", label: navStrings.library, icon: Library },
-  { id: "translation", label: navStrings.translation, icon: Languages },
-  { id: "settings", label: navStrings.settings, icon: Settings }
-];
 
 export const statusLabel = {
   ongoing: "Em andamento",
   complete: "Completa",
   paused: "Pausada"
-};
-
-export const pageTitle: Record<ViewId, string> = {
-  discover: "Download Search",
-  sources: "Selecao de sites",
-  downloads: "Fila de downloads",
-  library: "Biblioteca local",
-  translation: "Central de traducao",
-  settings: "Ajustes"
 };
 
 export const onboardingSteps: string[] = [...onboardingStrings.steps];

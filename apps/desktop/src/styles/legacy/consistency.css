@@ -1,0 +1,160 @@
+/* Legacy styles moved from styles/consistency.css. Temporary: views move to src/ui primitives and feature CSS in P2. */
+@layer legacy {
+  /* ===== Consistência visual de controles =====
+     Centraliza as alturas pra eliminar botões/chips com tamanhos levemente
+     diferentes entre as telas. Importado por último (vence empates de cascata). */
+
+  /* Altura padrão = 36px (igual a .button, input e select). icon-button vira quadrado. */
+  .icon-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+  }
+
+  /* Variantes compactas alinhadas entre si em 30px. */
+  .button.compact,
+  .icon-button.small {
+    height: 30px;
+    min-height: 30px;
+  }
+  .icon-button.small {
+    width: 30px;
+    min-width: 30px;
+  }
+
+  /* Chips e toggles (filtros, formatos, opções) todos em 30px. */
+  .chip,
+  .active-filter-row span,
+  .active-filter-row button,
+  .option-toggle,
+  .format-chip {
+    min-height: 30px;
+    height: 30px;
+  }
+
+  /* Select inline (faixa de capítulos) alinhado aos chips. */
+
+  /* Gap interno dos cards uniforme (igual settings-panel). */
+  .source-card {
+    gap: 10px;
+  }
+
+  /* ===== Ajustes finos de tamanho/estilo ===== */
+
+  /* Slider TTS: tira o azul nativo, usa o teal do tema */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 99px;
+    background: rgb(var(--white-rgb) / 0.14);
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-sidebar);
+    box-shadow: 0 1px 4px rgb(var(--black-rgb) / 0.45);
+  }
+  input[type="range"]:hover::-webkit-slider-thumb { background: var(--accent-hover); }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border: none;
+    border-radius: 99px;
+    background: rgb(var(--white-rgb) / 0.14);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border: 2px solid var(--bg-sidebar);
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* Buscar: itens de "Adicionar a fila" um pouco mais compactos */
+  .selection-card { padding: 8px; gap: 6px; }
+  .selection-summary { padding: 6px 10px; gap: 8px; }
+
+  /* Fontes: botoes de acao do card menores (contexto denso) */
+  .source-actions .button {
+    height: 30px;
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  /* Biblioteca: cards e capas maiores (estavam menores que a Buscar) */
+  .library-book-grid {
+    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+    gap: 10px;
+  }
+  .library-book-card {
+    min-height: 248px;
+    max-height: 248px;
+  }
+  .library-card .book-cover,
+  .library-book-card .book-cover {
+    width: 86px;
+    height: 118px;
+  }
+
+  /* ===== Drag-to-remove: overlay full, borda tracejada na cor principal, sem rounding ===== */
+  .content-area.drop-delete { position: relative; }
+  .content-delete-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #ffc5c3;
+    background: rgba(61, 21, 23, 0.88);
+    border: 2px dashed rgba(239, 83, 80, 0.7);
+    border-radius: 0;
+    pointer-events: none;
+    text-shadow: 0 1px 6px rgb(var(--black-rgb) / 0.55);
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .content-delete-overlay strong { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
+  .content-delete-overlay.over {
+    background: rgba(139, 35, 38, 0.94);
+    border-color: rgba(255, 197, 195, 0.9);
+    color: #fff3f2;
+  }
+
+  /* Reordenar selecao: linha indicando onde o item vai cair (commit-on-drop) */
+  .selection-list { position: relative; }
+  .drop-line {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    height: 2px;
+    margin-top: -1px;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.35), 0 0 6px rgba(0, 152, 137, 0.5);
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  /* Card "voando" para a aba de downloads ao adicionar a fila */
+  .selection-card.collapsed.selection-card-fly {
+    box-shadow: 0 14px 34px rgb(var(--black-rgb) / 0.45);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--panel-2);
+    opacity: 1;
+  }
+}
