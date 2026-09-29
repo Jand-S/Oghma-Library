@@ -2,6 +2,7 @@ import { createElement as h, type ComponentType } from "react";
 import { BookOpenText, Tablet } from "lucide-react";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
 import type { DownloadsController } from "../features/downloads/useDownloadsController";
+import { DownloadsView } from "../features/downloads/DownloadsView";
 import { canRedownload, type LibraryController } from "../features/library/useLibraryController";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
@@ -10,7 +11,6 @@ import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
 import { pageTitleStrings, shellStrings } from "../strings/common";
 import { Button, EmptyState } from "../ui";
 import { DiscoverView } from "../views/discover";
-import { DownloadsView } from "../views/downloads";
 import { LibraryView } from "../views/library";
 import { SettingsView } from "../views/settings";
 import { SourcesView } from "../views/sources";
@@ -75,9 +75,11 @@ function DownloadsPage({ app }: ViewProps) {
     queuedJobs: downloads.queuedJobs,
     completedJobs: downloads.completedJobs,
     paused: downloads.paused,
-    onPauseToggle: downloads.togglePaused,
+    onPause: downloads.pause,
+    onResume: downloads.resume,
     onCancel: downloads.cancel,
     onMove: downloads.move,
+    onReorder: downloads.reorder,
     onRemove: downloads.remove,
     onRetry: downloads.retry,
     onClearCompleted: downloads.clearCompleted,
@@ -155,7 +157,13 @@ export const viewRegistry: Record<AppView, ViewDefinition> = {
     component: DiscoverPage,
     contentClassName: (app) => app.discover.workspaceClassName
   },
-  downloads: { id: "downloads", title: pageTitleStrings.downloads, icon: iconFor("downloads"), component: DownloadsPage },
+  downloads: {
+    id: "downloads",
+    title: pageTitleStrings.downloads,
+    icon: iconFor("downloads"),
+    component: DownloadsPage,
+    contentClassName: () => "o-app__content--scroll downloads-content"
+  },
   library: { id: "library", title: pageTitleStrings.library, icon: iconFor("library"), component: LibraryPage },
   kindle: { id: "kindle", title: pageTitleStrings.kindle, icon: iconFor("kindle"), component: KindlePage },
   translation: { id: "translation", title: pageTitleStrings.translation, icon: iconFor("translation"), component: TranslationPage },

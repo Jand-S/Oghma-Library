@@ -12,10 +12,10 @@ import type { ToastOptions } from "../../ui";
 export function openOutputFolder(path: string, label: string, notify: (message: string) => void) {
   void openLocalPath(path)
     .then((opened) => {
-      notify(opened ? `Abrindo ${label}.` : `No navegador, use a pasta configurada: ${path}`);
+      notify(opened ? downloadsStrings.openingFolder(label) : downloadsStrings.folderInBrowser(path));
     })
     .catch((error: unknown) => {
-      notify(getErrorMessage(error, `Não foi possível abrir ${label}.`));
+      notify(getErrorMessage(error, downloadsStrings.folderOpenFailed(label)));
     });
 }
 
@@ -72,7 +72,7 @@ export function useDownloadsController({ appConfig, queue, notify, toast }: Down
   const openJobFolder = useCallback((job: DownloadJob) => {
     const dir = job.finalDir ?? job.request.sourceDir;
     if (!dir) return;
-    openOutputFolder(dir, `pasta de ${job.title}`, notify);
+    openOutputFolder(dir, downloadsStrings.folderLabel(job.title), notify);
   }, [notify]);
 
   const { active: activeJob, queued: queuedJobs, completed: completedJobs, paused } = snapshot;
