@@ -96,6 +96,20 @@ ordem sempre chega primeiro, mesmo que o CSS de uma primitiva seja importado por
 - Não importe CSS de feature dentro de `src/ui/`. Primitivas não conhecem telas.
 - Não crie camadas novas sem atualizar `index.css` e este guia.
 
+### Ordem das camadas em qualquer chunk (obrigatório)
+
+A ordem das camadas fica em `src/styles/layers.css`, sozinha. **Todo arquivo CSS** (`styles/index.css`, `ui/*.css`, `shell/*.css` e `features/*/*.css`) começa com:
+
+```css
+@import "../styles/layers.css";      /* ui/ e shell/ */
+@import "../../styles/layers.css";   /* features/<área>/ */
+```
+
+- **Por quê:** com as views carregadas sob demanda, o Vite gera chunks de CSS que podem entrar na página **antes** do `index.css`. Uma camada declarada primeiro (por exemplo, `components`) fica abaixo de `reset` e `base`. Foi isso que causou o "input dentro de input" no build de produção.
+- **Como perceber:** o bug não aparece no `npm run dev`, só no build.
+- **O que fazer:** confira mudanças visuais com `npm run build` e `vite preview`, de preferência no WebKit, que é o motor do app no macOS.
+- **Proteção:** o teste `src/test/ui/cssLayers.test.ts` cobre `ui/` e `shell/`.
+
 ## 3. Convenções de nomes
 
 ### Primitivas e shell: `.o-` + BEM
@@ -884,7 +898,7 @@ traz os params da navegação (a Biblioteca esconde os controles na página de d
 
 | Tela | badge | search | actions | Sub-barra na página |
 |---|---|---|---|---|
-| Buscar (`discoverHeader`) | total de resultados | busca com debounce | fonte, ordem A–Z, "Filtros" | — (gaveta de filtros e chips ativos no conteúdo) |
+| Buscar (`discoverHeader`) | total de resultados | busca com debounce | fonte, ordem A–Z | — (barra de filtros fixa no conteúdo) |
 | Downloads (`downloadsHeader`) | pendentes (+ "Fila pausada") | — | "Pausar/Retomar fila", "Limpar concluídos" | — |
 | Biblioteca (`libraryHeader`) | contagem (filtrada) | busca | grade/lista, atualizar | chips de formato + Favoritos, ordenação (`.library-bar`) |
 | Tradução (`translationHeader`) | "Beta" | — | — | — |
@@ -1211,14 +1225,14 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 ### Buscar (`src/features/discover/`)
 
 - Prefixo CSS: `.discover-*`; arquivo `discover.css` em `@layer features`.
-- Controller: `useDiscoverController` (seleção única, prévia, `searchError`/`retrySearch`, estado da gaveta de filtros salvo em `oghma.discover.filtersCollapsed`).
-- Estrutura: PageHeader (`discoverHeader` em `DiscoverHeader.tsx`: total, busca com debounce de 250 ms, fonte, ordem A–Z, botão "Filtros"; clicar no fundo do cabeçalho fecha a prévia), `DiscoverView` (layout `fill`, Esc/clique no fundo), `DiscoverFilters` (gaveta superior + `ActiveFilterRow`), `DiscoverGrid` (capas 2:3, lotes de 60 com "Mostrar mais" e rolagem infinita), `DiscoverDetailPanel` (hero + configurador fixo embaixo), `filterModel.ts` (chips ativos e contagens).
+- Controller: `useDiscoverController` (seleção única, prévia, `searchError`/`retrySearch`).
+- Estrutura: PageHeader (`discoverHeader` em `DiscoverHeader.tsx`: total, busca com debounce de 120 ms, fonte, ordem A–Z; clicar no fundo do cabeçalho fecha a prévia), `DiscoverView` (layout `fill`, Esc/clique no fundo), `DiscoverFilters` (`DiscoverFilterBar` fixa acima da grade, uma pílula por filtro que abre um `FilterPopover`, + `ActiveFilterRow` rolável em uma linha), `DiscoverGrid` (capas 2:3, lotes de 60 com "Mostrar mais" e rolagem infinita), `DiscoverDetailPanel` (hero + configurador fixo embaixo), `filterModel.ts` (chips ativos e contagens).
 - `data-testid`: `page-header` (a barra da tela), `discover-count`, `discover-search`, `filter-panel`, `filter-field`, `active-filter-row`, `content-area`, `book-grid`, `book-card`, `card-title`, `card-select`, `discover-sidebar` (painel inteiro), `discover-detail-panel` (hero rolável), `detail-cover`, `queue-panel` (ações), `selection-card`, `selection-hint`, `add-to-queue`.
 - Decisões:
-  - Filtros numa gaveta superior, fechada por padrão: na janela mínima (1120 px) com o painel de detalhes aberto, uma coluna lateral de filtros deixaria a grade com uma coluna só.
+  - Filtros numa barra fixa fora do scroller da grade (pílulas Status, Idioma, Classificação, Capítulos, Tags, cada uma com um popover): continua visível ao rolar, sem precisar subir para mudar um filtro. Pílulas com valor ativo mostram o valor ("Status: Em andamento", "Tags · 3").
   - Tags em `Chip` com três estados (neutra → exigida → excluída); a excluída usa tom de perigo e texto riscado, e o estado vai no nome acessível.
   - O card inteiro é clicável; um botão invisível por cima dá foco, nome acessível e navegação por setas (tabindex móvel). Enter seleciona, clique direito abre a prévia.
-  - Um só painel de detalhes substitui as abas Fila/Detalhes. Esc fecha a prévia e, depois, a seleção. Em janelas baixas (≤ 820 px) o hero vira capa pequena ao lado do título.
+  - Um só painel de detalhes substitui as abas Fila/Detalhes. Esc fecha a prévia e, depois, a seleção. Ordem do painel: hero → sinopse → tags (no máximo 2 linhas, com chip "+N" para expandir). Em janelas baixas (≤ 960 px) o hero vira capa pequena ao lado do título.
   - Botão principal "Baixar" / "Baixar novamente" (com aviso) / "Na fila" (desativado).
 
 ### Ajustes (`src/features/settings/`)
@@ -1242,6 +1256,7 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 
 ### Fontes (`src/features/sources/`)
 
-- Prefixo CSS: `.sources-*`; arquivo `sources.css`. Layout `scroll`, raiz `.o-page.o-page--narrow`; resumo "N fontes · M ativas" e "Sincronizar ativas" no PageHeader (`sourcesHeader`). Grade de cartões (nome, domínio, idioma, novels, última sincronização, tipo), `Switch` "Incluir na busca", badge de status e "Sincronizar".
+- Prefixo CSS: `.sources-*`; arquivo `sources.css`. Layout `scroll`, raiz `.o-page.o-page--narrow`; resumo "N fontes · M ativas" e "Sincronizar ativas" no PageHeader (`sourcesHeader`). Tabela única num `Panel` (favicon + nome + domínio, idioma, novels, última sincronização relativa, `Switch` "Na busca", ações Sincronizar/Abrir site); badge só em "Sincronizando"/"Offline"; busca aparece com mais de 8 fontes.
+- Favicons embutidos em `public/sources/<sourceId>.png` (64×64), mapeados em `sourceIcons.ts`; `SourceIcon` cai para um monograma quando não há ícone. Nenhum favicon é buscado em runtime.
 - `lastSync.ts` guarda a hora da última sincronização bem-sucedida (`oghma.sources.lastSync`), compartilhada com Ajustes e o onboarding.
-- `data-testid`: `sources-page`, `source-card`, `source-status`.
+- `data-testid`: `sources-page`, `source-row`, `source-icon`, `source-skeleton`, `source-status`.
