@@ -1107,3 +1107,37 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
   contextual (executar/pausar/retomar) e um menu ⋮ com "Cancelar trabalho" e "Remover lote",
   ambos atrás de `ConfirmationModal` quando há trabalho ativo. O glossário manual começa vazio
   (sem termos de exemplo fixos) e é separado por projeto.
+
+### Biblioteca (`src/features/library/`)
+
+- Prefixo CSS: `.library-*`; arquivo `library.css` em `@layer features`. Os cards usam `.library-tile*` e a barra
+  usa `.library-bar*`, porque `.library-card` e `.library-toolbar` ainda existem no CSS legado.
+- Controller: `useLibraryController` (seleção do Kindle, `sendToKindle(ids)`, `prepareConversion(ids)`,
+  `conversionTarget`/`conversionIds`, `refresh`, `outputPath`, metadados, remover/excluir, baixar novamente).
+- Estrutura: `LibraryView` (página e roteamento por `params.book`), `LibraryToolbar` (contagem, busca, chips de
+  formato + Favoritos, ordenação Recentes/Título/Tamanho, grade/lista, Atualizar), `LibraryCollection` (grade de
+  capas 2:3 e lista densa com menu de contexto único), `LibraryDetails` (hero com capa desfocada, barra de
+  ações, Sua leitura, Zona de perigo), `useBookActions` (itens de menu e diálogos), `ConvertDialog`,
+  `libraryModel.ts` (filtro, ordenação, estado de job por livro).
+- Detalhes são uma "página" dentro da Biblioteca: `navigate("library", { book: id })`. O botão Voltar do
+  cabeçalho e o Esc voltam à grade, que mantém busca, filtros e rolagem.
+- `data-testid`: `library-page`, `library-toolbar`, `library-count`, `library-search`, `library-results`,
+  `library-grid`, `library-card`, `card-title`, `library-job-badge`, `library-list`, `library-row`,
+  `library-detail`, `detail-cover`, `library-redownload`.
+- Decisões: clique no card abre os detalhes (não seleciona mais); todas as ações ficam no menu de contexto e
+  no botão ⋮. "Remover da biblioteca" (oculta, mantém arquivos) e "Excluir arquivos" (apaga a pasta) sempre
+  passam por `ConfirmationModal` com texto que explica a diferença. Livros em download/conversão mostram
+  selo "Atualizando… 42%", "Convertendo…" ou "Na fila" a partir da fila de downloads.
+
+### Kindle (`src/features/kindle/`)
+
+- Prefixo CSS: `.kindle-*`; arquivo `kindle.css` em `@layer features`.
+- Usa o `LibraryController` (não há controller próprio).
+- Estrutura: hero de status do aparelho (conectado/desconectado, pasta, formato), passos "Como conectar"
+  quando não há Kindle, e o fluxo de envio: cards com checkbox à esquerda, painel "Enviar ao Kindle" à
+  direita com formato AZW3, `SortableList` (ordem de envio, Alt+↑/↓), progresso por item e o botão
+  "Enviar N livros".
+- `data-testid`: `kindle-page`, `kindle-hero`, `kindle-connected`/`kindle-disconnected`, `kindle-book`,
+  `kindle-queue`, `library-queue-card`, `kindle-send`.
+- Decisões: o arrastar-e-soltar customizado (e o "soltar na grade para remover") foi trocado por
+  `SortableList` + botão ✕ por item.

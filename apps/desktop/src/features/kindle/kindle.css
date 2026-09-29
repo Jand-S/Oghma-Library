@@ -1,0 +1,479 @@
+@layer features {
+  .kindle-content {
+    overflow-y: auto;
+  }
+
+  .kindle-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 100%;
+    padding: var(--space-3);
+  }
+
+  .kindle-muted {
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-base);
+  }
+
+  .kindle-section-title {
+    color: var(--text);
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-semibold);
+  }
+
+  /* ---------- Device hero ---------- */
+  .kindle-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    overflow: hidden;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(circle at 0% 0%, rgb(var(--white-rgb) / 0.06), transparent 50%),
+      var(--surface-1);
+    animation: fade-in var(--dur-base) var(--ease) both;
+  }
+
+  .kindle-hero--connected {
+    border-color: rgb(var(--accent-rgb) / 0.35);
+    background:
+      radial-gradient(circle at 0% 0%, rgb(var(--accent-rgb) / 0.28), transparent 55%),
+      var(--surface-1);
+  }
+
+  .kindle-hero__icon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: calc(var(--space-8) + var(--space-3));
+    height: calc(var(--space-8) + var(--space-3));
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--glass);
+    color: var(--text-muted);
+  }
+
+  .kindle-hero--connected .kindle-hero__icon {
+    border-color: rgb(var(--accent-rgb) / 0.5);
+    background: rgb(var(--accent-rgb) / 0.16);
+    color: var(--accent-text);
+  }
+
+  .kindle-hero__icon svg {
+    width: var(--space-5);
+    height: var(--space-5);
+  }
+
+  .kindle-hero__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .kindle-hero__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1-5);
+  }
+
+  .kindle-hero__title {
+    color: var(--text);
+    font-size: var(--fs-2xl);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+  }
+
+  .kindle-hero__description {
+    max-width: 70ch;
+    color: var(--text-2);
+    font-size: var(--fs-md);
+    line-height: var(--lh-base);
+  }
+
+  .kindle-dot {
+    width: var(--space-1);
+    height: var(--space-1);
+    border-radius: 50%;
+    background: var(--text-disabled);
+  }
+
+  .kindle-dot--on {
+    background: var(--success);
+    box-shadow: 0 0 0 calc(var(--space-0-5) / 2) rgb(var(--success-rgb) / 0.25);
+  }
+
+  .kindle-hero__facts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-1) var(--space-4);
+    margin: var(--space-0-5) 0 0;
+  }
+
+  .kindle-hero__fact dt {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .kindle-hero__fact dd {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+
+  .kindle-hero__fact code {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-regular);
+  }
+
+  /* ---------- Tips (disconnected) ---------- */
+  .kindle-tips {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    max-width: calc(var(--space-8) * 10);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+  }
+
+  .kindle-tips__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .kindle-tips__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    color: var(--text-2);
+    font-size: var(--fs-md);
+  }
+
+  .kindle-tips__step {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: var(--space-3);
+    height: var(--space-3);
+    border-radius: 50%;
+    background: rgb(var(--accent-rgb) / 0.16);
+    color: var(--accent-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+  }
+
+  /* ---------- Send flow ---------- */
+  .kindle-send {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) calc(var(--space-8) * 5.5);
+    align-items: start;
+    gap: var(--space-3);
+  }
+
+  .kindle-picker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .kindle-picker__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-1-5);
+  }
+
+  .kindle-picker__heading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+  }
+
+  .kindle-picker__tools {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .kindle-picker__search {
+    width: calc(var(--space-8) * 3.5);
+  }
+
+  .kindle-picker__search .o-field__control {
+    min-height: var(--control-sm);
+  }
+
+  .kindle-picker__search .o-field__input {
+    height: calc(var(--control-sm) - 2 * var(--hairline));
+    font-size: var(--fs-sm);
+  }
+
+  .kindle-picker__none {
+    padding: var(--space-3) 0;
+  }
+
+  .kindle-books {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) * 1.75), 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .kindle-book {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  .kindle-book__input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .kindle-book__cover {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border: calc(var(--hairline) * 2) solid transparent;
+    border-radius: var(--radius-md);
+    transition: border-color var(--dur-fast) var(--ease), transform var(--dur-base) var(--ease);
+  }
+
+  .kindle-book:hover .kindle-book__cover {
+    transform: scale(1.02);
+  }
+
+  .kindle-book__cover .o-cover {
+    border-radius: var(--radius-sm);
+  }
+
+  .kindle-book__check {
+    position: absolute;
+    top: var(--space-1);
+    left: var(--space-1);
+    display: grid;
+    place-items: center;
+    width: var(--space-3);
+    height: var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xs);
+    background: rgb(var(--black-rgb) / 0.55);
+    color: transparent;
+    backdrop-filter: blur(var(--glass-blur));
+    transition: all var(--dur-fast) var(--ease);
+  }
+
+  .kindle-book__check svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .kindle-book.is-checked .kindle-book__cover {
+    border-color: var(--accent);
+  }
+
+  .kindle-book.is-checked .kindle-book__check {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .kindle-book:has(.kindle-book__input:focus-visible) .kindle-book__cover {
+    box-shadow: var(--focus-ring);
+  }
+
+  .kindle-book:has(.kindle-book__input:disabled) {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .kindle-book__title {
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .kindle-book__meta {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  /* ---------- Send queue ---------- */
+  .kindle-queue {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+  }
+
+  .kindle-queue__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-1);
+  }
+
+  .kindle-queue__header > div {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+  }
+
+  .kindle-queue__format {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+    padding: var(--space-1-5);
+    border-radius: var(--radius-sm);
+    background: var(--glass);
+  }
+
+  .kindle-queue__label {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .kindle-queue__chips {
+    display: flex;
+    gap: var(--space-0-5);
+  }
+
+  .kindle-queue__hint {
+    font-size: var(--fs-xs);
+  }
+
+  .kindle-queue__empty {
+    padding: var(--space-3) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--glass);
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-base);
+    text-align: center;
+  }
+
+  .kindle-queue__list {
+    max-height: calc(var(--space-8) * 6);
+    overflow-y: auto;
+  }
+
+  .kindle-queue-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: var(--space-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    transition: border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+  }
+
+  .kindle-queue-item.is-active {
+    border-color: rgb(var(--accent-rgb) / 0.5);
+    background: rgb(var(--accent-rgb) / 0.08);
+  }
+
+  .kindle-queue-item.is-done {
+    opacity: 0.7;
+  }
+
+  .kindle-queue-item .o-cover--sm {
+    width: calc(var(--space-4) + var(--space-0-5));
+  }
+
+  .kindle-queue-item__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: calc(var(--space-0-5) / 2);
+    min-width: 0;
+  }
+
+  .kindle-queue-item__title {
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .kindle-queue-item__status {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .kindle-queue-item.is-active .kindle-queue-item__status {
+    color: var(--accent-text);
+  }
+
+  .kindle-queue-item__done {
+    display: grid;
+    place-items: center;
+    width: var(--control-sm);
+    color: var(--success);
+  }
+
+  .kindle-queue-item__done svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .kindle-queue__footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+  }
+
+  .kindle-queue__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+
+  @media (max-width: 1280px) {
+    .kindle-send {
+      grid-template-columns: minmax(0, 1fr) calc(var(--space-8) * 4.75);
+    }
+  }
+}

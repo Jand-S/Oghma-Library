@@ -1,6 +1,6 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useConversionManager } from "../../app/useConversionManager";
-import type { AppConfig, EnqueueResult, LibraryItem, LibraryMeta, QueueItem } from "../../core/types";
+import type { AppConfig, EnqueueResult, KindleDeviceStatus, LibraryItem, LibraryMeta, QueueItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { sanitizeFileName } from "../../services/downloadManager";
 import type { DownloadQueue } from "../../services/downloadQueue";
@@ -17,7 +17,7 @@ export function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
     coverUrl: item.coverUrl,
     bundleKey: item.bundleKey,
     preset: "all",
-    rangeLabel: item.chapters ? `Todos os ${item.chapters.toLocaleString("pt-BR")} capitulos` : "Livro local",
+    rangeLabel: item.chapters ? libraryStrings.allChapters(item.chapters) : libraryStrings.localBook,
     progress: 100,
     state: "done",
     chaptersTotal: item.chapters || 0,
@@ -38,9 +38,14 @@ type LibraryControllerArgs = {
   /** Enqueues a shaped download with added/duplicate/full feedback (downloads controller). */
   enqueueDownload: (item: QueueItem) => EnqueueResult;
   kindleConnected: boolean;
+  /** Full device status (name, mount path) when App passes it; `kindleConnected` stays the source of truth. */
+  kindleStatus?: KindleDeviceStatus | null;
   refreshLocalLibrary: () => void;
   notify: (message: string) => void;
 };
+
+/** What the conversion manager is set up to do: send to the Kindle, or convert in place. */
+export type ConversionTarget = "kindle" | "convert";
 
 /**
  * Whether "Baixar novamente" can work for a library item: it needs a novel id, which
@@ -50,7 +55,7 @@ export function canRedownload(item: LibraryItem) {
   return Boolean(item.novelId);
 }
 
-/** Local library selection, metadata, deletion, conversion and re-download. */
+/** Local library selection, metadata, deletion, conversion, Kindle send and re-download. */
 export function useLibraryController({
   backend,
   appConfig,
@@ -59,20 +64,58 @@ export function useLibraryController({
   queue,
   enqueueDownload,
   kindleConnected,
+  kindleStatus,
   refreshLocalLibrary,
   notify
 }: LibraryControllerArgs) {
+  /** Books picked on the Kindle page, in send order. */
   const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
+  /** The batch the conversion manager works on (the Kindle send list, or one book to convert). */
+  const [run, setRun] = useState<{ target: ConversionTarget; ids: string[] }>({ target: "kindle", ids: [] });
+  const [startToken, setStartToken] = useState(0);
 
-  const selectedCompletedItems = useMemo(
-    () => selectedLibraryIds
+  const runItems = useMemo(
+    () => run.ids
       .map((id) => library.find((item) => item.id === id))
       .filter((item): item is LibraryItem => Boolean(item))
       .map((item) => libraryToQueueItems([item])[0]),
-    [library, selectedLibraryIds]
+    [library, run.ids]
   );
 
-  const conversion = useConversionManager({ appConfig, kindleConnected, selectedCompletedItems, queue, setToast: notify });
+  const conversion = useConversionManager({
+    appConfig,
+    kindleConnected: kindleConnected && run.target === "kindle",
+    selectedCompletedItems: runItems,
+    queue,
+    setToast: notify
+  });
+
+  // `sendToKindle` sets the batch and asks for a start; the start runs after the render
+  // where the conversion manager already sees the new batch (so it only depends on the token).
+  useEffect(() => {
+    if (startToken > 0) conversion.startConversion();
+  }, [startToken]);
+
+  const ensureIdle = () => {
+    if (!conversion.converterRunning) return true;
+    notify(libraryStrings.busyConverting);
+    return false;
+  };
+
+  /** Converts each book to AZW3 (as queue jobs) and copies them to the device, in order. */
+  const sendToKindle = (ids: string[]) => {
+    if (ids.length === 0 || !kindleConnected || !ensureIdle()) return false;
+    setRun({ target: "kindle", ids });
+    setStartToken((value) => value + 1);
+    return true;
+  };
+
+  /** Points the conversion manager at the given books; the convert dialog then starts it. */
+  const prepareConversion = (ids: string[]) => {
+    if (ids.length === 0 || !ensureIdle()) return false;
+    setRun({ target: "convert", ids });
+    return true;
+  };
 
   /**
    * Re-downloads a library book from the catalog (all chapters, same formats). The
@@ -128,7 +171,7 @@ export function useLibraryController({
       setSelectedLibraryIds((ids) => ids.filter((id) => id !== item.id));
     }
     void saveLibraryMetadata(nextMeta).catch((error: unknown) => {
-      notify(getErrorMessage(error, "Nao foi possivel salvar os metadados da biblioteca."));
+      notify(getErrorMessage(error, libraryStrings.metaSaveFailed));
     });
   };
 
@@ -141,14 +184,14 @@ export function useLibraryController({
       setLibrary((current) => current.filter((entry) => !keys.has(libraryMetaKey(entry))));
       setSelectedLibraryIds((current) => current.filter((id) => !ids.has(id)));
       void Promise.all(hiddenRows.map((meta) => saveLibraryMetadata(meta))).catch((error: unknown) => {
-        notify(getErrorMessage(error, "Nao foi possivel salvar os metadados da biblioteca."));
+        notify(getErrorMessage(error, libraryStrings.metaSaveFailed));
       });
-      notify(`${items.length} livro(s) removido(s) da biblioteca. Os arquivos foram mantidos.`);
+      notify(libraryStrings.hiddenToast(items.length));
       return;
     }
     const deletable = items.filter((item) => Boolean(item.outputDir));
     if (deletable.length === 0) {
-      notify("Nao foi possivel localizar a pasta dos livros selecionados.");
+      notify(libraryStrings.folderNotFound);
       return;
     }
     void Promise.allSettled(deletable.map((item) => deleteLocalLibraryFiles(appConfig.outputPath, item.outputDir ?? "")))
@@ -158,7 +201,7 @@ export function useLibraryController({
           return result.status === "fulfilled" && result.value === true;
         });
         if (deletedItems.length === 0) {
-          notify("Exclusao de arquivos so esta disponivel no app desktop.");
+          notify(libraryStrings.deleteDesktopOnly);
           return;
         }
         const deletedKeys = new Set(deletedItems.map(libraryMetaKey));
@@ -168,12 +211,12 @@ export function useLibraryController({
         void Promise.all(deletedItems.map((item) => deleteLibraryMetadata(libraryMetaKey(item)))).catch(() => undefined);
         const failedCount = items.length - deletedItems.length;
         notify(failedCount > 0
-          ? `${deletedItems.length} livro(s) excluido(s); ${failedCount} nao puderam ser removidos.`
-          : `${deletedItems.length} livro(s) e arquivos locais excluidos.`);
+          ? libraryStrings.deletedPartial(deletedItems.length, failedCount)
+          : libraryStrings.deletedToast(deletedItems.length));
         refreshLocalLibrary();
       })
       .catch((error: unknown) => {
-        notify(getErrorMessage(error, "Nao foi possivel excluir os arquivos locais."));
+        notify(getErrorMessage(error, libraryStrings.deleteFailed));
       });
   };
 
@@ -185,6 +228,11 @@ export function useLibraryController({
   return {
     library,
     kindleConnected,
+    kindleStatus: kindleStatus ?? null,
+    /** Library root; empty when the output folder is not configured. */
+    outputPath: appConfig.outputPath,
+    /** Rescans the output folder. */
+    refresh: refreshLocalLibrary,
     selectedLibraryIds,
     setSelectedLibraryIds,
     toggleLibrarySelect,
@@ -193,6 +241,11 @@ export function useLibraryController({
     updateLibraryMeta,
     deleteLibraryItems,
     redownloadItem,
+    /** Target and book ids of the current (or last) conversion batch, in order. */
+    conversionTarget: run.target,
+    conversionIds: run.ids,
+    sendToKindle,
+    prepareConversion,
     conversion
   };
 }
