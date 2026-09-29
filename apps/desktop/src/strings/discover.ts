@@ -6,10 +6,13 @@ export const discoverStrings = {
   source: "Fonte",
   queueHeading: "Capítulos",
   addToQueue: "Adicionar à fila",
+  downloadAgain: "Baixar novamente",
+  replaceHint: "Este livro já está na biblioteca. A cópia existente será substituída.",
+  alreadyQueuedHint: "Este livro já está na fila de downloads.",
+  selectHint: "Selecione um livro",
+  configureHint: "Configure o download",
   presetAll: "Todos",
   presetRange: "Faixa",
-  selectForQueue: (title: string) => `Selecionar ${title} para a fila`,
-  removeFromQueue: (title: string) => `Remover ${title} da fila`,
-  expandSelection: (title: string) => `Expandir configuração de ${title}`,
-  collapseSelection: (title: string) => `Recolher configuração de ${title}`
+  selectForQueue: (title: string) => `Selecionar ${title} para download`,
+  removeFromQueue: (title: string) => `Desmarcar ${title}`
 } as const;

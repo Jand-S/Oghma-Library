@@ -286,7 +286,8 @@ async function buildEpub(
   range?: { start: number; end: number },
   onProgress?: (percent: number) => void,
   cover?: EpubCover,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  novelId?: string
 ): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const chapters = bundle.chapters.filter((chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end));
@@ -318,7 +319,7 @@ async function buildEpub(
     { name: "OEBPS/content.opf", data: enc.encode(`<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="book-id">oghma:${xmlEscape(title)}</dc:identifier>
+    <dc:identifier id="book-id">oghma:${xmlEscape(novelId || title)}</dc:identifier>
     <dc:title>${xmlEscape(title)}</dc:title>
     <dc:language>pt-BR</dc:language>
     <dc:description>${xmlEscape(plainDescription)}</dc:description>
@@ -354,7 +355,9 @@ export async function buildOutputs(
   range?: { start: number; end: number },
   onProgress?: (percent: number) => void,
   cover?: EpubCover,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  /** Stable book id for the EPUB `dc:identifier` (falls back to the title). */
+  novelId?: string
 ): Promise<Array<{ fileName: string; data: FileData }>> {
   throwIfAborted(signal);
   const empty = bundle.chapters.filter((chapter) => {
@@ -370,7 +373,7 @@ export async function buildOutputs(
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
   if (formats.includes("EPUB")) {
-    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress, cover, signal) });
+    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress, cover, signal, novelId) });
     throwIfAborted(signal);
   }
   if (formats.includes("TXT")) {
@@ -486,7 +489,8 @@ export async function runDownload(req: DownloadRequest, opts: RunDownloadOptions
       chaptersDone: Math.min(chaptersTotal, Math.round((percent / 100) * chaptersTotal))
     }),
     cover?.epub,
-    signal
+    signal,
+    req.novel.id
   );
   bundle = null; // Outputs are built; let the extracted bundle go before writing.
   throwIfAborted(signal);

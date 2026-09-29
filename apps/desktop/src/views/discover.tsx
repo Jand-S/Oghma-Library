@@ -4,9 +4,7 @@ import {
   Ban,
   BookOpen,
   Check,
-  ChevronDown,
   Download,
-  GripVertical,
   Headphones,
   LayoutGrid,
   List,
@@ -15,21 +13,16 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
-  Tags,
-  Trash2
+  Tags
 } from "lucide-react";
 import {
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent,
-  PointerEvent as ReactPointerEvent,
-  RefObject,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState
 } from "react";
-import { createPortal } from "react-dom";
 import { statusLabel } from "../constants/ui";
 import {
   defaultFilters,
@@ -402,420 +395,148 @@ function SkeletonGrid() {
 }
 
 function SelectionConfigurator({
-  selectedNovels,
-  selections,
+  novel,
+  selection,
+  adding,
+  inLibrary,
+  queued,
   onChange,
-  onAdd,
-  onReorder,
-  onRemove,
-  trashRef,
-  onDragStateChange
+  onAdd
 }: {
-  selectedNovels: Novel[];
-  selections: Record<string, ChapterSelection>;
+  novel?: Novel;
+  selection: ChapterSelection | null;
+  adding: boolean;
+  inLibrary: boolean;
+  queued: boolean;
   onChange: (selection: ChapterSelection) => void;
   onAdd: () => void;
-  onReorder: (orderedIds: string[]) => void;
-  onRemove: (novelId: string) => void;
-  trashRef: RefObject<HTMLElement | null>;
-  onDragStateChange: (active: boolean, overTrash: boolean) => void;
 }) {
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dragPreview, setDragPreview] = useState<{
-    x: number;
-    y: number;
-    offsetX: number;
-    offsetY: number;
-    width: number;
-  } | null>(null);
-  const [dropY, setDropY] = useState<number | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [addingToQueue, setAddingToQueue] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
-  const dragIdRef = useRef<string | null>(null);
-  const orderRef = useRef<string[]>([]);
-  const positionsRef = useRef(new Map<string, DOMRect>());
-  const addAnimationTimerRef = useRef<number | null>(null);
-  const addAnimationTokenRef = useRef(0);
-
-  useLayoutEffect(() => {
-    const cards = listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]");
-    if (!cards) return;
-    const next = new Map<string, DOMRect>();
-    cards.forEach((card) => {
-      const id = card.dataset.cardId;
-      if (!id) return;
-      const rect = card.getBoundingClientRect();
-      next.set(id, rect);
-      const previous = positionsRef.current.get(id);
-      const delta = previous ? previous.top - rect.top : 0;
-      if (delta && typeof card.animate === "function") {
-        card.animate(
-          [{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }],
-          { duration: 160, easing: "cubic-bezier(.2,.8,.2,1)" }
-        );
-      }
-    });
-    positionsRef.current = next;
-  }, [selectedNovels]);
-
-  useEffect(() => {
-    if (!expandedId) return;
-    if (!selectedNovels.some((novel) => novel.id === expandedId)) {
-      setExpandedId(null);
-    }
-  }, [expandedId, selectedNovels]);
-
-  useEffect(() => () => {
-    if (addAnimationTimerRef.current != null) {
-      window.clearTimeout(addAnimationTimerRef.current);
-    }
-  }, []);
-
-  const computeDropIndex = (clientY: number): number => {
-    const cards = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-card-id]") ?? []);
-    for (let i = 0; i < cards.length; i += 1) {
-      const rect = cards[i].getBoundingClientRect();
-      if (clientY < rect.top + rect.height / 2) return i;
-    }
-    return cards.length;
+  const current = novel ? selection ?? defaultSelection(novel) : null;
+  const update = (patch: Partial<ChapterSelection>) => {
+    if (current) onChange({ ...current, ...patch });
   };
-
-  const lineYForIndex = (index: number): number | null => {
-    const list = listRef.current;
-    if (!list) return null;
-    const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-card-id]"));
-    if (cards.length === 0) return null;
-    const listTop = list.getBoundingClientRect().top;
-    if (index >= cards.length) {
-      const last = cards[cards.length - 1].getBoundingClientRect();
-      return last.bottom - listTop + list.scrollTop;
-    }
-    const rect = cards[index].getBoundingClientRect();
-    return rect.top - listTop + list.scrollTop;
+  const toggleFormat = (format: DownloadFormat) => {
+    if (!current) return;
+    const has = current.formats.includes(format);
+    if (has && current.formats.length === 1) return;
+    const next = has
+      ? current.formats.filter((item) => item !== format)
+      : downloadFormats.filter((item) => current.formats.includes(item) || item === format);
+    update({ formats: next });
   };
-
-  const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
-    const card = event.currentTarget.closest("[data-card-id]") as HTMLElement | null;
-    const id = card?.getAttribute("data-card-id") ?? null;
-    if (!id || !card) return;
-    event.preventDefault();
-    const pointerId = event.pointerId;
-    try { card.setPointerCapture(pointerId); } catch { /* sem captura: segue com listeners no window */ }
-    const rect = card.getBoundingClientRect();
-    dragIdRef.current = id;
-    orderRef.current = selectedNovels.map((novel) => novel.id);
-    setDragId(id);
-    setDragPreview({
-      x: event.clientX,
-      y: event.clientY,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-      width: rect.width
-    });
-    onDragStateChange(true, false);
-
-    let lastX = event.clientX;
-    let lastY = event.clientY;
-
-    const onMove = (moveEvent: PointerEvent) => {
-      lastX = moveEvent.clientX;
-      lastY = moveEvent.clientY;
-      setDragPreview((current) => current ? { ...current, x: lastX, y: lastY } : current);
-      const trashRect = trashRef.current?.getBoundingClientRect();
-      const overTrash = Boolean(trashRect
-        && lastX >= trashRect.left
-        && lastX <= trashRect.right
-        && lastY >= trashRect.top
-        && lastY <= trashRect.bottom);
-      onDragStateChange(true, overTrash);
-      // NUNCA reordena a lista durante o arraste (isso causava o loop que somia tudo).
-      // So mostra uma linha indicando onde vai cair; a reordenacao acontece no drop.
-      setDropY(overTrash ? null : lineYForIndex(computeDropIndex(lastY)));
-    };
-
-    const finish = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onCancel);
-      try { card.releasePointerCapture(pointerId); } catch { /* ignore */ }
-      dragIdRef.current = null;
-      setDragId(null);
-      setDragPreview(null);
-      setDropY(null);
-      onDragStateChange(false, false);
-    };
-
-    function onUp(upEvent: PointerEvent) {
-      const from = dragIdRef.current;
-      const trashRect = trashRef.current?.getBoundingClientRect();
-      const droppedInTrash = Boolean(trashRect
-        && upEvent.clientX >= trashRect.left
-        && upEvent.clientX <= trashRect.right
-        && upEvent.clientY >= trashRect.top
-        && upEvent.clientY <= trashRect.bottom);
-      let reordered: string[] | null = null;
-      if (from && !droppedInTrash) {
-        const order = selectedNovels.map((novel) => novel.id);
-        const fromIndex = order.indexOf(from);
-        let target = computeDropIndex(upEvent.clientY);
-        if (fromIndex !== -1 && fromIndex < target) target -= 1;
-        const without = order.filter((id) => id !== from);
-        target = Math.max(0, Math.min(without.length, target));
-        const next = [...without];
-        next.splice(target, 0, from);
-        if (next.some((value, index) => value !== order[index])) reordered = next;
-      }
-      finish();
-      if (from && droppedInTrash) onRemove(from);
-      else if (reordered) onReorder(reordered);
-    }
-
-    function onCancel() {
-      finish();
-    }
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onCancel);
-  };
-
-  const handleAdd = () => {
-    if (addingToQueue || selectedNovels.length === 0) return;
-    const list = listRef.current;
-    const target = document.querySelector<HTMLElement>('[data-nav="downloads"] [data-nav-icon]')
-      ?? document.querySelector<HTMLElement>('[data-nav="downloads"]');
-    if (!list || !target) {
-      onAdd();
-      return;
-    }
-    setAddingToQueue(true);
-    const animationToken = addAnimationTokenRef.current + 1;
-    addAnimationTokenRef.current = animationToken;
-    const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-card-id]"));
-    const targetRect = target.getBoundingClientRect();
-    const targetX = targetRect.left + targetRect.width / 2;
-    const targetY = targetRect.top + targetRect.height / 2;
-    cards.forEach((card, index) => {
-      const cardRect = card.getBoundingClientRect();
-      const clone = card.cloneNode(true) as HTMLElement;
-      clone.classList.remove("expanded", "dragging");
-      clone.classList.add("collapsed", "selection-card-fly");
-      clone.querySelector(".selection-body")?.remove();
-      Object.assign(clone.style, {
-        position: "fixed",
-        left: `${cardRect.left}px`,
-        top: `${cardRect.top}px`,
-        width: `${cardRect.width}px`,
-        height: "auto",
-        margin: "0",
-        zIndex: "1200",
-        pointerEvents: "none",
-        transformOrigin: "center center"
-      });
-      document.body.appendChild(clone);
-      const cloneRect = clone.getBoundingClientRect();
-      const dx = targetX - (cloneRect.left + cloneRect.width / 2);
-      const dy = targetY - (cloneRect.top + cloneRect.height / 2);
-      if (typeof clone.animate === "function") {
-        const animation = clone.animate(
-          [
-            { transform: "translate(0px, 0px) scale(1)", opacity: 1 },
-            { transform: `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(0.5)`, opacity: 0.95, offset: 0.65 },
-            { transform: `translate(${dx}px, ${dy}px) scale(0.1)`, opacity: 0 }
-          ],
-          { duration: 620, delay: index * 110, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" }
-        );
-        animation.onfinish = () => clone.remove();
-        animation.oncancel = () => clone.remove();
-      } else {
-        window.setTimeout(() => clone.remove(), 620 + index * 110);
-      }
-    });
-    const totalDuration = 620 + Math.max(0, cards.length - 1) * 110 + 40;
-    if (addAnimationTimerRef.current != null) {
-      window.clearTimeout(addAnimationTimerRef.current);
-    }
-    addAnimationTimerRef.current = window.setTimeout(() => {
-      if (addAnimationTokenRef.current !== animationToken) return;
-      setAddingToQueue(false);
-      onAdd();
-    }, totalDuration);
-  };
-
-  const draggedNovel = selectedNovels.find((novel) => novel.id === dragId);
 
   return (
     <section className="discover-sidebar-panel queue-panel" data-testid="queue-panel">
       <div className="panel-header">
         <div>
           <h2>{discoverStrings.queueHeading}</h2>
-          <span>{selectedNovels.length === 0 ? "Selecione livros" : `${selectedNovels.length} livro(s)`}</span>
+          <span>{novel ? discoverStrings.configureHint : discoverStrings.selectHint}</span>
         </div>
         <button
           className="button primary queue-add-button"
-          disabled={selectedNovels.length === 0 || addingToQueue}
-          onClick={handleAdd}
-          aria-busy={addingToQueue}
+          data-testid="add-to-queue"
+          disabled={!novel || adding}
+          onClick={onAdd}
+          aria-busy={adding}
         >
           <Download size={15} />
-          {addingToQueue ? commonStrings.sending : discoverStrings.addToQueue}
+          {adding ? commonStrings.sending : inLibrary ? discoverStrings.downloadAgain : discoverStrings.addToQueue}
         </button>
       </div>
-      {!addingToQueue && selectedNovels.length > 1 ? (
-        <p className="reorder-hint">
-          <GripVertical size={13} />
-          Arraste pela alca para priorizar (topo = primeiro)
+      {novel && (inLibrary || queued) ? (
+        <p className="reorder-hint" data-testid="selection-hint">
+          {queued ? discoverStrings.alreadyQueuedHint : discoverStrings.replaceHint}
         </p>
       ) : null}
-      <div className="selection-list" ref={listRef}>
-        {dragId && dropY != null ? <div className="drop-line" style={{ top: dropY }} aria-hidden="true" /> : null}
-        {selectedNovels.length === 0 ? (
+      <div className="selection-list">
+        {!novel || !current ? (
           <div className="empty-state compact">
             <BookOpen size={18} />
             <span>Clique em um card para configurar capitulos.</span>
           </div>
-        ) : !addingToQueue ? (
-          selectedNovels.map((novel) => {
-            const selection = selections[novel.id] ?? defaultSelection(novel);
-            const expanded = expandedId === novel.id;
-            const update = (patch: Partial<ChapterSelection>) => onChange({ ...selection, ...patch });
-            const toggleFormat = (format: DownloadFormat) => {
-              const has = selection.formats.includes(format);
-              if (has && selection.formats.length === 1) return;
-              const next = has
-                ? selection.formats.filter((item) => item !== format)
-                : downloadFormats.filter((item) => selection.formats.includes(item) || item === format);
-              update({ formats: next });
-            };
-            return (
-              <article
-                className={`selection-card ${expanded ? "expanded" : "collapsed"} ${dragId === novel.id ? "dragging" : ""}`}
-                data-testid="selection-card"
-                key={novel.id}
-                data-card-id={novel.id}
-              >
-                <div className="selection-card-head">
-                  <span
-                    className="drag-handle"
-                    data-testid="drag-handle"
-                    title="Arraste para reordenar a prioridade"
-                    aria-label="Arraste para reordenar"
-                    onPointerDown={startDrag}
-                  >
-                    <GripVertical size={15} />
-                  </span>
-                  <button
-                    className="selection-summary"
-                    aria-expanded={expanded}
-                    aria-label={expanded ? discoverStrings.collapseSelection(novel.title) : discoverStrings.expandSelection(novel.title)}
-                    onClick={() => setExpandedId((current) => current === novel.id ? null : novel.id)}
-                  >
-                    <div className="selection-title">
-                      <strong>{novel.title}</strong>
-                      <small>{novel.chapters.toLocaleString("pt-BR")} capitulos</small>
-                    </div>
-                    <ChevronDown size={15} className={`selection-chevron ${expanded ? "open" : ""}`} />
-                  </button>
-                </div>
-                {expanded ? (
-                  <div className="selection-body">
-                    <div className="segmented presets">
-                      {([["all", discoverStrings.presetAll], ["range", discoverStrings.presetRange]] as const).map(([value, label]) => (
-                        <button
-                          className={selection.preset === value ? "active" : ""}
-                          aria-pressed={selection.preset === value}
-                          key={value}
-                          onClick={() =>
-                            update(value === "range" ? { preset: "range", start: 1, end: novel.chapters } : { preset: "all" })
-                          }
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {selection.preset === "range" ? (
-                      <div className="chapter-range">
-                        <label>
-                          Inicio
-                          <input
-                            type="number"
-                            min={1}
-                            max={selection.end}
-                            value={selection.start}
-                            onChange={(event) => {
-                              const raw = Number(event.target.value) || 1;
-                              update({ start: Math.max(1, Math.min(raw, selection.end)) });
-                            }}
-                          />
-                        </label>
-                        <label>
-                          Fim
-                          <input
-                            type="number"
-                            min={selection.start}
-                            max={novel.chapters}
-                            value={selection.end}
-                            onChange={(event) => {
-                              const raw = Number(event.target.value) || selection.start;
-                              update({ end: Math.min(novel.chapters, Math.max(raw, selection.start)) });
-                            }}
-                          />
-                        </label>
-                      </div>
-                    ) : null}
-                    <div className="format-group">
-                      <span className="field-caption">{commonStrings.formats}</span>
-                      <div className="format-options">
-                        {downloadFormats.map((format) => (
-                          <button
-                            key={format}
-                            className={`format-chip ${selection.formats.includes(format) ? "active" : ""}`}
-                            aria-pressed={selection.formats.includes(format)}
-                            onClick={() => toggleFormat(format)}
-                          >
-                            {format}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="selection-options single">
-                      <button
-                        className={`option-toggle ${selection.audiobook ? "active" : ""}`}
-                        onClick={() => update({ audiobook: !selection.audiobook })}
-                        aria-pressed={selection.audiobook}
-                      >
-                        <Headphones size={14} />
-                        {commonStrings.audiobook}
-                      </button>
-                    </div>
-                    <p>{selectionLabel(selection, novel.chapters)} - {estimateChapters(selection, novel.chapters).toLocaleString("pt-BR")} capitulos</p>
-                  </div>
-                ) : null}
-              </article>
-            );
-          })
         ) : (
-          null
+          <article className="selection-card expanded" data-testid="selection-card" data-card-id={novel.id}>
+            <div className="selection-summary">
+              <div className="selection-title">
+                <strong>{novel.title}</strong>
+                <small>{novel.chapters.toLocaleString("pt-BR")} capitulos</small>
+              </div>
+            </div>
+            <div className="selection-body">
+              <div className="segmented presets">
+                {([["all", discoverStrings.presetAll], ["range", discoverStrings.presetRange]] as const).map(([value, label]) => (
+                  <button
+                    className={current.preset === value ? "active" : ""}
+                    aria-pressed={current.preset === value}
+                    key={value}
+                    onClick={() =>
+                      update(value === "range" ? { preset: "range", start: 1, end: novel.chapters } : { preset: "all" })
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {current.preset === "range" ? (
+                <div className="chapter-range">
+                  <label>
+                    Inicio
+                    <input
+                      type="number"
+                      min={1}
+                      max={current.end}
+                      value={current.start}
+                      onChange={(event) => {
+                        const raw = Number(event.target.value) || 1;
+                        update({ start: Math.max(1, Math.min(raw, current.end)) });
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Fim
+                    <input
+                      type="number"
+                      min={current.start}
+                      max={novel.chapters}
+                      value={current.end}
+                      onChange={(event) => {
+                        const raw = Number(event.target.value) || current.start;
+                        update({ end: Math.min(novel.chapters, Math.max(raw, current.start)) });
+                      }}
+                    />
+                  </label>
+                </div>
+              ) : null}
+              <div className="format-group">
+                <span className="field-caption">{commonStrings.formats}</span>
+                <div className="format-options">
+                  {downloadFormats.map((format) => (
+                    <button
+                      key={format}
+                      className={`format-chip ${current.formats.includes(format) ? "active" : ""}`}
+                      aria-pressed={current.formats.includes(format)}
+                      onClick={() => toggleFormat(format)}
+                    >
+                      {format}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="selection-options single">
+                <button
+                  className={`option-toggle ${current.audiobook ? "active" : ""}`}
+                  onClick={() => update({ audiobook: !current.audiobook })}
+                  aria-pressed={current.audiobook}
+                >
+                  <Headphones size={14} />
+                  {commonStrings.audiobook}
+                </button>
+              </div>
+              <p>{selectionLabel(current, novel.chapters)} - {estimateChapters(current, novel.chapters).toLocaleString("pt-BR")} capitulos</p>
+            </div>
+          </article>
         )}
       </div>
-      {dragPreview && draggedNovel ? createPortal(
-        <div
-          className="selection-drag-preview"
-          style={{
-            left: dragPreview.x - dragPreview.offsetX,
-            top: dragPreview.y - dragPreview.offsetY,
-            width: dragPreview.width
-          }}
-        >
-          <GripVertical size={15} />
-          <div className="selection-title">
-            <strong>{draggedNovel.title}</strong>
-            <small>{draggedNovel.chapters.toLocaleString("pt-BR")} capitulos</small>
-          </div>
-        </div>,
-        document.body
-      ) : null}
     </section>
   );
 }
@@ -888,49 +609,48 @@ export function DiscoverView({
   filters,
   tagCatalog,
   results,
-  selectedNovels,
+  selectedNovel,
+  selection,
   loading,
-  selectedIds,
   detailNovel,
   detailFromPreview,
   filterCollapsed,
-  selections,
+  adding,
+  selectedInLibrary,
+  selectedQueued,
   onFiltersChange,
   onToggleFilters,
-  onToggleNovel,
   onSelectNovel,
   onPreviewNovel,
   onClearPreview,
   onSelectionChange,
-  onAddSelected,
-  onReorder,
-  onRemoveSelected
+  onAddSelected
 }: {
   sources: SourceSite[];
   filters: Filters;
   tagCatalog: TagCatalogItem[];
   results: Novel[];
-  selectedNovels: Novel[];
+  /** The single selected book (the configurator applies to it). */
+  selectedNovel?: Novel;
+  selection: ChapterSelection | null;
   loading: boolean;
-  selectedIds: string[];
   detailNovel?: Novel;
   detailFromPreview: boolean;
   filterCollapsed: boolean;
-  selections: Record<string, ChapterSelection>;
+  adding: boolean;
+  selectedInLibrary: boolean;
+  selectedQueued: boolean;
   onFiltersChange: (filters: Filters) => void;
   onToggleFilters: () => void;
-  onToggleNovel: (novel: Novel) => void;
+  /** Selects the book, or clears the selection when it is already selected. */
   onSelectNovel: (novel: Novel) => void;
   onPreviewNovel: (novel: Novel) => void;
   onClearPreview: () => void;
   onSelectionChange: (selection: ChapterSelection) => void;
   onAddSelected: () => void;
-  onReorder: (orderedIds: string[]) => void;
-  onRemoveSelected: (novelId: string) => void;
 }) {
   const pageSize = 60;
   const [visibleCount, setVisibleCount] = useState(pageSize);
-  const [dragState, setDragState] = useState({ active: false, overTrash: false });
   const [sidebarTab, setSidebarTab] = useState<DiscoverSidebarTab>("queue");
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [sortDirection, setSortDirection] = useState<ResultSortDirection>("asc");
@@ -943,11 +663,8 @@ export function DiscoverView({
     }
   }, [detailFromPreview]);
   useEffect(() => {
-    if (!selectedNovels.length && !detailFromPreview) {
-      setSidebarTab("queue");
-      return;
-    }
-  }, [detailFromPreview, selectedNovels.length]);
+    if (!selectedNovel && !detailFromPreview) setSidebarTab("queue");
+  }, [detailFromPreview, selectedNovel]);
   const sortedResults = useMemo(() => {
     return [...results].sort((a, b) => {
       const comparison = a.title.localeCompare(b.title, "pt-BR", { numeric: true, sensitivity: "base" });
@@ -983,6 +700,10 @@ export function DiscoverView({
     || filters.excludeTags.length > 0;
   const handleSelectNovel = (novel: Novel) => {
     setSidebarTab("details");
+    onSelectNovel(novel);
+  };
+  const handleToggleNovel = (novel: Novel) => {
+    setSidebarTab("queue");
     onSelectNovel(novel);
   };
   const handlePreviewNovel = (novel: Novel) => {
@@ -1059,24 +780,13 @@ export function DiscoverView({
         />
       ) : null}
       <section
-        className={`content-area ${dragState.active ? "drop-delete" : ""} ${dragState.overTrash ? "drop-delete-over" : ""}`}
+        className="content-area"
         data-testid="content-area"
         ref={contentRef}
         tabIndex={detailFromPreview ? 0 : -1}
         onClick={handleContentClick}
         onKeyDown={handleContentKeyDown}
       >
-        {dragState.active ? (
-          <div
-            className={`content-delete-overlay ${dragState.overTrash ? "over" : ""}`}
-            data-testid="delete-overlay"
-            data-over={dragState.overTrash}
-            aria-hidden="true"
-          >
-            <Trash2 size={30} />
-            <strong>{commonStrings.dropToRemove}</strong>
-          </div>
-        ) : null}
         <div className="toolbar" data-testid="toolbar">
           <div>
             <h2>{discoverStrings.results}</h2>
@@ -1209,9 +919,9 @@ export function DiscoverView({
               <NovelCard
                 key={novel.id}
                 novel={novel}
-                selected={selectedIds.includes(novel.id)}
+                selected={selectedNovel?.id === novel.id}
                 focused={detailNovel?.id === novel.id}
-                onToggle={() => onToggleNovel(novel)}
+                onToggle={() => handleToggleNovel(novel)}
                 onSelect={() => handleSelectNovel(novel)}
                 onPreview={() => handlePreviewNovel(novel)}
               />
@@ -1227,18 +937,17 @@ export function DiscoverView({
         )}
 
       </section>
-      {selectedNovels.length > 0 || detailFromPreview ? (
+      {selectedNovel || detailFromPreview ? (
         <aside className="selection-drawer discover-sidebar" data-testid="discover-sidebar">
           <div className="discover-sidebar-tabs" role="tablist" aria-label="Painel lateral da descoberta">
             <button
               className={`discover-sidebar-tab ${sidebarTab === "queue" ? "active" : ""}`}
               role="tab"
               aria-selected={sidebarTab === "queue"}
-              disabled={selectedNovels.length === 0}
+              disabled={!selectedNovel}
               onClick={() => setSidebarTab("queue")}
             >
               {commonStrings.queueTab}
-              {selectedNovels.length > 0 ? <span>{selectedNovels.length}</span> : null}
             </button>
             <button
               className={`discover-sidebar-tab ${sidebarTab === "details" ? "active" : ""}`}
@@ -1252,14 +961,13 @@ export function DiscoverView({
           </div>
           {sidebarTab === "queue" ? (
             <SelectionConfigurator
-              selectedNovels={selectedNovels}
-              selections={selections}
+              novel={selectedNovel}
+              selection={selection}
+              adding={adding}
+              inLibrary={selectedInLibrary}
+              queued={selectedQueued}
               onChange={onSelectionChange}
               onAdd={onAddSelected}
-              onReorder={onReorder}
-              onRemove={onRemoveSelected}
-              trashRef={contentRef}
-              onDragStateChange={(active, overTrash) => setDragState({ active, overTrash })}
             />
           ) : (
             <DiscoverDetailsPanel novel={detailNovel} preview={detailFromPreview} />

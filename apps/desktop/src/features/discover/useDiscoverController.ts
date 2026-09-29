@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import type { AppView } from "../../app/NavigationContext";
 import { useNovelSearch } from "../../app/useNovelSearch";
 import { defaultFilters, defaultSelection } from "../../core/defaults";
-import type { AppConfig, ChapterSelection, Filters, Novel, QueueItem, SourceSite, TagCatalogItem } from "../../core/types";
+import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, Novel, QueueItem, SourceSite, TagCatalogItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 
 type DiscoverControllerArgs = {
@@ -16,13 +16,19 @@ type DiscoverControllerArgs = {
   bootError: string | null;
   focusedNovelId: string;
   setFocusedNovelId: (id: string) => void;
-  setQueue: Dispatch<SetStateAction<QueueItem[]>>;
+  /** Local library, to tell whether the selected book would replace an existing copy. */
+  library: LibraryItem[];
+  /** True when the novel is active or waiting in the download queue. */
+  isQueued: (novelId: string) => boolean;
+  /** Enqueues the shaped download and shows the added/duplicate/full feedback. */
+  enqueueDownload: (item: QueueItem) => EnqueueResult;
   notify: (message: string) => void;
-  /** Called after novels were added to the download queue (flashes the Downloads nav entry). */
-  onQueued: () => void;
 };
 
-/** State and handlers of the Discover view (search, filters, selection, queueing). Moved from App.tsx unchanged. */
+/**
+ * State and handlers of the Discover view: search, filters and ONE selected book at a
+ * time. The configurator applies to the selected book and "Adicionar à fila" enqueues it.
+ */
 export function useDiscoverController({
   backend,
   view,
@@ -34,17 +40,18 @@ export function useDiscoverController({
   bootError,
   focusedNovelId,
   setFocusedNovelId,
-  setQueue,
-  notify,
-  onQueued
+  library,
+  isQueued,
+  enqueueDownload,
+  notify
 }: DiscoverControllerArgs) {
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
   const [tagCatalog, setTagCatalog] = useState<TagCatalogItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectedNovelById, setSelectedNovelById] = useState<Record<string, Novel>>({});
+  const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
   const [previewNovel, setPreviewNovel] = useState<Novel | null>(null);
   const [selections, setSelections] = useState<Record<string, ChapterSelection>>({});
+  const [adding, setAdding] = useState(false);
 
   const searching = useNovelSearch({
     backend,
@@ -76,7 +83,7 @@ export function useDiscoverController({
       .catch((error: unknown) => {
         if (!cancelled) {
           setTagCatalog([]);
-          notify(getErrorMessage(error, "Nao foi possivel carregar as tags."));
+          notify(getErrorMessage(error, "Não foi possível carregar as tags."));
         }
       });
     return () => {
@@ -84,61 +91,38 @@ export function useDiscoverController({
     };
   }, [view, backend, bootError, filters.sourceId, loading, notify]);
 
-  const selectedNovels = useMemo(
-    () => selectedIds.map((id) => selectedNovelById[id]).filter((novel): novel is Novel => Boolean(novel)),
-    [selectedIds, selectedNovelById]
+  const libraryNovelIds = useMemo(
+    () => new Set(library.map((item) => item.novelId).filter((id): id is string => Boolean(id))),
+    [library]
   );
-  const selectedDetailNovel = selectedNovels[selectedNovels.length - 1];
-  const detailNovel = previewNovel ?? selectedDetailNovel;
 
-  const buildDefaultSelection = (novel: Novel) => ({
+  const detailNovel = previewNovel ?? selectedNovel ?? undefined;
+
+  const buildDefaultSelection = (novel: Novel): ChapterSelection => ({
     ...defaultSelection(novel),
     formats: appConfig.defaultFormats,
     translate: false,
     audiobook: appConfig.audiobookDefault
   });
 
-  const rememberNovelSelection = (novel: Novel) => {
-    setSelectedNovelById((current) => {
-      if (current[novel.id] === novel) return current;
-      return { ...current, [novel.id]: novel };
-    });
-    setSelections((current) => current[novel.id] ? current : { ...current, [novel.id]: buildDefaultSelection(novel) });
-  };
+  const selection = selectedNovel ? selections[selectedNovel.id] ?? buildDefaultSelection(selectedNovel) : null;
 
-  const toggleNovel = (novel: Novel) => {
-    const removing = selectedIds.includes(novel.id);
-    const nextIds = removing
-      ? selectedIds.filter((id) => id !== novel.id)
-      : [...selectedIds, novel.id];
-    setSelectedIds(nextIds);
-    if (removing) {
-      setSelectedNovelById((current) => {
-        const next = { ...current };
-        delete next[novel.id];
-        return next;
-      });
-      setFocusedNovelId(nextIds[nextIds.length - 1] ?? "");
+  /** Selects a novel (single selection); selecting the selected novel again clears it. */
+  const selectNovel = (novel: Novel) => {
+    setPreviewNovel(null);
+    if (selectedNovel?.id === novel.id) {
+      setSelectedNovel(null);
+      setFocusedNovelId("");
       return;
     }
-    rememberNovelSelection(novel);
+    setSelectedNovel(novel);
+    setSelections((current) => current[novel.id] ? current : { ...current, [novel.id]: buildDefaultSelection(novel) });
     setFocusedNovelId(novel.id);
   };
 
-  const selectNovel = (novel: Novel) => {
-    setPreviewNovel(null);
-    toggleNovel(novel);
-  };
-
-  const removeSelectedNovel = (novelId: string) => {
-    const nextIds = selectedIds.filter((id) => id !== novelId);
-    setSelectedIds(nextIds);
-    setSelectedNovelById((current) => {
-      const next = { ...current };
-      delete next[novelId];
-      return next;
-    });
-    setFocusedNovelId(nextIds[nextIds.length - 1] ?? "");
+  const clearSelection = () => {
+    setSelectedNovel(null);
+    setFocusedNovelId(previewNovel?.id ?? "");
   };
 
   const openPreviewNovel = (novel: Novel) => {
@@ -148,31 +132,32 @@ export function useDiscoverController({
 
   const clearPreviewNovel = () => {
     setPreviewNovel(null);
-    setFocusedNovelId(selectedIds[selectedIds.length - 1] ?? "");
+    setFocusedNovelId(selectedNovel?.id ?? "");
   };
 
   const addSelectedToQueue = () => {
-    const payload = selectedNovels.map((novel) => selections[novel.id] ?? buildDefaultSelection(novel));
-    if (payload.length === 0) return;
-    void backend.createDownloads(payload)
-      .then((items) => {
-        setPreviewNovel(null);
-        setQueue((current) => [...current, ...items]);
-        setSelectedIds([]);
-        setSelectedNovelById({});
-        setFocusedNovelId("");
-        onQueued();
-        notify(`${items.length} pacote(s) adicionados a fila de download.`);
+    if (!selectedNovel || !selection || adding) return;
+    setAdding(true);
+    void backend.createDownloads([selection])
+      .then(([item]) => {
+        if (!item) return;
+        const outcome = enqueueDownload(item);
+        if (outcome.result === "added") {
+          setPreviewNovel(null);
+          setSelectedNovel(null);
+          setFocusedNovelId("");
+        }
       })
       .catch((error: unknown) => {
-        notify(getErrorMessage(error, "Nao foi possivel adicionar os itens a fila."));
-      });
+        notify(getErrorMessage(error, "Não foi possível adicionar o livro à fila."));
+      })
+      .finally(() => setAdding(false));
   };
 
-  const updateSelection = (selection: ChapterSelection) =>
-    setSelections((current) => ({ ...current, [selection.novelId]: selection }));
+  const updateSelection = (next: ChapterSelection) =>
+    setSelections((current) => ({ ...current, [next.novelId]: next }));
 
-  const workspaceClassName = `workspace discover ${!filtersCollapsed ? "filters-open" : ""} ${selectedIds.length > 0 || previewNovel ? "selection-open" : ""}`;
+  const workspaceClassName = `workspace discover ${!filtersCollapsed ? "filters-open" : ""} ${selectedNovel || previewNovel ? "selection-open" : ""}`;
 
   return {
     results,
@@ -182,19 +167,24 @@ export function useDiscoverController({
     toggleFilters: () => setFiltersCollapsed((value) => !value),
     tagCatalog,
     searching,
-    selectedIds,
-    setSelectedIds,
-    selectedNovels,
+    /** The one book the configurator applies to. */
+    selectedNovel,
+    /** Chapter/format configuration of the selected book. */
+    selection,
     previewNovel,
     detailNovel,
-    selections,
     updateSelection,
-    toggleNovel,
     selectNovel,
-    removeSelectedNovel,
+    clearSelection,
     openPreviewNovel,
     clearPreviewNovel,
     addSelectedToQueue,
+    /** True while the selected book is being shaped/enqueued. */
+    adding,
+    /** The selected book already has a copy in the local library ("Baixar novamente"). */
+    selectedInLibrary: Boolean(selectedNovel && libraryNovelIds.has(selectedNovel.id)),
+    /** The selected book is already active or waiting in the queue. */
+    selectedQueued: Boolean(selectedNovel && isQueued(selectedNovel.id)),
     workspaceClassName
   };
 }

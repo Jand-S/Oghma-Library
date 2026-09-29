@@ -267,10 +267,13 @@ function legacyFlows(v) {
 export const oldVersion = legacyFlows(makeVersion(legacyDef({ id: "old", label: "v1.0.0", appDir: V1_DIR })));
 
 // ---------------------------------------------------------------------------------------------
-// New UI (placeholder = current wip branch UI). Uses testid-OR-legacy selectors and tolerant names
-// so it keeps working while the redesign adds data-testids. Update here when the redesign lands.
+// New UI (redesign branch). Uses testid-OR-legacy selectors and tolerant names so it keeps working
+// while P2 restyles the views. Download model: ONE book selected at a time in Discover, enqueued
+// individually (1 active + up to 10 queued); cancel asks for confirmation.
 // ---------------------------------------------------------------------------------------------
-const newDef = legacyDef({ id: "new", label: "wip (current branch)", appDir: DESKTOP_DIR });
+const newDef = legacyDef({ id: "new", label: "redesign (current branch)", appDir: DESKTOP_DIR });
+newDef.toastSelector = ".o-toast-region [role=status], .o-toast-region [role=alert], .app-toast";
+newDef.maxQueueSelection = 11; // 1 active + MAX_QUEUED (10), enqueued one by one
 newDef.sel = {
   ...newDef.sel,
   shell: tid("app-shell", newDef.sel.shell),
@@ -280,13 +283,16 @@ newDef.sel = {
   discoverCardTitle: tid("card-title", newDef.sel.discoverCardTitle),
   discoverCardSelect: tid("card-select", newDef.sel.discoverCardSelect),
   discoverDetailPanel: tid("discover-detail", newDef.sel.discoverDetailPanel),
+  discoverAddButton: tid("add-to-queue", ".queue-add-button"),
   libraryCard: tid("library-card", newDef.sel.libraryCard),
   libraryCardTitle: tid("card-title", newDef.sel.libraryCardTitle),
   librarySearch: tid("library-search", newDef.sel.librarySearch),
   libraryDetail: tid("library-detail", newDef.sel.libraryDetail),
+  libraryRedownload: tid("library-redownload"),
   downloadRow: tid("download-row", newDef.sel.downloadRow),
   downloadActiveRow: tid("download-active", newDef.sel.downloadActiveRow),
   downloadQueuedRow: tid("download-queued", newDef.sel.downloadQueuedRow),
+  outputFolderPicker: tid("pick-output-folder"),
   onboardingDialog: tid("onboarding", newDef.sel.onboardingDialog),
   kindleConnected: tid("kindle-connected", newDef.sel.kindleConnected)
 };
@@ -301,18 +307,104 @@ newDef.names = {
     translation: /^Tradu[cç][aã]o$/,
     settings: /^(Ajustes|Configura[cç][oõ]es)$/
   },
-  addToQueue: /^(Adicionar [aà] fila|Baixar)$/,
+  addToQueue: /^(Adicionar [aà] fila|Baixar novamente|Baixar)$/,
   showMore: /^Mostrar mais$/,
   cancel: /^Cancelar$/,
+  confirmCancel: /^Cancelar download$/,
+  redownload: /^Baixar novamente$/,
+  pickFolder: /^Escolher/,
   sendToKindle: /^Enviar (para o|ao) Kindle$/,
-  outputFolderLabel: "Pasta de saida"
+  outputFolderLabel: /^Pasta de sa[ií]da$/
 };
-export const newVersion = legacyFlows(makeVersion(newDef));
-// When the redesign lands, expected changes (see README "Updating versions.mjs"):
-//  - newVersion.maxQueueSelection = 1 (1 active + queue: enqueueMany() should enqueue one-by-one)
-//  - newVersion.discoverPageSize = null if the grid is virtualized/infinite
-//  - sel.splash: remove if there is no splash overlay
-//  - tasks.redownload: use the Library's "Baixar novamente" action
-//  - tasks.changeOutputFolder: click the folder picker (shim answers plugin:dialog|open)
+/** Queue feedback toasts (added / started / duplicate / full). */
+const ENQUEUE_TOAST = /Adicionado [aà] fila|Download iniciado|j[aá] est[aá] na fila|fila est[aá] cheia/i;
+
+function newFlows(v) {
+  legacyFlows(v);
+  const { sel, names } = v;
+
+  /** Marks the current toasts so waitNewToast only matches toasts shown afterwards. */
+  const markToastsSeen = (page) =>
+    page.evaluate((selector) => {
+      document.querySelectorAll(selector).forEach((node) => { node.dataset.benchSeen = "1"; });
+    }, v.toastSelector);
+  const waitNewToast = (page, pattern) =>
+    page.waitForFunction(
+      ([selector, source, flags]) => {
+        const re = new RegExp(source, flags);
+        return Array.from(document.querySelectorAll(selector)).some((node) => !node.dataset.benchSeen && re.test(node.textContent || ""));
+      },
+      [v.toastSelector, pattern.source, pattern.flags],
+      { timeout: 15000 }
+    );
+
+  /** Single select: the card's select button (or the card itself) selects exactly one book. */
+  v.selectForDownload = async (page, card, act) => {
+    const check = card.locator(sel.discoverCardSelect).first();
+    const target = (await check.count()) ? check : card;
+    if (act) await act.click(target);
+    else await target.click();
+    await page.locator(sel.discoverAddButton).first().waitFor({ state: "visible", timeout: 10000 });
+  };
+
+  v.addSelectedToQueue = async (page, act) => {
+    const button = page.locator(sel.discoverAddButton).filter({ hasText: names.addToQueue }).first();
+    await markToastsSeen(page);
+    if (act) await act.click(button);
+    else await button.click();
+    await waitNewToast(page, ENQUEUE_TOAST);
+  };
+
+  /** Enqueue up to n books one by one (select -> add); returns how many the queue accepted. */
+  v.enqueueMany = async (page, n) => {
+    const target = Math.min(n, v.maxQueueSelection);
+    await v.expandResults(page, target);
+    const cards = page.locator(sel.discoverCard);
+    let accepted = 0;
+    for (let i = 0; i < target; i += 1) {
+      await v.selectForDownload(page, cards.nth(i));
+      const before = await page.evaluate(() => (window.__BENCH_PROBE__?.toasts || []).length);
+      await v.addSelectedToQueue(page);
+      const texts = await page.evaluate((b) => (window.__BENCH_PROBE__?.toasts || []).slice(b).map((t) => t.text), before);
+      if (texts.some((text) => /Adicionado|Download iniciado/i.test(text))) accepted += 1;
+    }
+    return accepted;
+  };
+
+  /** Cancel the active download (Cancelar -> confirmation "Cancelar download"); returns its title. */
+  v.cancelActiveDownload = async (page, act) => {
+    const row = page.locator(sel.downloadActiveRow).first();
+    await row.waitFor({ state: "visible", timeout: 15000 });
+    const title = (await row.locator("strong").first().textContent())?.trim();
+    const button = row.getByRole("button", nameOpt(names.cancel));
+    if (act) await act.click(button);
+    else await button.click();
+    const confirm = page.getByRole("dialog").getByRole("button", nameOpt(names.confirmCancel));
+    if (act) await act.click(confirm);
+    else await confirm.click();
+    await row.waitFor({ state: "detached", timeout: 15000 }).catch(() => undefined);
+    return title;
+  };
+
+  v.tasks = {
+    ...v.tasks,
+    async redownload({ page, act, target }) {
+      await act.fill(v.librarySearchBox(page), target.query);
+      const card = v.libraryCardByTitle(page, target.title);
+      await card.waitFor({ state: "visible" });
+      await act.click(card); // opens the details tab
+      await act.click(page.locator(sel.libraryRedownload).first());
+      return { note: "Library details -> Baixar novamente" };
+    },
+    async changeOutputFolder({ page, act }) {
+      await v.goto(page, "settings", act);
+      await act.click(page.locator(sel.outputFolderPicker).first()); // shim answers plugin:dialog|open
+      return { note: "native folder picker (Escolher…)" };
+    }
+  };
+  return v;
+}
+
+export const newVersion = newFlows(makeVersion(newDef));
 
 export const versions = { old: oldVersion, new: newVersion };

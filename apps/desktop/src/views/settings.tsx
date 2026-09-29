@@ -1,7 +1,34 @@
-import { Settings } from "lucide-react";
+import { FolderOpen, Settings } from "lucide-react";
+import { useState } from "react";
 import { indexModeOptions } from "../constants/ui";
 import type { AppConfig, IndexMode } from "../core/types";
 import { downloadFormats } from "../core/types";
+import { isTauriRuntime } from "../core/windowControls";
+import { pickDirectory } from "../services/localFiles";
+import { settingsStrings } from "../strings/settings";
+
+/**
+ * "Escolher…" button that opens the native folder picker (Tauri only; hidden in the
+ * browser, where there is no picker). Calls `onPick` with the chosen absolute path.
+ */
+export function FolderPickButton({ value, onPick }: { value: string; onPick: (path: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  if (!isTauriRuntime()) return null;
+  const pick = () => {
+    setBusy(true);
+    void pickDirectory({ defaultPath: value || undefined, title: settingsStrings.pickOutputFolderTitle })
+      .then((path) => {
+        if (path) onPick(path);
+      })
+      .finally(() => setBusy(false));
+  };
+  return (
+    <button type="button" className="button quiet" data-testid="pick-output-folder" onClick={pick} disabled={busy}>
+      <FolderOpen size={15} />
+      {settingsStrings.pickOutputFolder}
+    </button>
+  );
+}
 
 export function SettingsView({
   config,
@@ -22,8 +49,9 @@ export function SettingsView({
             <input value={config.serverUrl} onChange={(event) => onConfigChange({ serverUrl: event.target.value })} />
           </div>
           <div className="field-group">
-            <label>Pasta de saida</label>
-            <input value={config.outputPath} onChange={(event) => onConfigChange({ outputPath: event.target.value })} />
+            <label htmlFor="settings-output-path">{settingsStrings.outputPath}</label>
+            <input id="settings-output-path" value={config.outputPath} onChange={(event) => onConfigChange({ outputPath: event.target.value })} />
+            <FolderPickButton value={config.outputPath} onPick={(outputPath) => onConfigChange({ outputPath })} />
           </div>
           <div className="field-group">
             <label htmlFor="settings-index-mode">Modo de indexacao</label>

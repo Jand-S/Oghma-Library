@@ -8,6 +8,7 @@
 //   save_export_file, open_local_path, list_export_library, delete_export_library_item,
 //   detect_kindle, convert_export_to_azw3, send_to_kindle,
 //   list_library_meta, save_library_meta, delete_library_meta,
+//   begin_export, commit_export, abort_export, cleanup_export_root (export staging),
 //   plugin:window|* , plugin:event|listen/unlisten/emit, plugin:opener|*, plugin:os|*, plugin:dialog|open
 // Unknown commands resolve to null and are listed in __BENCH__.unknown.
 (() => {
@@ -67,6 +68,11 @@
     savedDirs: {},
     meta: {},
     deletedDirs: [],
+    // Export staging (begin/commit/abort_export): one entry per call.
+    staging: [],
+    // novelId -> committed book folder, and folder -> manifest title
+    bookDirs: {},
+    bookTitles: {},
     mark(name) {
       this.marks[name] = now();
       return this.marks[name];
@@ -92,41 +98,72 @@
     return 0;
   };
   const basename = (p) => String(p || "").split(/[\\/]/).filter(Boolean).pop() || "";
+  const sanitizeFileName = (name) => String(name || "").replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim() || "novel";
+  const trimSlash = (p) => String(p || "").replace(/[\\/]+$/, "");
+  // Staging/trash dirs (".oghma-staging/...") are never library books.
+  const isHiddenDir = (dir) => /(^|[\\/])\.[^\\/]/.test(String(dir || ""));
+
+  // Rows carry both the legacy snake_case fields (v1.0.0) and the camelCase ones the
+  // current Rust `list_export_library` returns.
+  function libraryRow({ title, folderName, outputDir, files, coverDataUrl, sizeBytes, novelId, chapterCount, sourceChars, wordCount, analysisFormat }) {
+    return {
+      title,
+      folderName: folderName ?? basename(outputDir),
+      outputDir,
+      files,
+      coverPath: null,
+      coverDataUrl: coverDataUrl ?? null,
+      sizeBytes,
+      mtimeMs: null,
+      novelId: novelId ?? null,
+      generatedAt: null,
+      chapterCount: chapterCount ?? null,
+      sourceChars: sourceChars ?? null,
+      wordCount: wordCount ?? null,
+      analysisFormat: analysisFormat ?? null,
+      output_dir: outputDir,
+      cover_path: null,
+      cover_data_url: coverDataUrl ?? null,
+      size_bytes: sizeBytes,
+      chapter_count: chapterCount ?? null,
+      source_chars: sourceChars ?? null,
+      word_count: wordCount ?? null,
+      analysis_format: analysisFormat ?? null
+    };
+  }
 
   function libraryRows(outputDir) {
-    const rows = library.map((row) => ({
-      title: row.title,
-      output_dir: row.output_dir,
+    const rows = library.map((row) => libraryRow({
+      title: row.catalogTitle ?? row.title,
+      folderName: row.title,
+      outputDir: row.output_dir,
       files: row.files,
-      cover_path: null,
-      cover_data_url: row.coverIndex != null && covers[row.coverIndex] ? covers[row.coverIndex] : null,
-      size_bytes: row.size_bytes,
-      chapter_count: row.chapter_count ?? null,
-      source_chars: row.source_chars ?? null,
-      word_count: row.word_count ?? null,
-      analysis_format: row.analysis_format ?? null
+      coverDataUrl: row.coverIndex != null && covers[row.coverIndex] ? covers[row.coverIndex] : null,
+      sizeBytes: row.size_bytes,
+      novelId: row.novelId,
+      chapterCount: row.chapter_count,
+      sourceChars: row.source_chars,
+      wordCount: row.word_count,
+      analysisFormat: row.analysis_format
     }));
+    const novelIdByDir = new Map(Object.entries(B.bookDirs).map(([novelId, dir]) => [dir, novelId]));
     // Books saved during this session show up too (keyed by directory, like the Rust side does).
     const known = new Set(rows.map((row) => row.output_dir));
     for (const [dir, files] of Object.entries(B.savedDirs)) {
-      if (known.has(dir) || B.deletedDirs.includes(dir)) continue;
+      if (known.has(dir) || B.deletedDirs.includes(dir) || isHiddenDir(dir)) continue;
       if (outputDir && !dir.startsWith(String(outputDir).replace(/[\\/]+$/, ""))) continue;
       const bookFiles = [...files].filter((file) => !file.startsWith("."));
       if (!bookFiles.some((file) => /\.(epub|azw3|txt|html)$/i.test(file))) continue;
-      rows.push({
-        title: basename(dir),
-        output_dir: dir,
+      rows.push(libraryRow({
+        title: B.bookTitles[dir] || basename(dir),
+        outputDir: dir,
         files: bookFiles,
-        cover_path: null,
-        cover_data_url: covers[0] || null,
-        size_bytes: 250000,
-        chapter_count: null,
-        source_chars: null,
-        word_count: null,
-        analysis_format: null
-      });
+        coverDataUrl: covers[0] || null,
+        sizeBytes: 250000,
+        novelId: novelIdByDir.get(dir)
+      }));
     }
-    return rows.filter((row) => !B.deletedDirs.includes(row.output_dir));
+    return rows.filter((row) => !B.deletedDirs.includes(row.outputDir));
   }
 
   function kindleStatus() {
@@ -157,6 +194,40 @@
     },
     list_export_library(args) {
       return libraryRows(args && args.outputDir);
+    },
+    // ---- export staging (Rust begin/commit/abort_export) ----
+    begin_export(args) {
+      const root = trimSlash(args && args.outputRoot);
+      const novelId = String((args && args.novelId) || "novel");
+      const stagingDir = `${root}/.oghma-staging/${novelId}-${Date.now()}`;
+      const existing = B.bookDirs[novelId] || library.find((row) => row.novelId === novelId)?.output_dir;
+      const finalDir = existing || `${root}/${sanitizeFileName(args && args.title)}`;
+      B.bookTitles[stagingDir] = String((args && args.title) || basename(finalDir));
+      B.staging.push({ t: now(), event: "begin", novelId, stagingDir, finalDir });
+      return { stagingDir, finalDir };
+    },
+    commit_export(args) {
+      const { stagingDir, finalDir, novelId } = args || {};
+      const files = [...(B.savedDirs[stagingDir] || [])];
+      delete B.savedDirs[stagingDir];
+      B.savedDirs[finalDir] = new Set(files);
+      B.deletedDirs = B.deletedDirs.filter((dir) => dir !== finalDir);
+      if (novelId) B.bookDirs[novelId] = finalDir;
+      B.bookTitles[finalDir] = B.bookTitles[stagingDir] || basename(finalDir);
+      // Synthetic "saves" in the final folder so harness checks keyed on the book dir keep working.
+      for (const name of files) B.saves.push({ t: now(), dir: finalDir, name, bytes: 0, committed: true });
+      B.staging.push({ t: now(), event: "commit", novelId, stagingDir, finalDir, files });
+      return null;
+    },
+    abort_export(args) {
+      const stagingDir = args && args.stagingDir;
+      const files = [...(B.savedDirs[stagingDir] || [])];
+      delete B.savedDirs[stagingDir];
+      B.staging.push({ t: now(), event: "abort", stagingDir, files });
+      return null;
+    },
+    cleanup_export_root() {
+      return 0;
     },
     delete_export_library_item(args) {
       const dir = args && args.itemDir;

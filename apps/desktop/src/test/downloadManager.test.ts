@@ -128,6 +128,15 @@ describe("downloadManager", () => {
     await expect(buildOutputs(bundle, "Teste", ["TXT"], { start: 1, end: 2 })).resolves.toHaveLength(1);
   });
 
+  it("uses the novel id as the EPUB identifier, falling back to the title", async () => {
+    const withId = await buildOutputs(sampleBundle, "Shadow Slave", ["EPUB"], undefined, undefined, undefined, undefined, "central-novel:ss");
+    const withoutId = await buildOutputs(sampleBundle, "Shadow Slave", ["EPUB"]);
+    const decode = (data: unknown) => new TextDecoder().decode(data as Uint8Array);
+
+    expect(decode(withId[0].data)).toContain('<dc:identifier id="book-id">oghma:central-novel:ss</dc:identifier>');
+    expect(decode(withoutId[0].data)).toContain('<dc:identifier id="book-id">oghma:Shadow Slave</dc:identifier>');
+  });
+
   it("embeds the novel cover in EPUB metadata", async () => {
     const epub = await buildOutputs(
       sampleBundle,
