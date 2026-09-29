@@ -1,0 +1,347 @@
+{
+  "generatedAt": "2026-09-29T13:27:07.412Z",
+  "targets": {
+    "downloadTarget": {
+      "query": "kraken",
+      "title": "4: Blade of Reino do Norte e o Kraken",
+      "novelId": "acervo-alfa:4-blade-of-reino-do-norte-e-o-kraken-3312"
+    },
+    "libraryTarget": {
+      "query": "quokka",
+      "title": "Quokka: 50: Villainess of São Magnólia",
+      "libraryTitle": "Quokka_ 50_ Villainess of São Magnólia",
+      "novelId": "acervo-alfa:quokka-50-villainess-of-sao-magnolia-0100",
+      "libraryHits": 7
+    }
+  },
+  "versions": {
+    "old": {
+      "label": "v1.0.0",
+      "url": "http://127.0.0.1:4174/",
+      "tasks": [
+        {
+          "task": "downloadOne",
+          "label": "Download one book",
+          "start": "discover",
+          "version": "old",
+          "status": "ok",
+          "clicks": 3,
+          "keystrokes": 6,
+          "interactions": 9,
+          "ms": 1139,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('#query').first()"
+            },
+            {
+              "kind": "type",
+              "text": "kraken",
+              "keystrokes": 6
+            },
+            {
+              "kind": "click",
+              "target": "locator('.book-grid .book-card:not(.skeleton-card)').filter({ has: locator('.book-info strong').filter({ hasText: /^\\s*4: Blade of Reino do "
+            },
+            {
+              "kind": "click",
+              "target": "getByRole('button', { name: 'Adicionar a fila', exact: true })"
+            }
+          ],
+          "evidence": {
+            "t": 2341.5,
+            "dir": "~/Documents/Oghma Library/exports/4_ Blade of Reino do Norte e o Kraken",
+            "name": "4_ Blade of Reino do Norte e o Kraken.epub",
+            "bytes": 136657
+          }
+        },
+        {
+          "task": "cancelActive",
+          "label": "Cancel the active download",
+          "start": "discover",
+          "version": "old",
+          "status": "ok",
+          "clicks": 2,
+          "keystrokes": 0,
+          "interactions": 2,
+          "ms": 602,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"nav-downloads\"]').or(getByRole('navigation', { name: 'Principal', exact: true }).getByRole('button', { name: 'Downloa"
+            },
+            {
+              "kind": "click",
+              "target": "locator('.download-row.downloading').first().getByRole('button', { name: 'Cancelar', exact: true })"
+            }
+          ],
+          "evidence": {
+            "cancelledTitle": "1: Blade of Montanha Azul"
+          }
+        },
+        {
+          "task": "redownload",
+          "label": "Re-download a book already in the library",
+          "start": "library",
+          "version": "old",
+          "status": "ok",
+          "clicks": 4,
+          "keystrokes": 6,
+          "interactions": 10,
+          "ms": 1260,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"nav-discover\"]').or(getByRole('navigation', { name: 'Principal', exact: true }).getByRole('button', { name: 'Buscar',"
+            },
+            {
+              "kind": "click",
+              "target": "locator('#query').first()"
+            },
+            {
+              "kind": "type",
+              "text": "quokka",
+              "keystrokes": 6
+            },
+            {
+              "kind": "click",
+              "target": "locator('.book-grid .book-card:not(.skeleton-card)').filter({ has: locator('.book-info strong').filter({ hasText: /^\\s*Quokka: 50: Villaines"
+            },
+            {
+              "kind": "click",
+              "target": "getByRole('button', { name: 'Adicionar a fila', exact: true })"
+            }
+          ],
+          "note": "no re-download action in Library; done via Discover search + queue",
+          "evidence": {
+            "t": 2507.5999999940395,
+            "dir": "~/Documents/Oghma Library/exports/Quokka_ 50_ Villainess of São Magnólia",
+            "name": "Quokka_ 50_ Villainess of São Magnólia.epub",
+            "bytes": 8589
+          }
+        },
+        {
+          "task": "sendToKindle",
+          "label": "Send a library book to Kindle",
+          "start": "library",
+          "version": "old",
+          "kindleDetected": true,
+          "status": "error",
+          "reason": "locator.waitFor: Timeout 30000ms exceeded."
+        },
+        {
+          "task": "changeOutputFolder",
+          "label": "Change the output folder",
+          "start": "discover",
+          "version": "old",
+          "status": "ok",
+          "clicks": 2,
+          "keystrokes": 60,
+          "interactions": 62,
+          "ms": 4266,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"nav-settings\"]').or(getByRole('navigation', { name: 'Principal', exact: true }).getByRole('button', { name: 'Ajustes'"
+            },
+            {
+              "kind": "click",
+              "target": "getByLabel('Pasta de saida', { exact: true }).or(locator('.field-group').filter({ has: locator('label').filter({ hasText: 'Pasta de saida' }"
+            },
+            {
+              "kind": "key",
+              "key": "ControlOrMeta+A"
+            },
+            {
+              "kind": "key",
+              "key": "End"
+            },
+            {
+              "kind": "key",
+              "key": "Backspace×33"
+            },
+            {
+              "kind": "type",
+              "text": "/Users/bench/Livros Oghma",
+              "keystrokes": 25
+            }
+          ],
+          "note": "free-text input (no folder picker); Ctrl/Cmd+A does not select (app cancels selectstart) -> cleared with End + Backspace per char",
+          "evidence": "/Users/bench/Livros Oghma"
+        }
+      ]
+    },
+    "new": {
+      "label": "redesign (current branch)",
+      "url": "http://127.0.0.1:4173/",
+      "tasks": [
+        {
+          "task": "downloadOne",
+          "label": "Download one book",
+          "start": "discover",
+          "version": "new",
+          "status": "ok",
+          "clicks": 3,
+          "keystrokes": 6,
+          "interactions": 9,
+          "ms": 705,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"discover-search\"]').first()"
+            },
+            {
+              "kind": "type",
+              "text": "kraken",
+              "keystrokes": 6
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"book-card\"]').filter({ has: locator('[data-testid=\"card-title\"]').filter({ hasText: /^\\s*4: Blade of Reino do Norte e"
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"add-to-queue\"]').filter({ hasText: /^(Baixar|Baixar novamente)$/ }).first()"
+            }
+          ],
+          "note": "card -> detail panel -> Baixar",
+          "evidence": {
+            "t": 1897.5999999940395,
+            "dir": "~/Documents/Oghma Library/exports/4_ Blade of Reino do Norte e o Kraken",
+            "name": "4_ Blade of Reino do Norte e o Kraken.epub",
+            "bytes": 0,
+            "committed": true
+          }
+        },
+        {
+          "task": "cancelActive",
+          "label": "Cancel the active download",
+          "start": "discover",
+          "version": "new",
+          "status": "ok",
+          "clicks": 3,
+          "keystrokes": 0,
+          "interactions": 3,
+          "ms": 1648,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"nav-downloads\"]').or(getByRole('navigation', { name: 'Principal', exact: true }).getByRole('button', { name: 'Downloa"
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"download-active\"]').first().getByRole('button', { name: 'Cancelar', exact: true })"
+            },
+            {
+              "kind": "click",
+              "target": "getByRole('dialog').getByRole('button', { name: 'Cancelar download', exact: true })"
+            }
+          ],
+          "evidence": {
+            "cancelledTitle": "1: Blade of Montanha Azul"
+          }
+        },
+        {
+          "task": "redownload",
+          "label": "Re-download a book already in the library",
+          "start": "library",
+          "version": "new",
+          "status": "ok",
+          "clicks": 3,
+          "keystrokes": 6,
+          "interactions": 9,
+          "ms": 241,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"library-search\"]').first()"
+            },
+            {
+              "kind": "type",
+              "text": "quokka",
+              "keystrokes": 6
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"library-card\"]').filter({ has: locator('[data-testid=\"card-title\"]').filter({ hasText: /^\\s*Quokka: 50: Villainess of"
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"library-redownload\"]').first()"
+            }
+          ],
+          "note": "Library card -> details -> Baixar novamente",
+          "evidence": {
+            "t": 2197.4000000059605,
+            "dir": "~/Documents/Oghma Library/exports/Quokka_ 50_ Villainess of São Magnólia",
+            "name": "Quokka_ 50_ Villainess of São Magnólia.epub",
+            "bytes": 0,
+            "committed": true
+          }
+        },
+        {
+          "task": "sendToKindle",
+          "label": "Send a library book to Kindle",
+          "start": "library",
+          "version": "new",
+          "kindleDetected": true,
+          "status": "ok",
+          "clicks": 3,
+          "keystrokes": 6,
+          "interactions": 9,
+          "ms": 154,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"library-search\"]').first()"
+            },
+            {
+              "kind": "type",
+              "text": "quokka",
+              "keystrokes": 6
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"library-card\"]').filter({ has: locator('[data-testid=\"card-title\"]').filter({ hasText: /^\\s*Quokka[_<>:\"/\\\\|?*] 50[_<"
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"library-detail\"]').getByRole('button', { name: 'Enviar ao Kindle', exact: true }).first()"
+            }
+          ],
+          "note": "Library card -> details -> Enviar ao Kindle",
+          "evidence": {
+            "t": 6507.200000017881
+          }
+        },
+        {
+          "task": "changeOutputFolder",
+          "label": "Change the output folder",
+          "start": "discover",
+          "version": "new",
+          "status": "ok",
+          "clicks": 3,
+          "keystrokes": 0,
+          "interactions": 3,
+          "ms": 962,
+          "steps": [
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"nav-settings\"]').or(getByRole('navigation', { name: 'Principal', exact: true }).getByRole('button', { name: 'Ajustes'"
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"settings-tab-downloads\"]').first()"
+            },
+            {
+              "kind": "click",
+              "target": "locator('[data-testid=\"pick-output-folder\"]').first()"
+            }
+          ],
+          "note": "Ajustes -> Downloads -> Escolher… (native folder picker)",
+          "evidence": "/Users/bench/Livros Oghma"
+        }
+      ]
+    }
+  }
+}

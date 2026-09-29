@@ -1,0 +1,80 @@
+{
+  "generatedAt": "2026-09-29T14:01:27.103Z",
+  "platform": "windows",
+  "dpr": 2,
+  "viewports": [
+    "1280x800",
+    "1120x720"
+  ],
+  "format": "png",
+  "pngBytes": 11201267,
+  "writtenBytes": 11201267,
+  "versions": [
+    {
+      "id": "old",
+      "label": "v1.0.0",
+      "url": "http://127.0.0.1:4174/"
+    },
+    {
+      "id": "new",
+      "label": "redesign (current branch)",
+      "url": "http://127.0.0.1:4173/"
+    }
+  ],
+  "files": {
+    "old": {
+      "1280x800": {
+        "discover": "old/1280x800/discover.jpg",
+        "titlebar": "old/1280x800/titlebar.jpg",
+        "discover-detail": "old/1280x800/discover-detail.jpg",
+        "library": "old/1280x800/library.jpg",
+        "library-detail": "old/1280x800/library-detail.jpg",
+        "settings": "old/1280x800/settings.jpg",
+        "downloads": "old/1280x800/downloads.jpg",
+        "onboarding": "old/1280x800/onboarding.jpg"
+      },
+      "1120x720": {
+        "discover": "old/1120x720/discover.jpg",
+        "titlebar": "old/1120x720/titlebar.jpg",
+        "discover-detail": "old/1120x720/discover-detail.jpg",
+        "library": "old/1120x720/library.jpg",
+        "library-detail": "old/1120x720/library-detail.jpg",
+        "settings": "old/1120x720/settings.jpg",
+        "downloads": "old/1120x720/downloads.jpg",
+        "onboarding": "old/1120x720/onboarding.jpg"
+      }
+    },
+    "new": {
+      "1280x800": {
+        "discover": "new/1280x800/discover.jpg",
+        "titlebar": "new/1280x800/titlebar.jpg",
+        "discover-detail": "new/1280x800/discover-detail.jpg",
+        "library": "new/1280x800/library.jpg",
+        "library-detail": "new/1280x800/library-detail.jpg",
+        "settings": "new/1280x800/settings.jpg",
+        "downloads": "new/1280x800/downloads.jpg",
+        "onboarding": "new/1280x800/onboarding.jpg"
+      },
+      "1120x720": {
+        "discover": "new/1120x720/discover.jpg",
+        "titlebar": "new/1120x720/titlebar.jpg",
+        "discover-detail": "new/1120x720/discover-detail.jpg",
+        "library": "new/1120x720/library.jpg",
+        "library-detail": "new/1120x720/library-detail.jpg",
+        "settings": "new/1120x720/settings.jpg",
+        "downloads": "new/1120x720/downloads.jpg",
+        "onboarding": "new/1120x720/onboarding.jpg"
+      }
+    }
+  },
+  "notes": {
+    "old": {
+      "1280x800": {},
+      "1120x720": {}
+    },
+    "new": {
+      "1280x800": {},
+      "1120x720": {}
+    }
+  }
+}
