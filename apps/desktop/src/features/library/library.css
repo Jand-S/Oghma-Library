@@ -78,6 +78,13 @@
     gap: var(--space-1);
     min-width: 0;
     cursor: pointer;
+    /* Skip layout/paint of off-screen tiles; large libraries render hundreds of them.
+       content-visibility clips paint to the box, so pad it (and pull it back with a negative
+       margin) to leave room for the hover scale, ring and shadow. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 20rem;
+    padding: var(--space-1-5);
+    margin: calc(var(--space-1-5) * -1);
   }
 
   .library-tile__media {

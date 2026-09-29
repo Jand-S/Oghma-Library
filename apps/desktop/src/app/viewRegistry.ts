@@ -19,25 +19,35 @@ import { sourcesHeader } from "../features/sources/SourcesHeader";
 import { useNavigation, type AppView, type NavParams } from "./NavigationContext";
 
 // Secondary views are split into their own chunks and prefetched after boot (see preloadViews).
-const viewLoaders = {
-  downloads: () => import("../features/downloads/DownloadsView").then((m) => ({ default: m.DownloadsView })),
-  kindle: () => import("../features/kindle/KindleView").then((m) => ({ default: m.KindleView })),
-  library: () => import("../features/library/LibraryView").then((m) => ({ default: m.LibraryView })),
-  translation: () => import("../features/translation/TranslationView").then((m) => ({ default: m.TranslationView })),
-  settings: () => import("../features/settings/SettingsView").then((m) => ({ default: m.SettingsView })),
-  sources: () => import("../features/sources/SourcesView").then((m) => ({ default: m.SourcesView }))
-};
+// Once a chunk is cached the view renders directly, skipping Suspense: React 19 holds a revealed
+// Suspense boundary for ~300ms, which would make every navigation feel slow.
+function lazyView<P extends object>(load: () => Promise<ComponentType<P>>) {
+  let loaded: ComponentType<P> | null = null;
+  const preload = () => load().then((component) => (loaded = component));
+  const Lazy = lazy(() => preload().then((component) => ({ default: component })));
+  function LazyView(props: P) {
+    return loaded ? h(loaded, props) : h(Lazy as unknown as ComponentType<P>, props);
+  }
+  return { View: LazyView, preload };
+}
 
-const DownloadsView = lazy(viewLoaders.downloads);
-const KindleView = lazy(viewLoaders.kindle);
-const LibraryView = lazy(viewLoaders.library);
-const TranslationView = lazy(viewLoaders.translation);
-const SettingsView = lazy(viewLoaders.settings);
-const SourcesView = lazy(viewLoaders.sources);
+const downloadsView = lazyView(() => import("../features/downloads/DownloadsView").then((m) => m.DownloadsView));
+const kindleView = lazyView(() => import("../features/kindle/KindleView").then((m) => m.KindleView));
+const libraryView = lazyView(() => import("../features/library/LibraryView").then((m) => m.LibraryView));
+const translationView = lazyView(() => import("../features/translation/TranslationView").then((m) => m.TranslationView));
+const settingsView = lazyView(() => import("../features/settings/SettingsView").then((m) => m.SettingsView));
+const sourcesView = lazyView(() => import("../features/sources/SourcesView").then((m) => m.SourcesView));
 
-/** Warms every lazy view chunk so later navigation never waits on the network or disk. */
+const DownloadsView = downloadsView.View;
+const KindleView = kindleView.View;
+const LibraryView = libraryView.View;
+const TranslationView = translationView.View;
+const SettingsView = settingsView.View;
+const SourcesView = sourcesView.View;
+
+/** Warms every lazy view chunk so later navigation never waits on disk or suspends. */
 export function preloadViews() {
-  return Promise.all(Object.values(viewLoaders).map((load) => load()));
+  return Promise.all([downloadsView, kindleView, libraryView, translationView, settingsView, sourcesView].map((view) => view.preload()));
 }
 
 /** Everything a view needs, assembled by App from the feature controllers. */
