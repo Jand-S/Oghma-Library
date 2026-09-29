@@ -1,10 +1,10 @@
 import { CloudOff, RefreshCcw, Settings } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { NavigationProvider, useNavigation, type AppView } from "./app/NavigationContext";
 import { useBootstrapState } from "./app/useBootstrapState";
 import { useKindleDetection } from "./app/useKindleDetection";
 import { useLocalLibrary } from "./app/useLocalLibrary";
-import { viewRegistry, type AppControllers } from "./app/viewRegistry";
+import { preloadViews, viewRegistry, type AppControllers } from "./app/viewRegistry";
 import { hasCompletedSetup } from "./core/appConfig";
 import { isTauriRuntime } from "./core/windowControls";
 import { useDiscoverController } from "./features/discover/useDiscoverController";
@@ -177,11 +177,17 @@ function AppContent({ backend, downloadQueue }: AppProps) {
     translation
   };
 
+  // Once boot settles, warm the lazily loaded view chunks so navigation stays instant.
+  useEffect(() => {
+    if (!bootDone) return;
+    void preloadViews().catch(() => undefined);
+  }, [bootDone]);
+
   // Keep the splash mounted while its exit animation plays.
   const [splashMounted, setSplashMounted] = useState(true);
   useEffect(() => {
     if (showSplash) return;
-    const timer = window.setTimeout(() => setSplashMounted(false), 320);
+    const timer = window.setTimeout(() => setSplashMounted(false), 200);
     return () => window.clearTimeout(timer);
   }, [showSplash]);
 
@@ -255,7 +261,9 @@ function AppContent({ backend, downloadQueue }: AppProps) {
             </EmptyState>
           </div>
         ) : (
-          <ActiveView app={controllers} />
+          <Suspense fallback={null}>
+            <ActiveView app={controllers} />
+          </Suspense>
         )}
       </AppShell>
     </>

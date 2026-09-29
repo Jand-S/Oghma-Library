@@ -23,8 +23,9 @@ import {
 } from "./SettingsSections";
 import "./settings.css";
 
-export const settingsCategories = ["general", "downloads", "server", "kindle", "audio", "about"] as const;
-export type SettingsCategory = (typeof settingsCategories)[number];
+import { settingsCategories, type SettingsCategory } from "./categories";
+
+export { isSettingsCategory, settingsCategories, type SettingsCategory } from "./categories";
 
 const categoryIcons: Record<SettingsCategory, LucideIcon> = {
   general: SlidersHorizontal,
@@ -35,9 +36,6 @@ const categoryIcons: Record<SettingsCategory, LucideIcon> = {
   about: Info
 };
 
-export function isSettingsCategory(value: unknown): value is SettingsCategory {
-  return typeof value === "string" && (settingsCategories as readonly string[]).includes(value);
-}
 
 export type SettingsViewProps = {
   config: AppConfig;

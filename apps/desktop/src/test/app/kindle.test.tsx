@@ -31,7 +31,7 @@ describe("Kindle page", () => {
     await openKindle(user);
 
     expect(screen.getByRole("heading", { level: 1, name: pageTitleStrings.kindle })).toBeInTheDocument();
-    expect(screen.getByTestId("kindle-connected")).toHaveTextContent(kindlePageStrings.connected);
+    expect(await screen.findByTestId("kindle-connected")).toHaveTextContent(kindlePageStrings.connected);
 
     const send = screen.getByTestId("kindle-send");
     expect(send).toBeDisabled();

@@ -119,7 +119,7 @@ describe("Discover single selection and enqueue", () => {
     await waitFor(() => expect(screen.queryByTestId("queue-panel")).not.toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: navStrings.downloads }));
-    expect(within(screen.getByTestId("download-active")).getByText("The Enchanted Forest")).toBeInTheDocument();
+    expect(within(await screen.findByTestId("download-active")).getByText("The Enchanted Forest")).toBeInTheDocument();
   });
 
   it("shows format chips and audiobook options for the selected book", async () => {

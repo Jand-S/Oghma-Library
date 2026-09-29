@@ -65,7 +65,7 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
         setFocusedNovelId(initialNovels[0]?.id ?? "");
         setLoading(false);
         setBootDone(true);
-        splashTimer = window.setTimeout(() => setShowSplash(false), 520);
+        splashTimer = window.setTimeout(() => setShowSplash(false), 180);
       })
       .catch((error: unknown) => {
         if (!mounted) return;

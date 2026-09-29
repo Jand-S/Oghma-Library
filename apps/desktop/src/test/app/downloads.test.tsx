@@ -46,7 +46,7 @@ describe("Downloads", () => {
     await renderReadyApp();
 
     await openDownloads(user);
-    expect(screen.getByRole("heading", { name: downloadsStrings.emptyTitle })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: downloadsStrings.emptyTitle })).toBeInTheDocument();
     expect(screen.getByText(downloadsStrings.emptyDescription)).toBeInTheDocument();
     expect(screen.queryByTestId("downloads-pending")).not.toBeInTheDocument();
 
@@ -64,7 +64,7 @@ describe("Downloads", () => {
 
     await openDownloads(user);
     expect(screen.getByTestId("downloads-count")).toHaveTextContent(downloadsStrings.pendingCount(0));
-    const completed = screen.getByTestId("downloads-completed");
+    const completed = await screen.findByTestId("downloads-completed");
     expect(within(completed).getByText("Whispers of the Night")).toBeInTheDocument();
     expect(within(completed).getByText("The Labyrinth's Secret")).toBeInTheDocument();
     const rows = within(completed).getAllByTestId("download-row");

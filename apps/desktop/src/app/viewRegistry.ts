@@ -1,14 +1,11 @@
-import { createElement as h, type ComponentType, type ReactNode } from "react";
+import { createElement as h, lazy, type ComponentType, type ReactNode } from "react";
 import { BookOpenText } from "lucide-react";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
 import { DiscoverView } from "../features/discover/DiscoverView";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
 import type { DownloadsController } from "../features/downloads/useDownloadsController";
 import { downloadsHeader } from "../features/downloads/DownloadsHeader";
-import { DownloadsView } from "../features/downloads/DownloadsView";
-import { KindleView } from "../features/kindle/KindleView";
 import { libraryHeader } from "../features/library/LibraryHeader";
-import { LibraryView } from "../features/library/LibraryView";
 import type { LibraryController } from "../features/library/useLibraryController";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
@@ -17,11 +14,31 @@ import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
 import type { ContentLayout, PageHeaderProps } from "../shell";
 import { pageTitleStrings } from "../strings/common";
 import { translationHeader } from "../features/translation/TranslationHeader";
-import { TranslationView } from "../features/translation/TranslationView";
-import { isSettingsCategory, SettingsView } from "../features/settings/SettingsView";
+import { isSettingsCategory } from "../features/settings/categories";
 import { sourcesHeader } from "../features/sources/SourcesHeader";
-import { SourcesView } from "../features/sources/SourcesView";
 import { useNavigation, type AppView, type NavParams } from "./NavigationContext";
+
+// Secondary views are split into their own chunks and prefetched after boot (see preloadViews).
+const viewLoaders = {
+  downloads: () => import("../features/downloads/DownloadsView").then((m) => ({ default: m.DownloadsView })),
+  kindle: () => import("../features/kindle/KindleView").then((m) => ({ default: m.KindleView })),
+  library: () => import("../features/library/LibraryView").then((m) => ({ default: m.LibraryView })),
+  translation: () => import("../features/translation/TranslationView").then((m) => ({ default: m.TranslationView })),
+  settings: () => import("../features/settings/SettingsView").then((m) => ({ default: m.SettingsView })),
+  sources: () => import("../features/sources/SourcesView").then((m) => ({ default: m.SourcesView }))
+};
+
+const DownloadsView = lazy(viewLoaders.downloads);
+const KindleView = lazy(viewLoaders.kindle);
+const LibraryView = lazy(viewLoaders.library);
+const TranslationView = lazy(viewLoaders.translation);
+const SettingsView = lazy(viewLoaders.settings);
+const SourcesView = lazy(viewLoaders.sources);
+
+/** Warms every lazy view chunk so later navigation never waits on the network or disk. */
+export function preloadViews() {
+  return Promise.all(Object.values(viewLoaders).map((load) => load()));
+}
 
 /** Everything a view needs, assembled by App from the feature controllers. */
 export type AppControllers = {

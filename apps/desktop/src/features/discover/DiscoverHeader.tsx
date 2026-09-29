@@ -9,7 +9,7 @@ import { drawerFilterCount } from "./filterModel";
 export type SortDirection = "asc" | "desc";
 
 /** Delay between the last keystroke and the search request. */
-export const SEARCH_DEBOUNCE_MS = 250;
+export const SEARCH_DEBOUNCE_MS = 120;
 
 type SearchFieldProps = {
   filters: Filters;

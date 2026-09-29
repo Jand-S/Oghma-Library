@@ -12,7 +12,7 @@
   }
 
   .o-splash--leaving {
-    animation: splash-out var(--dur-slow) var(--ease) both;
+    animation: splash-out var(--dur-base) var(--ease) both;
     pointer-events: none;
   }
 
