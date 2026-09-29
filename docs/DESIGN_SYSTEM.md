@@ -963,7 +963,7 @@ sem o atributo, `getPlatform()` devolve `"linux"`. O CSS reage ao atributo:
 
 **macOS: semáforos nativos.** O arquivo `src-tauri/tauri.macos.conf.json` é mesclado sobre o
 `tauri.conf.json` só no build para macOS. Ele define `decorations: true`, `titleBarStyle: "Overlay"`,
-`hiddenTitle: true` e `trafficLightPosition: { x: 16, y: 20 }`. Os botões nativos ficam sobre o topo
+`hiddenTitle: true`, com os botões na posição padrão do macOS (sem `trafficLightPosition`: com posição customizada, o tao perde a posição quando a janela perde o foco e os botões somem em vez de ficar cinza). Os botões nativos ficam sobre o topo
 da sidebar, que ganha 40px de padding (`--mac-inset-top`) e uma faixa arrastável (`.o-sidebar__drag`).
 Não há titlebar customizada.
 

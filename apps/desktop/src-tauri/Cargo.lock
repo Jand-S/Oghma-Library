@@ -3166,7 +3166,6 @@ dependencies = [
  "image",
  "kindling-mobi",
  "nusb",
- "objc2-app-kit",
  "rusqlite",
  "serde",
  "serde_json",

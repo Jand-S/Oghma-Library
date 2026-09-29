@@ -141,10 +141,10 @@
 
   /*
    * macOS draws the native traffic lights over the webview (titleBarStyle
-   * Overlay). tauri.macos.conf.json places them at trafficLightPosition
-   * {x: 14, y: 31}: on macOS 26 that is three 14pt buttons, 23pt apart, spanning
-   * x 14–74 and y 21–35, i.e. centered in a 56px band (--header-h) like the page
-   * header title, and centered on the 88px collapsed rail. Keep both in sync.
+   * Overlay) at their default position, top-left (roughly x 13–75, y 6–22 on
+   * macOS 26). No custom trafficLightPosition: tao loses it when the window
+   * resigns key and the buttons vanish instead of turning grey. The 56px inset
+   * and the 88px collapsed rail keep content clear of them.
    */
   [data-platform="macos"] {
     --titlebar-h: 0px;
