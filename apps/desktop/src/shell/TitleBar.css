@@ -1,0 +1,72 @@
+@layer layout {
+  .o-titlebar {
+    position: relative;
+    z-index: var(--z-titlebar);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--titlebar-h);
+    padding-left: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-sidebar);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .o-titlebar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    height: 100%;
+    flex: 1 1 auto;
+  }
+
+  .o-titlebar__logo {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .o-window-controls {
+    display: flex;
+    align-self: stretch;
+  }
+
+  .o-window-controls__button {
+    display: grid;
+    place-items: center;
+    width: calc(var(--titlebar-h) + var(--space-1-5));
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-2);
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+
+  .o-window-controls__button svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    stroke-width: 1.5;
+  }
+
+  .o-window-controls__button:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  .o-window-controls__button:active {
+    background: var(--active);
+  }
+
+  .o-window-controls__button--close:hover,
+  .o-window-controls__button--close:active {
+    background: var(--danger);
+    color: var(--accent-fg);
+  }
+
+  .o-window-controls__restore {
+    scale: -1 1;
+  }
+}

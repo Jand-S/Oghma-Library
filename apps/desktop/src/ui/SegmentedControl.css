@@ -1,0 +1,51 @@
+@layer components {
+  .o-segmented {
+    display: inline-flex;
+    gap: calc(var(--space-0-5) / 2);
+    padding: calc(var(--space-0-5) / 2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-sidebar);
+  }
+
+  .o-segmented__option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-0-5);
+    min-height: calc(var(--control-md) - var(--space-1));
+    padding: 0 var(--space-1-5);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-medium);
+    transition: all var(--dur-base) var(--ease);
+  }
+
+  .o-segmented--sm .o-segmented__option {
+    min-height: calc(var(--control-sm) - var(--space-1));
+    padding: 0 var(--space-1);
+    font-size: var(--fs-xs);
+  }
+
+  .o-segmented__option:hover:not(:disabled) {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  .o-segmented__option.is-selected {
+    background: var(--active);
+    color: var(--text);
+  }
+
+  .o-segmented__icon {
+    display: inline-flex;
+  }
+
+  .o-segmented__icon svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+}

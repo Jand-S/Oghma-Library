@@ -1,0 +1,88 @@
+@layer layout {
+  .o-bottom-panel {
+    position: relative;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    height: var(--bottom-panel-h);
+    padding: 0 var(--space-2);
+    border-top: 1px solid var(--border);
+    background: var(--bg-app);
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+  }
+
+  .o-bottom-panel__downloads {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    max-width: 70%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    transition: border-color var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
+  }
+
+  .o-bottom-panel__downloads:hover {
+    color: var(--text);
+    border-bottom-color: var(--text-2);
+  }
+
+  .o-bottom-panel__icon {
+    width: var(--fs-md);
+    height: var(--fs-md);
+    color: var(--text-muted);
+  }
+
+  .o-bottom-panel__icon.is-active {
+    color: var(--accent-hover);
+  }
+
+  .o-bottom-panel__status {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .o-bottom-panel__progress {
+    flex: 0 0 calc(var(--space-8) + var(--space-2));
+  }
+
+  .o-bottom-panel__queued {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+  }
+
+  .o-bottom-panel__right {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .o-bottom-panel__kindle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    color: var(--text-muted);
+  }
+
+  .o-bottom-panel__dot {
+    width: calc(var(--space-1) - var(--ring-width));
+    height: calc(var(--space-1) - var(--ring-width));
+    border-radius: 50%;
+    background: var(--text-disabled);
+  }
+
+  .o-bottom-panel__dot.is-online {
+    background: var(--success);
+    box-shadow: 0 0 0 var(--ring-width) rgb(var(--success-rgb) / 0.25);
+  }
+}

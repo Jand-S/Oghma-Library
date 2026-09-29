@@ -1,0 +1,73 @@
+@layer components {
+  .o-sortable {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .o-sortable__item {
+    position: relative;
+    border-radius: var(--radius-md);
+    outline: none;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .o-sortable__item:focus-visible {
+    box-shadow: var(--focus-ring);
+  }
+
+  .o-sortable__item.is-dragged {
+    opacity: 0.45;
+  }
+
+  .o-sortable__item--drop-before::before,
+  .o-sortable__item--drop-after::after {
+    content: "";
+    position: absolute;
+    right: var(--space-0-5);
+    left: var(--space-0-5);
+    height: var(--ring-width);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    box-shadow: 0 0 var(--space-1) rgb(var(--accent-rgb) / 0.6);
+    pointer-events: none;
+  }
+
+  .o-sortable__item--drop-before::before {
+    top: calc(var(--space-0-5) * -1 - var(--hairline));
+  }
+
+  .o-sortable__item--drop-after::after {
+    bottom: calc(var(--space-0-5) * -1 - var(--hairline));
+  }
+
+  .o-sortable__handle {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: var(--icon-lg);
+    height: var(--control-sm);
+    border-radius: var(--radius-xs);
+    color: var(--text-muted);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .o-sortable__handle:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  .o-sortable.is-dragging,
+  .o-sortable.is-dragging .o-sortable__handle {
+    cursor: grabbing;
+  }
+
+  .o-sortable__handle svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+}

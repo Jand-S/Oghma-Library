@@ -1,0 +1,39 @@
+@layer components {
+  .o-progress {
+    --progress-h: calc(var(--space-0-5) + var(--space-0-5) / 2);
+    --progress-fill: var(--accent);
+    position: relative;
+    width: 100%;
+    height: var(--progress-h);
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--glass-strong);
+  }
+
+  .o-progress--sm {
+    --progress-h: var(--space-0-5);
+  }
+
+  .o-progress--success {
+    --progress-fill: var(--success);
+  }
+
+  .o-progress--danger {
+    --progress-fill: var(--danger);
+  }
+
+  .o-progress__bar {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--progress-fill);
+    transform-origin: left center;
+    transition: transform var(--dur-slow) var(--ease);
+  }
+
+  .o-progress--indeterminate .o-progress__bar {
+    background: linear-gradient(90deg, transparent, var(--progress-fill), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+}

@@ -1,100 +1,233 @@
-* {
-  box-sizing: border-box;
-}
+/* Base element styles, scrollbars, focus, keyframes and motion preferences. */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
 
-body {
-  margin: 0;
-  min-width: 1120px;
-  min-height: 100vh;
-  overflow: hidden;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.45;
-  letter-spacing: 0;
-}
+  body {
+    min-width: var(--app-min-w);
+    overflow: hidden;
+    background: var(--bg-app);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: var(--fs-md);
+    line-height: var(--lh-base);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+  }
 
-button,
-input,
-select {
-  font: inherit;
-}
+  /* Text the user types or edits must stay selectable and copyable. */
+  input,
+  textarea,
+  [contenteditable]:not([contenteditable="false"]),
+  .is-selectable {
+    user-select: text;
+    -webkit-user-select: text;
+  }
 
-button {
-  cursor: pointer;
-}
+  h1 {
+    font-size: var(--fs-2xl);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+  }
 
-button:disabled {
-  cursor: default;
-  opacity: 0.48;
-}
+  h2 {
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+  }
 
-h1,
-h2,
-h3,
-p {
-  margin: 0;
-}
+  h3 {
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+  }
 
-h2 {
-  font-size: 16px;
-  font-weight: 700;
-}
+  small {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
 
-h3 {
-  font-size: 13px;
-  font-weight: 700;
-}
+  code,
+  kbd,
+  pre {
+    font-family: var(--font-mono);
+  }
 
-small {
-  color: var(--text-dim);
-  font-size: 12px;
-}
+  a {
+    color: var(--accent-hover);
+  }
 
-input,
-select {
-  width: 100%;
-  min-height: 36px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  background: #15191e;
-  color: var(--text);
-  outline: none;
-  padding: 0 10px;
-}
+  button:disabled {
+    cursor: default;
+    opacity: 0.48;
+  }
 
-input:hover,
-select:hover {
-  border-color: var(--panel-4);
-}
+  /* Plain form controls (legacy views); primitives in src/ui override these. */
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea {
+    width: 100%;
+    min-height: calc(var(--control-sm) + var(--space-0-5));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text);
+    outline: none;
+    padding: 0 calc(var(--space-1) + var(--space-0-5) / 2);
+    transition: border-color var(--dur-fast) var(--ease);
+  }
 
-input:focus,
-select:focus {
-  border-color: var(--focus);
-}
+  textarea {
+    padding-block: var(--space-1);
+  }
 
-/* ===== Recuperado: selection-card, format-chips, download-row, scrollbar, drag-handle ===== */
-*::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
+  input:not([type="checkbox"], [type="radio"], [type="range"]):hover,
+  select:hover,
+  textarea:hover {
+    border-color: var(--border-strong);
+  }
 
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
+  input:not([type="checkbox"], [type="radio"], [type="range"]):focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--accent);
+  }
 
-*::-webkit-scrollbar-thumb {
-  border-radius: 99px;
-  background-color: var(--panel-4);
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
+  ::placeholder {
+    color: var(--text-disabled);
+  }
 
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent);
-}
+  ::selection {
+    background: rgb(var(--accent-rgb) / 0.45);
+    color: var(--text);
+  }
 
-*::-webkit-scrollbar-corner {
-  background: transparent;
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  /* Hydra-style thin scrollbar. */
+  * {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: var(--scrollbar);
+    height: var(--scrollbar);
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: var(--ring-width) solid transparent;
+    border-radius: var(--radius-pill);
+    background-color: var(--border-strong);
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent);
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scale-fade-in {
+    from {
+      opacity: 0;
+      scale: 0.96;
+    }
+
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      translate: 0 100%;
+    }
+
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes spin {
+    to {
+      rotate: 360deg;
+    }
+  }
+
+  @keyframes splash-in {
+    from {
+      opacity: 0;
+      scale: 0.98;
+    }
+
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  @keyframes splash-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+
+  @keyframes countdown {
+    from {
+      transform: scaleX(1);
+    }
+
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0ms;
+      animation-iteration-count: 1;
+      transition-duration: 0ms;
+      scroll-behavior: auto;
+    }
+  }
 }

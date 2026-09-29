@@ -1,0 +1,21 @@
+/*
+ * Old token names still used by the legacy view styles, mapped onto the new
+ * semantic tokens. Delete once src/styles/legacy is gone (phase P2).
+ */
+@layer legacy {
+  :root {
+    --bg: var(--bg-app);
+    --panel: var(--surface-1);
+    --panel-2: var(--surface-2);
+    --panel-3: var(--surface-3);
+    --panel-4: var(--border-strong);
+    --border-soft: var(--border);
+    --text-dim: var(--text-muted);
+    --accent-soft: rgb(var(--accent-rgb) / 0.12);
+    --accent-muted: rgb(var(--accent-rgb) / 0.28);
+    --focus: var(--info);
+    --radius: var(--radius-md);
+    --shadow: var(--shadow-lg);
+    --font: var(--font-sans);
+  }
+}

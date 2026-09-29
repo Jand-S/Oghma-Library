@@ -1,0 +1,117 @@
+@layer components {
+  .o-button {
+    --button-h: var(--control-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-height: var(--button-h);
+    padding: 0 var(--space-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-tight);
+    white-space: nowrap;
+    transition: all var(--dur-base) var(--ease);
+  }
+
+  .o-button:active:not(:disabled) {
+    opacity: 0.7;
+  }
+
+  .o-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .o-button.is-loading {
+    cursor: progress;
+  }
+
+  .o-button__icon {
+    display: inline-flex;
+  }
+
+  .o-button__icon svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .o-button__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .o-button--sm {
+    --button-h: var(--control-sm);
+    padding: 0 var(--space-1-5);
+    font-size: var(--fs-sm);
+  }
+
+  .o-button--lg {
+    --button-h: var(--control-lg);
+    padding: 0 var(--space-3);
+    font-size: var(--fs-lg);
+  }
+
+  .o-button--block {
+    display: flex;
+    width: 100%;
+  }
+
+  .o-button--primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .o-button--primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .o-button--primary:active:not(:disabled) {
+    background: var(--accent-press);
+    opacity: 1;
+  }
+
+  .o-button--outline {
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  .o-button--outline:hover:not(:disabled) {
+    background: var(--glass-strong);
+  }
+
+  .o-button--ghost {
+    color: var(--text-2);
+  }
+
+  .o-button--ghost:hover:not(:disabled) {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  .o-button--danger {
+    background: var(--danger);
+    color: var(--accent-fg);
+  }
+
+  .o-button--danger:hover:not(:disabled) {
+    background: rgb(var(--danger-rgb) / 0.85);
+  }
+
+  .o-button--glass {
+    border-color: var(--border);
+    background: var(--glass);
+    color: var(--text);
+    backdrop-filter: blur(var(--glass-blur));
+  }
+
+  .o-button--glass:hover:not(:disabled) {
+    background: var(--glass-strong);
+  }
+}
