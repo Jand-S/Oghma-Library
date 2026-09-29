@@ -1076,3 +1076,12 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 - `data-testid`: `library-card`, …
 - Decisões: …
 ```
+
+### Downloads (`src/features/downloads/`)
+
+- Prefixo CSS: `.downloads-*`; arquivo `downloads.css` em `@layer features`. Conteúdo: `o-app__content--scroll downloads-content`.
+- Controller: `useDownloadsController` (também alimenta o BottomPanel: `active`, `queuedCount`).
+- Estrutura: `DownloadsView` → barra de resumo (`DownloadsToolbar`: contagem de pendentes, "Pausar fila"/"Retomar fila", "Limpar concluídos") → "Em andamento" (`ActiveDownloadCard`: capa desfocada ao fundo, % grande animada, barra de 8px, chips de velocidade/tempo/bytes/capítulos) → "Na fila" (`QueueList` sobre `SortableList`, com menu ⋮) → "Concluídos" (`CompletedList`, falhas agrupadas primeiro).
+- Pausado: o job que roda em seguida fica no card principal (`download-paused`) com "Retomar"; ele sai da lista "Na fila".
+- `data-testid`: `downloads-pending`, `downloads-completed`, `downloads-count`, `download-active`, `download-paused`, `download-queued`, `download-row`, `download-progress`, `queue-item`.
+- Rótulos de intervalo "Todos os N capítulos" são reconstruídos na tela (`describeRange`), então jobs antigos sem acento aparecem corretos.
