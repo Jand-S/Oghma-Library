@@ -1,5 +1,6 @@
 import { createElement as h, type ComponentType } from "react";
 import { BookOpenText } from "lucide-react";
+import { DiscoverView } from "../features/discover/DiscoverView";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
 import type { DownloadsController } from "../features/downloads/useDownloadsController";
 import { DownloadsView } from "../features/downloads/DownloadsView";
@@ -11,7 +12,6 @@ import type { SourcesController } from "../features/sources/useSourcesController
 import type { TranslationController } from "../features/translation/useTranslationController";
 import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
 import { pageTitleStrings } from "../strings/common";
-import { DiscoverView } from "../views/discover";
 import { SettingsView } from "../views/settings";
 import { SourcesView } from "../views/sources";
 import { TranslationView } from "../features/translation/TranslationView";
@@ -52,6 +52,7 @@ function DiscoverPage({ app }: ViewProps) {
     selectedNovel: discover.selectedNovel ?? undefined,
     selection: discover.selection,
     loading: app.loading || discover.searching || discover.filters.sourceId === "all",
+    searchError: discover.searchError,
     detailNovel: discover.detailNovel,
     detailFromPreview: Boolean(discover.previewNovel),
     filterCollapsed: discover.filtersCollapsed,
@@ -61,10 +62,14 @@ function DiscoverPage({ app }: ViewProps) {
     onFiltersChange: discover.setFilters,
     onToggleFilters: discover.toggleFilters,
     onSelectNovel: discover.selectNovel,
+    onClearSelection: discover.clearSelection,
     onPreviewNovel: discover.openPreviewNovel,
     onClearPreview: discover.clearPreviewNovel,
     onSelectionChange: discover.updateSelection,
-    onAddSelected: discover.addSelectedToQueue
+    onAddSelected: discover.addSelectedToQueue,
+    onRetrySearch: discover.retrySearch,
+    onOpenSources: () => app.navigate("sources"),
+    onOpenSettings: () => app.navigate("settings")
   });
 }
 
@@ -124,7 +129,7 @@ export const viewRegistry: Record<AppView, ViewDefinition> = {
     title: pageTitleStrings.discover,
     icon: iconFor("discover"),
     component: DiscoverPage,
-    contentClassName: (app) => app.discover.workspaceClassName
+    contentClassName: () => "discover-host"
   },
   downloads: {
     id: "downloads",

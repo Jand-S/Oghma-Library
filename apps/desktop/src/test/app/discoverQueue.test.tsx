@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { commonStrings, navStrings } from "../../strings/common";
+import { navStrings } from "../../strings/common";
 import { discoverStrings } from "../../strings/discover";
 import { downloadsStrings } from "../../strings/downloads";
 import {
@@ -71,7 +71,7 @@ describe("Discover single selection and enqueue", () => {
     expect(queue.getSnapshot().queued.map((job) => job.title)).toEqual(["Journey to the Unknown"]);
   });
 
-  it("warns when the book is already in the queue", async () => {
+  it("shows a disabled 'Na fila' button when the book is already queued", async () => {
     const user = setupUser();
     const { queue } = await renderReadyApp();
 
@@ -82,12 +82,10 @@ describe("Discover single selection and enqueue", () => {
     await user.click(screen.getByRole("button", { name: discoverStrings.selectForQueue("The Enchanted Forest") }));
     const panel = screen.getByTestId("queue-panel");
     expect(within(panel).getByTestId("selection-hint")).toHaveTextContent(discoverStrings.alreadyQueuedHint);
-    await user.click(within(panel).getByRole("button", { name: discoverStrings.addToQueue }));
-
-    await waitFor(() => expect(within(getToastRegion()).getByText(downloadsStrings.duplicate)).toBeInTheDocument());
+    const button = within(panel).getByTestId("add-to-queue");
+    expect(button).toHaveTextContent(discoverStrings.queued);
+    expect(button).toBeDisabled();
     expect(queue.getSnapshot().queued).toHaveLength(0);
-    // The selection stays so the user can change it.
-    expect(screen.getByTestId("queue-panel")).toBeInTheDocument();
   });
 
   it("warns when the queue is full", async () => {
@@ -130,11 +128,14 @@ describe("Discover single selection and enqueue", () => {
 
     const panel = await queueFirstBook(user);
 
-    expect(within(panel).getByText(commonStrings.formats)).toBeInTheDocument();
+    expect(within(panel).getByText(discoverStrings.formats)).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "EPUB" })).toBeInTheDocument();
     // Translation is not offered per download.
     expect(within(panel).queryByRole("button", { name: /Traduzir/i })).not.toBeInTheDocument();
-    expect(within(panel).getByRole("button", { name: new RegExp(commonStrings.audiobook) })).toBeInTheDocument();
+    const audiobook = within(panel).getByRole("switch", { name: discoverStrings.audiobook });
+    expect(audiobook).toHaveAttribute("aria-checked", "false");
+    await user.click(audiobook);
+    expect(audiobook).toHaveAttribute("aria-checked", "true");
   });
 
   it("supports selecting multiple download formats", async () => {
@@ -154,13 +155,20 @@ describe("Discover single selection and enqueue", () => {
     expect(epub).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("defaults the chapter preset to Todos", async () => {
+  it("defaults the chapter preset to Todos and offers a chapter range", async () => {
     const user = setupUser();
     await renderReadyApp();
 
     const panel = await queueFirstBook(user);
-    const all = within(panel).getByRole("button", { name: discoverStrings.presetAll });
-    expect(all).toHaveAttribute("aria-pressed", "true");
-    expect(within(panel).getByRole("button", { name: discoverStrings.presetRange })).toHaveAttribute("aria-pressed", "false");
+    const all = within(panel).getByRole("radio", { name: discoverStrings.presetAll });
+    const range = within(panel).getByRole("radio", { name: discoverStrings.presetRange });
+    expect(all).toHaveAttribute("aria-checked", "true");
+    expect(range).toHaveAttribute("aria-checked", "false");
+    expect(within(panel).queryByLabelText(discoverStrings.rangeStart)).not.toBeInTheDocument();
+
+    await user.click(range);
+    expect(range).toHaveAttribute("aria-checked", "true");
+    expect(within(panel).getByLabelText(discoverStrings.rangeStart)).toHaveValue(1);
+    expect(within(panel).getByLabelText(discoverStrings.rangeEnd)).toHaveValue(142);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { AppView } from "../../app/NavigationContext";
 import { useNovelSearch } from "../../app/useNovelSearch";
 import { defaultFilters, defaultSelection } from "../../core/defaults";
@@ -25,9 +25,28 @@ type DiscoverControllerArgs = {
   notify: (message: string) => void;
 };
 
+const FILTERS_COLLAPSED_KEY = "oghma.discover.filtersCollapsed";
+
+/** The filter drawer starts closed so the grid gets the room; the user's choice is remembered. */
+function readFiltersCollapsed() {
+  try {
+    return window.localStorage.getItem(FILTERS_COLLAPSED_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function writeFiltersCollapsed(collapsed: boolean) {
+  try {
+    window.localStorage.setItem(FILTERS_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    // Storage can be unavailable; the drawer just does not remember its state.
+  }
+}
+
 /**
  * State and handlers of the Discover view: search, filters and ONE selected book at a
- * time. The configurator applies to the selected book and "Adicionar à fila" enqueues it.
+ * time. The configurator applies to the selected book and "Baixar" enqueues it.
  */
 export function useDiscoverController({
   backend,
@@ -45,7 +64,7 @@ export function useDiscoverController({
   enqueueDownload,
   notify
 }: DiscoverControllerArgs) {
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(readFiltersCollapsed);
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
   const [tagCatalog, setTagCatalog] = useState<TagCatalogItem[]>([]);
   const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
@@ -53,8 +72,26 @@ export function useDiscoverController({
   const [selections, setSelections] = useState<Record<string, ChapterSelection>>({});
   const [adding, setAdding] = useState(false);
 
+  // Remember whether the last search failed, so the view can show an "offline" state
+  // instead of a misleading "no results".
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchBackend = useMemo<BackendClient>(() => ({
+    ...backend,
+    searchNovels: (next: Filters) =>
+      backend.searchNovels(next).then(
+        (items) => {
+          setSearchError(null);
+          return items;
+        },
+        (error: unknown) => {
+          setSearchError(getErrorMessage(error, "Não foi possível atualizar os resultados da busca."));
+          throw error;
+        }
+      )
+  }), [backend]);
+
   const searching = useNovelSearch({
-    backend,
+    backend: searchBackend,
     filters,
     focusedNovelId,
     loading,
@@ -157,16 +194,27 @@ export function useDiscoverController({
   const updateSelection = (next: ChapterSelection) =>
     setSelections((current) => ({ ...current, [next.novelId]: next }));
 
-  const workspaceClassName = `workspace discover ${!filtersCollapsed ? "filters-open" : ""} ${selectedNovel || previewNovel ? "selection-open" : ""}`;
+  const toggleFilters = useCallback(() => {
+    setFiltersCollapsed((value) => {
+      writeFiltersCollapsed(!value);
+      return !value;
+    });
+  }, []);
+
+  /** Re-runs the current search (the search hook reacts to a new filters object). */
+  const retrySearch = useCallback(() => setFilters((current) => ({ ...current })), []);
 
   return {
     results,
     filters,
     setFilters,
     filtersCollapsed,
-    toggleFilters: () => setFiltersCollapsed((value) => !value),
+    toggleFilters,
     tagCatalog,
     searching,
+    /** Message of the last failed search, or null once a search succeeds. */
+    searchError,
+    retrySearch,
     /** The one book the configurator applies to. */
     selectedNovel,
     /** Chapter/format configuration of the selected book. */
@@ -184,8 +232,7 @@ export function useDiscoverController({
     /** The selected book already has a copy in the local library ("Baixar novamente"). */
     selectedInLibrary: Boolean(selectedNovel && libraryNovelIds.has(selectedNovel.id)),
     /** The selected book is already active or waiting in the queue. */
-    selectedQueued: Boolean(selectedNovel && isQueued(selectedNovel.id)),
-    workspaceClassName
+    selectedQueued: Boolean(selectedNovel && isQueued(selectedNovel.id))
   };
 }
 

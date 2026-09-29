@@ -1,0 +1,235 @@
+import { CloudOff, RefreshCcw, SearchX, Settings, Globe2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import type { ChapterSelection, Filters, Novel, SourceSite, TagCatalogItem } from "../../core/types";
+import { discoverStrings } from "../../strings/discover";
+import { Button, EmptyState, cx } from "../../ui";
+import { DiscoverDetailPanel } from "./DiscoverDetailPanel";
+import { ActiveFilterRow, DiscoverFilters } from "./DiscoverFilters";
+import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
+import { DiscoverToolbar, type SortDirection } from "./DiscoverToolbar";
+import { activeFilters, clearedFilters, drawerFilterCount } from "./filterModel";
+import "./discover.css";
+
+export type DiscoverViewProps = {
+  sources: SourceSite[];
+  filters: Filters;
+  tagCatalog: TagCatalogItem[];
+  results: Novel[];
+  /** The single selected book (the configurator applies to it). */
+  selectedNovel?: Novel;
+  selection: ChapterSelection | null;
+  loading: boolean;
+  /** Message of the last failed search (backend offline), if any. */
+  searchError: string | null;
+  /** Book shown in the detail panel: the preview if there is one, else the selection. */
+  detailNovel?: Novel;
+  detailFromPreview: boolean;
+  filterCollapsed: boolean;
+  adding: boolean;
+  selectedInLibrary: boolean;
+  selectedQueued: boolean;
+  onFiltersChange: (filters: Filters) => void;
+  onToggleFilters: () => void;
+  /** Selects the book, or clears the selection when it is already selected. */
+  onSelectNovel: (novel: Novel) => void;
+  onClearSelection: () => void;
+  onPreviewNovel: (novel: Novel) => void;
+  onClearPreview: () => void;
+  onSelectionChange: (selection: ChapterSelection) => void;
+  onAddSelected: () => void;
+  onRetrySearch: () => void;
+  onOpenSources: () => void;
+  onOpenSettings: () => void;
+};
+
+/** Controls a background click must never dismiss the preview from. */
+const INTERACTIVE = "[data-discover-card], button, a, input, select, textarea, label, [role='radiogroup']";
+/** Clicking text (headings, captions) is not a "background" click either. */
+const TEXT_TAGS = new Set(["H1", "H2", "H3", "P", "SPAN", "STRONG", "SMALL", "SVG", "PATH", "IMG"]);
+
+export function DiscoverView({
+  sources,
+  filters,
+  tagCatalog,
+  results,
+  selectedNovel,
+  selection,
+  loading,
+  searchError,
+  detailNovel,
+  detailFromPreview,
+  filterCollapsed,
+  adding,
+  selectedInLibrary,
+  selectedQueued,
+  onFiltersChange,
+  onToggleFilters,
+  onSelectNovel,
+  onClearSelection,
+  onPreviewNovel,
+  onClearPreview,
+  onSelectionChange,
+  onAddSelected,
+  onRetrySearch,
+  onOpenSources,
+  onOpenSettings
+}: DiscoverViewProps) {
+  const [visibleCount, setVisibleCount] = useState(DISCOVER_PAGE_SIZE);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setVisibleCount(DISCOVER_PAGE_SIZE), [results, sortDirection]);
+
+  const sortedResults = useMemo(() => {
+    const sorted = [...results].sort((a, b) => a.title.localeCompare(b.title, "pt-BR", { numeric: true, sensitivity: "base" }));
+    return sortDirection === "asc" ? sorted : sorted.reverse();
+  }, [results, sortDirection]);
+  const visibleResults = sortedResults.slice(0, visibleCount);
+  const showMore = useCallback(
+    () => setVisibleCount((count) => Math.min(count + DISCOVER_PAGE_SIZE, results.length)),
+    [results.length]
+  );
+
+  const enabledSources = sources.filter((source) => source.enabled);
+  const currentSource = enabledSources.find((source) => source.id === filters.sourceId);
+  const clearable = activeFilters(filters, tagCatalog).length > 0;
+  const clearFilters = () => onFiltersChange(clearedFilters(filters));
+  const filtersOpen = !filterCollapsed;
+
+  // Esc closes the preview first, then the selected book's panel. Modals handle their own Esc.
+  const hasDetail = Boolean(detailNovel);
+  useEffect(() => {
+    if (!hasDetail) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector("[aria-modal='true']")) return;
+      event.preventDefault();
+      if (detailFromPreview) onClearPreview();
+      else onClearSelection();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [detailFromPreview, hasDetail, onClearPreview, onClearSelection]);
+
+  /** A click on empty space around the results dismisses a temporary preview. */
+  const onBackgroundClick = (event: MouseEvent<HTMLElement>) => {
+    if (!detailFromPreview) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest(INTERACTIVE) || TEXT_TAGS.has(target.tagName.toUpperCase())) return;
+    onClearPreview();
+  };
+
+  const closeDetail = () => (detailFromPreview ? onClearPreview() : onClearSelection());
+
+  let content;
+  if (enabledSources.length === 0 && !loading) {
+    content = (
+      <EmptyState
+        icon={<Globe2 />}
+        title={discoverStrings.noSourcesTitle}
+        description={discoverStrings.noSourcesDescription}
+        action={<Button variant="primary" onClick={onOpenSources}>{discoverStrings.openSources}</Button>}
+      />
+    );
+  } else if (loading) {
+    content = <DiscoverGridSkeleton />;
+  } else if (searchError) {
+    content = (
+      <EmptyState
+        tone="danger"
+        icon={<CloudOff />}
+        title={discoverStrings.offlineTitle}
+        description={discoverStrings.offlineDescription}
+        action={(
+          <>
+            <Button variant="primary" icon={<RefreshCcw />} onClick={onRetrySearch}>{discoverStrings.retry}</Button>
+            <Button variant="outline" icon={<Settings />} onClick={onOpenSettings}>{discoverStrings.openSettings}</Button>
+          </>
+        )}
+      />
+    );
+  } else if (results.length === 0 && !clearable && currentSource && currentSource.count === 0) {
+    content = (
+      <EmptyState
+        icon={<RefreshCcw />}
+        title={discoverStrings.notSyncedTitle}
+        description={discoverStrings.notSyncedDescription(currentSource.name)}
+        action={<Button variant="primary" onClick={onOpenSources}>{discoverStrings.openSources}</Button>}
+      />
+    );
+  } else if (results.length === 0) {
+    content = (
+      <EmptyState
+        icon={<SearchX />}
+        title={discoverStrings.noResultsTitle}
+        description={discoverStrings.noResultsDescription}
+        action={clearable ? <Button variant="primary" onClick={clearFilters}>{discoverStrings.clearFilters}</Button> : undefined}
+      />
+    );
+  } else {
+    content = (
+      <DiscoverGrid
+        novels={visibleResults}
+        total={results.length}
+        visibleCount={Math.min(visibleCount, results.length)}
+        selectedId={selectedNovel?.id}
+        detailId={detailNovel?.id}
+        scrollRoot={scrollRef}
+        onShowMore={showMore}
+        onSelect={onSelectNovel}
+        onPreview={onPreviewNovel}
+      />
+    );
+  }
+
+  return (
+    <div className={cx("discover", detailNovel && "discover--with-detail")}>
+      <div className="discover__main" onClick={onBackgroundClick}>
+        <DiscoverToolbar
+          filters={filters}
+          sources={sources}
+          total={results.length}
+          loading={loading}
+          sortDirection={sortDirection}
+          filtersOpen={filtersOpen}
+          filterCount={drawerFilterCount(filters)}
+          onFiltersChange={onFiltersChange}
+          onSortChange={setSortDirection}
+          onToggleFilters={onToggleFilters}
+        />
+        <div className="discover__scroll" data-testid="content-area" ref={scrollRef}>
+          {filtersOpen ? (
+            <DiscoverFilters
+              filters={filters}
+              tagCatalog={tagCatalog}
+              clearable={clearable}
+              onChange={onFiltersChange}
+              onClear={clearFilters}
+            />
+          ) : null}
+          <ActiveFilterRow filters={filters} tagCatalog={tagCatalog} onChange={onFiltersChange} onClear={clearFilters} />
+          <section className="discover__results" aria-labelledby="discover-results-heading">
+            <h2 className="sr-only" id="discover-results-heading">{discoverStrings.results}</h2>
+            {content}
+          </section>
+        </div>
+      </div>
+      {detailNovel ? (
+        <DiscoverDetailPanel
+          novel={detailNovel}
+          isSelected={selectedNovel?.id === detailNovel.id}
+          preview={detailFromPreview}
+          selection={selection}
+          adding={adding}
+          inLibrary={selectedInLibrary}
+          queued={selectedQueued}
+          onClose={closeDetail}
+          onSelect={onSelectNovel}
+          onSelectionChange={onSelectionChange}
+          onAdd={onAddSelected}
+        />
+      ) : null}
+    </div>
+  );
+}

@@ -1,6 +1,5 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { commonStrings } from "../../strings/common";
 import { discoverStrings } from "../../strings/discover";
 import {
   findBookCardTitle,
@@ -15,45 +14,71 @@ import {
   renderReadyApp,
   resetAppState,
   setupUser,
-  tabName
+  type TestUser
 } from "../renderApp";
-
-const queueTab = tabName(commonStrings.queueTab);
-const detailsTab = tabName(commonStrings.detailsTab);
 
 async function openPreview(title = "The Enchanted Forest") {
   fireEvent.contextMenu(await findBookCardTitle(title));
+  await waitFor(() => expect(within(getDetailPanel()).getByText(title, { selector: "h2" })).toBeInTheDocument());
 }
 
-async function expectPreviewClosed() {
+async function expectPanelClosed() {
   await waitFor(() => {
-    expect(screen.queryByRole("tab", { name: detailsTab })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("discover-sidebar")).not.toBeInTheDocument();
   });
+}
+
+async function openFilters(user: TestUser) {
+  await user.click(screen.getByRole("button", { name: new RegExp(`^${discoverStrings.filtersToggle}`) }));
 }
 
 describe("Discover details and preview", () => {
   beforeEach(resetAppState);
 
-  it("clicking the card selects the novel and opens the details tab", async () => {
+  it("clicking the card selects it and shows details and the download actions in one panel", async () => {
     const user = setupUser();
     await renderReadyApp();
 
     const panel = await inspectBook(user);
-    expect(within(panel).getByText(commonStrings.synopsis)).toBeInTheDocument();
-    expect(screen.queryByTestId("queue-panel")).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: queueTab })).toBeInTheDocument();
+    expect(within(panel).getByText(discoverStrings.synopsis)).toBeInTheDocument();
+    expect(within(panel).getByTestId("detail-cover")).toBeInTheDocument();
+    // No more Fila/Detalhes tabs: the configurator lives in the same panel.
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    const actions = getQueuePanel();
+    expect(within(screen.getByTestId("discover-sidebar")).getByTestId("queue-panel")).toBe(actions);
+    expect(within(actions).getByTestId("add-to-queue")).toHaveTextContent(discoverStrings.addToQueue);
+    expect(within(actions).getByText(discoverStrings.oneAtATime)).toBeInTheDocument();
   });
 
-  it("right-click opens details without adding the novel to the queue", async () => {
+  it("marks the selected card", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    await inspectBook(user, "The Enchanted Forest");
+    expect(screen.getByRole("button", { name: discoverStrings.removeFromQueue("The Enchanted Forest") })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Desmarcar / })).toHaveLength(1);
+  });
+
+  it("right-click opens details without the download configurator", async () => {
     await renderReadyApp();
 
     await openPreview();
 
-    await waitFor(() => {
-      expect(within(getDetailPanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
-    });
+    expect(within(getDetailPanel()).getByText(discoverStrings.previewBadge)).toBeInTheDocument();
     expect(screen.queryByTestId("queue-panel")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: discoverStrings.addToQueue })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: discoverStrings.selectFromPreview })).toBeInTheDocument();
+  });
+
+  it("'Selecionar para baixar' turns the preview into the selection", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    await openPreview("Journey to the Unknown");
+    await user.click(screen.getByRole("button", { name: discoverStrings.selectFromPreview }));
+
+    await waitFor(() => expect(within(getQueuePanel()).getByText("Journey to the Unknown")).toBeInTheDocument());
+    expect(screen.queryByText(discoverStrings.previewBadge)).not.toBeInTheDocument();
   });
 
   it("right-clicking another card replaces the previewed details", async () => {
@@ -62,26 +87,10 @@ describe("Discover details and preview", () => {
     await openPreview("The Enchanted Forest");
     await openPreview("Journey to the Unknown");
 
-    await waitFor(() => {
-      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
-    });
+    expect(within(getDetailPanel()).queryByText("The Enchanted Forest")).not.toBeInTheDocument();
   });
 
-  it("keeps the queued selection when switching from details back to queue", async () => {
-    const user = setupUser();
-    await renderReadyApp();
-
-    const detailPanel = await inspectBook(user);
-    expect(within(detailPanel).getByText("The Enchanted Forest")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: queueTab }));
-
-    await waitFor(() => {
-      expect(within(getQueuePanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
-    });
-  });
-
-  it("shows the last selected novel in the details tab", async () => {
+  it("shows the last selected novel in the details panel", async () => {
     const user = setupUser();
     await renderReadyApp();
 
@@ -89,8 +98,9 @@ describe("Discover details and preview", () => {
     await user.click(await findBookCardTitle("Journey to the Unknown"));
 
     await waitFor(() => {
-      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
+      expect(within(getDetailPanel()).getByText("Journey to the Unknown", { selector: "h2" })).toBeInTheDocument();
     });
+    expect(within(getQueuePanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
   });
 
   it("pressing escape closes preview details when nothing is selected", async () => {
@@ -99,24 +109,36 @@ describe("Discover details and preview", () => {
     await openPreview();
     fireEvent.keyDown(getContentArea(), { key: "Escape" });
 
-    await expectPreviewClosed();
+    await expectPanelClosed();
   });
 
-  it("pressing escape closes preview details and restores queue-backed details", async () => {
+  it("pressing escape closes preview details and restores the selected book", async () => {
     const user = setupUser();
     await renderReadyApp();
 
     await inspectBook(user, "The Enchanted Forest");
     await openPreview("Journey to the Unknown");
-    await waitFor(() => {
-      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
-    });
 
     fireEvent.keyDown(getContentArea(), { key: "Escape" });
 
     await waitFor(() => {
-      expect(within(getDetailPanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
+      expect(within(getDetailPanel()).getByText("The Enchanted Forest", { selector: "h2" })).toBeInTheDocument();
     });
+    expect(getQueuePanel()).toBeInTheDocument();
+
+    // A second Esc closes the selected book's panel too.
+    fireEvent.keyDown(getContentArea(), { key: "Escape" });
+    await expectPanelClosed();
+  });
+
+  it("the close button closes the panel", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    await inspectBook(user);
+    await user.click(screen.getByRole("button", { name: discoverStrings.closeDetails }));
+
+    await expectPanelClosed();
   });
 
   it("deselects the novel when clicking the selected card again", async () => {
@@ -125,15 +147,11 @@ describe("Discover details and preview", () => {
 
     const title = await findBookCardTitle("The Enchanted Forest");
     await user.click(title);
-    await waitFor(() => {
-      expect(screen.getByRole("tab", { name: queueTab })).toBeInTheDocument();
-    });
+    await waitFor(() => expect(getQueuePanel()).toBeInTheDocument());
 
     await user.click(title);
 
-    await waitFor(() => {
-      expect(screen.queryByRole("tab", { name: queueTab })).not.toBeInTheDocument();
-    });
+    await expectPanelClosed();
   });
 
   it("clicking the results background closes preview details", async () => {
@@ -142,7 +160,7 @@ describe("Discover details and preview", () => {
     await openPreview();
     fireEvent.click(getContentArea(), { target: getContentArea() });
 
-    await expectPreviewClosed();
+    await expectPanelClosed();
   });
 
   it("clicking the toolbar background closes preview details", async () => {
@@ -151,34 +169,41 @@ describe("Discover details and preview", () => {
     await openPreview();
     fireEvent.click(getToolbar(), { target: getToolbar() });
 
-    await expectPreviewClosed();
+    await expectPanelClosed();
   });
 
   it("clicking the active-filter-row background closes preview details", async () => {
+    const user = setupUser();
     await renderReadyApp();
+    await openFilters(user);
+    await user.selectOptions(screen.getByLabelText(discoverStrings.status), "ongoing");
 
     await openPreview();
     fireEvent.click(getActiveFilterRow(), { target: getActiveFilterRow() });
 
-    await expectPreviewClosed();
+    await expectPanelClosed();
   });
 
   it("clicking the filter-panel background closes preview details", async () => {
+    const user = setupUser();
     await renderReadyApp();
+    await openFilters(user);
 
     await openPreview();
     fireEvent.click(getFilterPanel(), { target: getFilterPanel() });
 
-    await expectPreviewClosed();
+    await expectPanelClosed();
   });
 
   it("clicking a filter section background closes preview details", async () => {
+    const user = setupUser();
     await renderReadyApp();
+    await openFilters(user);
 
     await openPreview();
     fireEvent.click(getFirstFilterField(), { target: getFirstFilterField() });
 
-    await expectPreviewClosed();
+    await expectPanelClosed();
   });
 
   it("clicking controls while preview is open does not close it", async () => {
@@ -186,9 +211,9 @@ describe("Discover details and preview", () => {
     await renderReadyApp();
 
     await openPreview();
-    await user.click(screen.getByRole("button", { name: commonStrings.hideFilters }));
+    await openFilters(user);
 
-    expect(within(getDetailPanel()).getByText("The Enchanted Forest")).toBeInTheDocument();
+    expect(within(getDetailPanel()).getByText("The Enchanted Forest", { selector: "h2" })).toBeInTheDocument();
   });
 
   it("left-click while preview is open selects normally and clears the temporary preview", async () => {
@@ -199,11 +224,8 @@ describe("Discover details and preview", () => {
     await user.click(await findBookCardTitle("Journey to the Unknown"));
 
     await waitFor(() => {
-      expect(within(getDetailPanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole("tab", { name: queueTab }));
-    await waitFor(() => {
       expect(within(getQueuePanel()).getByText("Journey to the Unknown")).toBeInTheDocument();
     });
+    expect(screen.queryByText(discoverStrings.previewBadge)).not.toBeInTheDocument();
   });
 });
