@@ -14,7 +14,8 @@
         "fullscreen": false,
         "shadow": true,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "theme": "Dark"
       }
     ]
   }
