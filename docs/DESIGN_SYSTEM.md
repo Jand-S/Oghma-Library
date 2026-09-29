@@ -1076,3 +1076,25 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 - `data-testid`: `library-card`, …
 - Decisões: …
 ```
+
+### Tradução (`src/features/translation/`)
+
+- Prefixo CSS: `.translation-*`; arquivo `translation.css` em `@layer features`. A área de conteúdo
+  recebe `translation-page` (via `contentClassName` no `viewRegistry`).
+- Controller: `useTranslationController` (estado que sobrevive à navegação: projeto selecionado,
+  ajustes do próximo lote, lotes/trabalhos e glossário manual por projeto). Hooks da página:
+  `useTranslationPlanner` (estimativa, cobertura, plano automático) e `useTranslationMemory`
+  (memória automática, alertas, histórico). Tipos e funções puras em `translationModel.ts`.
+- Estrutura: faixa "Prévia" com `Badge` Beta; duas colunas — `ProjectList` (Panel "Projetos",
+  busca, formato, cartão por livro com status e progresso) e o espaço do projeto (`ProjectHeader`
+  com a única ação primária "Iniciar tradução", `SegmentedControl` Sessão/Glossário/Configuração).
+  Configuração usa `Section`s com descrição e o `EstimateSummary` (Panel fixo à direita; abaixo
+  do formulário quando o espaço é < 46rem, via container query).
+- `data-testid`: `translation-preview-banner`, `translation-project`, `translation-batch`
+  (com `data-status`), `translation-next-batch`, `translation-term`, `translation-alert`,
+  `translation-estimate`.
+- Decisões: "Iniciar tradução" cria os trabalhos dos lotes pendentes do projeto e já os executa
+  (antes eram dois passos: "Preparar execução" + ▶ por lote). Ações por lote: um `IconButton`
+  contextual (executar/pausar/retomar) e um menu ⋮ com "Cancelar trabalho" e "Remover lote",
+  ambos atrás de `ConfirmationModal` quando há trabalho ativo. O glossário manual começa vazio
+  (sem termos de exemplo fixos) e é separado por projeto.

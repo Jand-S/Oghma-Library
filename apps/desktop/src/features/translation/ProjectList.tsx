@@ -27,11 +27,14 @@ function ProjectCard({ item, selected, batches, onSelect }: {
           <span className="translation-project__title">{item.title}</span>
           <span className="translation-project__meta">
             {item.chapters ? t.chapters(item.chapters) : t.localSize(item.sizeMb)}
+            {batches.length === 0 ? ` · ${status.label}` : null}
           </span>
-          <span className="translation-project__status">
-            <Badge tone={status.tone}>{status.label}</Badge>
-            {status.progress !== null ? <span className="translation-project__percent">{Math.round(status.progress)}%</span> : null}
-          </span>
+          {batches.length ? (
+            <span className="translation-project__status">
+              <Badge tone={status.tone}>{status.label}</Badge>
+              {status.progress !== null ? <span className="translation-project__percent">{Math.round(status.progress)}%</span> : null}
+            </span>
+          ) : null}
           {status.progress !== null ? (
             <ProgressBar size="sm" label={t.projectProgress(item.title)} value={status.progress} />
           ) : null}

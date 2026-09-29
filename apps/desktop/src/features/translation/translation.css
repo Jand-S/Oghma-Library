@@ -45,7 +45,7 @@
 
   .translation-layout {
     display: grid;
-    grid-template-columns: minmax(calc(var(--space-8) * 4), 20rem) minmax(0, 1fr);
+    grid-template-columns: minmax(calc(var(--space-8) * 4), 18rem) minmax(0, 1fr);
     gap: var(--space-3);
     min-height: 0;
   }
@@ -203,17 +203,18 @@
 
   .translation-header__title-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-1);
     min-width: 0;
   }
 
   .translation-header__title {
+    display: -webkit-box;
     overflow: hidden;
     font-size: var(--fs-xl);
     line-height: var(--lh-tight);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .translation-header__meta {
@@ -241,7 +242,7 @@
   /* ---- Session tab ----------------------------------------------------- */
   .translation-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-1-5);
   }
 
@@ -483,7 +484,7 @@
   /* ---- Config tab ------------------------------------------------------ */
   .translation-config {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(calc(var(--space-8) * 4), 22rem);
+    grid-template-columns: minmax(0, 1fr) minmax(calc(var(--space-8) * 4), 20rem);
     gap: var(--space-3);
     align-items: start;
   }
@@ -513,7 +514,7 @@
 
   .translation-form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
     gap: var(--space-2);
     align-items: start;
   }
@@ -658,16 +659,17 @@
   }
 
   /* ---- Narrow workspace (minimum window) -------------------------------- */
-  @container (width < 52rem) {
+  @container (width < 46rem) {
     .translation-config {
       grid-template-columns: minmax(0, 1fr);
     }
 
     .translation-summary {
       position: static;
-      grid-row: 1;
     }
+  }
 
+  @container (width < 48rem) {
     .translation-header {
       grid-template-columns: auto minmax(0, 1fr);
     }
@@ -675,6 +677,12 @@
     .translation-header__actions {
       grid-column: 1 / -1;
       justify-content: flex-end;
+    }
+  }
+
+  @container (width < 40rem) {
+    .translation-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .translation-next {

@@ -134,7 +134,7 @@ export function SessionTab({ controller, plan, onOpenConfig }: {
         <Metric label={t.metricActual} value={currencyBRL.format(sum((item) => item.actualCostBRL ?? 0))} />
         <Metric
           label={t.metricRemaining}
-          value={`${currencyBRL.format(sum((item) => item.estimatedRemainingBRL ?? 0))} · ${durationLabel(sum((item) => item.etaSeconds ?? 0))}`}
+          value={`${currencyBRL.format(sum((item) => item.estimatedRemainingBRL ?? 0))} · ${durationLabel(sum((item) => item.etaSeconds ?? 0), "–")}`}
         />
         <Metric
           label={t.metricVolume}

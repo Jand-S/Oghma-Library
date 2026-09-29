@@ -163,8 +163,8 @@ export function plannerMode(quality: TranslationQuality): TranslationEstimateMod
   return "balanced";
 }
 
-export function durationLabel(seconds: number | null | undefined) {
-  if (!seconds) return translationStrings.noHistory;
+export function durationLabel(seconds: number | null | undefined, fallback: string = translationStrings.noHistory) {
+  if (!seconds) return fallback;
   if (seconds < 60) return `${Math.round(seconds)} s`;
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes} min`;
