@@ -99,7 +99,6 @@ function DiscoverPage({ app }: ViewProps) {
     searchError: discover.searchError,
     detailNovel: discover.detailNovel,
     detailFromPreview: Boolean(discover.previewNovel),
-    filterCollapsed: discover.filtersCollapsed,
     sortDirection: discover.sortDirection,
     adding: discover.adding,
     selectedInLibrary: discover.selectedInLibrary,

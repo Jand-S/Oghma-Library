@@ -1,10 +1,9 @@
-import { ArrowDownAZ, ArrowUpAZ, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Search, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import type { Filters } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
-import { Badge, Button, IconButton, SelectField, TextField, cx } from "../../ui";
-import { drawerFilterCount } from "./filterModel";
+import { Badge, IconButton, SelectField, TextField } from "../../ui";
 
 export type SortDirection = "asc" | "desc";
 
@@ -66,15 +65,13 @@ function DiscoverSearchField({ filters, onFiltersChange }: SearchFieldProps) {
 }
 
 /**
- * Discover's PageHeader content: result count, search, source, sort and the
- * "Filtros" drawer toggle. A click on the header background dismisses a preview.
+ * Discover's PageHeader content: result count, search, source and sort. The filters live
+ * in the bar above the results. A click on the header background dismisses a preview.
  */
 export function discoverHeader({ discover, sources, loading }: AppControllers): ViewHeader {
   const { filters, setFilters, sortDirection, setSortDirection } = discover;
   const enabledSources = sources.sources.filter((source) => source.enabled);
   const busy = loading || discover.searching || filters.sourceId === "all";
-  const filtersOpen = !discover.filtersCollapsed;
-  const filterCount = drawerFilterCount(filters);
   const sortLabel = sortDirection === "asc" ? discoverStrings.sortAsc : discoverStrings.sortDesc;
 
   return {
@@ -102,18 +99,6 @@ export function discoverHeader({ discover, sources, loading }: AppControllers): 
           size="sm"
           onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")}
         />
-        <Button
-          variant="outline"
-          size="sm"
-          className={cx("discover-header__filters", filtersOpen && "is-active")}
-          icon={<SlidersHorizontal />}
-          aria-expanded={filtersOpen}
-          aria-controls="discover-filter-panel"
-          onClick={discover.toggleFilters}
-        >
-          {discoverStrings.filtersToggle}
-          {filterCount > 0 ? <Badge tone="accent" className="discover-header__filter-count">{filterCount}</Badge> : null}
-        </Button>
       </>
     ),
     onBackgroundClick: discover.previewNovel ? discover.clearPreviewNovel : undefined

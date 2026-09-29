@@ -4,7 +4,7 @@ import type { ChapterSelection, Filters, Novel, SourceSite, TagCatalogItem } fro
 import { discoverStrings } from "../../strings/discover";
 import { Button, EmptyState, cx } from "../../ui";
 import { DiscoverDetailPanel } from "./DiscoverDetailPanel";
-import { ActiveFilterRow, DiscoverFilters } from "./DiscoverFilters";
+import { DiscoverFilterBar } from "./DiscoverFilters";
 import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
 import type { SortDirection } from "./DiscoverHeader";
 import { activeFilters, clearedFilters } from "./filterModel";
@@ -24,7 +24,6 @@ export type DiscoverViewProps = {
   /** Book shown in the detail panel: the preview if there is one, else the selection. */
   detailNovel?: Novel;
   detailFromPreview: boolean;
-  filterCollapsed: boolean;
   /** Title order of the grid (the sort toggle lives in the PageHeader). */
   sortDirection: SortDirection;
   adding: boolean;
@@ -43,8 +42,8 @@ export type DiscoverViewProps = {
   onOpenSettings: () => void;
 };
 
-/** Controls a background click must never dismiss the preview from. */
-const INTERACTIVE = "[data-discover-card], button, a, input, select, textarea, label, [role='radiogroup']";
+/** Controls a background click must never dismiss the preview from (filter popovers included). */
+const INTERACTIVE = "[data-discover-card], [data-discover-popover], button, a, input, select, textarea, label, [role='radiogroup']";
 /** Clicking text (headings, captions) is not a "background" click either. */
 const TEXT_TAGS = new Set(["H1", "H2", "H3", "P", "SPAN", "STRONG", "SMALL", "SVG", "PATH", "IMG"]);
 
@@ -59,7 +58,6 @@ export function DiscoverView({
   searchError,
   detailNovel,
   detailFromPreview,
-  filterCollapsed,
   sortDirection,
   adding,
   selectedInLibrary,
@@ -77,6 +75,7 @@ export function DiscoverView({
 }: DiscoverViewProps) {
   const [visibleCount, setVisibleCount] = useState(DISCOVER_PAGE_SIZE);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => setVisibleCount(DISCOVER_PAGE_SIZE), [results, sortDirection]);
 
@@ -94,7 +93,7 @@ export function DiscoverView({
   const currentSource = enabledSources.find((source) => source.id === filters.sourceId);
   const clearable = activeFilters(filters, tagCatalog).length > 0;
   const clearFilters = () => onFiltersChange(clearedFilters(filters));
-  const filtersOpen = !filterCollapsed;
+  const showFilterBar = enabledSources.length > 0;
 
   // Esc closes the preview first, then the selected book's panel. Modals handle their own Esc.
   const hasDetail = Boolean(detailNovel);
@@ -186,17 +185,21 @@ export function DiscoverView({
   return (
     <div className={cx("discover", detailNovel && "discover--with-detail")}>
       <div className="discover__main" onClick={onBackgroundClick}>
-        <div className="discover__scroll" data-testid="content-area" ref={scrollRef}>
-          {filtersOpen ? (
-            <DiscoverFilters
-              filters={filters}
-              tagCatalog={tagCatalog}
-              clearable={clearable}
-              onChange={onFiltersChange}
-              onClear={clearFilters}
-            />
-          ) : null}
-          <ActiveFilterRow filters={filters} tagCatalog={tagCatalog} onChange={onFiltersChange} onClear={clearFilters} />
+        {showFilterBar ? (
+          <DiscoverFilterBar
+            filters={filters}
+            tagCatalog={tagCatalog}
+            scrolled={scrolled}
+            onChange={onFiltersChange}
+            onClear={clearFilters}
+          />
+        ) : null}
+        <div
+          className="discover__scroll"
+          data-testid="content-area"
+          ref={scrollRef}
+          onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 0)}
+        >
           <section className="discover__results" aria-labelledby="discover-results-heading">
             <h2 className="sr-only" id="discover-results-heading">{discoverStrings.results}</h2>
             {content}

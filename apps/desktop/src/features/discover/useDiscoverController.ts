@@ -27,25 +27,6 @@ type DiscoverControllerArgs = {
   notify: (message: string) => void;
 };
 
-const FILTERS_COLLAPSED_KEY = "oghma.discover.filtersCollapsed";
-
-/** The filter drawer starts closed so the grid gets the room; the user's choice is remembered. */
-function readFiltersCollapsed() {
-  try {
-    return window.localStorage.getItem(FILTERS_COLLAPSED_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
-
-function writeFiltersCollapsed(collapsed: boolean) {
-  try {
-    window.localStorage.setItem(FILTERS_COLLAPSED_KEY, collapsed ? "1" : "0");
-  } catch {
-    // Storage can be unavailable; the drawer just does not remember its state.
-  }
-}
-
 /**
  * State and handlers of the Discover view: search, filters and ONE selected book at a
  * time. The configurator applies to the selected book and "Baixar" enqueues it.
@@ -66,7 +47,6 @@ export function useDiscoverController({
   enqueueDownload,
   notify
 }: DiscoverControllerArgs) {
-  const [filtersCollapsed, setFiltersCollapsed] = useState(readFiltersCollapsed);
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
   /** Title order of the result grid (client-side). */
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -199,13 +179,6 @@ export function useDiscoverController({
   const updateSelection = (next: ChapterSelection) =>
     setSelections((current) => ({ ...current, [next.novelId]: next }));
 
-  const toggleFilters = useCallback(() => {
-    setFiltersCollapsed((value) => {
-      writeFiltersCollapsed(!value);
-      return !value;
-    });
-  }, []);
-
   /** Re-runs the current search (the search hook reacts to a new filters object). */
   const retrySearch = useCallback(() => setFilters((current) => ({ ...current })), []);
 
@@ -213,8 +186,6 @@ export function useDiscoverController({
     results,
     filters,
     setFilters,
-    filtersCollapsed,
-    toggleFilters,
     sortDirection,
     setSortDirection,
     tagCatalog,

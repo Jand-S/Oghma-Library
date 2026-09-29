@@ -28,8 +28,9 @@ async function expectPanelClosed() {
   });
 }
 
-async function openFilters(user: TestUser) {
-  await user.click(screen.getByRole("button", { name: new RegExp(`^${discoverStrings.filtersToggle}`) }));
+async function pickStatus(user: TestUser, label: string) {
+  await user.click(within(getFilterPanel()).getByRole("button", { name: new RegExp(`^${discoverStrings.status}`) }));
+  await user.click(within(screen.getByRole("dialog", { name: discoverStrings.status })).getByRole("radio", { name: label }));
 }
 
 describe("Discover details and preview", () => {
@@ -47,7 +48,16 @@ describe("Discover details and preview", () => {
     const actions = getQueuePanel();
     expect(within(screen.getByTestId("discover-sidebar")).getByTestId("queue-panel")).toBe(actions);
     expect(within(actions).getByTestId("add-to-queue")).toHaveTextContent(discoverStrings.addToQueue);
-    expect(within(actions).getByText(discoverStrings.oneAtATime)).toBeInTheDocument();
+  });
+
+  it("shows the synopsis before the tags", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    const panel = await inspectBook(user, "The Enchanted Forest");
+    const synopsis = within(panel).getByRole("heading", { name: discoverStrings.synopsis });
+    const tags = within(panel).getByRole("heading", { name: discoverStrings.tags });
+    expect(synopsis.compareDocumentPosition(tags) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("marks the selected card", async () => {
@@ -175,8 +185,7 @@ describe("Discover details and preview", () => {
   it("clicking the active-filter-row background closes preview details", async () => {
     const user = setupUser();
     await renderReadyApp();
-    await openFilters(user);
-    await user.selectOptions(screen.getByLabelText(discoverStrings.status), "ongoing");
+    await pickStatus(user, "Em andamento");
 
     await openPreview();
     fireEvent.click(getActiveFilterRow(), { target: getActiveFilterRow() });
@@ -185,9 +194,7 @@ describe("Discover details and preview", () => {
   });
 
   it("clicking the filter-panel background closes preview details", async () => {
-    const user = setupUser();
     await renderReadyApp();
-    await openFilters(user);
 
     await openPreview();
     fireEvent.click(getFilterPanel(), { target: getFilterPanel() });
@@ -196,9 +203,7 @@ describe("Discover details and preview", () => {
   });
 
   it("clicking a filter section background closes preview details", async () => {
-    const user = setupUser();
     await renderReadyApp();
-    await openFilters(user);
 
     await openPreview();
     fireEvent.click(getFirstFilterField(), { target: getFirstFilterField() });
@@ -211,7 +216,11 @@ describe("Discover details and preview", () => {
     await renderReadyApp();
 
     await openPreview();
-    await openFilters(user);
+    await user.click(within(getFilterPanel()).getByRole("button", { name: discoverStrings.tags }));
+    const popover = screen.getByRole("dialog", { name: discoverStrings.tags });
+    // A click on the popover's own background is not a "background" click either.
+    fireEvent.click(popover, { target: popover });
+    await user.click(await within(popover).findByRole("button", { name: /^Fantasia(,|$)/ }));
 
     expect(within(getDetailPanel()).getByText("The Enchanted Forest", { selector: "h2" })).toBeInTheDocument();
   });

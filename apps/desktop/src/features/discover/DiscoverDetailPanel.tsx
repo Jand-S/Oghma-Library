@@ -1,11 +1,11 @@
 import { Check, Clock, Download, RotateCcw, X } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { statusLabel } from "../../constants/ui";
 import { estimateChapters } from "../../core/defaults";
 import type { ChapterPreset, ChapterSelection, DownloadFormat, Novel, NovelStatus } from "../../core/types";
 import { downloadFormats } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
-import { Badge, Button, Chip, Cover, IconButton, SegmentedControl, Switch, TextField, type BadgeTone } from "../../ui";
+import { Badge, Button, Chip, Cover, IconButton, SegmentedControl, Switch, TextField, cx, type BadgeTone } from "../../ui";
 
 /** Synopses longer than this start clamped with a "Mostrar mais" toggle. */
 const SYNOPSIS_CLAMP_CHARS = 280;
@@ -31,7 +31,13 @@ type DiscoverDetailPanelProps = {
   onAdd: () => void;
 };
 
-/** Right-hand details: hero (cover, backdrop, metadata, tags, synopsis) plus the sticky download actions. */
+/** Detail tags beyond this many rows collapse behind a "+N" chip. */
+const TAG_ROWS = 2;
+
+/**
+ * Right-hand details: a header row (source, preview badge, close), the hero (cover, title,
+ * author, key badges), then the synopsis and the tags, plus the sticky download actions.
+ */
 export function DiscoverDetailPanel({
   novel,
   isSelected,
@@ -49,7 +55,15 @@ export function DiscoverDetailPanel({
   useEffect(() => setSynopsisOpen(false), [novel.id]);
 
   const synopsis = novel.description.trim();
-  const longSynopsis = synopsis.length > SYNOPSIS_CLAMP_CHARS;
+  const synopsisRef = useRef<HTMLParagraphElement>(null);
+  const [synopsisFits, setSynopsisFits] = useState(false);
+  // With real layout, only offer "Mostrar mais" when the clamp actually cuts text.
+  useLayoutEffect(() => {
+    const node = synopsisRef.current;
+    if (!node || synopsisOpen || node.clientHeight === 0) return;
+    setSynopsisFits(node.scrollHeight <= node.clientHeight + 1);
+  }, [synopsis, synopsisOpen]);
+  const longSynopsis = synopsis.length > SYNOPSIS_CLAMP_CHARS && !synopsisFits;
   const backdrop = novel.coverUrl ? ({ backgroundImage: `url("${novel.coverUrl}")` } as CSSProperties) : undefined;
 
   return (
@@ -57,22 +71,26 @@ export function DiscoverDetailPanel({
       <div className="discover-detail__scroll" key={novel.id} data-testid="discover-detail-panel">
         <div className="discover-detail__hero">
           <div className="discover-detail__backdrop" style={backdrop} aria-hidden="true" />
-          <IconButton
-            className="discover-detail__close"
-            label={discoverStrings.closeDetails}
-            icon={<X />}
-            size="sm"
-            variant="glass"
-            onClick={onClose}
-          />
+          <div className="discover-detail__topbar">
+            <div className="discover-detail__context">
+              <Badge tone="accent">{novel.sourceName}</Badge>
+              {preview ? <Badge tone="warning">{discoverStrings.previewBadge}</Badge> : null}
+            </div>
+            <IconButton
+              className="discover-detail__close"
+              label={discoverStrings.closeDetails}
+              icon={<X />}
+              size="sm"
+              variant="glass"
+              onClick={onClose}
+            />
+          </div>
           <div className="discover-detail__cover" data-testid="detail-cover">
             <Cover src={novel.coverUrl} title={novel.title} size="lg" sheen />
           </div>
           <h2 className="discover-detail__title is-selectable">{novel.title}</h2>
           {novel.author ? <p className="discover-detail__author">{novel.author}</p> : null}
           <div className="discover-detail__badges">
-            {preview ? <Badge tone="warning">{discoverStrings.previewBadge}</Badge> : null}
-            <Badge tone="accent">{novel.sourceName}</Badge>
             <Badge tone={statusTone[novel.status]}>{statusLabel[novel.status]}</Badge>
             <Badge>{discoverStrings.chaptersCount(novel.chapters)}</Badge>
             {novel.language ? <Badge>{novel.language.toUpperCase()}</Badge> : null}
@@ -80,14 +98,12 @@ export function DiscoverDetailPanel({
         </div>
 
         <div className="discover-detail__body">
-          {novel.tags.length > 0 ? (
-            <div className="discover-detail__tags">
-              {novel.tags.map((tag) => <Chip key={tag}>{tag}</Chip>)}
-            </div>
-          ) : null}
           <section className="discover-detail__section">
             <h3 className="discover-detail__section-title">{discoverStrings.synopsis}</h3>
-            <p className={synopsisOpen || !longSynopsis ? "discover-detail__synopsis is-selectable" : "discover-detail__synopsis is-selectable is-clamped"}>
+            <p
+              ref={synopsisRef}
+              className={cx("discover-detail__synopsis is-selectable", !synopsisOpen && longSynopsis && "is-clamped")}
+            >
               {synopsis || discoverStrings.noSynopsis}
             </p>
             {longSynopsis ? (
@@ -96,6 +112,12 @@ export function DiscoverDetailPanel({
               </Button>
             ) : null}
           </section>
+          {novel.tags.length > 0 ? (
+            <section className="discover-detail__section">
+              <h3 className="discover-detail__section-title">{discoverStrings.tags}</h3>
+              <DetailTags tags={novel.tags} />
+            </section>
+          ) : null}
           {novel.updatedAt ? <p className="discover-detail__updated">{discoverStrings.updated(novel.updatedAt)}</p> : null}
         </div>
       </div>
@@ -121,6 +143,103 @@ export function DiscoverDetailPanel({
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * Tags limited to TAG_ROWS rows; the rest hide behind a "+N" chip that expands the list.
+ * Rows are measured after layout (and on resize), so the "+N" chip always fits on the last row.
+ */
+function DetailTags({ tags }: { tags: string[] }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  /** How many tags fit in TAG_ROWS rows next to the "+N" chip; null = not measured (render all). */
+  const [fit, setFit] = useState<number | null>(null);
+
+  const measure = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const chips = Array.from(list.querySelectorAll<HTMLElement>("[data-tag-chip]"));
+    const more = list.querySelector<HTMLElement>("[data-tag-more]");
+    if (chips.length === 0 || chips[0].offsetHeight === 0) return; // no layout (tests)
+    const rowTops = Array.from(new Set(chips.map((chip) => chip.offsetTop))).sort((a, b) => a - b);
+    const limitTop = rowTops[TAG_ROWS - 1] ?? rowTops[rowTops.length - 1];
+    let count = chips.filter((chip) => chip.offsetTop <= limitTop).length;
+    if (count >= chips.length) {
+      setFit(chips.length);
+      return;
+    }
+    // Leave room for the "+N" chip at the end of the last visible row.
+    const gap = Number.parseFloat(getComputedStyle(list).columnGap) || 0;
+    const moreWidth = (more?.offsetWidth ?? 0) + gap;
+    while (count > 0) {
+      const last = chips[count - 1];
+      if (last.offsetTop < limitTop || last.offsetLeft + last.offsetWidth + moreWidth <= list.clientWidth) break;
+      count -= 1;
+    }
+    setFit(count);
+  }, []);
+
+  /** Bumped to force another measuring pass (width change, or the list had no layout yet). */
+  const [pass, setPass] = useState(0);
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
+
+  // Measure with every chip rendered; re-measure when the tags or the width change.
+  useLayoutEffect(() => setFit(null), [tags]);
+  useLayoutEffect(() => {
+    if (fit === null) measure();
+  }, [fit, measure, pass]);
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || typeof ResizeObserver === "undefined") return;
+    let width = -1;
+    const observer = new ResizeObserver(() => {
+      if (list.clientWidth === width && fitRef.current !== null) return;
+      width = list.clientWidth;
+      setFit(null);
+      setPass((value) => value + 1);
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+
+  const measuring = fit === null;
+  const hidden = measuring || expanded ? 0 : tags.length - fit;
+  const shown = hidden > 0 ? tags.slice(0, fit ?? tags.length) : tags;
+
+  return (
+    <div className={cx("discover-detail__tags", measuring && "is-measuring")} ref={listRef}>
+      {shown.map((tag) => (
+        <span key={tag} className="discover-detail__tag" data-tag-chip="">
+          <Chip>{tag}</Chip>
+        </span>
+      ))}
+      {measuring ? (
+        // Probe with the widest likely label, so the real chip always fits where it is placed.
+        <span className="discover-detail__tag-more" data-tag-more="" aria-hidden="true">{discoverStrings.moreTags(tags.length)}</span>
+      ) : hidden > 0 ? (
+        <button
+          type="button"
+          className="discover-detail__tag-more"
+          aria-label={discoverStrings.moreTagsLabel(hidden)}
+          aria-expanded={false}
+          onClick={() => setExpanded(true)}
+        >
+          {discoverStrings.moreTags(hidden)}
+        </button>
+      ) : expanded && fit !== null && fit < tags.length ? (
+        <button
+          type="button"
+          className="discover-detail__tag-more"
+          aria-label={discoverStrings.lessTagsLabel}
+          aria-expanded
+          onClick={() => setExpanded(false)}
+        >
+          {discoverStrings.lessTags}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -234,7 +353,6 @@ function DownloadConfigurator({
       >
         {label}
       </Button>
-      <p className="discover-config__note">{discoverStrings.oneAtATime}</p>
     </section>
   );
 }
