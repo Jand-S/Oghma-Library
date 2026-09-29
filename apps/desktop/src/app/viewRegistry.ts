@@ -14,7 +14,7 @@ import { DiscoverView } from "../views/discover";
 import { LibraryView } from "../views/library";
 import { SettingsView } from "../views/settings";
 import { SourcesView } from "../views/sources";
-import { TranslationView } from "../views/translation";
+import { TranslationView } from "../features/translation/TranslationView";
 import type { AppView, NavParams } from "./NavigationContext";
 
 /** Everything a view needs, assembled by App from the feature controllers. */
@@ -134,7 +134,7 @@ function KindlePage({ app }: ViewProps) {
 }
 
 function TranslationPage({ app }: ViewProps) {
-  return h(TranslationView, app.translation);
+  return h(TranslationView, { controller: app.translation, onBrowse: () => app.navigate("discover") });
 }
 
 function SourcesPage({ app }: ViewProps) {
@@ -166,7 +166,13 @@ export const viewRegistry: Record<AppView, ViewDefinition> = {
   },
   library: { id: "library", title: pageTitleStrings.library, icon: iconFor("library"), component: LibraryPage },
   kindle: { id: "kindle", title: pageTitleStrings.kindle, icon: iconFor("kindle"), component: KindlePage },
-  translation: { id: "translation", title: pageTitleStrings.translation, icon: iconFor("translation"), component: TranslationPage },
+  translation: {
+    id: "translation",
+    title: pageTitleStrings.translation,
+    icon: iconFor("translation"),
+    component: TranslationPage,
+    contentClassName: () => "translation-page"
+  },
   sources: { id: "sources", title: pageTitleStrings.sources, icon: iconFor("sources"), component: SourcesPage },
   settings: { id: "settings", title: pageTitleStrings.settings, icon: iconFor("settings"), component: SettingsPage }
 };
