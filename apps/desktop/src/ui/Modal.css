@@ -1,3 +1,5 @@
+@import "../styles/layers.css";
+
 @layer components {
   .o-modal-layer {
     position: fixed;
@@ -7,6 +9,7 @@
     place-items: center;
     padding: var(--space-4);
     background: var(--backdrop);
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur) / 4));
     backdrop-filter: blur(calc(var(--glass-blur) / 4));
     animation: fade-in var(--dur-base) var(--ease) both;
   }

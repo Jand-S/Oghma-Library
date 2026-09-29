@@ -1,10 +1,15 @@
 /*
- * Stylesheet entry. The layer order below is the whole cascade contract:
+ * Stylesheet entry. The layer order (layers.css) is the whole cascade contract:
  * later layers win regardless of selector specificity.
  * Primitives (src/ui/*.css) and shell parts (src/shell/*.css) are imported by
- * their components and declare their own layer.
+ * their components, declare their own layer and ALSO start with
+ * `@import "../styles/layers.css";`. The first sheet that names a layer fixes
+ * its position, and in production Vite emits the CSS shared with lazy views as
+ * its own chunk (ui-*.css) linked BEFORE this entry sheet. Without the order
+ * statement there, `components` would rank below reset/base: native inputs got
+ * base borders inside the field box, buttons lost their font sizes.
  */
-@layer reset, tokens, base, layout, components, features, utilities;
+@import "./layers.css";
 
 @import "./reset.css";
 @import "./tokens.css";

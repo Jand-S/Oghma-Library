@@ -7,7 +7,7 @@ import { App } from "./App";
 import { defaultAppConfig, readStoredConfig } from "./core/appConfig";
 import type { BackendClient } from "./services/backendClient";
 import { createStaticBackendClient } from "./services/staticBackend";
-import { applyPlatform } from "./shell/platform";
+import { applyPlatform, watchFullscreen } from "./shell/platform";
 
 /** True for inputs, textareas and contenteditable regions, where selection, copy and the context menu must keep working. */
 function isEditableTarget(target: EventTarget | null) {
@@ -52,7 +52,7 @@ function resolveBackend(): BackendClient {
   return createStaticBackendClient(serverUrl);
 }
 
-applyPlatform();
+watchFullscreen(applyPlatform());
 installInteractionGuards();
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);

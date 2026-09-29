@@ -1,3 +1,5 @@
+@import "../styles/layers.css";
+
 /*
  * Page header: [back] Title [badge] [search ........] [spacer] [actions]
  * Views fill badge/search/actions through `ViewDefinition.header`. Controls in the

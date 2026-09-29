@@ -1,3 +1,5 @@
+@import "../styles/layers.css";
+
 @layer layout {
   .o-bottom-panel {
     position: relative;

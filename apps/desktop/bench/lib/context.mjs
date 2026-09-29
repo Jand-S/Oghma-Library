@@ -1,6 +1,6 @@
 // Browser/context factory: fake Tauri runtime + seeded config + probe + fixture routes.
 import path from "node:path";
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 import { BENCH_DIR, FIXTURE_SERVER_URL, loadFixtures, routeFixtures } from "./fixtures.mjs";
 
 export const USER_AGENTS = {
@@ -33,7 +33,15 @@ export function seededAppConfig(overrides = {}) {
   };
 }
 
-export async function launchBrowser({ headed = false } = {}) {
+/**
+ * @param {object} opts
+ *  - engine: 'chromium' (default; Windows WebView2) | 'webkit' (macOS WKWebView / Linux WebKitGTK)
+ *  - headed: show the browser window
+ * CDP helpers below (cdpMetrics, setCpuThrottle, disableCache) are Chromium-only.
+ */
+export async function launchBrowser({ headed = false, engine = "chromium" } = {}) {
+  if (engine === "webkit") return webkit.launch({ headless: !headed });
+  if (engine !== "chromium") throw new Error(`launchBrowser: unknown engine "${engine}"`);
   return chromium.launch({
     headless: !headed,
     args: [
