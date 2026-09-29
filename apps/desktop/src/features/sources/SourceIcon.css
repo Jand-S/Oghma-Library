@@ -1,0 +1,60 @@
+@layer features {
+  /* Site icon tile. Favicons sit on a light plate so dark, transparent icons stay visible. */
+  .sources-icon {
+    --sources-icon-size: var(--icon-lg);
+    --sources-icon-inset: calc(var(--space-0-5) / 2);
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: var(--sources-icon-size);
+    height: var(--sources-icon-size);
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    font-size: calc(var(--sources-icon-size) / 2);
+    font-weight: var(--fw-bold);
+    line-height: 1;
+    user-select: none;
+  }
+
+  .sources-icon--sm {
+    --sources-icon-size: var(--icon-md);
+    --sources-icon-inset: var(--hairline);
+    border-radius: var(--radius-xs);
+  }
+
+  .sources-icon--lg {
+    --sources-icon-size: var(--control-sm);
+    --sources-icon-inset: calc(var(--space-0-5) * 3 / 4);
+    border-radius: var(--radius-md);
+  }
+
+  .sources-icon--image {
+    padding: var(--sources-icon-inset);
+    background: rgb(var(--white-rgb) / 0.94);
+    box-shadow: inset 0 0 0 var(--hairline) rgb(var(--black-rgb) / 0.08);
+  }
+
+  .sources-icon__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .sources-icon--monogram {
+    background: rgb(var(--accent-rgb) / 0.2);
+    box-shadow: inset 0 0 0 var(--hairline) rgb(var(--accent-rgb) / 0.35);
+    color: var(--accent-text);
+  }
+
+  .sources-icon--muted.sources-icon--image {
+    opacity: 0.55;
+    filter: grayscale(1);
+  }
+
+  .sources-icon--muted.sources-icon--monogram {
+    background: var(--glass);
+    box-shadow: inset 0 0 0 var(--hairline) var(--border);
+    color: var(--text-muted);
+  }
+}

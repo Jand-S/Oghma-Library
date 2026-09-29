@@ -4,136 +4,183 @@
     gap: var(--space-2);
   }
 
-  .sources-lead {
-    color: var(--text-muted);
+  .sources-search {
+    max-width: calc(var(--space-8) * 5);
+  }
+
+  /* The table runs edge to edge inside the panel; rows carry their own padding. */
+  .sources-panel {
+    overflow: hidden;
+  }
+
+  .sources-panel .o-panel__body {
+    padding: 0;
+  }
+
+  .sources-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
     font-size: var(--fs-sm);
   }
 
-  .sources-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) * 4 + var(--space-3)), 1fr));
-    gap: var(--space-2);
+  .sources-table__col--language {
+    width: calc(var(--space-8) + var(--space-1));
   }
 
-  .sources-card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-1);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--dur-base) var(--ease);
-    animation: fade-in var(--dur-base) var(--ease) both;
+  .sources-table__col--number {
+    width: calc(var(--space-8) + var(--space-2));
   }
 
-  .sources-card:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-2);
+  .sources-table__col--sync {
+    width: calc(var(--space-8) * 2 + var(--space-3));
   }
 
-  .sources-card--disabled .sources-card__head,
-  .sources-card--disabled .sources-card__meta {
-    opacity: 0.6;
+  .sources-table__col--switch {
+    width: calc(var(--space-8) + var(--space-2) + var(--space-1));
   }
 
-  .sources-card__head {
+  .sources-table__col--actions {
+    width: calc(var(--control-sm) * 2 + var(--space-0-5) + var(--space-2) + var(--space-1));
+  }
+
+  .sources-table__head th {
+    padding: var(--space-1) var(--space-1-5);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-medium);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .sources-table__head th:first-child {
+    padding-left: var(--space-2);
+  }
+
+  .sources-table__row {
+    transition: background var(--dur-base) var(--ease);
+  }
+
+  .sources-table__row + .sources-table__row {
+    border-top: 1px solid var(--border);
+  }
+
+  .sources-table__row:hover {
+    background: var(--hover);
+  }
+
+  .sources-table__source,
+  .sources-table__cell {
+    padding: var(--space-1-5);
+    vertical-align: middle;
+  }
+
+  .sources-table__source {
+    padding-left: var(--space-2);
+    font-weight: inherit;
+    text-align: left;
+  }
+
+  .sources-table__cell {
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+
+  .sources-table__cell--number {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .sources-table__head th.sources-table__cell--number {
+    text-align: right;
+  }
+
+  .sources-table__cell--sync {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sources-table__cell--switch {
+    text-align: center;
+  }
+
+  .sources-table__cell--actions {
+    padding-right: var(--space-2);
+  }
+
+  .sources-table__identity {
     display: flex;
     align-items: center;
     gap: var(--space-1-5);
     min-width: 0;
   }
 
-  .sources-card__avatar {
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-    width: var(--control-md);
-    height: var(--control-md);
-    border-radius: var(--radius-md);
-    background: rgb(var(--accent-rgb) / 0.16);
-    color: var(--accent-text);
-    font-size: var(--fs-lg);
-    font-weight: var(--fw-bold);
-  }
-
-  .sources-card--disabled .sources-card__avatar {
-    background: var(--glass);
-    color: var(--text-muted);
-  }
-
-  .sources-card__title {
+  .sources-table__names {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
+    gap: calc(var(--space-0-5) / 2);
     min-width: 0;
   }
 
-  .sources-card__name {
+  /* Fixed line height so a status badge never changes the row height. */
+  .sources-table__name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: var(--icon-md);
+    min-width: 0;
+  }
+
+  .sources-table__name-text {
     overflow: hidden;
-    font-size: var(--fs-lg);
+    color: var(--text);
+    font-size: var(--fs-md);
     font-weight: var(--fw-semibold);
     line-height: var(--lh-tight);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .sources-card__domain {
+  .sources-table__name .o-badge {
+    flex: 0 0 auto;
+    min-height: calc(var(--space-2) + var(--ring-width));
+  }
+
+  .sources-table__domain {
     overflow: hidden;
-    color: var(--text-muted);
-    font-size: var(--fs-sm);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .sources-card__meta {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-1-5) var(--space-2);
-    margin: 0;
-    padding: var(--space-1-5) 0;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .sources-card__meta div {
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--space-0-5) / 2);
-    min-width: 0;
-  }
-
-  .sources-card__meta dt {
     color: var(--text-muted);
     font-size: var(--fs-xs);
-  }
-
-  .sources-card__meta dd {
-    overflow: hidden;
-    margin: 0;
-    color: var(--text);
-    font-size: var(--fs-md);
-    font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .sources-card__foot {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+  .sources-table__row--disabled .sources-table__names,
+  .sources-table__row--disabled .sources-table__cell--language,
+  .sources-table__row--disabled .sources-table__cell--number,
+  .sources-table__row--disabled .sources-table__cell--sync {
+    opacity: 0.6;
   }
 
-  .sources-card__switch {
-    flex: 1 1 auto;
-    min-height: var(--control-sm);
+  /* The switch's label is screen-reader only; the column header names it. */
+  .sources-table__switch {
+    display: inline-flex;
+    gap: 0;
+    width: auto;
+    vertical-align: middle;
     cursor: pointer;
   }
 
-  .sources-card__switch .o-check__label {
-    color: var(--text-2);
-    white-space: nowrap;
-    font-size: var(--fs-sm);
+  .sources-table__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-0-5);
+  }
+
+  .sources-table__no-match {
+    padding: var(--space-3) var(--space-2);
+    color: var(--text-muted);
+    text-align: center;
   }
 }
