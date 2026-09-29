@@ -3,16 +3,42 @@ import { isTauriRuntime } from "../core/windowControls";
 
 export type FileData = string | Uint8Array;
 export type LocalLibraryEntry = {
+  /** Display title: manifest title (with accents) when present, else the folder name. */
   title: string;
+  /** Folder name inside the output root (sanitized title). */
+  folderName: string;
   outputDir: string;
   files: string[];
+  /** Ready-to-render cover URL (asset protocol with `?v=mtime`, or the legacy data URL). */
   coverUrl?: string;
+  coverPath?: string;
   coverDataUrl?: string;
   sizeBytes: number;
+  mtimeMs?: number;
+  novelId?: string;
+  generatedAt?: string;
   chapterCount?: number;
   sourceChars?: number;
   wordCount?: number;
   analysisFormat?: string;
+};
+
+/** Raw `ExportLibraryItem` returned by the Rust `list_export_library` command. */
+export type ExportLibraryRow = {
+  title: string;
+  folderName?: string | null;
+  outputDir: string;
+  files: string[];
+  coverPath?: string | null;
+  coverDataUrl?: string | null;
+  sizeBytes: number;
+  mtimeMs?: number | null;
+  novelId?: string | null;
+  generatedAt?: string | null;
+  chapterCount?: number | null;
+  sourceChars?: number | null;
+  wordCount?: number | null;
+  analysisFormat?: string | null;
 };
 
 type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
@@ -22,10 +48,22 @@ type Invoke = <T>(
   options?: { headers: Record<string, string> }
 ) => Promise<T>;
 
+type TauriCore = typeof import("@tauri-apps/api/core");
+let tauriCore: Promise<TauriCore> | null = null;
+
+/** Imports `@tauri-apps/api/core` once and shares the module between concurrent callers. */
+function loadTauriCore(): Promise<TauriCore> {
+  tauriCore ??= import("@tauri-apps/api/core").catch((error: unknown) => {
+    tauriCore = null;
+    throw error;
+  });
+  return tauriCore;
+}
+
 async function loadInvoke(): Promise<Invoke | null> {
   if (!isTauriRuntime()) return null;
   try {
-    const mod = await import("@tauri-apps/api/core");
+    const mod = await loadTauriCore();
     return mod.invoke as Invoke;
   } catch {
     return null;
@@ -73,45 +111,97 @@ export async function openLocalPath(path: string): Promise<boolean> {
   return true;
 }
 
-async function filePathToAssetUrl(path: string): Promise<string> {
+type ConvertFileSrc = (path: string) => string;
+
+async function loadConvertFileSrc(): Promise<ConvertFileSrc | null> {
   try {
-    const mod = await import("@tauri-apps/api/core");
-    return mod.convertFileSrc(path);
+    const mod = await loadTauriCore();
+    return mod.convertFileSrc;
   } catch {
-    return path;
+    return null;
   }
 }
 
-export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryEntry[] | null> {
+/** Cover URL for a library row: asset-protocol URL with mtime cache-busting, else the data URL. */
+export function coverUrlForRow(row: ExportLibraryRow, convertFileSrc: ConvertFileSrc | null): string | undefined {
+  if (row.coverPath && convertFileSrc) {
+    const url = convertFileSrc(row.coverPath);
+    return row.mtimeMs ? `${url}${url.includes("?") ? "&" : "?"}v=${row.mtimeMs}` : url;
+  }
+  return row.coverDataUrl ?? undefined;
+}
+
+export function mapLibraryRow(row: ExportLibraryRow, convertFileSrc: ConvertFileSrc | null): LocalLibraryEntry {
+  return {
+    title: row.title,
+    folderName: row.folderName ?? row.title,
+    outputDir: row.outputDir,
+    files: row.files,
+    coverUrl: coverUrlForRow(row, convertFileSrc),
+    coverPath: row.coverPath ?? undefined,
+    coverDataUrl: row.coverDataUrl ?? undefined,
+    sizeBytes: row.sizeBytes,
+    mtimeMs: row.mtimeMs ?? undefined,
+    novelId: row.novelId ?? undefined,
+    generatedAt: row.generatedAt ?? undefined,
+    chapterCount: row.chapterCount ?? undefined,
+    sourceChars: row.sourceChars ?? undefined,
+    wordCount: row.wordCount ?? undefined,
+    analysisFormat: row.analysisFormat ?? undefined
+  };
+}
+
+/**
+ * Library metadata is keyed by `novel:<id>` when the folder has a manifest id, and by
+ * the folder path otherwise (legacy). App code still passes the folder path as the key;
+ * this map (filled by `listLocalLibrary`) lets save/delete translate it.
+ */
+const novelIdByOutputDir = new Map<string, string>();
+
+export function novelMetaKey(novelId: string): string {
+  return `novel:${novelId}`;
+}
+
+/** Preferred metadata key for a library entry. */
+export function libraryMetaKeyForEntry(entry: Pick<LocalLibraryEntry, "novelId" | "outputDir">): string {
+  return entry.novelId ? novelMetaKey(entry.novelId) : entry.outputDir;
+}
+
+export async function listLocalLibrary(
+  outputDir: string,
+  options: { includeCoverData?: boolean } = {}
+): Promise<LocalLibraryEntry[] | null> {
   const invoke = await loadInvoke();
   if (!invoke) return null;
-  const rows = await invoke<Array<{
-    title: string;
-    output_dir: string;
-    files: string[];
-    cover_path?: string | null;
-    cover_data_url?: string | null;
-    size_bytes: number;
-    chapter_count?: number | null;
-    source_chars?: number | null;
-    word_count?: number | null;
-    analysis_format?: string | null;
-  }>>(
-    "list_export_library",
-    { outputDir }
-  );
-  return Promise.all(rows.map(async (row) => ({
-    title: row.title,
-    outputDir: row.output_dir,
-    files: row.files,
-    coverUrl: row.cover_data_url ?? (row.cover_path ? await filePathToAssetUrl(row.cover_path) : undefined),
-    coverDataUrl: row.cover_data_url ?? undefined,
-    sizeBytes: row.size_bytes,
-    chapterCount: row.chapter_count ?? undefined,
-    sourceChars: row.source_chars ?? undefined,
-    wordCount: row.word_count ?? undefined,
-    analysisFormat: row.analysis_format ?? undefined
-  })));
+  const rows = await invoke<ExportLibraryRow[]>("list_export_library", {
+    outputDir,
+    includeCoverData: options.includeCoverData ?? false
+  });
+  const convertFileSrc = await loadConvertFileSrc();
+  const entries = rows.map((row) => mapLibraryRow(row, convertFileSrc));
+  for (const entry of entries) {
+    if (entry.novelId) novelIdByOutputDir.set(entry.outputDir, entry.novelId);
+  }
+  return entries;
+}
+
+/** Removes leftover `.oghma-staging` / `.oghma-trash` entries (crash leftovers) under the output root. */
+export async function prepareExportRoot(outputRoot: string): Promise<number | null> {
+  const invoke = await loadInvoke();
+  if (!invoke || !outputRoot.trim()) return null;
+  return invoke<number>("cleanup_export_root", { outputRoot });
+}
+
+/** Native folder picker. Returns null when cancelled or outside Tauri. */
+export async function pickDirectory(options: { defaultPath?: string; title?: string } = {}): Promise<string | null> {
+  if (!isTauriRuntime()) return null;
+  try {
+    const dialog = await import("@tauri-apps/plugin-dialog");
+    const selected = await dialog.open({ directory: true, multiple: false, ...options });
+    return typeof selected === "string" ? selected : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function listLibraryMetadata(): Promise<LibraryMeta[]> {
@@ -123,14 +213,25 @@ export async function listLibraryMetadata(): Promise<LibraryMeta[]> {
 export async function saveLibraryMetadata(meta: LibraryMeta): Promise<boolean> {
   const invoke = await loadInvoke();
   if (!invoke) return false;
-  await invoke("save_library_meta", { meta });
+  const novelId = novelIdByOutputDir.get(meta.key);
+  if (novelId) {
+    // Write the stable key and drop the legacy folder-path row in one transaction.
+    await invoke("save_library_meta", { meta: { ...meta, key: novelMetaKey(novelId) }, legacyKey: meta.key });
+  } else {
+    await invoke("save_library_meta", { meta });
+  }
   return true;
 }
 
 export async function deleteLibraryMetadata(key: string): Promise<boolean> {
   const invoke = await loadInvoke();
   if (!invoke) return false;
+  const novelId = novelIdByOutputDir.get(key);
   await invoke("delete_library_meta", { key });
+  if (novelId) {
+    await invoke("delete_library_meta", { key: novelMetaKey(novelId) });
+    novelIdByOutputDir.delete(key);
+  }
   return true;
 }
 

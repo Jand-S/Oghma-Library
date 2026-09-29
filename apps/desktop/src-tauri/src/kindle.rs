@@ -2,13 +2,15 @@ use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::SystemTime;
 
 use image::codecs::jpeg::JpegEncoder;
 use kindling::extracted::ExtractedEpub;
 use kindling::mobi_rewrite::{rewrite_mobi_metadata, MetadataUpdates};
 use serde::Serialize;
 
-use crate::paths::{expand_home, safe_export_stem, safe_relative_path};
+use crate::files::{pick_cover, read_manifest, unique_suffix};
+use crate::paths::{expand_home, is_hidden_name, safe_export_stem, safe_relative_path};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -233,30 +235,94 @@ fn converter_available() -> bool {
     true
 }
 
-fn find_cover_file(output_dir: &PathBuf) -> Option<PathBuf> {
-    fs::read_dir(output_dir).ok()?.flatten().find_map(|entry| {
-        let path = entry.path();
-        let name = path.file_name()?.to_string_lossy().to_lowercase();
-        let is_cover = name.starts_with("cover.")
-            && (name.ends_with(".jpg")
-                || name.ends_with(".jpeg")
-                || name.ends_with(".png")
-                || name.ends_with(".webp"));
-        if path.is_file() && is_cover {
-            Some(path)
-        } else {
-            None
-        }
-    })
-}
-
-fn oghma_content_id(title: &str) -> String {
+/// Stable Kindle content id (EXTH 113/ASIN). `seed` comes from `kindle_content_seed`.
+fn oghma_content_id(seed: &str) -> String {
     let mut hash = 0xcbf29ce484222325u64;
-    for byte in title.as_bytes() {
+    for byte in seed.as_bytes() {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x100000001b3);
     }
     format!("oghma-{hash:016x}")
+}
+
+/// Seed for the Kindle content id: the manifest novel id when the folder has one
+/// (stable across title changes and re-downloads), else the title.
+fn kindle_content_seed(output_dir: &Path, title: &str) -> String {
+    read_manifest(output_dir)
+        .and_then(|manifest| manifest.novel_id().map(|id| format!("novel:{id}")))
+        .unwrap_or_else(|| title.to_string())
+}
+
+/// An existing AZW3 is reused only when it is at least as new as its EPUB.
+/// Without an EPUB there is nothing to regenerate from, so any AZW3 is kept.
+fn azw3_is_fresh(azw3_modified: Option<SystemTime>, epub_modified: Option<SystemTime>) -> bool {
+    match (azw3_modified, epub_modified) {
+        (None, _) => false,
+        (Some(_), None) => true,
+        (Some(azw3), Some(epub)) => azw3 >= epub,
+    }
+}
+
+fn modified(path: &Path) -> Option<SystemTime> {
+    fs::metadata(path).and_then(|meta| meta.modified()).ok()
+}
+
+fn has_extension(path: &Path, wanted: &str) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case(wanted))
+}
+
+/// Finds a book file: first among `listed` names (validated), then by scanning the folder.
+fn find_book_file(output_dir: &Path, listed: &[String], extension: &str) -> Result<Option<PathBuf>, String> {
+    for name in listed {
+        let relative = safe_relative_path(name)?;
+        let path = output_dir.join(relative);
+        if has_extension(&path, extension) && path.is_file() {
+            return Ok(Some(path));
+        }
+    }
+    let mut found: Vec<PathBuf> = fs::read_dir(output_dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|entry| !is_hidden_name(&entry.file_name().to_string_lossy()))
+                .map(|entry| entry.path())
+                .filter(|path| path.is_file() && has_extension(path, extension))
+                .collect()
+        })
+        .unwrap_or_default();
+    found.sort();
+    Ok(found.into_iter().next())
+}
+
+/// Returns an up-to-date AZW3 for the book in `output_dir`, converting from the
+/// EPUB when the AZW3 is missing or older than the EPUB. Other AZW3 files in the
+/// folder are removed after a regeneration so only one version remains.
+fn ensure_fresh_azw3(title: &str, output_dir: &Path, listed: &[String]) -> Result<PathBuf, String> {
+    let epub = find_book_file(output_dir, listed, "epub")?;
+    let existing = find_book_file(output_dir, listed, "azw3")?;
+    if let Some(existing) = &existing {
+        if azw3_is_fresh(modified(existing), epub.as_deref().and_then(modified)) {
+            return Ok(existing.clone());
+        }
+    }
+    let epub = epub.ok_or_else(|| format!("{title} nao tem EPUB para converter em AZW3"))?;
+    let target = output_dir.join(format!("{}.azw3", safe_export_stem(title)));
+    let seed = kindle_content_seed(output_dir, title);
+    convert_epub_to_azw3(&epub, &target, pick_cover(output_dir), title, &seed)
+        .map_err(|err| format!("Falha ao converter {title} para AZW3: {err}"))?;
+    if let Ok(entries) = fs::read_dir(output_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path != target && path.is_file() && has_extension(&path, "azw3")
+                && !is_hidden_name(&entry.file_name().to_string_lossy())
+            {
+                let _ = fs::remove_file(path);
+            }
+        }
+    }
+    Ok(target)
 }
 
 fn transcode_unsupported_images_for_kindle(extracted: &mut ExtractedEpub) -> Result<(), String> {
@@ -336,7 +402,7 @@ fn convert_epub_with_kindling(
     epub: &Path,
     target: &Path,
     cover: Option<&Path>,
-    title: &str,
+    content_seed: &str,
 ) -> Result<(), String> {
     let source_data = fs::read(epub)
         .map_err(|err| format!("Nao foi possivel ler o EPUB: {err}"))?;
@@ -371,7 +437,7 @@ fn convert_epub_with_kindling(
         return Err(err);
     }
 
-    let content_id = oghma_content_id(title);
+    let content_id = oghma_content_id(content_seed);
     // Kindle's thumbnail lookup uses EXTH 113 as its content UUID. Kindling's
     // rewrite API exposes that record as series_index, so emit both known IDs.
     let updates = MetadataUpdates {
@@ -403,13 +469,21 @@ fn convert_epub_with_calibre(epub: &Path, target: &Path, cover: Option<&Path>) -
     }
 }
 
+/// Converts into a hidden temp file next to `target` and renames it into place, so
+/// an interrupted conversion never leaves a half-written AZW3 that looks fresh.
 fn convert_epub_to_azw3(
     epub: &Path,
     target: &Path,
     cover: Option<PathBuf>,
     title: &str,
+    content_seed: &str,
 ) -> Result<(), String> {
-    match convert_epub_with_kindling(epub, target, cover.as_deref(), title) {
+    let stem = target
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().to_string())
+        .unwrap_or_else(|| "book".to_string());
+    let temp = target.with_file_name(format!(".{stem}.oghma-tmp-{}.azw3", unique_suffix()));
+    let result = match convert_epub_with_kindling(epub, &temp, cover.as_deref(), content_seed) {
         Ok(()) => {
             eprintln!("AZW3 converter=kindling title={title:?}");
             Ok(())
@@ -418,13 +492,21 @@ fn convert_epub_to_azw3(
             eprintln!(
                 "Warning: Kindling failed for {title:?}; trying Calibre fallback: {kindling_error}"
             );
-            let _ = fs::remove_file(target);
-            convert_epub_with_calibre(epub, target, cover.as_deref()).map_err(|calibre_error| {
+            let _ = fs::remove_file(&temp);
+            convert_epub_with_calibre(epub, &temp, cover.as_deref()).map_err(|calibre_error| {
                 format!("Kindling: {kindling_error}. Fallback do Calibre: {calibre_error}")
             })
         }
         Err(kindling_error) => Err(kindling_error),
+    };
+    if let Err(err) = result {
+        let _ = fs::remove_file(&temp);
+        return Err(err);
     }
+    fs::rename(&temp, target).map_err(|err| {
+        let _ = fs::remove_file(&temp);
+        format!("Nao foi possivel finalizar o AZW3: {err}")
+    })
 }
 
 #[tauri::command]
@@ -436,49 +518,12 @@ pub fn convert_export_to_azw3(
     let output_dir = expand_home(&output_dir);
     fs::create_dir_all(&output_dir)
         .map_err(|err| format!("Nao foi possivel acessar a pasta de saida: {err}"))?;
-
-    if let Some(existing) = output_files
-        .iter()
-        .find(|name| name.to_lowercase().ends_with(".azw3"))
-    {
-        let relative = safe_relative_path(existing)?;
-        if output_dir.join(&relative).is_file() {
-            return Ok(Azw3ConversionResult {
-                file_name: existing.to_string(),
-            });
-        }
-    }
-
-    let epub = output_files
-        .iter()
-        .find(|name| name.to_lowercase().ends_with(".epub"))
-        .map(|name| safe_relative_path(name).map(|relative| output_dir.join(relative)))
-        .transpose()?
-        .filter(|path| path.is_file())
-        .or_else(|| {
-            fs::read_dir(&output_dir).ok().and_then(|entries| {
-                entries.flatten().find_map(|entry| {
-                    let path = entry.path();
-                    let is_epub = path
-                        .extension()
-                        .and_then(|ext| ext.to_str())
-                        .map(|ext| ext.eq_ignore_ascii_case("epub"))
-                        .unwrap_or(false);
-                    if path.is_file() && is_epub {
-                        Some(path)
-                    } else {
-                        None
-                    }
-                })
-            })
-        })
-        .ok_or_else(|| format!("{title} nao tem EPUB para converter em AZW3"))?;
-
-    let file_name = format!("{}.azw3", safe_export_stem(&title));
-    let target = output_dir.join(&file_name);
-    convert_epub_to_azw3(&epub, &target, find_cover_file(&output_dir), &title)
-        .map_err(|err| format!("Falha ao converter {title} para AZW3: {err}"))?;
-
+    let azw3 = ensure_fresh_azw3(&title, &output_dir, &output_files)?;
+    let file_name = azw3
+        .strip_prefix(&output_dir)
+        .unwrap_or(&azw3)
+        .to_string_lossy()
+        .replace('\\', "/");
     Ok(Azw3ConversionResult { file_name })
 }
 
@@ -588,26 +633,8 @@ pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, St
             .map(expand_home)
             .ok_or_else(|| format!("{} nao tem pasta local de saida", item.title))?;
         let files = item.output_files.unwrap_or_default();
-
-        let mut azw3 = files
-            .iter()
-            .find(|name| name.to_lowercase().ends_with(".azw3"))
-            .map(|name| output_dir.join(name));
-
-        if azw3.is_none() {
-            let epub = files
-                .iter()
-                .find(|name| name.to_lowercase().ends_with(".epub"))
-                .map(|name| output_dir.join(name))
-                .ok_or_else(|| format!("{} nao tem EPUB para converter", item.title))?;
-            let target = output_dir.join(format!("{}.azw3", safe_export_stem(&item.title)));
-            convert_epub_to_azw3(&epub, &target, find_cover_file(&output_dir), &item.title)
-                .map_err(|err| format!("Falha ao converter {} para AZW3: {err}", item.title))?;
-            azw3 = Some(target);
-        }
-
-        let source = azw3.ok_or_else(|| format!("{} nao gerou AZW3", item.title))?;
-        let cover = find_cover_file(&output_dir)
+        let source = ensure_fresh_azw3(&item.title, &output_dir, &files)?;
+        let cover = pick_cover(&output_dir)
             .ok_or_else(|| format!("{} nao tem capa local para enviar ao Kindle", item.title))?;
         let thumbnail = build_kindle_thumbnail(&source, &cover)
             .map_err(|err| format!("Nao foi possivel preparar a capa de {}: {err}", item.title))?;
@@ -654,8 +681,36 @@ mod tests {
     use zip::{CompressionMethod, ZipWriter};
 
     use super::{
-        convert_epub_with_kindling, oghma_content_id, thumbnail_filename_from_record0,
+        azw3_is_fresh, convert_epub_with_kindling, kindle_content_seed, oghma_content_id,
+        thumbnail_filename_from_record0,
     };
+    use crate::files::test_support::TempDir;
+    use std::time::Duration;
+
+    #[test]
+    fn azw3_staleness_decision() {
+        let now = SystemTime::now();
+        let earlier = now - Duration::from_secs(60);
+        assert!(!azw3_is_fresh(None, Some(now)));
+        assert!(!azw3_is_fresh(None, None));
+        assert!(azw3_is_fresh(Some(now), None));
+        assert!(azw3_is_fresh(Some(now), Some(earlier)));
+        assert!(azw3_is_fresh(Some(now), Some(now)));
+        assert!(!azw3_is_fresh(Some(earlier), Some(now)));
+    }
+
+    #[test]
+    fn content_seed_prefers_manifest_novel_id() {
+        let dir = TempDir::new("seed");
+        assert_eq!(kindle_content_seed(dir.path(), "Livro"), "Livro");
+        fs::write(
+            dir.path().join(crate::files::LOCAL_BOOK_MANIFEST),
+            r#"{"novel_id":"cn:42","title":"Livro"}"#,
+        )
+        .unwrap();
+        assert_eq!(kindle_content_seed(dir.path(), "Outro título"), "novel:cn:42");
+        assert_ne!(oghma_content_id("novel:cn:42"), oghma_content_id("Livro"));
+    }
 
     fn exth_record(id: u32, content: &[u8]) -> Vec<u8> {
         let mut record = Vec::new();
