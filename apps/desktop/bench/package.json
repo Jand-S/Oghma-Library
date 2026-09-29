@@ -1,0 +1,17 @@
+{
+  "name": "@oghma/desktop-bench",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Benchmark + visual comparison harness for the Oghma Library desktop UI (old vs new).",
+  "scripts": {
+    "fixtures": "node fixtures/generate.mjs",
+    "build:apps": "node lib/build.mjs",
+    "bench": "node run.mjs --serve",
+    "screens": "node screens.mjs --serve",
+    "usability": "node usability.mjs --serve"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

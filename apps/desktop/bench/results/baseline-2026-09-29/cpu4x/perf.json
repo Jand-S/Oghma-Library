@@ -1,0 +1,6110 @@
+{
+  "startedAt": "2026-09-29T03:28:58.351Z",
+  "runs": 7,
+  "cpuThrottle": 4,
+  "searchQueries": [
+    "kraken",
+    "zephyr",
+    "quokka",
+    "mago",
+    "sombra"
+  ],
+  "node": "v26.10.0",
+  "browser": "153.0.8010.12",
+  "fixtures": {
+    "primaryNovels": 5000,
+    "totalNovels": 5400,
+    "libraryBooks": 500,
+    "catalogBytes": {
+      "acervo-alfa": 616825,
+      "acervo-beta": 51785
+    }
+  },
+  "versions": {
+    "old": {
+      "label": "v1.0.0",
+      "url": "http://127.0.0.1:4174/",
+      "assets": {
+        "distDir": "/Users/jandson/Documents/Oghma-wt/v1/dist-bench",
+        "files": [
+          {
+            "file": "core-SwWLTXZB.js",
+            "kind": "js",
+            "entry": false,
+            "raw": 2706,
+            "gzip": 1054,
+            "brotli": 911
+          },
+          {
+            "file": "index-BCvsqME4.js",
+            "kind": "js",
+            "entry": true,
+            "raw": 335323,
+            "gzip": 98750,
+            "brotli": 85006
+          },
+          {
+            "file": "index-RVnkaIfn.css",
+            "kind": "css",
+            "entry": true,
+            "raw": 56020,
+            "gzip": 10353,
+            "brotli": 9176
+          },
+          {
+            "file": "window-CzEB0kIJ.js",
+            "kind": "js",
+            "entry": false,
+            "raw": 14176,
+            "gzip": 3451,
+            "brotli": 3075
+          }
+        ],
+        "js": {
+          "raw": 352205,
+          "gzip": 103255,
+          "brotli": 88992
+        },
+        "css": {
+          "raw": 56020,
+          "gzip": 10353,
+          "brotli": 9176
+        },
+        "entryJs": {
+          "raw": 335323,
+          "gzip": 98750,
+          "brotli": 85006
+        },
+        "entryCss": {
+          "raw": 56020,
+          "gzip": 10353,
+          "brotli": 9176
+        },
+        "cssText": {
+          "hexLiterals": 250,
+          "uniqueHex": 154,
+          "declarations": 2062,
+          "varRefs": 322,
+          "customPropertyDefs": 24,
+          "important": 2
+        },
+        "cssRules": {
+          "totalRules": 584,
+          "styleRules": 578,
+          "mediaRules": 5,
+          "supportsRules": 0,
+          "layerRules": 0,
+          "keyframesRules": 1,
+          "fontFaceRules": 0,
+          "containerRules": 0,
+          "selectors": 696
+        }
+      },
+      "runs": [
+        {
+          "run": 0,
+          "version": "old",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 74.59999999403954,
+            "shellMounted": 96.2999999821186,
+            "shellVisible": 1299.2999999821186,
+            "firstCard": 1274,
+            "cards24": 1274,
+            "tbt": 884,
+            "longtasks": 4
+          },
+          "heapIdle": {
+            "Timestamp": 247269.154396,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000019,
+            "ProcessTime": 2.79931,
+            "JSHeapUsedSize": 19201300,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247267.481103,
+            "DomContentLoaded": 247266.261396,
+            "NavigationStart": 247266.186852
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3188,
+                "t1": 3271.5,
+                "tPaint": 3292,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3487.2999999821186,
+                "t1": 3526.2999999821186,
+                "tPaint": 3540.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5707.5,
+                "t1": 5761.399999976158,
+                "tPaint": 5771,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5922.5999999940395,
+                "t1": 5945.399999976158,
+                "tPaint": 5952.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8194.09999999404,
+                "t1": 8270.199999988079,
+                "tPaint": 8280.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8908.199999988079,
+                "t1": 8930.299999982119,
+                "tPaint": 8937.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10932.09999999404,
+                "t1": 11198.5,
+                "tPaint": 11208,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11858.5,
+                "t1": 11949.799999982119,
+                "tPaint": 11959.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12265.199999988079,
+                "t1": 12313.899999976158,
+                "tPaint": 12323.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12443,
+                "t1": 12472.899999976158,
+                "tPaint": 12482.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13823.399999976158,
+                "t1": 14135.399999976158,
+                "tPaint": 14145.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14805,
+                "t1": 14876.399999976158,
+                "tPaint": 14887,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 15101.899999976158,
+                "t1": 15133.59999999404,
+                "tPaint": 15143.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15703.799999982119,
+                "t1": 15729.399999976158,
+                "tPaint": 15737.899999976158,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4543.5,
+                "t1": 4916.899999976158,
+                "tPaint": 4927.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6929.699999988079,
+                "t1": 7332.199999988079,
+                "tPaint": 7343.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9671.299999982119,
+                "t1": 10049.59999999404,
+                "tPaint": 10059.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12534.799999982119,
+                "t1": 12539.5,
+                "tPaint": 12924.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15776.399999976158,
+                "t1": 15779.59999999404,
+                "tPaint": 16170.899999976158,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 60.79999999701977,
+            "keystrokeMax": 321.7000000178814,
+            "latencies": [
+              104,
+              53.099999994039536,
+              63.5,
+              30.299999982118607,
+              86,
+              29.19999998807907,
+              275.90000000596046,
+              100.59999999403954,
+              58.099999994039536,
+              39.19999998807907,
+              321.7000000178814,
+              82,
+              41.400000005960464,
+              34.099999994039536
+            ],
+            "clearToFull": 389.5,
+            "tbt": 6864,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 3000,
+            "frames": 181,
+            "fps": 60,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 150.2999999821186,
+            "toAll": 150.2999999821186,
+            "renderedCards": 500,
+            "tbt": 93,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247288.465071,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000689,
+            "ProcessTime": 21.074756,
+            "JSHeapUsedSize": 22622856,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247267.481103,
+            "DomContentLoaded": 247266.261396,
+            "NavigationStart": 247266.186852
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-RVnkaIfn.css",
+            "assets/index-BCvsqME4.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 1,
+          "version": "old",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 74.2999999821186,
+            "shellMounted": 95.69999998807907,
+            "shellVisible": 1284.7999999821186,
+            "firstCard": 1258.0999999940395,
+            "cards24": 1258.0999999940395,
+            "tbt": 872,
+            "longtasks": 3
+          },
+          "heapIdle": {
+            "Timestamp": 247335.681352,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000004,
+            "TaskOtherDuration": 0,
+            "ThreadTime": 0.000333,
+            "ProcessTime": 2.775236,
+            "JSHeapUsedSize": 19201764,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247334.008504,
+            "DomContentLoaded": 247332.804642,
+            "NavigationStart": 247332.730283
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3147.199999988079,
+                "t1": 3230,
+                "tPaint": 3255.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3452.699999988079,
+                "t1": 3486.7999999821186,
+                "tPaint": 3499.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5661,
+                "t1": 5714.899999976158,
+                "tPaint": 5725.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5876.299999982119,
+                "t1": 5898.699999988079,
+                "tPaint": 5906.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8047.5,
+                "t1": 8121.699999988079,
+                "tPaint": 8130.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8752.399999976158,
+                "t1": 8774.09999999404,
+                "tPaint": 8780.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10770.09999999404,
+                "t1": 11038.09999999404,
+                "tPaint": 11047.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11701.59999999404,
+                "t1": 11793.299999982119,
+                "tPaint": 11803.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12104.5,
+                "t1": 12153.399999976158,
+                "tPaint": 12163.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12281.399999976158,
+                "t1": 12313.09999999404,
+                "tPaint": 12322.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13657.09999999404,
+                "t1": 13965.699999988079,
+                "tPaint": 13975,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14634.09999999404,
+                "t1": 14705.199999988079,
+                "tPaint": 14715.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14923.199999988079,
+                "t1": 14954.59999999404,
+                "tPaint": 14963.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15519.09999999404,
+                "t1": 15544.799999982119,
+                "tPaint": 15553.5,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4498.399999976158,
+                "t1": 4875.799999982119,
+                "tPaint": 4885.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6873.299999982119,
+                "t1": 7253.699999988079,
+                "tPaint": 7262.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9510.899999976158,
+                "t1": 9891.299999982119,
+                "tPaint": 9901.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12374.699999988079,
+                "t1": 12379.399999976158,
+                "tPaint": 12761,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15593.899999976158,
+                "t1": 15597.699999988079,
+                "tPaint": 15986.5,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 61.99999998509884,
+            "keystrokeMax": 317.90000000596046,
+            "latencies": [
+              108.5,
+              46.5,
+              64.89999997615814,
+              30.599999994039536,
+              83.19999998807907,
+              28.5,
+              277.5,
+              101.5,
+              59.099999994039536,
+              41.20000001788139,
+              317.90000000596046,
+              81.09999999403954,
+              40,
+              34.400000005960464
+            ],
+            "clearToFull": 389.09999999403954,
+            "tbt": 6762,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.69999999999709,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 146.2999999821186,
+            "toAll": 146.2999999821186,
+            "renderedCards": 500,
+            "tbt": 88,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247354.798119,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000003,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000004,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.00048,
+            "ProcessTime": 20.875268,
+            "JSHeapUsedSize": 22621332,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247334.008504,
+            "DomContentLoaded": 247332.804642,
+            "NavigationStart": 247332.730283
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-RVnkaIfn.css",
+            "assets/index-BCvsqME4.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 2,
+          "version": "old",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 73.89999997615814,
+            "shellMounted": 96,
+            "shellVisible": 1285.5,
+            "firstCard": 1258.7999999821186,
+            "cards24": 1258.7999999821186,
+            "tbt": 871,
+            "longtasks": 3
+          },
+          "heapIdle": {
+            "Timestamp": 247357.78785,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0,
+            "ThreadTime": 0.000203,
+            "ProcessTime": 2.787914,
+            "JSHeapUsedSize": 19201480,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247356.1119,
+            "DomContentLoaded": 247354.90671,
+            "NavigationStart": 247354.832821
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3164.699999988079,
+                "t1": 3249.699999988079,
+                "tPaint": 3270.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3465.5999999940395,
+                "t1": 3502,
+                "tPaint": 3515.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5680.899999976158,
+                "t1": 5734.799999982119,
+                "tPaint": 5745.5,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5897.0999999940395,
+                "t1": 5919.5999999940395,
+                "tPaint": 5927.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8063.299999982119,
+                "t1": 8137.0999999940395,
+                "tPaint": 8146.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8771.199999988079,
+                "t1": 8793.09999999404,
+                "tPaint": 8800.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10776.899999976158,
+                "t1": 11045.799999982119,
+                "tPaint": 11055.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11707,
+                "t1": 11799.699999988079,
+                "tPaint": 11810,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12113.399999976158,
+                "t1": 12161.799999982119,
+                "tPaint": 12172,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12291.09999999404,
+                "t1": 12322.09999999404,
+                "tPaint": 12331.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13678.09999999404,
+                "t1": 13986.699999988079,
+                "tPaint": 13995.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14653.899999976158,
+                "t1": 14725.09999999404,
+                "tPaint": 14735.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14945.399999976158,
+                "t1": 14977.299999982119,
+                "tPaint": 14986.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15539.899999976158,
+                "t1": 15565.09999999404,
+                "tPaint": 15573.799999982119,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4517.399999976158,
+                "t1": 4895.399999976158,
+                "tPaint": 4905.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6893.0999999940395,
+                "t1": 7272.899999976158,
+                "tPaint": 7282.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9530.399999976158,
+                "t1": 9905.09999999404,
+                "tPaint": 9914.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12386.799999982119,
+                "t1": 12391.299999982119,
+                "tPaint": 12776.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15612.59999999404,
+                "t1": 15615.699999988079,
+                "tPaint": 16007.699999988079,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 61.60000002384186,
+            "keystrokeMax": 317.7999999821186,
+            "latencies": [
+              106.19999998807907,
+              49.599999994039536,
+              64.60000002384186,
+              30,
+              83.59999999403954,
+              29,
+              278.5,
+              103,
+              58.60000002384186,
+              40.29999998211861,
+              317.7999999821186,
+              81.90000000596046,
+              40.70000001788139,
+              33.900000005960464
+            ],
+            "clearToFull": 389.5,
+            "tbt": 6769,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 151.5,
+            "toAll": 151.5,
+            "renderedCards": 500,
+            "tbt": 95,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247376.937591,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000003,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000004,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000232,
+            "ProcessTime": 20.936188,
+            "JSHeapUsedSize": 22623252,
+            "JSHeapTotalSize": 23724032,
+            "FirstMeaningfulPaint": 247356.1119,
+            "DomContentLoaded": 247354.90671,
+            "NavigationStart": 247354.832821
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-RVnkaIfn.css",
+            "assets/index-BCvsqME4.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 3,
+          "version": "old",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 74.59999999403954,
+            "shellMounted": 96.19999998807907,
+            "shellVisible": 1286.5999999940395,
+            "firstCard": 1260.2999999821186,
+            "cards24": 1260.2999999821186,
+            "tbt": 873,
+            "longtasks": 3
+          },
+          "heapIdle": {
+            "Timestamp": 247424.464947,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000408,
+            "ProcessTime": 2.788566,
+            "JSHeapUsedSize": 19201780,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247422.793295,
+            "DomContentLoaded": 247421.58645,
+            "NavigationStart": 247421.511948
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3167.4000000059605,
+                "t1": 3251,
+                "tPaint": 3272.5,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3466.9000000059605,
+                "t1": 3501.5999999940395,
+                "tPaint": 3515.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5683,
+                "t1": 5737,
+                "tPaint": 5746.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5901.4000000059605,
+                "t1": 5924.5,
+                "tPaint": 5931.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8072.799999982119,
+                "t1": 8144.9000000059605,
+                "tPaint": 8154.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8777.799999982119,
+                "t1": 8800.299999982119,
+                "tPaint": 8806.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10801.5,
+                "t1": 11064.5,
+                "tPaint": 11074.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11740.90000000596,
+                "t1": 11832.09999999404,
+                "tPaint": 11842.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12146.699999988079,
+                "t1": 12195.199999988079,
+                "tPaint": 12205.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12323.799999982119,
+                "t1": 12353.699999988079,
+                "tPaint": 12362.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13702.799999982119,
+                "t1": 14009,
+                "tPaint": 14017.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14681.5,
+                "t1": 14754.90000000596,
+                "tPaint": 14764.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14975,
+                "t1": 15006.59999999404,
+                "tPaint": 15015.5,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15564.299999982119,
+                "t1": 15589.5,
+                "tPaint": 15598.199999988079,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4518.799999982119,
+                "t1": 4894.5,
+                "tPaint": 4904.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6896.5999999940395,
+                "t1": 7271.799999982119,
+                "tPaint": 7281.5,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9533.5,
+                "t1": 9922.09999999404,
+                "tPaint": 9932.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12414.09999999404,
+                "t1": 12418.699999988079,
+                "tPaint": 12802.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15635.299999982119,
+                "t1": 15638.799999982119,
+                "tPaint": 16029.199999988079,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 61.29999999701977,
+            "keystrokeMax": 315.10000002384186,
+            "latencies": [
+              105.09999999403954,
+              48.19999998807907,
+              63.69999998807907,
+              29.799999982118607,
+              81.80000001192093,
+              29,
+              272.59999999403954,
+              101.89999997615814,
+              58.900000005960464,
+              39.10000002384186,
+              315.10000002384186,
+              83.19999998807907,
+              40.5,
+              33.900000005960464
+            ],
+            "clearToFull": 388.19999998807907,
+            "tbt": 6793,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.899999999998,
+            "frames": 181,
+            "fps": 60.00200006666893,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 151.90000000596046,
+            "toAll": 151.90000000596046,
+            "renderedCards": 500,
+            "tbt": 95,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247443.643852,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000019,
+            "ProcessTime": 20.950422,
+            "JSHeapUsedSize": 22628652,
+            "JSHeapTotalSize": 23724032,
+            "FirstMeaningfulPaint": 247422.793295,
+            "DomContentLoaded": 247421.58645,
+            "NavigationStart": 247421.511948
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-RVnkaIfn.css",
+            "assets/index-BCvsqME4.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 4,
+          "version": "old",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 75.69999998807907,
+            "shellMounted": 97.90000000596046,
+            "shellVisible": 1306.699999988079,
+            "firstCard": 1281.199999988079,
+            "cards24": 1281.199999988079,
+            "tbt": 887,
+            "longtasks": 4
+          },
+          "heapIdle": {
+            "Timestamp": 247446.656006,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000113,
+            "ProcessTime": 2.820515,
+            "JSHeapUsedSize": 19202836,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247444.98317,
+            "DomContentLoaded": 247443.757157,
+            "NavigationStart": 247443.68148
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3183.9000000059605,
+                "t1": 3268.7999999821186,
+                "tPaint": 3289.5,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3485.5999999940395,
+                "t1": 3519.699999988079,
+                "tPaint": 3533,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5705,
+                "t1": 5759.699999988079,
+                "tPaint": 5769.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5922.199999988079,
+                "t1": 5944,
+                "tPaint": 5952.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8090.0999999940395,
+                "t1": 8162.5999999940395,
+                "tPaint": 8172.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8800.59999999404,
+                "t1": 8822.5,
+                "tPaint": 8829.5,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10817.299999982119,
+                "t1": 11084.199999988079,
+                "tPaint": 11093.5,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11752.90000000596,
+                "t1": 11845.40000000596,
+                "tPaint": 11856,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12165.199999988079,
+                "t1": 12217.90000000596,
+                "tPaint": 12227.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12349.5,
+                "t1": 12377,
+                "tPaint": 12386,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13732.59999999404,
+                "t1": 14039.59999999404,
+                "tPaint": 14049.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14715,
+                "t1": 14785.699999988079,
+                "tPaint": 14796.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 15008.09999999404,
+                "t1": 15039.59999999404,
+                "tPaint": 15049,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15608.5,
+                "t1": 15633.699999988079,
+                "tPaint": 15643.09999999404,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4534.699999988079,
+                "t1": 4912.4000000059605,
+                "tPaint": 4922.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6919.0999999940395,
+                "t1": 7287.5,
+                "tPaint": 7297.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9560.59999999404,
+                "t1": 9938.799999982119,
+                "tPaint": 9949.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12436.40000000596,
+                "t1": 12440.699999988079,
+                "tPaint": 12828.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15683.59999999404,
+                "t1": 15686.09999999404,
+                "tPaint": 16076.59999999404,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 63.349999994039536,
+            "keystrokeMax": 316.5,
+            "latencies": [
+              105.59999999403954,
+              47.400000005960464,
+              64.19999998807907,
+              29.900000005960464,
+              82,
+              28.900000005960464,
+              276.2000000178814,
+              103.09999999403954,
+              62.5,
+              36.5,
+              316.5,
+              81.09999999403954,
+              40.900000005960464,
+              34.599999994039536
+            ],
+            "clearToFull": 388.69999998807907,
+            "tbt": 6815,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.799999999999272,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 148.40000000596046,
+            "toAll": 148.40000000596046,
+            "renderedCards": 500,
+            "tbt": 91,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247465.849767,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000004,
+            "TaskOtherDuration": 0,
+            "ThreadTime": 0.000016,
+            "ProcessTime": 21.002725,
+            "JSHeapUsedSize": 22629312,
+            "JSHeapTotalSize": 23724032,
+            "FirstMeaningfulPaint": 247444.98317,
+            "DomContentLoaded": 247443.757157,
+            "NavigationStart": 247443.68148
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-RVnkaIfn.css",
+            "assets/index-BCvsqME4.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 5,
+          "version": "old",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 75.7999999821186,
+            "shellMounted": 98.5,
+            "shellVisible": 1311.0999999940395,
+            "firstCard": 1283.5999999940395,
+            "cards24": 1283.5999999940395,
+            "tbt": 888,
+            "longtasks": 4
+          },
+          "heapIdle": {
+            "Timestamp": 247513.273711,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000284,
+            "ProcessTime": 2.82289,
+            "JSHeapUsedSize": 19201352,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247511.590515,
+            "DomContentLoaded": 247510.362276,
+            "NavigationStart": 247510.286422
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3200.5,
+                "t1": 3284.199999988079,
+                "tPaint": 3304.4000000059605,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3501.0999999940395,
+                "t1": 3536.2999999821186,
+                "tPaint": 3549.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5715.0999999940395,
+                "t1": 5768.299999982119,
+                "tPaint": 5778.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5930.5999999940395,
+                "t1": 5953.4000000059605,
+                "tPaint": 5960.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8098.0999999940395,
+                "t1": 8170.699999988079,
+                "tPaint": 8180.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8811.40000000596,
+                "t1": 8833.09999999404,
+                "tPaint": 8839.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10818.09999999404,
+                "t1": 11080.799999982119,
+                "tPaint": 11090.5,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11750.40000000596,
+                "t1": 11841,
+                "tPaint": 11851.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12146.5,
+                "t1": 12190,
+                "tPaint": 12199.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12310.5,
+                "t1": 12335.5,
+                "tPaint": 12344.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13676.299999982119,
+                "t1": 13981,
+                "tPaint": 13990.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14666.09999999404,
+                "t1": 14736.40000000596,
+                "tPaint": 14745.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14955.09999999404,
+                "t1": 14986.799999982119,
+                "tPaint": 14996.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15557.799999982119,
+                "t1": 15582.90000000596,
+                "tPaint": 15592,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4549,
+                "t1": 4922.799999982119,
+                "tPaint": 4933.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6921.9000000059605,
+                "t1": 7298.4000000059605,
+                "tPaint": 7308.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9568,
+                "t1": 9937.199999988079,
+                "tPaint": 9946.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12384.09999999404,
+                "t1": 12388,
+                "tPaint": 12768.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15631.5,
+                "t1": 15635.199999988079,
+                "tPaint": 16018.299999982119,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 57.8999999910593,
+            "keystrokeMax": 314.30000001192093,
+            "latencies": [
+              103.90000000596046,
+              48.5,
+              63,
+              30.19999998807907,
+              82.69999998807907,
+              28.5,
+              272.40000000596046,
+              100.89999997615814,
+              52.79999998211861,
+              34.400000005960464,
+              314.30000001192093,
+              79.5,
+              41.099999994039536,
+              34.20000001788139
+            ],
+            "clearToFull": 384.59999999403954,
+            "tbt": 6804,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.7999999999993,
+            "frames": 181,
+            "fps": 60.004000266684464,
+            "frameMedian": 16.69999999999709,
+            "frameP95": 16.799999999999272,
+            "frameMax": 16.799999999999272,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 155.40000000596046,
+            "toAll": 155.40000000596046,
+            "renderedCards": 500,
+            "tbt": 99,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247532.421438,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0,
+            "ThreadTime": 0.000017,
+            "ProcessTime": 20.955213,
+            "JSHeapUsedSize": 22628012,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247511.590515,
+            "DomContentLoaded": 247510.362276,
+            "NavigationStart": 247510.286422
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-RVnkaIfn.css",
+            "assets/index-BCvsqME4.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 6,
+          "version": "old",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 75.40000000596046,
+            "shellMounted": 97,
+            "shellVisible": 1304.800000011921,
+            "firstCard": 1279.800000011921,
+            "cards24": 1279.800000011921,
+            "tbt": 887,
+            "longtasks": 4
+          },
+          "heapIdle": {
+            "Timestamp": 247535.430409,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000006,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0,
+            "ThreadTime": 0.000392,
+            "ProcessTime": 2.824497,
+            "JSHeapUsedSize": 19201752,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247533.757477,
+            "DomContentLoaded": 247532.532253,
+            "NavigationStart": 247532.457113
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3182.800000011921,
+                "t1": 3267.100000023842,
+                "tPaint": 3287.7000000178814,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3483.9000000059605,
+                "t1": 3518.600000023842,
+                "tPaint": 3532.100000023842,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5702.700000017881,
+                "t1": 5756.300000011921,
+                "tPaint": 5766.5,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5918.4000000059605,
+                "t1": 5941.300000011921,
+                "tPaint": 5949,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8082.300000011921,
+                "t1": 8156.5,
+                "tPaint": 8165.9000000059605,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8795.5,
+                "t1": 8817.300000011921,
+                "tPaint": 8824.100000023842,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10819.600000023842,
+                "t1": 11090.300000011921,
+                "tPaint": 11100.200000017881,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11761.5,
+                "t1": 11853.700000017881,
+                "tPaint": 11863.5,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12175.40000000596,
+                "t1": 12224.100000023842,
+                "tPaint": 12234.40000000596,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12359.200000017881,
+                "t1": 12385.300000011921,
+                "tPaint": 12394.40000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13746.5,
+                "t1": 14057.700000017881,
+                "tPaint": 14067.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14738.5,
+                "t1": 14810.300000011921,
+                "tPaint": 14819.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 15033.40000000596,
+                "t1": 15065.40000000596,
+                "tPaint": 15074.5,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15630.40000000596,
+                "t1": 15655.300000011921,
+                "tPaint": 15664.5,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4528.200000017881,
+                "t1": 4911.600000023842,
+                "tPaint": 4922.5,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6913.600000023842,
+                "t1": 7285.9000000059605,
+                "tPaint": 7295.9000000059605,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9553.300000011921,
+                "t1": 9933.200000017881,
+                "tPaint": 9943.600000023842,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12445.700000017881,
+                "t1": 12450.300000011921,
+                "tPaint": 12837.5,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15702.300000011921,
+                "t1": 15705.600000023842,
+                "tPaint": 16101.300000011921,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 61.3999999910593,
+            "keystrokeMax": 321.30000001192093,
+            "latencies": [
+              104.90000000596046,
+              48.20000001788139,
+              63.79999998211861,
+              30.599999994039536,
+              83.59999999403954,
+              28.600000023841858,
+              280.59999999403954,
+              102,
+              59,
+              35.19999998807907,
+              321.30000001192093,
+              81.30000001192093,
+              41.099999994039536,
+              34.099999994039536
+            ],
+            "clearToFull": 391.7999999821186,
+            "tbt": 6850,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.69999999999709,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.799999999999272,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 153.30000001192093,
+            "toAll": 153.30000001192093,
+            "renderedCards": 500,
+            "tbt": 97,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247554.660705,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000003,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000002,
+            "ThreadTime": 0.000315,
+            "ProcessTime": 21.087555,
+            "JSHeapUsedSize": 22626984,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247533.757477,
+            "DomContentLoaded": 247532.532253,
+            "NavigationStart": 247532.457113
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-RVnkaIfn.css",
+            "assets/index-BCvsqME4.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        }
+      ],
+      "summary": {
+        "Cold load: FCP (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 124,
+          "p95": 124,
+          "min": 124,
+          "max": 124
+        },
+        "Cold load: shell mounted (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 96.2999999821186,
+          "p95": 98.32000000178815,
+          "min": 95.69999998807907,
+          "max": 98.5
+        },
+        "Cold load: shell visible / splash gone (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 1299.2999999821186,
+          "p95": 1309.7799999922513,
+          "min": 1284.7999999821186,
+          "max": 1311.0999999940395
+        },
+        "Cold load: first card (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 1274,
+          "p95": 1282.8799999922514,
+          "min": 1258.0999999940395,
+          "max": 1283.5999999940395
+        },
+        "Cold load: 24 cards (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 1274,
+          "p95": 1282.8799999922514,
+          "min": 1258.0999999940395,
+          "max": 1283.5999999940395
+        },
+        "TBT cold load (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 884,
+          "p95": 887.7,
+          "min": 871,
+          "max": 888
+        },
+        "Search keystroke → results, per-run median (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 61.3999999910593,
+          "p95": 62.94499999135733,
+          "min": 57.8999999910593,
+          "max": 63.349999994039536
+        },
+        "Search keystroke → results, per-run max (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 317.7999999821186,
+          "p95": 321.58000001609327,
+          "min": 314.30000001192093,
+          "max": 321.7000000178814
+        },
+        "Search clear → full list (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 389.09999999403954,
+          "p95": 391.10999998748304,
+          "min": 384.59999999403954,
+          "max": 391.7999999821186
+        },
+        "TBT during search (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 6804,
+          "p95": 6859.8,
+          "min": 6762,
+          "max": 6864
+        },
+        "Scroll FPS (3 s scripted)": {
+          "n": 7,
+          "missing": 0,
+          "median": 60.002000066668856,
+          "p95": 60.0034002066798,
+          "min": 60,
+          "max": 60.004000266684464
+        },
+        "Scroll frame p95 (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 16.700000000000728,
+          "p95": 16.799999999999272,
+          "min": 16.700000000000728,
+          "max": 16.799999999999272
+        },
+        "Scroll jank frames (>1.5× median)": {
+          "n": 7,
+          "missing": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "Library nav → 24 cards (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 151.5,
+          "p95": 154.7700000077486,
+          "min": 146.2999999821186,
+          "max": 155.40000000596046
+        },
+        "Library nav → all books rendered (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 151.5,
+          "p95": 154.7700000077486,
+          "min": 146.2999999821186,
+          "max": 155.40000000596046
+        },
+        "TBT library nav (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 95,
+          "p95": 98.4,
+          "min": 88,
+          "max": 99
+        },
+        "JS heap idle shell (MB, after GC)": {
+          "n": 7,
+          "missing": 0,
+          "median": 18.312217712402344,
+          "p95": 18.31294937133789,
+          "min": 18.311786651611328,
+          "max": 18.313251495361328
+        },
+        "JS heap after Library (MB, after GC)": {
+          "n": 7,
+          "missing": 0,
+          "median": 21.578773498535156,
+          "p95": 21.5808048248291,
+          "min": 21.573383331298828,
+          "max": 21.58099365234375
+        },
+        "DOM nodes idle shell": {
+          "n": 7,
+          "missing": 0,
+          "median": 1341,
+          "p95": 1341,
+          "min": 1341,
+          "max": 1341
+        },
+        "DOM nodes after Library": {
+          "n": 7,
+          "missing": 0,
+          "median": 8556,
+          "p95": 8556,
+          "min": 8556,
+          "max": 8556
+        }
+      },
+      "pooledSearch": {
+        "n": 98,
+        "p50": 62.75,
+        "p95": 315.3100000202656
+      }
+    },
+    "new": {
+      "label": "wip (current branch)",
+      "url": "http://127.0.0.1:4173/",
+      "assets": {
+        "distDir": "/Users/jandson/Documents/Oghma-wt/bench/apps/desktop/dist-bench",
+        "files": [
+          {
+            "file": "core-SwWLTXZB.js",
+            "kind": "js",
+            "entry": false,
+            "raw": 2706,
+            "gzip": 1054,
+            "brotli": 911
+          },
+          {
+            "file": "index-DAVcR4z9.css",
+            "kind": "css",
+            "entry": true,
+            "raw": 58984,
+            "gzip": 10739,
+            "brotli": 9544
+          },
+          {
+            "file": "index-DQSq8EVg.js",
+            "kind": "js",
+            "entry": true,
+            "raw": 360536,
+            "gzip": 105712,
+            "brotli": 90820
+          },
+          {
+            "file": "window-CzEB0kIJ.js",
+            "kind": "js",
+            "entry": false,
+            "raw": 14176,
+            "gzip": 3451,
+            "brotli": 3075
+          }
+        ],
+        "js": {
+          "raw": 377418,
+          "gzip": 110217,
+          "brotli": 94806
+        },
+        "css": {
+          "raw": 58984,
+          "gzip": 10739,
+          "brotli": 9544
+        },
+        "entryJs": {
+          "raw": 360536,
+          "gzip": 105712,
+          "brotli": 90820
+        },
+        "entryCss": {
+          "raw": 58984,
+          "gzip": 10739,
+          "brotli": 9544
+        },
+        "cssText": {
+          "hexLiterals": 265,
+          "uniqueHex": 163,
+          "declarations": 2171,
+          "varRefs": 344,
+          "customPropertyDefs": 24,
+          "important": 2
+        },
+        "cssRules": {
+          "totalRules": 610,
+          "styleRules": 604,
+          "mediaRules": 5,
+          "supportsRules": 0,
+          "layerRules": 0,
+          "keyframesRules": 1,
+          "fontFaceRules": 0,
+          "containerRules": 0,
+          "selectors": 726
+        }
+      },
+      "runs": [
+        {
+          "run": 0,
+          "version": "new",
+          "cold": {
+            "fcp": 128,
+            "domContentLoaded": 75.89999997615814,
+            "shellMounted": 98.19999998807907,
+            "shellVisible": 1305.5999999940395,
+            "firstCard": 1279.5,
+            "cards24": 1279.5,
+            "tbt": 883,
+            "longtasks": 3
+          },
+          "heapIdle": {
+            "Timestamp": 247291.477702,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000285,
+            "ProcessTime": 2.818195,
+            "JSHeapUsedSize": 19227976,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247289.801821,
+            "DomContentLoaded": 247288.576655,
+            "NavigationStart": 247288.500814
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3183.5999999940395,
+                "t1": 3265.399999976158,
+                "tPaint": 3287.2999999821186,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3484.5999999940395,
+                "t1": 3520,
+                "tPaint": 3532.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5697.899999976158,
+                "t1": 5751.5,
+                "tPaint": 5761.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5912.199999988079,
+                "t1": 5934.899999976158,
+                "tPaint": 5941.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8076.199999988079,
+                "t1": 8148.799999982119,
+                "tPaint": 8158.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8778.899999976158,
+                "t1": 8801.199999988079,
+                "tPaint": 8808.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10784.199999988079,
+                "t1": 11051.699999988079,
+                "tPaint": 11061.5,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11710.199999988079,
+                "t1": 11800.59999999404,
+                "tPaint": 11810.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12116.09999999404,
+                "t1": 12165.699999988079,
+                "tPaint": 12175.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12294.699999988079,
+                "t1": 12324.59999999404,
+                "tPaint": 12333.5,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13665.5,
+                "t1": 13972.699999988079,
+                "tPaint": 13982.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14636.699999988079,
+                "t1": 14708.09999999404,
+                "tPaint": 14718.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14926,
+                "t1": 14957.399999976158,
+                "tPaint": 14966.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15516.699999988079,
+                "t1": 15542.199999988079,
+                "tPaint": 15551.09999999404,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4530.899999976158,
+                "t1": 4901.399999976158,
+                "tPaint": 4911.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6904.699999988079,
+                "t1": 7279.799999982119,
+                "tPaint": 7290.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9539.299999982119,
+                "t1": 9912.799999982119,
+                "tPaint": 9922.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12384.199999988079,
+                "t1": 12388.299999982119,
+                "tPaint": 12772.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15588.799999982119,
+                "t1": 15592.199999988079,
+                "tPaint": 15982.699999988079,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 61.400000005960464,
+            "keystrokeMax": 316.69999998807907,
+            "latencies": [
+              103.69999998807907,
+              48.099999994039536,
+              63.30000001192093,
+              29.5,
+              82.5,
+              29.400000005960464,
+              277.30000001192093,
+              100.5,
+              59.5,
+              38.80000001192093,
+              316.69999998807907,
+              81.40000000596046,
+              40.29999998211861,
+              34.400000005960464
+            ],
+            "clearToFull": 385.40000000596046,
+            "tbt": 6731,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.7999999999993,
+            "frames": 181,
+            "fps": 60.004000266684464,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 147.2000000178814,
+            "toAll": 147.2000000178814,
+            "renderedCards": 500,
+            "tbt": 91,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247310.589879,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000003,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000004,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000018,
+            "ProcessTime": 20.896231,
+            "JSHeapUsedSize": 22645832,
+            "JSHeapTotalSize": 23724032,
+            "FirstMeaningfulPaint": 247289.801821,
+            "DomContentLoaded": 247288.576655,
+            "NavigationStart": 247288.500814
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-DAVcR4z9.css",
+            "assets/index-DQSq8EVg.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 1,
+          "version": "new",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 75,
+            "shellMounted": 96.59999999403954,
+            "shellVisible": 1289.5999999940395,
+            "firstCard": 1264.0999999940395,
+            "cards24": 1264.0999999940395,
+            "tbt": 874,
+            "longtasks": 3
+          },
+          "heapIdle": {
+            "Timestamp": 247313.588434,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000007,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000008,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000536,
+            "ProcessTime": 2.804489,
+            "JSHeapUsedSize": 19228300,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247311.909251,
+            "DomContentLoaded": 247310.69981,
+            "NavigationStart": 247310.624829
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3163.399999976158,
+                "t1": 3246.2999999821186,
+                "tPaint": 3268.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3475.0999999940395,
+                "t1": 3506.0999999940395,
+                "tPaint": 3516.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5671.899999976158,
+                "t1": 5726.0999999940395,
+                "tPaint": 5736.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5886.699999988079,
+                "t1": 5909,
+                "tPaint": 5916.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8048.199999988079,
+                "t1": 8120.799999982119,
+                "tPaint": 8130.5,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8751.5,
+                "t1": 8773.699999988079,
+                "tPaint": 8780.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10765.899999976158,
+                "t1": 11031.09999999404,
+                "tPaint": 11041.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11695.399999976158,
+                "t1": 11785.299999982119,
+                "tPaint": 11795.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12099.399999976158,
+                "t1": 12149.799999982119,
+                "tPaint": 12159.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12281.399999976158,
+                "t1": 12310.199999988079,
+                "tPaint": 12319.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13660.699999988079,
+                "t1": 13965.09999999404,
+                "tPaint": 13974,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14631.399999976158,
+                "t1": 14701,
+                "tPaint": 14711.399999976158,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14922.799999982119,
+                "t1": 14954.09999999404,
+                "tPaint": 14963.59999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15515.799999982119,
+                "t1": 15540.699999988079,
+                "tPaint": 15549,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4509.699999988079,
+                "t1": 4884.199999988079,
+                "tPaint": 4894.5,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6881.899999976158,
+                "t1": 7254.399999976158,
+                "tPaint": 7263.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9507.799999982119,
+                "t1": 9886.399999976158,
+                "tPaint": 9895.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12371.59999999404,
+                "t1": 12376.09999999404,
+                "tPaint": 12761.899999976158,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15589.199999988079,
+                "t1": 15592.699999988079,
+                "tPaint": 15982.199999988079,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 62.650000005960464,
+            "keystrokeMax": 313.30000001192093,
+            "latencies": [
+              105.2000000178814,
+              41.099999994039536,
+              64.80000001192093,
+              30.19999998807907,
+              82.30000001192093,
+              28.799999982118607,
+              275.30000001192093,
+              100,
+              60.5,
+              37.80000001192093,
+              313.30000001192093,
+              80,
+              40.80000001192093,
+              33.20000001788139
+            ],
+            "clearToFull": 388.09999999403954,
+            "tbt": 6753,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.69999999999709,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.799999999999272,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 146.5,
+            "toAll": 146.5,
+            "renderedCards": 500,
+            "tbt": 90,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247332.695193,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000078,
+            "ProcessTime": 20.902659,
+            "JSHeapUsedSize": 22645736,
+            "JSHeapTotalSize": 23724032,
+            "FirstMeaningfulPaint": 247311.909251,
+            "DomContentLoaded": 247310.69981,
+            "NavigationStart": 247310.624829
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-DAVcR4z9.css",
+            "assets/index-DQSq8EVg.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 2,
+          "version": "new",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 74.5,
+            "shellMounted": 96.59999999403954,
+            "shellVisible": 1295.5,
+            "firstCard": 1268.199999988079,
+            "cards24": 1268.199999988079,
+            "tbt": 882,
+            "longtasks": 3
+          },
+          "heapIdle": {
+            "Timestamp": 247379.935318,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000532,
+            "ProcessTime": 2.803553,
+            "JSHeapUsedSize": 19228280,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247378.261347,
+            "DomContentLoaded": 247377.046992,
+            "NavigationStart": 247376.972544
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3164.0999999940395,
+                "t1": 3250.300000011921,
+                "tPaint": 3271.5,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3472.0999999940395,
+                "t1": 3506,
+                "tPaint": 3518.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5688.800000011921,
+                "t1": 5743.5,
+                "tPaint": 5753.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5908.4000000059605,
+                "t1": 5931.300000011921,
+                "tPaint": 5939,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8073.4000000059605,
+                "t1": 8147.9000000059605,
+                "tPaint": 8157.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8785.90000000596,
+                "t1": 8808.59999999404,
+                "tPaint": 8815.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10820.90000000596,
+                "t1": 11089.699999988079,
+                "tPaint": 11099.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11760.09999999404,
+                "t1": 11855,
+                "tPaint": 11865.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12161.90000000596,
+                "t1": 12205,
+                "tPaint": 12214.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12340.59999999404,
+                "t1": 12372,
+                "tPaint": 12384.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13783.199999988079,
+                "t1": 14085.59999999404,
+                "tPaint": 14095.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14765.5,
+                "t1": 14837.90000000596,
+                "tPaint": 14847.5,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 15056.199999988079,
+                "t1": 15088.40000000596,
+                "tPaint": 15097.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15655.5,
+                "t1": 15681.199999988079,
+                "tPaint": 15691.59999999404,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4519.800000011921,
+                "t1": 4897.699999988079,
+                "tPaint": 4908.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6904.0999999940395,
+                "t1": 7278.9000000059605,
+                "tPaint": 7288.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9553.199999988079,
+                "t1": 9931.199999988079,
+                "tPaint": 9940.5,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12495.699999988079,
+                "t1": 12499.5,
+                "tPaint": 12884.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15797.09999999404,
+                "t1": 15807.699999988079,
+                "tPaint": 16192.300000011921,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 58.54999998211861,
+            "keystrokeMax": 312.7000000178814,
+            "latencies": [
+              107.40000000596046,
+              46.70000001788139,
+              64.7999999821186,
+              30.599999994039536,
+              83.69999998807907,
+              30,
+              279,
+              105.09999999403954,
+              52.29999998211861,
+              43.599999994039536,
+              312.7000000178814,
+              82,
+              41.70000001788139,
+              36.099999994039536
+            ],
+            "clearToFull": 388.2999999821186,
+            "tbt": 6843,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 155,
+            "toAll": 155,
+            "renderedCards": 500,
+            "tbt": 98,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247399.29724,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000167,
+            "ProcessTime": 21.08022,
+            "JSHeapUsedSize": 22650784,
+            "JSHeapTotalSize": 23724032,
+            "FirstMeaningfulPaint": 247378.261347,
+            "DomContentLoaded": 247377.046992,
+            "NavigationStart": 247376.972544
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-DAVcR4z9.css",
+            "assets/index-DQSq8EVg.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 3,
+          "version": "new",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 75.5,
+            "shellMounted": 98.2000000178814,
+            "shellVisible": 1284.9000000059605,
+            "firstCard": 1258.300000011921,
+            "cards24": 1258.300000011921,
+            "tbt": 868,
+            "longtasks": 3
+          },
+          "heapIdle": {
+            "Timestamp": 247402.289564,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000017,
+            "ProcessTime": 2.801247,
+            "JSHeapUsedSize": 19228312,
+            "JSHeapTotalSize": 19791872,
+            "FirstMeaningfulPaint": 247400.610812,
+            "DomContentLoaded": 247399.407189,
+            "NavigationStart": 247399.331678
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3167,
+                "t1": 3251.9000000059605,
+                "tPaint": 3272.600000023842,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3466.4000000059605,
+                "t1": 3503.600000023842,
+                "tPaint": 3516.7000000178814,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5688.700000017881,
+                "t1": 5741.200000017881,
+                "tPaint": 5751.5,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5902.200000017881,
+                "t1": 5926.700000017881,
+                "tPaint": 5933.600000023842,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8069.9000000059605,
+                "t1": 8144.100000023842,
+                "tPaint": 8153.700000017881,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8780,
+                "t1": 8802.90000000596,
+                "tPaint": 8809.40000000596,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10804.600000023842,
+                "t1": 11071.800000011921,
+                "tPaint": 11082,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11730.90000000596,
+                "t1": 11825,
+                "tPaint": 11835.100000023842,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12137.200000017881,
+                "t1": 12188,
+                "tPaint": 12198,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12317.700000017881,
+                "t1": 12348.700000017881,
+                "tPaint": 12358.100000023842,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13695.200000017881,
+                "t1": 14004.90000000596,
+                "tPaint": 14014.100000023842,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14677.200000017881,
+                "t1": 14748.700000017881,
+                "tPaint": 14758.700000017881,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14968.5,
+                "t1": 15000.40000000596,
+                "tPaint": 15010,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15568.800000011921,
+                "t1": 15594.90000000596,
+                "tPaint": 15603.700000017881,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4525.4000000059605,
+                "t1": 4905.9000000059605,
+                "tPaint": 4916.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6905.100000023842,
+                "t1": 7277.5,
+                "tPaint": 7287.300000011921,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9543.800000011921,
+                "t1": 9928.800000011921,
+                "tPaint": 9939.700000017881,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12412.200000017881,
+                "t1": 12416.5,
+                "tPaint": 12800.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15644.5,
+                "t1": 15648.5,
+                "tPaint": 16037.800000011921,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 61.79999998211861,
+            "keystrokeMax": 318.90000000596046,
+            "latencies": [
+              105.60000002384186,
+              50.30000001192093,
+              62.79999998211861,
+              31.400000005960464,
+              83.80000001192093,
+              29.400000005960464,
+              277.39999997615814,
+              104.2000000178814,
+              60.79999998211861,
+              40.400000005960464,
+              318.90000000596046,
+              81.5,
+              41.5,
+              34.900000005960464
+            ],
+            "clearToFull": 391.40000000596046,
+            "tbt": 6772,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 170.2000000178814,
+            "toAll": 170.2000000178814,
+            "renderedCards": 500,
+            "tbt": 114,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247421.477178,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000004,
+            "TaskOtherDuration": 0,
+            "ThreadTime": 0.000141,
+            "ProcessTime": 20.978959,
+            "JSHeapUsedSize": 22555524,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247400.610812,
+            "DomContentLoaded": 247399.407189,
+            "NavigationStart": 247399.331678
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-DAVcR4z9.css",
+            "assets/index-DQSq8EVg.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 4,
+          "version": "new",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 75.19999998807907,
+            "shellMounted": 97.90000000596046,
+            "shellVisible": 1299.9000000059605,
+            "firstCard": 1272.4000000059605,
+            "cards24": 1272.4000000059605,
+            "tbt": 880,
+            "longtasks": 4
+          },
+          "heapIdle": {
+            "Timestamp": 247468.851852,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000307,
+            "ProcessTime": 2.808772,
+            "JSHeapUsedSize": 19227980,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247467.178407,
+            "DomContentLoaded": 247465.960193,
+            "NavigationStart": 247465.885034
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3164.0999999940395,
+                "t1": 3248.300000011921,
+                "tPaint": 3269.300000011921,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3467.300000011921,
+                "t1": 3500.4000000059605,
+                "tPaint": 3513.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5674.199999988079,
+                "t1": 5727.800000011921,
+                "tPaint": 5738.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5889.300000011921,
+                "t1": 5911.9000000059605,
+                "tPaint": 5919.5,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8060.5999999940395,
+                "t1": 8132.699999988079,
+                "tPaint": 8142.300000011921,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8771.59999999404,
+                "t1": 8793.59999999404,
+                "tPaint": 8800.40000000596,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10797.90000000596,
+                "t1": 11065.800000011921,
+                "tPaint": 11074.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11732.09999999404,
+                "t1": 11822.90000000596,
+                "tPaint": 11832.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12141.5,
+                "t1": 12190.90000000596,
+                "tPaint": 12200.300000011921,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12319.699999988079,
+                "t1": 12349.09999999404,
+                "tPaint": 12358.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13710.59999999404,
+                "t1": 14015.90000000596,
+                "tPaint": 14025,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14699.09999999404,
+                "t1": 14769.199999988079,
+                "tPaint": 14779.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 14989.59999999404,
+                "t1": 15020.800000011921,
+                "tPaint": 15030.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15587.800000011921,
+                "t1": 15613.199999988079,
+                "tPaint": 15621.800000011921,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4511.199999988079,
+                "t1": 4886.5,
+                "tPaint": 4897.4000000059605,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6887.4000000059605,
+                "t1": 7263.9000000059605,
+                "tPaint": 7273.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9532.40000000596,
+                "t1": 9914.59999999404,
+                "tPaint": 9924.5,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12410.09999999404,
+                "t1": 12414.90000000596,
+                "tPaint": 12799.40000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15660.699999988079,
+                "t1": 15664,
+                "tPaint": 16049.300000011921,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 61.650000005960464,
+            "keystrokeMax": 314.40000000596046,
+            "latencies": [
+              105.2000000178814,
+              45.79999998211861,
+              64.5,
+              30.19999998807907,
+              81.7000000178814,
+              28.80000001192093,
+              276.7999999821186,
+              100.80000001192093,
+              58.80000001192093,
+              38.400000005960464,
+              314.40000000596046,
+              80.09999999403954,
+              40.599999994039536,
+              34
+            ],
+            "clearToFull": 388.60000002384186,
+            "tbt": 6810,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.9000000000015,
+            "frames": 181,
+            "fps": 60.002000066668856,
+            "frameMedian": 16.69999999999709,
+            "frameP95": 16.700000000000728,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 148.5,
+            "toAll": 148.5,
+            "renderedCards": 500,
+            "tbt": 92,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247488.025555,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000004,
+            "TaskOtherDuration": 0,
+            "ThreadTime": 0.000018,
+            "ProcessTime": 20.985494,
+            "JSHeapUsedSize": 22650452,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247467.178407,
+            "DomContentLoaded": 247465.960193,
+            "NavigationStart": 247465.885034
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-DAVcR4z9.css",
+            "assets/index-DQSq8EVg.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 5,
+          "version": "new",
+          "cold": {
+            "fcp": 128,
+            "domContentLoaded": 76,
+            "shellMounted": 98.5,
+            "shellVisible": 1304.7999999821186,
+            "firstCard": 1276.0999999940395,
+            "cards24": 1276.0999999940395,
+            "tbt": 879,
+            "longtasks": 4
+          },
+          "heapIdle": {
+            "Timestamp": 247491.031134,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000006,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.00001,
+            "TaskOtherDuration": 0.000004,
+            "ThreadTime": 0.000224,
+            "ProcessTime": 2.813098,
+            "JSHeapUsedSize": 19228340,
+            "JSHeapTotalSize": 19791872,
+            "FirstMeaningfulPaint": 247489.358639,
+            "DomContentLoaded": 247488.136793,
+            "NavigationStart": 247488.060929
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3181.2999999821186,
+                "t1": 3264.7999999821186,
+                "tPaint": 3286.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3484.2999999821186,
+                "t1": 3518.0999999940395,
+                "tPaint": 3531.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5700.799999982119,
+                "t1": 5756.4000000059605,
+                "tPaint": 5766.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5918.0999999940395,
+                "t1": 5941.4000000059605,
+                "tPaint": 5948.9000000059605,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8093.199999988079,
+                "t1": 8166,
+                "tPaint": 8175.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8805.40000000596,
+                "t1": 8828.40000000596,
+                "tPaint": 8835,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10827.09999999404,
+                "t1": 11098.40000000596,
+                "tPaint": 11108.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11768.299999982119,
+                "t1": 11861.299999982119,
+                "tPaint": 11871.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12175.799999982119,
+                "t1": 12224.299999982119,
+                "tPaint": 12234.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12355.199999988079,
+                "t1": 12386.40000000596,
+                "tPaint": 12395.799999982119,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13744.699999988079,
+                "t1": 14054.5,
+                "tPaint": 14064.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14731.699999988079,
+                "t1": 14804.40000000596,
+                "tPaint": 14813.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 15024.299999982119,
+                "t1": 15055.699999988079,
+                "tPaint": 15064.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15618.5,
+                "t1": 15644.299999982119,
+                "tPaint": 15653.199999988079,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4529.799999982119,
+                "t1": 4911.0999999940395,
+                "tPaint": 4921.4000000059605,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6910.5999999940395,
+                "t1": 7292.5999999940395,
+                "tPaint": 7302.299999982119,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9562.5,
+                "t1": 9940.40000000596,
+                "tPaint": 9951.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12448.299999982119,
+                "t1": 12453.09999999404,
+                "tPaint": 12838.699999988079,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15691.5,
+                "t1": 15694.59999999404,
+                "tPaint": 16085.799999982119,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 62.55000001192093,
+            "keystrokeMax": 319.5,
+            "latencies": [
+              104.90000000596046,
+              47.30000001192093,
+              66,
+              30.80000001192093,
+              82.59999999403954,
+              29.599999994039536,
+              281.19999998807907,
+              103.5,
+              59.10000002384186,
+              40.599999994039536,
+              319.5,
+              82.2000000178814,
+              40.60000002384186,
+              34.69999998807907
+            ],
+            "clearToFull": 391.60000002384186,
+            "tbt": 6844,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.899999999998,
+            "frames": 181,
+            "fps": 60.00200006666893,
+            "frameMedian": 16.69999999999709,
+            "frameP95": 16.799999999999272,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 149.90000000596046,
+            "toAll": 149.90000000596046,
+            "renderedCards": 500,
+            "tbt": 93,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247510.250431,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000249,
+            "ProcessTime": 21.030773,
+            "JSHeapUsedSize": 22651056,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247489.358639,
+            "DomContentLoaded": 247488.136793,
+            "NavigationStart": 247488.060929
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-DAVcR4z9.css",
+            "assets/index-DQSq8EVg.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        },
+        {
+          "run": 6,
+          "version": "new",
+          "cold": {
+            "fcp": 124,
+            "domContentLoaded": 75.09999999403954,
+            "shellMounted": 97.5,
+            "shellVisible": 1301.4000000059605,
+            "firstCard": 1274.300000011921,
+            "cards24": 1274.300000011921,
+            "tbt": 883,
+            "longtasks": 4
+          },
+          "heapIdle": {
+            "Timestamp": 247557.666335,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 322,
+            "LayoutObjects": 1241,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 1341,
+            "Resources": 34,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000005,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000006,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000129,
+            "ProcessTime": 2.817095,
+            "JSHeapUsedSize": 19227988,
+            "JSHeapTotalSize": 19529728,
+            "FirstMeaningfulPaint": 247555.992812,
+            "DomContentLoaded": 247554.772541,
+            "NavigationStart": 247554.697456
+          },
+          "search": {
+            "queries": [
+              "kraken",
+              "zephyr",
+              "quokka",
+              "mago",
+              "sombra"
+            ],
+            "keystrokes": [
+              {
+                "query": "kraken",
+                "prefix": "k",
+                "expected": 827,
+                "t0": 3165.199999988079,
+                "t1": 3250.300000011921,
+                "tPaint": 3270.5999999940395,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kr",
+                "expected": 51,
+                "t0": 3467.699999988079,
+                "t1": 3504.199999988079,
+                "tPaint": 3517.199999988079,
+                "timeout": false
+              },
+              {
+                "query": "kraken",
+                "prefix": "kra",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krak",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "krake",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "kraken",
+                "prefix": "kraken",
+                "expected": 51,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "z",
+                "expected": 573,
+                "t0": 5690.199999988079,
+                "t1": 5745.5,
+                "tPaint": 5755.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "ze",
+                "expected": 40,
+                "t0": 5908.199999988079,
+                "t1": 5931.0999999940395,
+                "tPaint": 5937.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zep",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zeph",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephy",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "zephyr",
+                "prefix": "zephyr",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "q",
+                "expected": 887,
+                "t0": 8083.199999988079,
+                "t1": 8156.0999999940395,
+                "tPaint": 8166.0999999940395,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "qu",
+                "expected": 887,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quo",
+                "expected": 40,
+                "t0": 8794.699999988079,
+                "t1": 8817.09999999404,
+                "tPaint": 8823.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "prefix": "quok",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokk",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "quokka",
+                "prefix": "quokka",
+                "expected": 40,
+                "skipped": true
+              },
+              {
+                "query": "mago",
+                "prefix": "m",
+                "expected": 3546,
+                "t0": 10813.800000011921,
+                "t1": 11086,
+                "tPaint": 11096,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "ma",
+                "expected": 1182,
+                "t0": 11751.699999988079,
+                "t1": 11845.5,
+                "tPaint": 11855.5,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mag",
+                "expected": 409,
+                "t0": 12166.800000011921,
+                "t1": 12216.699999988079,
+                "tPaint": 12226.40000000596,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "prefix": "mago",
+                "expected": 97,
+                "t0": 12348.199999988079,
+                "t1": 12376.90000000596,
+                "tPaint": 12386.5,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "s",
+                "expected": 4056,
+                "t0": 13729.40000000596,
+                "t1": 14042.300000011921,
+                "tPaint": 14052.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "so",
+                "expected": 861,
+                "t0": 14714.300000011921,
+                "t1": 14785.800000011921,
+                "tPaint": 14795.90000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "som",
+                "expected": 210,
+                "t0": 15007.59999999404,
+                "t1": 15040.199999988079,
+                "tPaint": 15049.40000000596,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "prefix": "somb",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombr",
+                "expected": 210,
+                "skipped": true
+              },
+              {
+                "query": "sombra",
+                "prefix": "sombra",
+                "expected": 90,
+                "t0": 15607.800000011921,
+                "t1": 15633.199999988079,
+                "tPaint": 15641.90000000596,
+                "timeout": false
+              }
+            ],
+            "clears": [
+              {
+                "query": "kraken",
+                "t0": 4514.699999988079,
+                "t1": 4896.699999988079,
+                "tPaint": 4907.9000000059605,
+                "timeout": false
+              },
+              {
+                "query": "zephyr",
+                "t0": 6905.699999988079,
+                "t1": 7285,
+                "tPaint": 7295,
+                "timeout": false
+              },
+              {
+                "query": "quokka",
+                "t0": 9550.300000011921,
+                "t1": 9933.5,
+                "tPaint": 9943.800000011921,
+                "timeout": false
+              },
+              {
+                "query": "mago",
+                "t0": 12437.59999999404,
+                "t1": 12442.09999999404,
+                "tPaint": 12826.09999999404,
+                "timeout": false
+              },
+              {
+                "query": "sombra",
+                "t0": 15680.90000000596,
+                "t1": 15684.40000000596,
+                "tPaint": 16077.09999999404,
+                "timeout": false
+              }
+            ],
+            "measuredKeystrokes": 14,
+            "timeouts": 0,
+            "keystrokeMedian": 62.6000000089407,
+            "keystrokeMax": 322.69999998807907,
+            "latencies": [
+              105.40000000596046,
+              49.5,
+              65.60000002384186,
+              29.600000023841858,
+              82.90000000596046,
+              29.100000023841858,
+              282.19999998807907,
+              103.80000001192093,
+              59.599999994039536,
+              38.30000001192093,
+              322.69999998807907,
+              81.59999999403954,
+              41.80000001192093,
+              34.099999994039536
+            ],
+            "clearToFull": 393.2000000178814,
+            "tbt": 6839,
+            "longtasks": 30
+          },
+          "scroll": {
+            "scroller": "book-grid compact ",
+            "range": 8482,
+            "cards": 240,
+            "durationMs": 2999.899999999998,
+            "frames": 181,
+            "fps": 60.00200006666893,
+            "frameMedian": 16.700000000000728,
+            "frameP95": 16.799999999999272,
+            "frameMax": 16.80000000000291,
+            "jankFrames": 0,
+            "longtasks": 0,
+            "tbt": 0
+          },
+          "library": {
+            "books": 500,
+            "to24": 149.2000000178814,
+            "toAll": 149.2000000178814,
+            "renderedCards": 500,
+            "tbt": 93,
+            "longtasks": 1
+          },
+          "heapAfterLibrary": {
+            "Timestamp": 247576.880652,
+            "AudioHandlers": 0,
+            "AudioWorkletProcessors": 0,
+            "Documents": 2,
+            "Frames": 2,
+            "JSEventListeners": 1193,
+            "LayoutObjects": 9593,
+            "MediaKeySessions": 0,
+            "MediaKeys": 0,
+            "Nodes": 8556,
+            "Resources": 49,
+            "ContextLifecycleStateObservers": 6,
+            "V8PerContextDatas": 2,
+            "WorkerGlobalScopes": 0,
+            "UACSSResources": 0,
+            "RTCPeerConnections": 0,
+            "ResourceFetchers": 2,
+            "AdSubframes": 0,
+            "DetachedScriptStates": 0,
+            "ArrayBufferContents": 1,
+            "LayoutCount": 0,
+            "RecalcStyleCount": 0,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "DevToolsCommandDuration": 0.000004,
+            "ScriptDuration": 0,
+            "V8CompileDuration": 0,
+            "TaskDuration": 0.000005,
+            "TaskOtherDuration": 0.000001,
+            "ThreadTime": 0.000274,
+            "ProcessTime": 21.064756,
+            "JSHeapUsedSize": 22650428,
+            "JSHeapTotalSize": 23461888,
+            "FirstMeaningfulPaint": 247555.992812,
+            "DomContentLoaded": 247554.772541,
+            "NavigationStart": 247554.697456
+          },
+          "errors": [],
+          "loadedAssets": [
+            "assets/index-DAVcR4z9.css",
+            "assets/index-DQSq8EVg.js",
+            "assets/core-SwWLTXZB.js"
+          ]
+        }
+      ],
+      "summary": {
+        "Cold load: FCP (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 124,
+          "p95": 128,
+          "min": 124,
+          "max": 128
+        },
+        "Cold load: shell mounted (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 97.90000000596046,
+          "p95": 98.41000000536442,
+          "min": 96.59999999403954,
+          "max": 98.5
+        },
+        "Cold load: shell visible / splash gone (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 1299.9000000059605,
+          "p95": 1305.3599999904632,
+          "min": 1284.9000000059605,
+          "max": 1305.5999999940395
+        },
+        "Cold load: first card (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 1272.4000000059605,
+          "p95": 1278.479999998212,
+          "min": 1258.300000011921,
+          "max": 1279.5
+        },
+        "Cold load: 24 cards (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 1272.4000000059605,
+          "p95": 1278.479999998212,
+          "min": 1258.300000011921,
+          "max": 1279.5
+        },
+        "TBT cold load (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 880,
+          "p95": 883,
+          "min": 868,
+          "max": 883
+        },
+        "Search keystroke → results, per-run median (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 61.79999998211861,
+          "p95": 62.63500000685453,
+          "min": 58.54999998211861,
+          "max": 62.650000005960464
+        },
+        "Search keystroke → results, per-run max (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 316.69999998807907,
+          "p95": 321.73999999165534,
+          "min": 312.7000000178814,
+          "max": 322.69999998807907
+        },
+        "Search clear → full list (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 388.60000002384186,
+          "p95": 392.72000001966956,
+          "min": 385.40000000596046,
+          "max": 393.2000000178814
+        },
+        "TBT during search (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 6810,
+          "p95": 6843.7,
+          "min": 6731,
+          "max": 6844
+        },
+        "Scroll FPS (3 s scripted)": {
+          "n": 7,
+          "missing": 0,
+          "median": 60.002000066668856,
+          "p95": 60.0034002066798,
+          "min": 60.002000066668856,
+          "max": 60.004000266684464
+        },
+        "Scroll frame p95 (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 16.700000000000728,
+          "p95": 16.799999999999272,
+          "min": 16.700000000000728,
+          "max": 16.799999999999272
+        },
+        "Scroll jank frames (>1.5× median)": {
+          "n": 7,
+          "missing": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "Library nav → 24 cards (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 149.2000000178814,
+          "p95": 165.64000001251696,
+          "min": 146.5,
+          "max": 170.2000000178814
+        },
+        "Library nav → all books rendered (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 149.2000000178814,
+          "p95": 165.64000001251696,
+          "min": 146.5,
+          "max": 170.2000000178814
+        },
+        "TBT library nav (ms)": {
+          "n": 7,
+          "missing": 0,
+          "median": 93,
+          "p95": 109.19999999999999,
+          "min": 90,
+          "max": 114
+        },
+        "JS heap idle shell (MB, after GC)": {
+          "n": 7,
+          "missing": 0,
+          "median": 18.33751678466797,
+          "p95": 18.337565994262697,
+          "min": 18.33722686767578,
+          "max": 18.337574005126953
+        },
+        "JS heap after Library (MB, after GC)": {
+          "n": 7,
+          "missing": 0,
+          "median": 21.601131439208984,
+          "p95": 21.601652526855467,
+          "min": 21.510623931884766,
+          "max": 21.601730346679688
+        },
+        "DOM nodes idle shell": {
+          "n": 7,
+          "missing": 0,
+          "median": 1341,
+          "p95": 1341,
+          "min": 1341,
+          "max": 1341
+        },
+        "DOM nodes after Library": {
+          "n": 7,
+          "missing": 0,
+          "median": 8556,
+          "p95": 8556,
+          "min": 8556,
+          "max": 8556
+        }
+      },
+      "pooledSearch": {
+        "n": 98,
+        "p50": 61.79999998211861,
+        "p95": 313.46500001102686
+      }
+    }
+  },
+  "finishedAt": "2026-09-29T03:34:09.964Z"
+}
