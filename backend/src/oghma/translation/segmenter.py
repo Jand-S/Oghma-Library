@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import Counter
 import hashlib
+import re
 from html import escape
 from html.parser import HTMLParser
 
@@ -42,11 +43,10 @@ class _TextExtractor(HTMLParser):
         self.parts: list[str] = []
 
     def handle_data(self, data: str) -> None:
-        if data.strip():
-            self.parts.append(data.strip())
+        self.parts.append(data)
 
     def text(self) -> str:
-        return " ".join(self.parts)
+        return re.sub(r"\s+", " ", "".join(self.parts)).strip()
 
 
 def html_text(fragment: str) -> str:

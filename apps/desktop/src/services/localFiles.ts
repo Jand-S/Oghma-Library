@@ -9,6 +9,10 @@ export type LocalLibraryEntry = {
   coverUrl?: string;
   coverDataUrl?: string;
   sizeBytes: number;
+  chapterCount?: number;
+  sourceChars?: number;
+  wordCount?: number;
+  analysisFormat?: string;
 };
 
 type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
@@ -81,7 +85,18 @@ async function filePathToAssetUrl(path: string): Promise<string> {
 export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryEntry[] | null> {
   const invoke = await loadInvoke();
   if (!invoke) return null;
-  const rows = await invoke<Array<{ title: string; output_dir: string; files: string[]; cover_path?: string | null; cover_data_url?: string | null; size_bytes: number }>>(
+  const rows = await invoke<Array<{
+    title: string;
+    output_dir: string;
+    files: string[];
+    cover_path?: string | null;
+    cover_data_url?: string | null;
+    size_bytes: number;
+    chapter_count?: number | null;
+    source_chars?: number | null;
+    word_count?: number | null;
+    analysis_format?: string | null;
+  }>>(
     "list_export_library",
     { outputDir }
   );
@@ -91,7 +106,11 @@ export async function listLocalLibrary(outputDir: string): Promise<LocalLibraryE
     files: row.files,
     coverUrl: row.cover_data_url ?? (row.cover_path ? await filePathToAssetUrl(row.cover_path) : undefined),
     coverDataUrl: row.cover_data_url ?? undefined,
-    sizeBytes: row.size_bytes
+    sizeBytes: row.size_bytes,
+    chapterCount: row.chapter_count ?? undefined,
+    sourceChars: row.source_chars ?? undefined,
+    wordCount: row.word_count ?? undefined,
+    analysisFormat: row.analysis_format ?? undefined
   })));
 }
 

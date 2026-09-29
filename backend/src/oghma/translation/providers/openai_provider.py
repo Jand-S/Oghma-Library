@@ -6,10 +6,12 @@ import os
 import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Protocol
 
 from ..contracts import (
     GlossaryTerm,
+    ProviderCall,
     TokenUsage,
     TranslationContext,
     TranslationIssue,
@@ -21,7 +23,9 @@ _RESPONSES_URL = "https://api.openai.com/v1/responses"
 
 
 class OpenAIProviderError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class _ResponseLike(Protocol):
@@ -51,10 +55,13 @@ class OpenAIProvider:
     repair_model: str | None = None
     reasoning_effort: str = "medium"
     timeout_seconds: float = 120.0
+    max_retries: int = 2
+    retry_base_seconds: float = 0.5
     client: _AsyncClientLike | None = None
 
     id: str = field(default="openai", init=False)
     _usage_events: list[TokenUsage] = field(default_factory=list, init=False, repr=False)
+    _call_events: list[ProviderCall] = field(default_factory=list, init=False, repr=False)
 
     @classmethod
     def from_env(
@@ -64,6 +71,7 @@ class OpenAIProvider:
         repair_model: str | None = None,
         reasoning_effort: str | None = None,
         timeout_seconds: float = 120.0,
+        max_retries: int | None = None,
     ) -> "OpenAIProvider":
         env = _load_provider_env()
         api_key = env.get("OGHMA_OPENAI_API_KEY") or env.get("OPENAI_API_KEY")
@@ -75,6 +83,7 @@ class OpenAIProvider:
             repair_model=repair_model or env.get("OGHMA_TRANSLATION_REPAIR_MODEL"),
             reasoning_effort=reasoning_effort or env.get("OGHMA_TRANSLATION_REASONING", "medium"),
             timeout_seconds=timeout_seconds,
+            max_retries=max_retries if max_retries is not None else int(env.get("OGHMA_TRANSLATION_REQUEST_RETRIES", "2")),
         )
 
     async def translate_segments(
@@ -91,7 +100,7 @@ class OpenAIProvider:
                 "context": _context_payload(context),
             },
         )
-        data = await self._post(payload)
+        data = await self._post(payload, model=self.model, operation="translate")
         self._record_usage(data, model=self.model, operation="translate")
         return _parse_segments_response(data)
 
@@ -116,7 +125,11 @@ class OpenAIProvider:
                 "context": _context_payload(context),
             },
         )
-        data = await self._post(payload)
+        data = await self._post(
+            payload,
+            model=self.repair_model or self.model,
+            operation="repair",
+        )
         self._record_usage(data, model=self.repair_model or self.model, operation="repair")
         repaired = {segment.key: segment for segment in _parse_segments_response(data)}
         return [repaired.get(segment.key, segment) for segment in translated_segments]
@@ -126,17 +139,90 @@ class OpenAIProvider:
         self._usage_events.clear()
         return events
 
+    def drain_call_events(self) -> list[ProviderCall]:
+        events = list(self._call_events)
+        self._call_events.clear()
+        return events
+
+    async def request_structured(
+        self,
+        *,
+        operation: str,
+        instructions: str,
+        input_payload: dict[str, Any],
+        response_format: dict[str, Any],
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        request_model = model or self.model
+        payload: dict[str, Any] = {
+            "model": request_model,
+            "instructions": instructions,
+            "input": json.dumps(input_payload, ensure_ascii=False),
+            "text": {"format": response_format},
+            "store": False,
+        }
+        if _supports_reasoning(request_model):
+            payload["reasoning"] = {"effort": self.reasoning_effort}
+        data = await self._post(payload, model=request_model, operation=operation)
+        self._record_usage(data, model=request_model, operation=operation)
+        try:
+            parsed = json.loads(_response_text(data))
+        except json.JSONDecodeError as exc:
+            raise OpenAIProviderError("OpenAI structured response did not contain valid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise OpenAIProviderError("OpenAI structured response must be a JSON object")
+        return parsed
+
     def _payload(self, *, model: str, instructions: str, user_payload: dict[str, Any]) -> dict[str, Any]:
-        return {
+        payload = {
             "model": model,
-            "reasoning": {"effort": self.reasoning_effort},
             "instructions": instructions,
             "input": json.dumps(user_payload, ensure_ascii=False),
             "text": {"format": _translation_response_format()},
             "store": False,
         }
+        if _supports_reasoning(model):
+            payload["reasoning"] = {"effort": self.reasoning_effort}
+        return payload
 
-    async def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def _post(self, payload: dict[str, Any], *, model: str, operation: str) -> dict[str, Any]:
+        for attempt in range(1, self.max_retries + 2):
+            started_at = perf_counter()
+            try:
+                data = await self._post_once(payload)
+            except Exception as exc:
+                status_code = _status_code(exc)
+                self._call_events.append(
+                    ProviderCall(
+                        provider=self.id,
+                        model=model,
+                        operation=operation,
+                        attempt=attempt,
+                        duration_seconds=perf_counter() - started_at,
+                        status="failed",
+                        http_status=status_code,
+                        error_type=type(exc).__name__,
+                    )
+                )
+                if attempt > self.max_retries or not _is_retryable_status(status_code):
+                    raise
+                await asyncio.sleep(self.retry_base_seconds * (2 ** (attempt - 1)))
+                continue
+
+            self._call_events.append(
+                ProviderCall(
+                    provider=self.id,
+                    model=model,
+                    operation=operation,
+                    attempt=attempt,
+                    duration_seconds=perf_counter() - started_at,
+                    status="succeeded",
+                )
+            )
+            return data
+        raise AssertionError("request retry loop exited unexpectedly")
+
+    async def _post_once(self, payload: dict[str, Any]) -> dict[str, Any]:
         client = self.client
         close_client = False
         if client is None:
@@ -187,7 +273,10 @@ class OpenAIProvider:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
-            raise OpenAIProviderError(f"OpenAI request failed with HTTP {exc.code}: {body}") from exc
+            raise OpenAIProviderError(
+                f"OpenAI request failed with HTTP {exc.code}: {body}",
+                status_code=exc.code,
+            ) from exc
 
 
 def _translator_instructions(context: TranslationContext) -> str:
@@ -384,6 +473,10 @@ def _parse_usage(
     input_details = raw.get("input_tokens_details") or raw.get("prompt_tokens_details")
     if isinstance(input_details, dict):
         cached_input_tokens = _int_value(input_details, "cached_tokens", "cached_input_tokens")
+    reasoning_tokens = 0
+    output_details = raw.get("output_tokens_details") or raw.get("completion_tokens_details")
+    if isinstance(output_details, dict):
+        reasoning_tokens = _int_value(output_details, "reasoning_tokens")
     return TokenUsage(
         provider=provider,
         model=model,
@@ -391,8 +484,26 @@ def _parse_usage(
         input_tokens=input_tokens,
         cached_input_tokens=cached_input_tokens,
         output_tokens=output_tokens,
+        reasoning_tokens=reasoning_tokens,
         total_tokens=total_tokens or input_tokens + output_tokens,
     )
+
+
+def _status_code(exc: Exception) -> int | None:
+    direct = getattr(exc, "status_code", None)
+    if isinstance(direct, int):
+        return direct
+    response = getattr(exc, "response", None)
+    response_status = getattr(response, "status_code", None)
+    return response_status if isinstance(response_status, int) else None
+
+
+def _is_retryable_status(status_code: int | None) -> bool:
+    return status_code is None or status_code in {408, 409, 429} or status_code >= 500
+
+
+def _supports_reasoning(model: str) -> bool:
+    return model.startswith(("gpt-5", "o1", "o3", "o4"))
 
 
 def _int_value(data: dict[str, Any], *keys: str) -> int:

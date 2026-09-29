@@ -1,6 +1,9 @@
 """Testes de parsing do conector Novel Mania contra HTML sintetico."""
 import asyncio
 import json
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from oghma.scraper.base import RawPage
 from oghma.scraper.connectors.novel_mania import NovelManiaConnector
@@ -214,6 +217,41 @@ def test_normalize_chapter_extracts_tanstack_serialized_content():
     assert "style=" not in norm.html
     assert norm.html == "<p><strong>Intro</strong></p><p>Texto <em>limpo</em>.</p>"
     assert norm.word_count >= 2
+
+
+def test_normalize_rejects_rate_limit_even_with_http_200_page():
+    raw = RawPage(url="chapter", html=b'<main></main><script>{message:"Rate limit exceeded. Try again later."}</script>')
+    with pytest.raises(ValueError, match="rate limit"):
+        NovelManiaConnector().normalize_chapter(raw)
+
+
+def test_normalize_rejects_empty_but_preserves_illustrated_chapter():
+    connector = NovelManiaConnector()
+    with pytest.raises(ValueError, match="empty chapter"):
+        connector.normalize_chapter(RawPage(url="chapter", html=b"<main><p> </p></main>"))
+    result = connector.normalize_chapter(RawPage(url="chapter", html=b'<article><img src="image.jpg"></article>'))
+    assert 'src="image.jpg"' in result.html
+
+
+def test_fetch_chapter_retries_soft_rate_limit():
+    fetcher = FakeFetcher({})
+    fetcher.get = AsyncMock(side_effect=[
+        RawPage(url="chapter", html=b'<main></main><script>Rate limit exceeded</script>'),
+        RawPage(url="chapter", html=CONTENT),
+    ])
+    with patch("oghma.scraper.connectors.novel_mania.asyncio.sleep", new_callable=AsyncMock) as sleep:
+        result = asyncio.run(NovelManiaConnector().fetch_chapter(fetcher, "chapter"))
+    assert result.html == CONTENT
+    assert fetcher.get.await_count == 2
+    sleep.assert_awaited_once_with(15)
+
+
+def test_fetch_chapter_fails_after_bounded_empty_retries():
+    fetcher = FakeFetcher({"chapter": b"<main></main>"})
+    with patch("oghma.scraper.connectors.novel_mania.asyncio.sleep", new_callable=AsyncMock) as sleep:
+        with pytest.raises(ValueError, match="empty chapter"):
+            asyncio.run(NovelManiaConnector().fetch_chapter(fetcher, "chapter"))
+    assert sleep.await_count == 3
 
 
 if __name__ == "__main__":

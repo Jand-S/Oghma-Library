@@ -13,6 +13,15 @@ FATAL_ISSUE_TYPES = {
     "forbidden_tag",
 }
 
+SCRIPT_RANGES = {
+    "hebrew": ("\u0590", "\u05ff"),
+    "arabic": ("\u0600", "\u06ff"),
+    "cyrillic": ("\u0400", "\u04ff"),
+    "greek": ("\u0370", "\u03ff"),
+}
+
+MOJIBAKE_MARKERS = ("Ã", "Â", "â€œ", "â€", "â€™", "â€“", "â€”", "ï¿½")
+
 
 def has_high_issues(issues: list[TranslationIssue]) -> bool:
     return any(issue.is_high for issue in issues)
@@ -24,6 +33,42 @@ def has_fatal_issues(issues: list[TranslationIssue]) -> bool:
 
 def _contains_term(text: str, term: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(term.lower())}(?!\w)", text) is not None
+
+
+def scripts_in_text(text: str) -> set[str]:
+    return {
+        name
+        for name, (start, end) in SCRIPT_RANGES.items()
+        if any(start <= character <= end for character in text)
+    }
+
+
+def source_integrity_issues(source_segments: list[TranslationSegment]) -> list[TranslationIssue]:
+    issues: list[TranslationIssue] = []
+    for source in source_segments:
+        text = source.source_text.strip()
+        quote_balance = text.count('"') % 2 or text.count("“") != text.count("”")
+        if quote_balance:
+            issues.append(
+                TranslationIssue(
+                    segment_key=source.key,
+                    severity="medium",
+                    issue_type="source_unbalanced_quotes",
+                    message="Source segment has unbalanced quotation marks.",
+                    actual=text,
+                )
+            )
+        if source.kind == "p" and len(text) >= 80 and text[-1:].isalnum():
+            issues.append(
+                TranslationIssue(
+                    segment_key=source.key,
+                    severity="medium",
+                    issue_type="source_truncated_sentence",
+                    message="Source paragraph appears to end abruptly.",
+                    actual=text,
+                )
+            )
+    return issues
 
 
 class DeterministicQA:
@@ -50,9 +95,47 @@ class DeterministicQA:
                 continue
 
             issues.extend(self._validate_structure(source, translated))
+            issues.extend(self._validate_scripts(source, translated))
+            issues.extend(self._validate_encoding(translated))
             issues.extend(self._validate_glossary(source, translated, glossary_terms))
 
         return issues
+
+    def _validate_scripts(
+        self,
+        source: TranslationSegment,
+        translated: TranslatedSegment,
+    ) -> list[TranslationIssue]:
+        translated_text = html_text(translated.translated_html)
+        unexpected = scripts_in_text(translated_text) - scripts_in_text(source.source_text)
+        if not unexpected:
+            return []
+        return [
+            TranslationIssue(
+                segment_key=source.key,
+                severity="high",
+                issue_type="unexpected_script",
+                message="Translated segment contains a writing system absent from the source.",
+                expected="No unexpected scripts",
+                actual=", ".join(sorted(unexpected)),
+            )
+        ]
+
+    def _validate_encoding(self, translated: TranslatedSegment) -> list[TranslationIssue]:
+        translated_text = html_text(translated.translated_html)
+        markers = [marker for marker in MOJIBAKE_MARKERS if marker in translated_text]
+        if not markers:
+            return []
+        return [
+            TranslationIssue(
+                segment_key=translated.key,
+                severity="high",
+                issue_type="mojibake",
+                message="Translated segment appears to contain broken character encoding.",
+                expected="Valid UTF-8 text",
+                actual=", ".join(markers),
+            )
+        ]
 
     def _validate_structure(
         self,

@@ -142,5 +142,12 @@ class HttpFetcher:
         resp.raise_for_status()
         return resp.json()
 
+    async def post_json(self, url: str, payload: dict | None = None) -> object:
+        host = urlsplit(url).netloc
+        await self._throttle(host)
+        resp = await self._client.post(url, json=payload or {})
+        resp.raise_for_status()
+        return resp.json()
+
     async def aclose(self) -> None:
         await self._client.aclose()

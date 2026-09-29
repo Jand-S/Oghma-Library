@@ -1905,6 +1905,10 @@ button.tag-token {
   gap: 8px;
 }
 
+.selection-options.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .option-toggle {
   display: inline-flex;
   align-items: center;
@@ -1939,6 +1943,10 @@ button.tag-token {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+}
+
+.format-options.single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .format-chip {

@@ -36,6 +36,9 @@ _EMPTY_P_RE = re.compile(r"<p>\s*</p>")
 _MOJIBAKE_MARKERS = ("â€œ", "â€", "â€™", "â€“", "Â")
 
 
+_MOJIBAKE_MARKERS_V2 = ("\u00e2\u20ac", "\u00c3", "\u00c2")
+
+
 def _safe_src(src: str) -> str:
     src = src.strip()
     if not src or src.lower().startswith(("javascript:", "data:")):
@@ -44,15 +47,48 @@ def _safe_src(src: str) -> str:
 
 
 def repair_common_mojibake(text: str) -> str:
-    if not any(marker in text for marker in _MOJIBAKE_MARKERS):
+    repaired = text
+    for _ in range(2):
+        candidate = _repair_mojibake_pass(repaired)
+        if candidate == repaired:
+            break
+        repaired = candidate
+    return repaired
+
+
+def _repair_mojibake_pass(text: str) -> str:
+    if not _mojibake_score(text):
         return text
     try:
-        repaired = text.encode("cp1252").decode("utf-8")
+        repaired = _encode_mojibake_bytes(text).decode("utf-8")
     except UnicodeError:
-        return text
-    original_score = sum(text.count(marker) for marker in _MOJIBAKE_MARKERS)
-    repaired_score = sum(repaired.count(marker) for marker in _MOJIBAKE_MARKERS)
-    return repaired if repaired_score < original_score else text
+        parts = re.split(r"(\s+)", text)
+        repaired = "".join(_repair_mojibake_chunk(part) for part in parts)
+    return repaired if _mojibake_score(repaired) < _mojibake_score(text) else text
+
+
+def _repair_mojibake_chunk(value: str) -> str:
+    if not _mojibake_score(value):
+        return value
+    try:
+        return _encode_mojibake_bytes(value).decode("utf-8")
+    except UnicodeError:
+        return value
+
+
+def _mojibake_score(value: str) -> int:
+    return sum(value.count(marker) for marker in _MOJIBAKE_MARKERS_V2)
+
+
+def _encode_mojibake_bytes(value: str) -> bytes:
+    output = bytearray()
+    for character in value:
+        codepoint = ord(character)
+        if 0x80 <= codepoint <= 0x9F:
+            output.append(codepoint)
+        else:
+            output.extend(character.encode("cp1252"))
+    return bytes(output)
 
 
 class _TranslationHTMLSanitizer(HTMLParser):

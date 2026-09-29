@@ -15,7 +15,7 @@ CREATE TABLE source (
 CREATE TABLE novel (
   id TEXT PRIMARY KEY, source_id TEXT, slug TEXT, title TEXT, author TEXT, description TEXT,
   cover_url TEXT, language TEXT, status TEXT, tags TEXT, tag_keys TEXT, chapter_count INTEGER, updated_at TEXT,
-  bundle_key TEXT, bundle_version INTEGER, bundle_sha256 TEXT, bundle_bytes INTEGER
+  extra TEXT, bundle_key TEXT, bundle_version INTEGER, bundle_sha256 TEXT, bundle_bytes INTEGER
 );
 CREATE INDEX ix_novel_status ON novel(status);
 CREATE INDEX ix_novel_count ON novel(chapter_count);
@@ -74,6 +74,7 @@ def build_catalog_json(source: SourceRecord, novels: list[NovelRecord], bundle_i
                 "tagKeys": n.tag_keys or canonical_tag_keys(n.tags or []),
                 "chapterCount": len(n.chapters),
                 "updatedAt": n.updated_at,
+                "extra": n.extra or {},
                 "bundleKey": bundle_info.get(n.id, {}).get("key"),
                 "bundleVersion": bundle_info.get(n.id, {}).get("version"),
                 "bundleSha256": bundle_info.get(n.id, {}).get("sha256"),
@@ -109,13 +110,13 @@ def build_catalog(out_path: str, source: SourceRecord, novels: list[NovelRecord]
             bi = bundle_info.get(n.id, {})
             conn.execute(
                 """INSERT INTO novel(id,source_id,slug,title,author,description,cover_url,language,
-                       status,tags,tag_keys,chapter_count,updated_at,bundle_key,bundle_version,bundle_sha256,bundle_bytes)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       status,tags,tag_keys,chapter_count,updated_at,extra,bundle_key,bundle_version,bundle_sha256,bundle_bytes)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     n.id, n.source_id, n.slug, n.title, n.author, n.description, cover_key(n),
                     n.language, n.status, json.dumps(n.tags or [], ensure_ascii=False),
                     json.dumps(n.tag_keys or canonical_tag_keys(n.tags or []), ensure_ascii=False),
-                    len(n.chapters), n.updated_at,
+                    len(n.chapters), n.updated_at, json.dumps(n.extra or {}, ensure_ascii=False),
                     bi.get("key"), bi.get("version"), bi.get("sha256"), bi.get("bytes"),
                 ),
             )

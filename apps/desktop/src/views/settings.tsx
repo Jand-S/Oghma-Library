@@ -1,6 +1,6 @@
 import { Settings } from "lucide-react";
-import { indexModeOptions, translationEngineOptions } from "../constants/ui";
-import type { AppConfig, IndexMode, TranslationEngine } from "../core/types";
+import { indexModeOptions } from "../constants/ui";
+import type { AppConfig, IndexMode } from "../core/types";
 import { downloadFormats } from "../core/types";
 
 export function SettingsView({
@@ -65,11 +65,6 @@ export function SettingsView({
             </div>
           </div>
           <label className="toggle-line">
-            <input type="checkbox" checked={config.translateDefault} onChange={(event) => onConfigChange({ translateDefault: event.target.checked })} />
-            <span className="toggle" />
-            <span>Traduzir por padrao</span>
-          </label>
-          <label className="toggle-line">
             <input type="checkbox" checked={config.audiobookDefault} onChange={(event) => onConfigChange({ audiobookDefault: event.target.checked })} />
             <span className="toggle" />
             <span>Gerar audiobook por padrao</span>
@@ -79,30 +74,6 @@ export function SettingsView({
             <span className="toggle" />
             <span>Sincronizar indices ao abrir</span>
           </label>
-        </article>
-
-        <article className="settings-panel">
-          <h3>Traducao por IA</h3>
-          <div className="field-group">
-            <label htmlFor="target-language">Idioma de destino</label>
-            <select id="target-language" value={config.targetLanguage} onChange={(event) => onConfigChange({ targetLanguage: event.target.value })}>
-              <option value="PT-BR">Portugues (BR)</option>
-              <option value="EN">Ingles</option>
-              <option value="ES">Espanhol</option>
-            </select>
-          </div>
-          <div className="field-group">
-            <label htmlFor="translation-engine">Motor de traducao</label>
-            <select id="translation-engine" value={config.translationEngine} onChange={(event) => onConfigChange({ translationEngine: event.target.value as TranslationEngine })}>
-              {translationEngineOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field-group">
-            <label htmlFor="translation-key">Chave de API</label>
-            <input id="translation-key" type="password" placeholder="chave do servico de traducao" />
-          </div>
         </article>
 
         <article className="settings-panel">

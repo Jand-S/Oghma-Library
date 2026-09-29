@@ -8,7 +8,6 @@ import {
   Download,
   GripVertical,
   Headphones,
-  Languages,
   LayoutGrid,
   List,
   Minus,
@@ -773,15 +772,7 @@ function SelectionConfigurator({
                         ))}
                       </div>
                     </div>
-                    <div className="selection-options">
-                      <button
-                        className={`option-toggle ${selection.translate ? "active" : ""}`}
-                        onClick={() => update({ translate: !selection.translate })}
-                        aria-pressed={selection.translate}
-                      >
-                        <Languages size={14} />
-                        Traduzir
-                      </button>
+                    <div className="selection-options single">
                       <button
                         className={`option-toggle ${selection.audiobook ? "active" : ""}`}
                         onClick={() => update({ audiobook: !selection.audiobook })}

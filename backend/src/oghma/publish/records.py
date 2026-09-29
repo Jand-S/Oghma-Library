@@ -29,6 +29,7 @@ class NovelRecord:
     tags: list[str]
     tag_keys: list[str]
     updated_at: Optional[str]
+    extra: dict = field(default_factory=dict)
     chapters: list[ChapterRecord] = field(default_factory=list)
 
 

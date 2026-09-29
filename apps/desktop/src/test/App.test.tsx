@@ -458,7 +458,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.queryByText("Capitulos")).not.toBeInTheDocument(), { timeout: 3000 });
   });
 
-  it("shows format chips and translate/audiobook options in a draggable card", async () => {
+  it("shows format chips and audiobook options in a draggable card", async () => {
     const user = userEvent.setup();
     await renderReadyApp();
 
@@ -469,7 +469,7 @@ describe("App", () => {
 
     expect(within(panel).getByText("Formatos")).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "EPUB" })).toBeInTheDocument();
-    expect(within(panel).getByRole("button", { name: /Traduzir/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: /Traduzir/ })).not.toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: /Audiobook/ })).toBeInTheDocument();
 
     const card = panel.querySelector(".selection-card");
@@ -519,6 +519,18 @@ describe("App", () => {
     expect(screen.queryByText("The Labyrinth's Secret")).not.toBeInTheDocument();
   });
 
+  it("opens the translation workspace from the sidebar", async () => {
+    const user = userEvent.setup();
+    await renderReadyApp();
+
+    await user.click(screen.getByRole("button", { name: "Traducao" }));
+
+    expect(screen.getByRole("heading", { name: "Projetos" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sessao de traducao" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Glossario" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Adicionar lote" })).toBeEnabled();
+  });
+
   it("switches the local library queue to Kindle mode when connected", async () => {
     const user = userEvent.setup();
     await renderReadyApp();
@@ -544,7 +556,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "PDF" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "TXT" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "AZW3" })).toHaveClass("active");
-    expect(screen.getByRole("button", { name: "Traduzir" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Traduzir" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Audiobook" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Enviar para o Kindle" })).toBeInTheDocument();
   });

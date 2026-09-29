@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import json
+import asyncio
 from typing import Iterable, Optional
 from urllib.parse import urljoin, urlsplit
 
@@ -132,7 +133,7 @@ class NovelManiaConnector:
     display_name = "Novel Mania"
     base_url = "https://novelmania.com.br/"
     capabilities = {"api_available", "static_html", "hydrated_html", "paginated_listing"}
-    rate_limit_seconds = 2.5
+    rate_limit_seconds = 3.5
 
     LISTING = "a[href*='/novels/']"
     NOVEL_TITLE = "h1, [data-testid='novel-title'], [class*='title'], title"
@@ -387,13 +388,30 @@ class NovelManiaConnector:
         return chapters
 
     async def fetch_chapter(self, fetcher, url: str) -> RawPage:
-        return await fetcher.get(url)
+        # The site can wrap an API rate-limit error in an HTTP 200 page.
+        for attempt in range(4):
+            raw = await fetcher.get(url)
+            try:
+                self.normalize_chapter(raw)
+                return raw
+            except ValueError:
+                if attempt == 3:
+                    raise
+                await asyncio.sleep(15 * 2**attempt)
+        raise AssertionError("unreachable")
 
     def normalize_chapter(self, raw: RawPage) -> NormalizedChapter:
         serialized = _extract_serialized_content(raw.html)
         if serialized:
-            return normalize(RawPage(url=raw.url, html=serialized.encode("utf-8")), "body")
-        return normalize(raw, self.CONTENT)
+            result = normalize(RawPage(url=raw.url, html=serialized.encode("utf-8")), "body")
+        else:
+            if b"rate limit exceeded" in raw.html.lower():
+                raise ValueError(f"Novel Mania rate limit in HTTP 200 page: {raw.url}")
+            result = normalize(raw, self.CONTENT)
+        content = HTMLParser(result.html)
+        if not content.text(strip=True) and content.css_first("img[src]") is None:
+            raise ValueError(f"Novel Mania returned an empty chapter: {raw.url}")
+        return result
 
     def expected_total_from_listing(self, html: bytes) -> int | None:
         match = _TOTAL_RE.search(_decode(html))

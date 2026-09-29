@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     fts_language: str = "portuguese"
     house_saikai_bearer: str | None = None
     sky_demon_order_cookie: str | None = None
+    light_novel_pub_cookie: str | None = None
 
 
 @lru_cache

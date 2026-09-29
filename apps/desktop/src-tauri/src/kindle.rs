@@ -59,6 +59,26 @@ fn be_u32(data: &[u8], offset: usize) -> Option<u32> {
     Some(u32::from_be_bytes(bytes))
 }
 
+/// Kindling emits a hardcoded DATP record copied from a single-record comic
+/// template. The Kindle firmware reads DATP for total location count and gets 4
+/// instead of the real value from FCIS. Setting datp_idx (mobi+240) to
+/// 0xFFFFFFFF disables DATP and makes Kindle fall back to FCIS, matching
+/// Calibre's behavior and producing the correct location bar.
+fn patch_azw3_datp(path: &Path) -> Result<(), String> {
+    let mut data = fs::read(path)
+        .map_err(|e| format!("Nao foi possivel ler AZW3 para patch DATP: {e}"))?;
+    let r0 = be_u32(&data, 78)
+        .ok_or("AZW3 invalido: nao foi possivel ler offset do record 0")? as usize;
+    // mobi header at r0+16; datp_idx field at mobi+240 = r0+256
+    let datp_offset = r0 + 256;
+    if datp_offset + 4 > data.len() {
+        return Err("AZW3 invalido: arquivo muito pequeno para conter mobi+240".to_string());
+    }
+    data[datp_offset..datp_offset + 4].copy_from_slice(&0xFFFFFFFFu32.to_be_bytes());
+    fs::write(path, &data)
+        .map_err(|e| format!("Nao foi possivel gravar AZW3 com patch DATP: {e}"))
+}
+
 fn safe_thumbnail_component(value: &[u8]) -> Option<String> {
     let value = std::str::from_utf8(value).ok()?.trim_matches('\0').trim();
     if value.is_empty()
@@ -239,6 +259,55 @@ fn oghma_content_id(title: &str) -> String {
     format!("oghma-{hash:016x}")
 }
 
+fn transcode_unsupported_images_for_kindle(extracted: &mut ExtractedEpub) -> Result<(), String> {
+    let webp_hrefs: Vec<String> = extracted
+        .opf
+        .manifest
+        .values()
+        .filter(|(_, media_type)| {
+            let mt = media_type.to_ascii_lowercase();
+            mt == "image/webp" || mt == "image/avif" || mt == "image/heic"
+        })
+        .map(|(href, _)| href.clone())
+        .collect();
+
+    if webp_hrefs.is_empty() {
+        return Ok(());
+    }
+
+    eprintln!(
+        "Transcoding {} unsupported image(s) to JPEG for Kindle compatibility",
+        webp_hrefs.len()
+    );
+
+    for href in &webp_hrefs {
+        let path = extracted.root.join(href);
+        if !path.is_file() {
+            continue;
+        }
+        let img = image::ImageReader::open(&path)
+            .map_err(|e| format!("Nao foi possivel abrir imagem {href}: {e}"))?
+            .with_guessed_format()
+            .map_err(|e| format!("Formato de imagem invalido {href}: {e}"))?
+            .decode()
+            .map_err(|e| format!("Nao foi possivel decodificar imagem {href}: {e}"))?;
+        let mut jpeg_bytes = Vec::new();
+        JpegEncoder::new_with_quality(&mut jpeg_bytes, 90)
+            .encode_image(&img)
+            .map_err(|e| format!("Nao foi possivel recodificar {href} como JPEG: {e}"))?;
+        fs::write(&path, &jpeg_bytes)
+            .map_err(|e| format!("Nao foi possivel salvar JPEG para {href}: {e}"))?;
+    }
+
+    for (_, (href, media_type)) in extracted.opf.manifest.iter_mut() {
+        if webp_hrefs.contains(href) {
+            *media_type = "image/jpeg".to_string();
+        }
+    }
+
+    Ok(())
+}
+
 fn install_kindling_cover(extracted: &mut ExtractedEpub, cover: &Path) -> Result<(), String> {
     let image = image::ImageReader::open(cover)
         .map_err(|err| format!("Nao foi possivel abrir a capa local: {err}"))?
@@ -276,6 +345,7 @@ fn convert_epub_with_kindling(
     if let Some(cover) = cover {
         install_kindling_cover(&mut extracted, cover)?;
     }
+    transcode_unsupported_images_for_kindle(&mut extracted)?;
 
     let staging = target.with_extension("kindling.azw3");
     let _ = fs::remove_file(&staging);
@@ -313,7 +383,8 @@ fn convert_epub_with_kindling(
         .map(|_| ())
         .map_err(|err| format!("Nao foi possivel finalizar os metadados do AZW3: {err}"));
     let _ = fs::remove_file(&staging);
-    rewrite_result
+    rewrite_result?;
+    patch_azw3_datp(target)
 }
 
 fn convert_epub_with_calibre(epub: &Path, target: &Path, cover: Option<&Path>) -> Result<(), String> {

@@ -1,0 +1,17 @@
+[Unit]
+Description=Oghma local control server for ESP32 triggers
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=codex
+WorkingDirectory=/home/codex/oghma
+EnvironmentFile=-/srv/oghma/.env.daily-crawl
+ExecStart=/usr/bin/python3 /home/codex/oghma/deploy/oghma-control-server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

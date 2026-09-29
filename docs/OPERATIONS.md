@@ -120,6 +120,45 @@ Ver cron instalado:
 ssh codex@192.168.0.42 "crontab -l"
 ```
 
+## Armazenamento do servidor
+
+Layout ativo desde 21/06/2026:
+
+- NVMe: sistema operacional, `/usr`, codigo e arquivos pequenos sensiveis a latencia;
+- HDD de 4 TB em `/srv`: acervo Oghma, Docker, imagens/snapshots do MicroK8s, caches grandes e dados de jogos;
+- journal persistente limitado a 300 MB por `/etc/systemd/journald.conf.d/oghma-storage.conf`.
+
+Bind mounts persistidos em `/etc/fstab`:
+
+```text
+/srv/oghma /var/snap/docker/common/oghma none bind 0 0
+/srv/docker/var-lib-docker /var/snap/docker/common/var-lib-docker none bind 0 0
+/srv/microk8s/containerd /var/snap/microk8s/common/var/lib/containerd none bind 0 0
+```
+
+Outros caminhos mantidos por symlink:
+
+```text
+/home/codex/.cache/pip -> /srv/cache/codex-pip
+/home/jandson/servers -> /srv/game-data/jandson/servers
+/home/jandson/hytale-server -> /srv/game-data/jandson/hytale-server
+/home/jandson/minecraft -> /srv/game-data/jandson/minecraft
+```
+
+Validacao depois de um reboot:
+
+```bash
+df -hT / /var /home /srv
+findmnt /var/snap/docker/common/var-lib-docker
+findmnt /var/snap/microk8s/common/var/lib/containerd
+sudo findmnt --verify --tab-file /etc/fstab
+docker ps
+sudo microk8s kubectl get pods -A
+curl -fsS http://localhost:8010/health
+```
+
+Os mounts do Docker e MicroK8s devem mostrar `/dev/sda1` como origem. Se `/srv` nao estiver montado, nao inicie esses servicos ate corrigir o HDD.
+
 ## Cron mensal
 
 O cron atual roda no dia 1 de cada mes, as 03:00:
@@ -129,6 +168,86 @@ O cron atual roda no dia 1 de cada mes, as 03:00:
 ```
 
 O script usa `flock`, entao uma nova execucao mensal nao deve iniciar se outra ainda estiver rodando.
+
+## Daily crawl com ESP32
+
+O fluxo novo usa o ESP32 como agendador diario e Wake-on-LAN. O VPS nao entra
+no caminho principal.
+
+Arquivos no repo:
+
+```text
+backend/deploy/crawl-daily-completed.sh
+backend/deploy/discord-dm.py
+backend/deploy/oghma-control-server.py
+backend/deploy/oghma-control.service.example
+backend/deploy/daily-crawl.env.example
+backend/deploy/esp32-oghma-wol/esp32-oghma-wol.ino
+```
+
+Instalar env no servidor:
+
+```bash
+sudo install -m 600 /home/codex/oghma/deploy/daily-crawl.env.example /srv/oghma/.env.daily-crawl
+sudo nano /srv/oghma/.env.daily-crawl
+```
+
+Campos obrigatorios:
+
+```text
+OGHMA_CONTROL_TOKEN=...
+DISCORD_BOT_TOKEN=...
+DISCORD_USER_ID=...
+```
+
+Instalar o control server:
+
+```bash
+chmod +x /home/codex/oghma/deploy/crawl-daily-completed.sh
+chmod +x /home/codex/oghma/deploy/discord-dm.py
+chmod +x /home/codex/oghma/deploy/oghma-control-server.py
+sudo cp /home/codex/oghma/deploy/oghma-control.service.example /etc/systemd/system/oghma-control.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now oghma-control.service
+```
+
+Testar o control server:
+
+```bash
+curl -fsS http://192.168.0.42:8020/health
+curl -fsS -H "X-Oghma-Control-Token: $OGHMA_CONTROL_TOKEN" http://192.168.0.42:8020/status
+```
+
+Disparar teste sem desligar:
+
+```bash
+curl -X POST -H "X-Oghma-Control-Token: $OGHMA_CONTROL_TOKEN" \
+  "http://192.168.0.42:8020/trigger?shutdownWhenDone=0"
+```
+
+Para teste rapido, coloque temporariamente no env:
+
+```text
+OGHMA_CRAWL_LIMIT=1
+OGHMA_CHAPTER_LIMIT=3
+```
+
+O ESP32 deve usar o mesmo `OGHMA_CONTROL_TOKEN` em `CONTROL_TOKEN`. O MAC do
+servidor local usado para Wake-on-LAN e:
+
+```text
+0a:e0:af:a7:01:d1
+```
+
+O servidor desliga ao final quando o ESP32 disparar com
+`shutdownWhenDone=1`, mesmo se uma fonte falhar parcialmente.
+
+Depois dos crawlers, a rotina publica no B2 por fonte. Para teste sem upload
+real, coloque temporariamente no env:
+
+```text
+OGHMA_PUBLISH_NO_UPLOAD=1
+```
 
 ## Banco de dados
 

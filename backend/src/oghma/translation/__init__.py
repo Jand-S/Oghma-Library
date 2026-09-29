@@ -2,6 +2,7 @@
 
 from .contracts import (
     GlossaryTerm,
+    ProviderCall,
     TranslationContext,
     TranslationIssue,
     TranslationRunResult,
@@ -13,6 +14,7 @@ from .segmenter import render_translated_html, segment_html
 
 __all__ = [
     "GlossaryTerm",
+    "ProviderCall",
     "TranslationContext",
     "TranslationFatalError",
     "TranslationIssue",

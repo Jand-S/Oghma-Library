@@ -2,6 +2,7 @@ import {
   Download,
   Globe2,
   Home,
+  Languages,
   Library,
   Settings
 } from "lucide-react";
@@ -14,6 +15,7 @@ export const views: Array<{ id: ViewId; label: string; icon: typeof Home }> = [
   { id: "sources", label: "Fontes", icon: Globe2 },
   { id: "downloads", label: "Downloads", icon: Download },
   { id: "library", label: "Biblioteca", icon: Library },
+  { id: "translation", label: "Traducao", icon: Languages },
   { id: "settings", label: "Ajustes", icon: Settings }
 ];
 
@@ -28,6 +30,7 @@ export const pageTitle: Record<ViewId, string> = {
   sources: "Selecao de sites",
   downloads: "Fila de downloads",
   library: "Biblioteca local",
+  translation: "Central de traducao",
   settings: "Ajustes"
 };
 

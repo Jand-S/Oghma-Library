@@ -2510,8 +2510,6 @@ dependencies = [
 [[package]]
 name = "kindling-mobi"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4773c0aeedd737b281db7c3d485b4ea55f5cc3f6b1091b7185cd115ca6f50d3"
 dependencies = [
  "clap",
  "ego-tree",
@@ -3172,7 +3170,7 @@ dependencies = [
 
 [[package]]
 name = "oghma-library"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "image",
  "kindling-mobi",

@@ -61,6 +61,189 @@ Pesquisa em traducao com LLMs reforca pontos especificos do desenho:
 | UI | Tauri/React existente | editor lado a lado | Integrar na Biblioteca/Downloads. |
 | MCP | nao no nucleo | MCP interno de operacao/debug | Bom para agentes, ruim como fila principal. |
 
+## Selecao dinamica de modelos
+
+A ferramenta nao deve assumir um unico modelo definitivo. O produto deve ter:
+
+- uma opcao padrao recomendada pelo Oghma;
+- uma lista de modelos/provedores elegiveis;
+- estimativa de custo para o intervalo selecionado de capitulos;
+- indicadores de qualidade, velocidade, risco e historico de gates;
+- possibilidade de escolher um ou varios modelos para a mesma traducao;
+- comparacao entre preco atual e preco observado em rodadas anteriores.
+
+O modelo padrao e apenas a escolha recomendada naquele momento para o perfil de uso
+atual. O usuario deve poder trocar para um modelo mais barato, mais rapido ou mais
+qualitativo antes de iniciar o job.
+
+### Fontes para recomendacao
+
+O seletor deve combinar quatro fontes:
+
+1. **Catalogo de precos atual**
+   - OpenAI, OpenRouter, Gemini direto, DeepSeek direto e outros provedores;
+   - coletado sob demanda e cacheado com timestamp;
+   - nunca confiar em preco hardcoded para uma estimativa final.
+
+2. **Telemetria local**
+   - tokens reais por capitulo;
+   - output/input ratio por novel e por modelo;
+   - latencia p50/p95;
+   - taxa de reparo, retries e falhas.
+
+3. **Evals versionados**
+   - score editorial medio;
+   - vitorias/derrotas em comparacao cega;
+   - taxa de gates deterministas;
+   - score por dominio, por exemplo xianxia, dialogo, humor, introspectivo.
+
+4. **Perfil do job**
+   - quantidade de capitulos;
+   - tamanho medio dos capitulos selecionados;
+   - necessidade de rapidez;
+   - modo de qualidade;
+   - uso de memoria/RAG, QA bilingue, reparo e grader.
+
+### Estimativa por faixa de capitulos
+
+Ao selecionar uma novel e um intervalo, por exemplo capitulos 0-200 ou 0-1000, o
+backend deve calcular:
+
+```text
+chapter_count
+source_chars_total
+source_words_total
+estimated_input_tokens
+estimated_output_tokens
+estimated_context_tokens
+estimated_qa_tokens
+estimated_repair_tokens
+estimated_total_usd
+estimated_total_brl
+estimated_duration
+confidence
+```
+
+Para capitulos ja baixados, usar o HTML real. Para capitulos ainda nao baixados,
+usar estatistica da novel, fonte ou genero: media de palavras dos capitulos
+existentes, percentis e margem de seguranca.
+
+O resultado da estimativa deve mostrar cenarios:
+
+| Perfil | Como calcula | Uso |
+|---|---|---|
+| Economico | tradutor barato + QA deterministico + reparo minimo | muitas centenas/milhares de capitulos |
+| Balanceado | modelo medio + QA/reparo segmentado | padrao recomendado |
+| Qualidade | modelo melhor + QA bilingue + reparo forte | obras favoritas ou capitulos complexos |
+| Comparativo | 2-4 modelos em amostra pequena antes do lote | escolher modelo por novel |
+
+### Modelo de recomendacao
+
+Cada modelo deve receber um score contextual, nao global:
+
+```text
+recommendation_score =
+  quality_score * quality_weight
+  - normalized_cost * cost_weight
+  - normalized_latency * latency_weight
+  - failure_rate * reliability_weight
+  - gate_failure_rate * gate_weight
+```
+
+Os pesos dependem do modo escolhido:
+
+- `economy`: custo pesa mais;
+- `balanced`: qualidade e custo ficam proximos;
+- `quality`: qualidade e gates pesam mais;
+- `fast`: latencia pesa mais.
+
+O seletor tambem deve aplicar regras duras:
+
+- modelo com falha de schema/HTML recorrente nao pode ser recomendado;
+- modelo com mojibake, scripts inesperados ou glossario quebrado acima do limite
+  fica marcado como experimental;
+- modelo sem structured outputs precisa de adapter proprio ou response-healing antes
+  de entrar na lista principal;
+- preco sem timestamp recente deve aparecer como estimativa incerta.
+
+### UX esperada
+
+Na tela de traducao, antes de iniciar:
+
+- selecionar novel e intervalo de capitulos;
+- escolher modo: economico, balanceado, qualidade ou comparativo;
+- ver cards/tabela com modelos recomendados;
+- ver custo estimado em USD/BRL, tempo estimado e qualidade esperada;
+- expandir detalhes de cada modelo: ultima avaliacao, taxa de reparo, gates, preço
+  atual, provider direto/OpenRouter;
+- opcionalmente rodar "amostra comparativa" em 1-3 capitulos antes do lote completo.
+
+Para intervalos grandes, o Oghma deve sugerir automaticamente uma amostra:
+
+```text
+Antes de traduzir 1000 capitulos, testar 3 modelos em:
+- capitulo 1;
+- capitulo 50;
+- capitulo 200 ou ultimo disponivel;
+- um capitulo com alta densidade de termos, se detectado.
+```
+
+Depois da amostra, o usuario escolhe entre os finalistas ou aceita a recomendacao
+atualizada.
+
+### Implementacao inicial do planner
+
+Primeira base implementada:
+
+```text
+backend/src/oghma/translation/model_selection.py
+backend/src/oghma/translation/planner.py
+POST /api/translations/estimate
+apps/desktop/src/views/translation.tsx
+```
+
+Contrato da rota:
+
+```json
+{
+  "novelId": "source:slug",
+  "chapterFrom": 0,
+  "chapterTo": 200,
+  "mode": "balanced",
+  "models": ["google/gemini-3-flash-preview", "gpt-5.4-mini"],
+  "usdBrlRate": 5.5
+}
+```
+
+Resposta esperada:
+
+```json
+{
+  "chapterCount": 200,
+  "estimatedInputTokens": 123456,
+  "estimatedOutputTokens": 98765,
+  "recommendations": [
+    {
+      "model": "google/gemini-3-flash-preview",
+      "estimatedUsd": 1.23,
+      "estimatedBrl": 6.77,
+      "qualityScore": 81.75,
+      "recommendationScore": 0.84,
+      "experimental": false
+    }
+  ]
+}
+```
+
+No estado atual, os perfis de qualidade ainda sao constantes derivadas dos pilotos.
+A proxima evolucao e persistir resultados de evals/grades e atualizar o planner com
+precos online cacheados por provider.
+
+A tela de traducao ja consome `estimateTranslation` quando disponivel e mostra cards
+de recomendacao por modelo, custo USD/BRL, score medio, tempo estimado e status
+experimental. Se o backend nao conseguir estimar, ela preserva o fallback manual de
+preco por token para nao bloquear o fluxo.
+
 ## Arquitetura alvo
 
 ```text

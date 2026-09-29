@@ -23,7 +23,8 @@ import {
   Sidebar,
   SourcesView,
   SplashScreen,
-  Titlebar
+  Titlebar,
+  TranslationView
 } from "./appUi";
 import {
   hasCompletedSetup,
@@ -196,16 +197,14 @@ export function App({ backend }: AppProps) {
     converterFormats,
     converterProgress,
     converterRunning,
-    converterTranslate,
     startConversion,
     toggleConverterAudiobook,
     toggleConverterFormat,
-    toggleConverterTranslate
   } = useConversionManager({ appConfig, kindleConnected, refreshLocalLibrary, selectedCompletedItems, setQueue, setToast });
   const buildDefaultSelection = (novel: Novel) => ({
     ...defaultSelection(novel),
     formats: appConfig.defaultFormats,
-    translate: appConfig.translateDefault,
+    translate: false,
     audiobook: appConfig.audiobookDefault
   });
 
@@ -561,20 +560,28 @@ export function App({ backend }: AppProps) {
               selectedIds={selectedLibraryIds}
               onToggleSelect={toggleLibrarySelect}
               conversionFormats={converterFormats}
-              conversionTranslate={converterTranslate}
               conversionAudiobook={converterAudiobook}
               conversionProgress={converterProgress}
               conversionRunning={converterRunning}
               conversionCurrentItemId={converterCurrentItemId}
               onConvertSelected={startConversion}
               onToggleConversionFormat={toggleConverterFormat}
-              onToggleConversionTranslate={toggleConverterTranslate}
               onToggleConversionAudiobook={toggleConverterAudiobook}
               onRemoveSelected={removeSelectedLibraryItem}
               onReorderSelected={setSelectedLibraryIds}
               onOpenItemFolder={openLibraryItemFolder}
               onUpdateMeta={updateLibraryMeta}
               onDeleteItems={deleteLibraryItems}
+            />
+          ) : null}
+          {!bootError && activeView === "translation" ? (
+            <TranslationView
+              backend={backend}
+              library={library}
+              config={appConfig}
+              onConfigChange={patchConfig}
+              onOpenItemFolder={openLibraryItemFolder}
+              onNotify={setToast}
             />
           ) : null}
           {activeView === "settings" ? <SettingsView config={appConfig} onConfigChange={patchConfig} onOpenOnboarding={openOnboarding} /> : null}

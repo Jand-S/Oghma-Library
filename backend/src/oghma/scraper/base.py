@@ -25,6 +25,7 @@ class NovelMeta:
     status: str = "ongoing"
     language: str = "pt-BR"
     source_chapter_count: Optional[int] = None
+    extra: dict = field(default_factory=dict)
 
 
 @dataclass

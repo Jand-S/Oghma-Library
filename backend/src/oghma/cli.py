@@ -19,6 +19,19 @@ from .scraper.fetcher import HttpFetcher
 from .scraper.orchestrator import crawl_source
 from .scraper.repair_images import repair_chapter_images
 from .taxonomy import canonical_tag_keys, normalize_tag_key
+from .translation.jobs import load_translation_jobs
+from .translation.job_store import list_job_rows, upsert_job_row
+from .translation.coverage_store import upsert_coverage_row
+from .translation.memory import load_memory_terms, upsert_memory_terms
+from .translation.memory_store import load_memory_term_rows, merge_memory_terms, upsert_memory_term_rows
+from .translation.pricing import (
+    refresh_direct_pricing_snapshot,
+    refresh_openrouter_pricing_snapshot,
+)
+from .translation.pricing_store import upsert_pricing_snapshots
+from .translation.selection_history import append_selection_record, load_selection_records
+from .translation.selection_store import load_selection_rows, merge_selection_records, upsert_selection_rows
+from .translation.worker import TranslationWorkChapter, execute_translation_job, provider_for_job
 
 app = typer.Typer(add_completion=False, help="Oghma Library backend")
 
@@ -80,6 +93,34 @@ def seed_sources() -> None:
             base_url="https://skydemonorder.com/",
             mode="static_html",
             rate_limit_seconds=2.0,
+        ),
+        dict(
+            id="golden-novel",
+            name="Golden Novel",
+            base_url="https://goldennovel.com/",
+            mode="wordpress_api",
+            rate_limit_seconds=1.0,
+        ),
+        dict(
+            id="mahou-reader",
+            name="Mahou Reader",
+            base_url="https://mahoureader.com/",
+            mode="next_data",
+            rate_limit_seconds=1.0,
+        ),
+        dict(
+            id="light-novel-pub",
+            name="Light Novel Pub",
+            base_url="https://lightnovelpub.me/",
+            mode="static_html",
+            rate_limit_seconds=1.0,
+        ),
+        dict(
+            id="rolia-scan",
+            name="RoliaScan",
+            base_url="https://roliascan.com/",
+            mode="wordpress_rest",
+            rate_limit_seconds=1.0,
         ),
     ]
 
@@ -211,6 +252,123 @@ def serve(host: str = "0.0.0.0", port: int = 8000) -> None:
     import uvicorn
 
     uvicorn.run("oghma.api.main:app", host=host, port=port)
+
+
+@app.command("translation-worker")
+def translation_worker(
+    max_jobs: int = typer.Option(1, help="maximo de jobs queued para processar"),
+    allow_paid_providers: bool = typer.Option(False, help="permite providers reais alem de fake"),
+) -> None:
+    """Executa jobs de traducao queued respeitando worker_count do job."""
+
+    async def _run() -> None:
+        processed = 0
+        async with SessionLocal() as s:
+            jobs = {job.id: job for job in load_translation_jobs()}
+            for database_job in await list_job_rows(s, limit=1000):
+                current = jobs.get(database_job.id)
+                if current is None or database_job.updated_at >= current.updated_at:
+                    jobs[database_job.id] = database_job
+            for job in sorted(jobs.values(), key=lambda item: item.created_at):
+                if processed >= max_jobs:
+                    break
+                if job.status != "queued":
+                    continue
+                if job.provider != "fake" and not allow_paid_providers:
+                    typer.echo(f"skip {job.id}: provider {job.provider} exige --allow-paid-providers")
+                    continue
+                upsert_memory_terms(
+                    merge_memory_terms(
+                        await load_memory_term_rows(s, novel_id=job.novel_id),
+                        [item for item in load_memory_terms() if item.novel_id == job.novel_id],
+                    )
+                )
+                for selection_record in merge_selection_records(
+                    await load_selection_rows(
+                        s,
+                        novel_id=job.novel_id,
+                        target_language=job.target_language,
+                        limit=1000,
+                    ),
+                    [item for item in load_selection_records() if item.novel_id == job.novel_id],
+                ):
+                    append_selection_record(selection_record)
+                rows = (
+                    await s.scalars(
+                        select(Chapter)
+                        .where(Chapter.novel_id == job.novel_id)
+                        .where(Chapter.number >= job.chapter_from)
+                        .where(Chapter.number <= job.chapter_to)
+                        .order_by(Chapter.number)
+                    )
+                ).all()
+                chapters: list[TranslationWorkChapter] = []
+                for chapter in rows:
+                    if not chapter.content_path:
+                        continue
+                    try:
+                        html = storage.read_content(chapter.content_path)
+                    except FileNotFoundError:
+                        continue
+                    chapters.append(
+                        TranslationWorkChapter(
+                            id=chapter.id,
+                            number=float(chapter.number),
+                            html=html,
+                            content_hash=chapter.content_hash,
+                        )
+                    )
+                async def persist_job(updated):
+                    await upsert_job_row(s, updated)
+                    await s.commit()
+
+                async def persist_chapter(record):
+                    await upsert_coverage_row(s, record)
+                    await s.commit()
+
+                result = await execute_translation_job(
+                    job,
+                    chapters,
+                    provider_for_job,
+                    on_job_update=persist_job,
+                    on_chapter_update=persist_chapter,
+                )
+                await upsert_memory_term_rows(
+                    s,
+                    [item for item in load_memory_terms() if item.novel_id == result.novel_id],
+                )
+                await upsert_selection_rows(
+                    s,
+                    [item for item in load_selection_records() if item.job_id == result.id],
+                )
+                await s.commit()
+                processed += 1
+                typer.echo(f"job {job.id}: {result.status} ({result.stats.progress_percent:.1f}%)")
+        typer.echo(f"translation-worker: {processed} job(s)")
+
+    asyncio.run(_run())
+
+
+@app.command("translation-pricing-refresh")
+def translation_pricing_refresh(
+    provider: str = typer.Option("openrouter", help="provider de pricing para atualizar"),
+) -> None:
+    """Atualiza snapshots de preco usados pelas estimativas de traducao."""
+
+    if provider not in {"openrouter", "openai", "deepseek", "gemini"}:
+        raise typer.BadParameter("provider suportado: openrouter, openai, deepseek ou gemini")
+    snapshots = (
+        refresh_openrouter_pricing_snapshot()
+        if provider == "openrouter"
+        else refresh_direct_pricing_snapshot(provider)
+    )
+    async def _persist() -> None:
+        async with SessionLocal() as session:
+            await upsert_pricing_snapshots(session, snapshots)
+            await session.commit()
+
+    asyncio.run(_persist())
+    typer.echo(f"pricing: {len(snapshots)} modelo(s) atualizados via {provider}")
 
 
 @app.command("repair-chapter-images")

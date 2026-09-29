@@ -18,7 +18,7 @@ class GlossaryTerm:
 
     @property
     def is_enforced(self) -> bool:
-        return self.status in {"approved", "locked"}
+        return self.status in {"approved", "locked", "approved_auto", "locked_auto"}
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,20 @@ class TokenUsage:
     input_tokens: int = 0
     cached_input_tokens: int = 0
     output_tokens: int = 0
+    reasoning_tokens: int = 0
     total_tokens: int = 0
+
+
+@dataclass(frozen=True)
+class ProviderCall:
+    provider: str
+    model: str
+    operation: str
+    attempt: int
+    duration_seconds: float
+    status: str
+    http_status: int | None = None
+    error_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -86,7 +99,9 @@ class TranslationRunResult:
     issues: list[TranslationIssue]
     repair_attempts: int = 0
     usage: list[TokenUsage] = field(default_factory=list)
+    provider_calls: list[ProviderCall] = field(default_factory=list)
     cost_estimates: list[CostEstimate] = field(default_factory=list)
+    duration_seconds: float = 0.0
 
     @property
     def approved_auto(self) -> bool:

@@ -36,6 +36,22 @@ type EpubCover = {
   data: Uint8Array;
 };
 
+export const LOCAL_BOOK_MANIFEST = ".oghma-book.json";
+
+export type LocalBookManifest = {
+  schema_version: 1;
+  novel_id: string;
+  title: string;
+  chapter_count: number;
+  source_chars: number;
+  word_count: number;
+  analysis_format: "bundle";
+  range_start: number | null;
+  range_end: number | null;
+  generated_at: string;
+  chapters: Array<{ number: number; source_chars: number; word_count: number }>;
+};
+
 function xmlEscape(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -139,12 +155,15 @@ async function createZip(
   return out;
 }
 
-function xhtmlDoc(title: string, body: string): string {
+function xhtmlDoc(title: string, body: string, stylesheetHref = "style.css"): string {
+  const parsed = new DOMParser().parseFromString(body, "text/html");
+  const serializer = new XMLSerializer();
+  const xhtml = Array.from(parsed.body.childNodes, (node) => serializer.serializeToString(node)).join("");
   return `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="pt-BR">
-<head><title>${xmlEscape(title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
-<body>${body}</body>
+<head><title>${xmlEscape(title)}</title><link rel="stylesheet" type="text/css" href="${xmlEscape(stylesheetHref)}"/></head>
+<body>${xhtml}</body>
 </html>`;
 }
 
@@ -154,6 +173,40 @@ function referencedAssetNames(chapters: ExtractedBundle["chapters"]): Set<string
     for (const match of chapter.html.matchAll(/\.\.\/assets\/([a-zA-Z0-9._-]+)/g)) names.add(match[1]);
   }
   return names;
+}
+
+export async function buildLocalBookManifest(
+  bundle: ExtractedBundle,
+  novel: DownloadNovelInput,
+  range?: { start: number; end: number }
+): Promise<LocalBookManifest> {
+  const selected = bundle.chapters.filter(
+    (chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end)
+  );
+  const chapters: LocalBookManifest["chapters"] = [];
+  for (let index = 0; index < selected.length; index += 1) {
+    const chapter = selected[index];
+    const text = stripHtml(chapter.html);
+    chapters.push({
+      number: chapter.number,
+      source_chars: Array.from(text).length,
+      word_count: text ? text.split(/\s+/).length : 0
+    });
+    if (index % 25 === 24) await yieldToUi();
+  }
+  return {
+    schema_version: 1,
+    novel_id: novel.id,
+    title: novel.title,
+    chapter_count: chapters.length,
+    source_chars: chapters.reduce((sum, chapter) => sum + chapter.source_chars, 0),
+    word_count: chapters.reduce((sum, chapter) => sum + chapter.word_count, 0),
+    analysis_format: "bundle",
+    range_start: range?.start ?? null,
+    range_end: range?.end ?? null,
+    generated_at: new Date().toISOString(),
+    chapters
+  };
 }
 
 function coverMediaType(contentType: string, url: string): { mediaType: string; ext: string } | null {
@@ -201,7 +254,8 @@ async function buildEpub(
     title: chapter.title || `Capitulo ${chapter.number}`,
     html: xhtmlDoc(
       chapter.title || `Capitulo ${chapter.number}`,
-      `<h1>${xmlEscape(chapter.title || `Capitulo ${chapter.number}`)}</h1>${chapter.html.replace(/<img([^>]*)>/gi, "<img$1 />")}`
+      `<h1>${xmlEscape(chapter.title || `Capitulo ${chapter.number}`)}</h1>${chapter.html}`,
+      "../style.css"
     )
   }));
   const manifestItems = chapterFiles.map((file) => `<item id="${file.id}" href="${file.href}" media-type="application/xhtml+xml"/>`).join("\n    ");
@@ -257,6 +311,16 @@ export async function buildOutputs(
   onProgress?: (percent: number) => void,
   cover?: EpubCover
 ): Promise<Array<{ fileName: string; data: FileData }>> {
+  const empty = bundle.chapters.filter((chapter) => {
+    if (range && (chapter.number < range.start || chapter.number > range.end)) return false;
+    const doc = new DOMParser().parseFromString(chapter.html, "text/html");
+    doc.querySelectorAll("script, style").forEach((node) => node.remove());
+    return !doc.body.textContent?.trim() && !doc.body.querySelector("img[src]");
+  });
+  if (empty.length) {
+    const numbers = empty.slice(0, 12).map((chapter) => chapter.number).join(", ");
+    throw new Error(`O acervo publicado possui ${empty.length} capitulo(s) sem conteudo: ${numbers}${empty.length > 12 ? ", ..." : ""}. O download foi interrompido para evitar um livro incompleto.`);
+  }
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
   if (formats.includes("EPUB")) {
@@ -317,6 +381,8 @@ export async function runDownload(
     await yieldToUi();
     onProgress?.(80 + Math.round((saveProgressRange * (i + 1)) / outputs.length));
   }
+  const manifest = await buildLocalBookManifest(bundle, req.novel, req.range);
+  await save(LOCAL_BOOK_MANIFEST, JSON.stringify(manifest, null, 2));
   if (needsAzw3) {
     onProgress?.(96);
     const azw3 = await convertLocalEpubToAzw3(req.novel.title, req.outputDir, savedFiles);

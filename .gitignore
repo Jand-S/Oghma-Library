@@ -31,3 +31,10 @@ Thumbs.db
 # Scripts temporarios de refatoracao (nao versionar)
 apps/desktop/src/*.py
 *.tmp
+
+# Checkpoints: temporarios, publicacao local e resultados de execucao
+/.publish/
+/.tmp-calibre-config/
+/.codex-*.cjs
+/translation-workspace/
+/backend/.test-*/

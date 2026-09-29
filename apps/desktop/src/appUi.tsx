@@ -8,3 +8,4 @@ export * from "./views/onboarding";
 export * from "./views/settings";
 export * from "./views/shell";
 export * from "./views/sources";
+export * from "./views/translation";

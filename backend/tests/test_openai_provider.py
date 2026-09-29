@@ -48,7 +48,7 @@ async def test_openai_provider_builds_responses_payload_for_translation():
             )
         }
     )
-    provider = OpenAIProvider(api_key="test-key", model="gpt-test", client=client)
+    provider = OpenAIProvider(api_key="test-key", model="gpt-5-test", client=client)
     context = TranslationContext(
         glossary_terms=[
             GlossaryTerm(source="Foundation Establishment", target="Estabelecimento de Fundacao")
@@ -69,7 +69,7 @@ async def test_openai_provider_builds_responses_payload_for_translation():
     request = client.requests[0]
     assert request["url"] == "https://api.openai.com/v1/responses"
     assert request["headers"]["Authorization"] == "Bearer test-key"
-    assert request["json"]["model"] == "gpt-test"
+    assert request["json"]["model"] == "gpt-5-test"
     assert request["json"]["reasoning"] == {"effort": "medium"}
     assert request["json"]["store"] is False
     assert request["json"]["text"]["format"]["type"] == "json_schema"
@@ -82,6 +82,43 @@ async def test_openai_provider_builds_responses_payload_for_translation():
             notes=[],
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_omits_reasoning_for_non_reasoning_model():
+    client = FakeClient({"output_text": '{"segments":[]}'})
+    provider = OpenAIProvider(api_key="test-key", model="gpt-4.1-mini", client=client)
+
+    await provider.translate_segments([], TranslationContext())
+
+    assert "reasoning" not in client.requests[0]["json"]
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_supports_generic_structured_requests():
+    client = FakeClient({"output_text": '{"winner":"A"}'})
+    provider = OpenAIProvider(api_key="test-key", model="gpt-5-test", client=client)
+    response_format = {
+        "type": "json_schema",
+        "name": "grade",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {"winner": {"type": "string"}},
+            "required": ["winner"],
+            "additionalProperties": False,
+        },
+    }
+
+    result = await provider.request_structured(
+        operation="editorial_grade",
+        instructions="Compare both translations.",
+        input_payload={"translation_a": "A", "translation_b": "B"},
+        response_format=response_format,
+    )
+
+    assert result == {"winner": "A"}
+    assert client.requests[0]["json"]["text"]["format"]["name"] == "grade"
 
 
 @pytest.mark.asyncio
@@ -164,7 +201,7 @@ def test_read_dotenv_supports_provider_settings(tmp_path):
     assert values["OGHMA_TRANSLATION_REASONING"] == "high"
 
 
-def test_parse_usage_and_estimate_costs():
+def test_parse_usage_and_estimate_costs(fresh_pricing_catalog):
     usage = _parse_usage(
         {
             "usage": {
@@ -172,6 +209,7 @@ def test_parse_usage_and_estimate_costs():
                 "output_tokens": 500,
                 "total_tokens": 1500,
                 "input_tokens_details": {"cached_tokens": 200},
+                "output_tokens_details": {"reasoning_tokens": 125},
             }
         },
         provider="openai",
@@ -183,6 +221,7 @@ def test_parse_usage_and_estimate_costs():
     assert usage.input_tokens == 1000
     assert usage.cached_input_tokens == 200
     assert usage.output_tokens == 500
+    assert usage.reasoning_tokens == 125
 
     costs = estimate_costs([usage], usd_brl_rate=5.0)
 
@@ -190,3 +229,40 @@ def test_parse_usage_and_estimate_costs():
     assert costs[0].total == 0.0191
     assert costs[1].currency == "BRL"
     assert costs[1].total == 0.0955
+
+
+class RetryableError(RuntimeError):
+    def __init__(self, status_code):
+        self.status_code = status_code
+
+
+class RetryClient:
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = 0
+
+    async def post(self, url, *, headers, json, timeout):
+        self.calls += 1
+        if self.calls == 1:
+            raise RetryableError(429)
+        return FakeResponse(self.payload)
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_records_retry_attempts():
+    client = RetryClient({"output_text": '{"segments":[]}'})
+    provider = OpenAIProvider(
+        api_key="test-key",
+        model="gpt-test",
+        client=client,
+        max_retries=1,
+        retry_base_seconds=0,
+    )
+
+    await provider.translate_segments([], TranslationContext())
+
+    events = provider.drain_call_events()
+    assert [(event.attempt, event.status, event.http_status) for event in events] == [
+        (1, "failed", 429),
+        (2, "succeeded", None),
+    ]

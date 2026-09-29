@@ -149,6 +149,8 @@ async def _upsert_novel(session: AsyncSession, novel_id: str, meta: NovelMeta) -
     nv.tags = meta.tags
     nv.tag_keys = canonical_tag_keys(meta.tags)
     nv.source_url = meta.url
+    if meta.extra:
+        nv.extra = {**dict(nv.extra or {}), **meta.extra}
     return nv
 
 

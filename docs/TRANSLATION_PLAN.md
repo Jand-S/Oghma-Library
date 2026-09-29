@@ -454,6 +454,10 @@ Prompt caching deve ser considerado desde o inicio:
 
 ## Evals
 
+O protocolo detalhado para comparar modelos, combinacoes de pipeline, capitulos
+sequenciais e capitulos distantes esta em `docs/TRANSLATION_MODEL_EVALUATION.md`.
+Ele deve ser executado antes de promover um modelo a padrao de producao.
+
 Antes de traduzir uma obra enorme, montar um conjunto pequeno de avaliacao.
 
 Samples por genero:

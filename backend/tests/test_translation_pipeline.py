@@ -127,3 +127,51 @@ def test_render_translated_html_preserves_source_order():
     ]
 
     assert render_translated_html(source, translated) == "<p>Primeiro.</p><p>Segundo.</p>"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_rejects_unexpected_writing_system_as_auto_approved():
+    class ContaminatingProvider(FakeTranslationProvider):
+        async def translate_segments(self, segments, context):
+            translated = await super().translate_segments(segments, context)
+            return [
+                TranslatedSegment(item.key, item.translated_html.replace("séculos", "כמה séculos"))
+                for item in translated
+            ]
+
+    pipeline = TranslationPipeline(ContaminatingProvider(prefix=""))
+    result = await pipeline.translate_html("<p>Há séculos, ele partiu.</p>", TranslationContext(max_repair_attempts=0))
+
+    assert result.status == "draft_with_warnings"
+    assert [issue.issue_type for issue in result.issues] == ["unexpected_script"]
+
+
+@pytest.mark.asyncio
+async def test_pipeline_rejects_mojibake_as_auto_approved():
+    class MojibakeProvider(FakeTranslationProvider):
+        async def translate_segments(self, segments, context):
+            return [TranslatedSegment(item.key, "<p>VocÃª abriu sua abertura.</p>") for item in segments]
+
+    pipeline = TranslationPipeline(MojibakeProvider(prefix=""))
+    result = await pipeline.translate_html("<p>You opened your aperture.</p>", TranslationContext(max_repair_attempts=0))
+
+    assert result.status == "draft_with_warnings"
+    assert [issue.issue_type for issue in result.issues] == ["mojibake"]
+
+
+@pytest.mark.asyncio
+async def test_pipeline_warns_without_repairing_truncated_source():
+    source = (
+        '<p>He turned toward the visitor and said, "I crossed the entire valley '
+        'because I needed to tell you something important</p>'
+    )
+    pipeline = TranslationPipeline(FakeTranslationProvider(prefix=""))
+
+    result = await pipeline.translate_html(source, TranslationContext(max_repair_attempts=2))
+
+    assert result.status == "draft_with_warnings"
+    assert result.repair_attempts == 0
+    assert {issue.issue_type for issue in result.issues} == {
+        "source_unbalanced_quotes",
+        "source_truncated_sentence",
+    }

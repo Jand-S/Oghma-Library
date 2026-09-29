@@ -25,3 +25,18 @@
     grid-template-rows: minmax(320px, 1fr) minmax(320px, 1fr);
   }
 }
+
+@media (max-width: 1240px) {
+  .translation-workspace {
+    grid-template-columns: 240px minmax(0, 1fr) 286px;
+  }
+
+  .translation-control-grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .translation-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

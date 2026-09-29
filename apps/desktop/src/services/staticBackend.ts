@@ -14,7 +14,22 @@ import type {
   QueueItem,
   ServerProbe,
   SourceSite,
-  TagCatalogItem
+  TagCatalogItem,
+  TranslationAutomaticPlan,
+  TranslationAutomaticPlanRequest,
+  TranslationCoverage,
+  TranslationEstimate,
+  TranslationEstimateRequest,
+  TranslationJob,
+  TranslationJobCreateRequest,
+  TranslationMemoryConflict,
+  TranslationMemoryConflictResolveRequest,
+  TranslationMemoryConflictResolveResult,
+  TranslationMemoryConflictSuggestion,
+  TranslationMemoryTerm,
+  TranslationMemoryTermUpsertRequest,
+  TranslationMemoryTermUpsertResult,
+  TranslationSelectionRecord
 } from "../core/types";
 import type { BackendClient, KindleTransferResult } from "./backendClient";
 import { buildFallbackTagCatalog, matchesContentRating, matchesTagFilters, normalizeTagCatalog } from "../core/tagFilters";
@@ -149,6 +164,73 @@ function estimateChapters(selection: ChapterSelection, max: number): number {
   return Math.max(1, Math.min(selection.end, max) - Math.max(1, selection.start) + 1);
 }
 
+function buildStaticTranslationEstimate(request: TranslationEstimateRequest, chapterCount: number): TranslationEstimate {
+  const sourceChars = Math.max(chapterCount, request.sourceChars ?? chapterCount * 10400);
+  const estimatedSourceTokens = Math.max(1, Math.ceil(sourceChars / 4));
+  const estimatedInputTokens = estimatedSourceTokens + chapterCount * 1200;
+  const estimatedOutputTokens = Math.round(estimatedSourceTokens * 1.2);
+  const equivalentChapterCount = Math.max(chapterCount, sourceChars / 10400);
+  const usdBrlRate = request.usdBrlRate ?? null;
+  const models = request.models?.length
+    ? request.models
+    : ["google/gemini-3-flash-preview", "gpt-5.4-mini", "gpt-4.1-mini"];
+  const prices: Record<string, { input: number; output: number; quality: number; duration: number; experimental?: boolean }> = {
+    "google/gemini-3-flash-preview": { input: 0.5, output: 3, quality: 81.75, duration: 21.83 },
+    "gpt-5.4-mini": { input: 0.75, output: 4.5, quality: 79.58, duration: 52 },
+    "gpt-4.1-mini": { input: 0.4, output: 1.6, quality: 77.94, duration: 38 },
+    "deepseek/deepseek-v4-pro": { input: 0.435, output: 0.87, quality: 77.96, duration: 224.39 },
+    "deepseek/deepseek-v4-flash": { input: 0.09, output: 0.18, quality: 79.42, duration: 98.35, experimental: true }
+  };
+  const recommendations = models.map((model) => {
+    const price = prices[model] ?? { input: 0.75, output: 4.5, quality: 70, duration: 60 };
+    const estimatedUsd = (estimatedInputTokens / 1_000_000) * price.input + (estimatedOutputTokens / 1_000_000) * price.output;
+    return {
+      model,
+      estimatedUsd: Number(estimatedUsd.toFixed(6)),
+      estimatedBrl: usdBrlRate ? Number((estimatedUsd * usdBrlRate).toFixed(6)) : null,
+      estimatedDurationSeconds: Number((price.duration * equivalentChapterCount).toFixed(3)),
+      qualityScore: price.quality,
+      gatePassRate: price.experimental ? 0.5 : 1,
+      recommendationScore: Number((price.quality / 100 - estimatedUsd / Math.max(1, chapterCount)).toFixed(6)),
+      experimental: Boolean(price.experimental),
+      priceTimestamp: new Date().toISOString(),
+      notes: price.experimental ? ["Estimativa experimental; requer nova rodada de QA."] : []
+    };
+  }).sort((a, b) => b.recommendationScore - a.recommendationScore);
+  return {
+    novelId: request.novelId,
+    chapterFrom: request.chapterFrom,
+    chapterTo: request.chapterTo,
+    chapterCount,
+    sourceChars,
+    estimatedInputTokens,
+    estimatedOutputTokens,
+    mode: request.mode,
+    recommendations
+  };
+}
+
+function buildStaticTranslationCoverage(request: TranslationEstimateRequest, chapterCount: number): TranslationCoverage {
+  void chapterCount;
+  return {
+    novelId: request.novelId,
+    chapterFrom: request.chapterFrom,
+    chapterTo: request.chapterTo,
+    targetLanguage: "pt-BR",
+    selectedCount: Math.max(1, request.chapterTo - request.chapterFrom + 1),
+    translatedCount: 0,
+    missingCount: Math.max(1, request.chapterTo - request.chapterFrom + 1),
+    staleCount: 0,
+    unknownCount: 0,
+    coveragePercent: 0,
+    ranges: [],
+    staleRanges: [],
+    unknownRanges: [],
+    estimatedSavingsUsd: 0,
+    estimatedSavingsBrl: request.usdBrlRate ? 0 : null
+  };
+}
+
 export function createStaticBackendClient(serverUrl: string): BackendClient {
   const base = trimBase(serverUrl);
   let sites: SiteCache[] = [];
@@ -213,6 +295,16 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       for (const cn of sc.novels.values()) out.push(novelToUi(cn, sc.source));
     }
     return out;
+  }
+
+  const translationJobs: TranslationJob[] = [];
+
+  function updateTranslationJob(jobId: string, patch: Partial<TranslationJob>): TranslationJob {
+    const index = translationJobs.findIndex((job) => job.id === jobId);
+    if (index < 0) throw new Error("Job de traducao nao encontrado");
+    const next = { ...translationJobs[index], ...patch, updatedAt: new Date().toISOString() };
+    translationJobs[index] = next;
+    return structuredClone(next);
   }
 
   return {
@@ -347,6 +439,296 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
 
     async sendToKindle(items: QueueItem[]): Promise<KindleTransferResult> {
       return { sentIds: items.map((item) => item.id), convertedFormat: "AZW3" };
+    },
+
+    async estimateTranslation(request: TranslationEstimateRequest): Promise<TranslationEstimate> {
+      await ensureLoaded();
+      const found = findNovel(request.novelId);
+      const max = found?.cn.chapterCount ?? Math.max(1, request.chapterTo);
+      const from = Math.max(1, Math.min(request.chapterFrom, max));
+      const to = Math.max(from, Math.min(request.chapterTo, max));
+      return buildStaticTranslationEstimate(request, Math.max(1, to - from + 1));
+    },
+
+    async getTranslationCoverage(request: TranslationEstimateRequest): Promise<TranslationCoverage> {
+      await ensureLoaded();
+      const found = findNovel(request.novelId);
+      const max = found?.cn.chapterCount ?? Math.max(1, request.chapterTo);
+      const from = Math.max(1, Math.min(request.chapterFrom, max));
+      const to = Math.max(from, Math.min(request.chapterTo, max));
+      return buildStaticTranslationCoverage({ ...request, chapterFrom: from, chapterTo: to }, Math.max(1, to - from + 1));
+    },
+
+    async createTranslationJob(request: TranslationJobCreateRequest): Promise<TranslationJob> {
+      const coverage = await this.getTranslationCoverage({
+        novelId: request.novelId,
+        chapterFrom: request.chapterFrom,
+        chapterTo: request.chapterTo,
+        mode: request.mode,
+        usdBrlRate: request.usdBrlRate
+      });
+      const estimate = await this.estimateTranslation({
+        novelId: request.novelId,
+        chapterFrom: request.chapterFrom,
+        chapterTo: request.chapterTo,
+        mode: request.mode,
+        models: [request.selectedModel],
+        usdBrlRate: request.usdBrlRate,
+        sourceChars: request.sourceChars
+      });
+      const recommendation = estimate.recommendations[0];
+      const now = new Date().toISOString();
+      const job: TranslationJob = {
+        id: `static-translation-${Date.now()}-${translationJobs.length}`,
+        novelId: request.novelId,
+        chapterFrom: request.chapterFrom,
+        chapterTo: request.chapterTo,
+        targetLanguage: request.targetLanguage,
+        mode: request.mode,
+        strategy: request.strategy,
+        status: "queued",
+        selectedModel: request.selectedModel,
+        provider: request.provider,
+        workerCount: request.workerCount,
+        reuseExisting: request.reuseExisting,
+        maxCostUsd: request.maxCostUsd ?? null,
+        stats: {
+          selectedCount: coverage.selectedCount,
+          translatedCount: 0,
+          reusableCount: coverage.translatedCount,
+          missingCount: coverage.missingCount,
+          staleCount: coverage.staleCount,
+          unknownCount: coverage.unknownCount,
+          estimatedSavingsUsd: coverage.estimatedSavingsUsd,
+          estimatedSavingsBrl: coverage.estimatedSavingsBrl,
+          estimatedCostUsd: recommendation?.estimatedUsd ?? 0,
+          estimatedCostBrl: recommendation?.estimatedBrl ?? null,
+          actualCostUsd: 0,
+          actualCostBrl: 0,
+          estimatedRemainingCostUsd: recommendation?.estimatedUsd ?? 0,
+          estimatedRemainingCostBrl: recommendation?.estimatedBrl ?? null,
+          averageCostUsdPerChapter: 0,
+          averageInputTokensPerChapter: 0,
+          averageOutputTokensPerChapter: 0,
+          outputInputRatio: 0,
+          averageSecondsPerChapter: 0,
+          costPerMinuteUsd: 0,
+          elapsedSeconds: 0,
+          etaSeconds: null,
+          retryCount: 0,
+          repairCount: 0,
+          failedCount: 0,
+          rateLimitCount: 0,
+          retryRatePercent: 0,
+          repairRatePercent: 0,
+          providerStabilityPercent: 100,
+          effectiveWorkerCount: request.workerCount,
+          telemetryReason: "Aguardando primeiras metricas reais.",
+          progressPercent: 0,
+          coverageRanges: coverage.ranges
+        },
+        error: "",
+        createdAt: now,
+        updatedAt: now,
+        startedAt: null,
+        finishedAt: null
+      };
+      translationJobs.unshift(job);
+      return structuredClone(job);
+    },
+
+    async listTranslationJobs(): Promise<TranslationJob[]> {
+      return structuredClone(translationJobs);
+    },
+
+    async runTranslationJob(jobId: string, _allowPaidProviders = false, _allowEditorialGrader = false): Promise<TranslationJob> {
+      const job = translationJobs.find((item) => item.id === jobId);
+      if (!job) throw new Error("Job de traducao nao encontrado");
+      return updateTranslationJob(jobId, {
+        status: "translating",
+        startedAt: job.startedAt ?? new Date().toISOString()
+      });
+    },
+
+    async pauseTranslationJob(jobId: string): Promise<TranslationJob> {
+      return updateTranslationJob(jobId, { status: "paused" });
+    },
+
+    async resumeTranslationJob(jobId: string): Promise<TranslationJob> {
+      return updateTranslationJob(jobId, { status: "queued" });
+    },
+
+    async cancelTranslationJob(jobId: string): Promise<TranslationJob> {
+      return updateTranslationJob(jobId, { status: "cancelled", finishedAt: new Date().toISOString() });
+    },
+
+    async getTranslationAutomaticPlan(request: TranslationAutomaticPlanRequest): Promise<TranslationAutomaticPlan> {
+      const candidateModels = (request.candidateModels?.length ? request.candidateModels : [
+        "google/gemini-3-flash-preview",
+        "gpt-5.4-mini",
+        "gpt-4.1-mini"
+      ]).slice(0, request.maxModels);
+      const samples = [
+        { number: request.chapterFrom, reason: "first" },
+        { number: Math.floor((request.chapterFrom + request.chapterTo) / 2), reason: "middle" },
+        { number: request.chapterTo, reason: "late" }
+      ].slice(0, request.maxSamples);
+      const estimate = await this.estimateTranslation({
+        novelId: request.novelId,
+        chapterFrom: 1,
+        chapterTo: samples.length,
+        mode: request.mode,
+        models: candidateModels,
+        usdBrlRate: request.usdBrlRate,
+        sourceChars: request.sourceChars
+          ? Math.max(1, Math.round(request.sourceChars * (samples.length / Math.max(1, request.chapterTo - request.chapterFrom + 1))))
+          : undefined
+      });
+      const estimatedSampleUsd = Number(estimate.recommendations.reduce((total, item) => total + item.estimatedUsd, 0).toFixed(6));
+      const graderCount = request.graderModels?.length || 1;
+      const pairCount = candidateModels.length * Math.max(0, candidateModels.length - 1) / 2;
+      const estimatedEditorialGraderUsd = Number((samples.length * pairCount * graderCount * 0.0024).toFixed(6));
+      return {
+        novelId: request.novelId,
+        chapterFrom: request.chapterFrom,
+        chapterTo: request.chapterTo,
+        mode: request.mode,
+        sampleChapters: samples.map((sample) => ({
+          id: `${request.novelId}-${sample.number}`,
+          number: sample.number,
+          reason: sample.reason,
+          sourceChars: request.sourceChars
+            ? Math.max(1, Math.round(request.sourceChars / Math.max(1, request.chapterTo - request.chapterFrom + 1)))
+            : 10400,
+          wordCount: request.sourceChars
+            ? Math.max(1, Math.round(request.sourceChars / Math.max(1, request.chapterTo - request.chapterFrom + 1) / 6))
+            : 2600
+        })),
+        candidateModels,
+        estimatedSampleUsd,
+        estimatedSampleBrl: request.usdBrlRate ? Number((estimatedSampleUsd * request.usdBrlRate).toFixed(6)) : null,
+        estimatedEditorialGraderUsd,
+        estimatedEditorialGraderBrl: request.usdBrlRate ? Number((estimatedEditorialGraderUsd * request.usdBrlRate).toFixed(6)) : null,
+        recommendations: estimate.recommendations
+      };
+    },
+
+    async getTranslationSelectionHistory(novelId?: string): Promise<TranslationSelectionRecord[]> {
+      const records: TranslationSelectionRecord[] = translationJobs
+        .filter((job) => job.strategy === "automatic")
+        .filter((job) => !novelId || job.novelId === novelId)
+        .map((job) => ({
+          id: `${job.id}:selection`,
+          jobId: job.id,
+          novelId: job.novelId,
+          chapterFrom: job.chapterFrom,
+          chapterTo: job.chapterTo,
+          targetLanguage: job.targetLanguage,
+          mode: job.mode,
+          winnerModel: job.selectedModel === "automatic" ? "google/gemini-3-flash-preview" : job.selectedModel,
+          winnerProvider: job.provider === "auto" ? "openrouter" : job.provider,
+          editorialGradeCount: job.strategy === "automatic" ? 1 : 0,
+          editorialCostUsd: job.strategy === "automatic" ? 0.0024 : 0,
+          sampleChapters: [job.chapterFrom, Math.floor((job.chapterFrom + job.chapterTo) / 2), job.chapterTo],
+          trials: [],
+          createdAt: job.createdAt
+        }));
+      return structuredClone(records);
+    },
+
+    async getTranslationMemory(novelId?: string): Promise<TranslationMemoryTerm[]> {
+      const now = new Date().toISOString();
+      return [
+        {
+          novelId: novelId ?? "static-novel",
+          source: "Gu Master",
+          target: "Mestre Gu",
+          status: "locked_auto",
+          category: "rank_title",
+          occurrences: 12,
+          firstChapter: 1,
+          lastChapter: 7,
+          confidence: 0.98,
+          notes: "auto known-term extraction",
+          updatedAt: now
+        }
+      ];
+    },
+
+    async getTranslationMemoryConflicts(novelId?: string): Promise<TranslationMemoryConflict[]> {
+      return [
+        {
+          novelId: novelId ?? "static-novel",
+          conflictType: "same_target_different_source",
+          severity: "medium",
+          source: "Gu Master",
+          target: "Mestre Gu",
+          relatedSource: "Gu Cultivator",
+          relatedTarget: "Mestre Gu",
+          message: "Termos originais diferentes compartilham a mesma traducao."
+        }
+      ];
+    },
+
+    async getTranslationMemoryConflictSuggestions(novelId?: string): Promise<TranslationMemoryConflictSuggestion[]> {
+      return [
+        {
+          novelId: novelId ?? "static-novel",
+          conflictType: "near_duplicate_source",
+          severity: "low",
+          source: "Flower-Wine Monk",
+          currentTarget: "Monge Flower Wine",
+          suggestedTarget: "Monge do Vinho das Flores",
+          relatedSource: "Flower Wine Monk",
+          relatedTarget: "Monge do Vinho das Flores",
+          confidence: 0.62,
+          action: "lock_variant_target",
+          reason: "Termos parecem variantes; a sugestao alinha a variante ao termo mais confiavel."
+        }
+      ];
+    },
+
+    async resolveTranslationMemoryConflict(request: TranslationMemoryConflictResolveRequest): Promise<TranslationMemoryConflictResolveResult> {
+      return {
+        term: {
+          novelId: request.novelId,
+          source: request.source,
+          target: request.target,
+          status: "locked",
+          category: "manual",
+          occurrences: 0,
+          firstChapter: null,
+          lastChapter: null,
+          confidence: 1,
+          notes: "Resolvido a partir de alerta do glossario.",
+          updatedAt: new Date().toISOString()
+        },
+        postEdit: request.applyExisting
+          ? { scannedCount: 0, changedCount: 0, skippedCount: 0, changedPaths: [] }
+          : null,
+        remainingConflictCount: 0
+      };
+    },
+
+    async upsertTranslationMemoryTerm(request: TranslationMemoryTermUpsertRequest): Promise<TranslationMemoryTermUpsertResult> {
+      return {
+        term: {
+          novelId: request.novelId,
+          source: request.source,
+          target: request.target,
+          status: request.status,
+          category: request.category,
+          occurrences: 0,
+          firstChapter: null,
+          lastChapter: null,
+          confidence: 1,
+          notes: request.notes,
+          updatedAt: new Date().toISOString()
+        },
+        postEdit: request.applyExisting
+          ? { scannedCount: 0, changedCount: 0, skippedCount: 0, changedPaths: [] }
+          : null
+      };
     }
   };
 }

@@ -7,7 +7,7 @@ import {
   vi
 } from "vitest";
 import type { ExtractedBundle } from "../services/bundle";
-import { buildOutputs, runDownload, sanitizeFileName } from "../services/downloadManager";
+import { buildLocalBookManifest, buildOutputs, runDownload, sanitizeFileName } from "../services/downloadManager";
 
 function tarHeader(name: string, size: number): Uint8Array {
   const h = new Uint8Array(512);
@@ -88,6 +88,38 @@ describe("downloadManager", () => {
     expect(html[0].data).toContain("width: 100%");
   });
 
+  it("builds persistent metrics from the selected chapter range", async () => {
+    const manifest = await buildLocalBookManifest(sampleBundle, { id: "central:ss", title: "Shadow Slave" }, { start: 2, end: 2 });
+    expect(manifest.chapter_count).toBe(1);
+    expect(manifest.chapters.map((chapter) => chapter.number)).toEqual([2]);
+    expect(manifest.source_chars).toBeGreaterThan(0);
+    expect(manifest.analysis_format).toBe("bundle");
+  });
+
+  it("serializes HTML void tags and entities as valid EPUB XHTML", async () => {
+    const bundle: ExtractedBundle = {
+      meta: null, assets: [],
+      chapters: [{ number: 1, html: '<p>Texto&nbsp;&amp; nota<br>Fim</p><hr><p><img src="image.jpg" /></p>' }]
+    };
+    const outputs = await buildOutputs(bundle, "Teste", ["EPUB"]);
+    const raw = new TextDecoder().decode(outputs[0].data as Uint8Array);
+    const documents = raw.match(/<\?xml[^?]*\?>\s*<!DOCTYPE html>[^]*?<\/html>/g) ?? [];
+    expect(documents.length).toBeGreaterThanOrEqual(2);
+    for (const xml of documents) {
+      const parsed = new DOMParser().parseFromString(xml, "application/xhtml+xml");
+      expect(parsed.querySelector("parsererror")).toBeNull();
+    }
+  });
+
+  it("rejects empty published chapters but allows a valid selected range", async () => {
+    const bundle: ExtractedBundle = {
+      ...sampleBundle,
+      chapters: [...sampleBundle.chapters, { number: 50, html: '<p> </p><hr>' }]
+    };
+    await expect(buildOutputs(bundle, "Teste", ["EPUB"])).rejects.toThrow(/sem conteudo: 50/);
+    await expect(buildOutputs(bundle, "Teste", ["TXT"], { start: 1, end: 2 })).resolves.toHaveLength(1);
+  });
+
   it("embeds the novel cover in EPUB metadata", async () => {
     const epub = await buildOutputs(
       sampleBundle,
@@ -125,6 +157,7 @@ describe("downloadManager", () => {
     );
     expect(files).toEqual(["Shadow Slave.txt"]);
     expect(saved["Shadow Slave.txt"]).toContain("um");
+    expect(JSON.parse(saved[".oghma-book.json"]).chapter_count).toBe(2);
     expect(progress[progress.length - 1]).toBe(100);
   });
 

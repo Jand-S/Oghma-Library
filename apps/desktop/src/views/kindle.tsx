@@ -1,4 +1,4 @@
-import { Headphones, Languages, X } from "lucide-react";
+import { Headphones, X } from "lucide-react";
 import type { DownloadFormat, QueueItem } from "../core/types";
 import { downloadFormats } from "../core/types";
 
@@ -6,12 +6,10 @@ export function ConversionModal({
   open,
   items,
   formats,
-  translate,
   audiobook,
   progress,
   running,
   onToggleFormat,
-  onToggleTranslate,
   onToggleAudiobook,
   onClose,
   onStart
@@ -19,12 +17,10 @@ export function ConversionModal({
   open: boolean;
   items: QueueItem[];
   formats: Set<DownloadFormat>;
-  translate: boolean;
   audiobook: boolean;
   progress: number;
   running: boolean;
   onToggleFormat: (format: DownloadFormat) => void;
-  onToggleTranslate: () => void;
   onToggleAudiobook: () => void;
   onClose: () => void;
   onStart: () => void;
@@ -63,11 +59,7 @@ export function ConversionModal({
               <span className="badge" key={item.id}>{item.title}</span>
             ))}
           </div>
-          <div className="format-options">
-            <button className={`format-chip ${translate ? "active" : ""}`} onClick={onToggleTranslate} disabled={running}>
-              <Languages size={13} />
-              Traduzir
-            </button>
+          <div className="format-options single">
             <button className={`format-chip ${audiobook ? "active" : ""}`} onClick={onToggleAudiobook} disabled={running}>
               <Headphones size={13} />
               Audiobook

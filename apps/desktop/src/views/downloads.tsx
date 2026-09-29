@@ -1,7 +1,6 @@
 import {
   FolderOpen,
   Headphones,
-  Languages,
   Pause,
   Play,
   Trash2
@@ -112,7 +111,6 @@ export function DownloadsView({
                         {item.formats.map((format) => (
                           <span className="badge" key={format} title={item.outputFiles?.filter((file) => file.toLowerCase().endsWith(`.${format.toLowerCase()}`)).join(", ") || format}>{format}</span>
                         ))}
-                        {item.translate ? <span className="badge accent"><Languages size={11} /> Traduzir</span> : null}
                         {item.audiobook ? <span className="badge accent"><Headphones size={11} /> Audiobook</span> : null}
                       </div>
                     </div>

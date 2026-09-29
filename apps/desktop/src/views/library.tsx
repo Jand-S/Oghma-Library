@@ -4,7 +4,6 @@ import {
   GripVertical,
   Heart,
   Headphones,
-  Languages,
   Plus,
   RefreshCcw,
   Search,
@@ -27,14 +26,12 @@ type LibraryViewProps = {
   onRemoveSelected: (id: string) => void;
   onReorderSelected: (ids: string[]) => void;
   conversionFormats: Set<DownloadFormat>;
-  conversionTranslate: boolean;
   conversionAudiobook: boolean;
   conversionProgress: number;
   conversionRunning: boolean;
   conversionCurrentItemId: string | null;
   onConvertSelected: () => void;
   onToggleConversionFormat: (format: DownloadFormat) => void;
-  onToggleConversionTranslate: () => void;
   onToggleConversionAudiobook: () => void;
   onOpenItemFolder: (item: LibraryItem) => void;
   onUpdateMeta: (item: LibraryItem, patch: Partial<Omit<LibraryMeta, "key">>) => void;
@@ -65,14 +62,12 @@ export function LibraryView({
   onRemoveSelected,
   onReorderSelected,
   conversionFormats,
-  conversionTranslate,
   conversionAudiobook,
   conversionProgress,
   conversionRunning,
   conversionCurrentItemId,
   onConvertSelected,
   onToggleConversionFormat,
-  onToggleConversionTranslate,
   onToggleConversionAudiobook,
   onOpenItemFolder,
   onUpdateMeta,
@@ -511,11 +506,7 @@ export function LibraryView({
               </div>
               <div className="library-conversion-section library-conversion-modifiers">
                 <span className="field-caption">Extras</span>
-                <div className="selection-options">
-                  <button className={`option-toggle ${conversionTranslate ? "active" : ""}`} onClick={onToggleConversionTranslate} disabled={conversionRunning}>
-                    <Languages size={13} />
-                    Traduzir
-                  </button>
+                <div className="selection-options single">
                   <button
                     className={`option-toggle ${conversionAudiobook ? "active" : ""}`}
                     onClick={onToggleConversionAudiobook}

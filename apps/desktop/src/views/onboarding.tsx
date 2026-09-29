@@ -9,15 +9,13 @@ import {
 import {
   indexModeOptions,
   onboardingSteps,
-  translationEngineOptions,
   type SetupSyncEntry
 } from "../constants/ui";
 import { defaultAppConfig } from "../core/appConfig";
 import type {
   AppConfig,
   ServerProbe,
-  SourceSite,
-  TranslationEngine
+  SourceSite
 } from "../core/types";
 import { downloadFormats } from "../core/types";
 
@@ -114,7 +112,7 @@ export function OnboardingWizard({
                 </article>
                 <article className="setup-info-card">
                   <strong>Preferencias padrao</strong>
-                  <p>Define formatos, motor de IA e comportamento de sincronizacao para o primeiro uso.</p>
+                  <p>Define formatos, audiobook e comportamento de sincronizacao para o primeiro uso.</p>
                 </article>
               </div>
             </div>
@@ -239,7 +237,7 @@ export function OnboardingWizard({
           <div className="setup-content">
             <div className="setup-copy">
               <h2>Preferencias iniciais</h2>
-              <p>Esses valores entram como padrao nos downloads e servem como base para as features futuras do backend.</p>
+              <p>Esses valores entram como padrao nos downloads e servem como base para o fluxo local.</p>
             </div>
             <div className="field-group">
               <label>Formatos padrao</label>
@@ -264,33 +262,6 @@ export function OnboardingWizard({
                 ))}
               </div>
             </div>
-            <div className="field-grid two">
-              <div className="field-group">
-                <label htmlFor="setup-translation-engine">Motor de IA padrao</label>
-                <select
-                  id="setup-translation-engine"
-                  value={config.translationEngine}
-                  onChange={(event) => onChange({ translationEngine: event.target.value as TranslationEngine })}
-                >
-                  {translationEngineOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field-group">
-                <label htmlFor="setup-language">Idioma de destino</label>
-                <select id="setup-language" value={config.targetLanguage} onChange={(event) => onChange({ targetLanguage: event.target.value })}>
-                  <option value="PT-BR">Portugues (BR)</option>
-                  <option value="EN">Ingles</option>
-                  <option value="ES">Espanhol</option>
-                </select>
-              </div>
-            </div>
-            <label className="toggle-line">
-              <input type="checkbox" checked={config.translateDefault} onChange={(event) => onChange({ translateDefault: event.target.checked })} />
-              <span className="toggle" />
-              <span>Traduzir por padrao</span>
-            </label>
             <label className="toggle-line">
               <input type="checkbox" checked={config.audiobookDefault} onChange={(event) => onChange({ audiobookDefault: event.target.checked })} />
               <span className="toggle" />
@@ -316,7 +287,7 @@ export function OnboardingWizard({
               <div><span>Pasta de saida</span><strong>{config.outputPath}</strong></div>
               <div><span>Fontes ativas</span><strong>{selectedSources.map((source) => source.name).join(", ")}</strong></div>
               <div><span>Formatos padrao</span><strong>{config.defaultFormats.join(", ")}</strong></div>
-              <div><span>Motor de IA</span><strong>{translationEngineOptions.find((option) => option.value === config.translationEngine)?.label}</strong></div>
+              <div><span>Audiobook padrao</span><strong>{config.audiobookDefault ? "Ativo" : "Inativo"}</strong></div>
             </div>
           </div>
         ) : null}
