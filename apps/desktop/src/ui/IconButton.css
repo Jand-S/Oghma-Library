@@ -1,3 +1,5 @@
+@import "../styles/layers.css";
+
 @layer components {
   .o-icon-button {
     --icon-button-size: var(--control-md);
@@ -85,6 +87,7 @@
   .o-icon-button--glass {
     border-color: var(--border);
     background: var(--glass);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
   }
 

@@ -1,0 +1,2 @@
+/* Cascade layer order (see index.css). Inlined at the top of every sheet that can load first. */
+@layer reset, tokens, base, layout, components, features, utilities;

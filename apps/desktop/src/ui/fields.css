@@ -1,3 +1,5 @@
+@import "../styles/layers.css";
+
 @layer components {
   .o-field {
     display: flex;
@@ -44,37 +46,101 @@
     box-shadow: 0 0 0 1px var(--accent);
   }
 
-  .o-field--invalid .o-field__control {
+  .o-field--invalid .o-field__control,
+  .o-field--invalid .o-field__control:hover {
     border-color: var(--danger);
   }
 
+  .o-field--invalid .o-field__control:focus-within {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 1px var(--danger);
+  }
+
+  .o-field__control:has(.o-field__input:disabled, .o-field__select:disabled) {
+    border-color: var(--border);
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /*
+   * One box: the wrapper (.o-field__control) owns border, background, hover and
+   * focus ring. The native control is bare in every engine: no WebKit/Blink
+   * appearance (search field bezel, select button, inner padding), no border,
+   * background, outline or focus shadow.
+   */
   .o-field__input,
   .o-field__select {
+    -webkit-appearance: none;
+    appearance: none;
     flex: 1 1 auto;
     width: 100%;
     min-width: 0;
     min-height: calc(var(--control-md) - 2 * var(--hairline));
+    margin: 0;
     padding: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
+    box-shadow: none;
     color: var(--text);
+    font: inherit;
     font-size: var(--fs-md);
+    line-height: var(--lh-base);
     outline: none;
   }
 
   .o-field__input:hover,
   .o-field__input:focus,
+  .o-field__input:focus-visible,
   .o-field__select:hover,
-  .o-field__select:focus {
+  .o-field__select:focus,
+  .o-field__select:focus-visible {
     border: 0;
     box-shadow: none;
+    outline: none;
+  }
+
+  .o-field__input:disabled,
+  .o-field__select:disabled {
+    opacity: 1;
+    cursor: not-allowed;
+  }
+
+  /* Number inputs: no spin buttons (WebKit/Blink pseudo-elements, Firefox appearance). */
+  .o-field__input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  .o-field__input::-webkit-inner-spin-button,
+  .o-field__input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Search inputs: no WebKit magnifier/results decoration (the field draws its own icon). */
+  .o-field__input::-webkit-search-decoration,
+  .o-field__input::-webkit-search-results-button,
+  .o-field__input::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    display: none;
+  }
+
+  /* Fields with a custom trailing control (clear button) drop the native cancel button. */
+  .o-field__control--trailing .o-field__input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    display: none;
   }
 
   .o-field__select {
-    appearance: none;
     padding-right: var(--space-3);
+    text-overflow: ellipsis;
+    white-space: nowrap;
     cursor: pointer;
+  }
+
+  .o-field__select:disabled {
+    cursor: not-allowed;
   }
 
   .o-field__select option {
@@ -121,11 +187,6 @@
     right: var(--space-1);
   }
 
-  /* Search inputs bring their own clear button (trailing IconButton). */
-  .o-field__input::-webkit-search-cancel-button {
-    display: none;
-  }
-
   /* Icon buttons inside a field (clear search…) shrink to fit the control. */
   .o-field__adornment .o-icon-button {
     --icon-button-size: calc(var(--control-sm) - var(--space-1));
@@ -141,6 +202,7 @@
   }
 
   .o-check__input {
+    -webkit-appearance: none;
     appearance: none;
     display: grid;
     place-items: center;

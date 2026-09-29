@@ -1,6 +1,16 @@
+@import "../styles/layers.css";
+
 @layer components {
+  /*
+   * Sizes to its options and never lets them spill out: a parent that stretches
+   * it (display: flex, width: 100%) can make it wider, never narrower than its
+   * content. Parents must give it room (auto/max-content track), not clip it.
+   */
   .o-segmented {
     display: inline-flex;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    min-width: max-content;
     gap: calc(var(--space-0-5) / 2);
     padding: calc(var(--space-0-5) / 2);
     border: 1px solid var(--border);
@@ -22,6 +32,7 @@
     color: var(--text-muted);
     font-size: var(--fs-sm);
     font-weight: var(--fw-medium);
+    white-space: nowrap;
     transition: all var(--dur-base) var(--ease);
   }
 

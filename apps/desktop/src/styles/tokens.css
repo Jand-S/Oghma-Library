@@ -139,8 +139,23 @@
     --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
   }
 
+  /*
+   * macOS draws the native traffic lights over the webview (titleBarStyle
+   * Overlay). tauri.macos.conf.json places them at trafficLightPosition
+   * {x: 14, y: 31}: on macOS 26 that is three 14pt buttons, 23pt apart, spanning
+   * x 14–74 and y 21–35, i.e. centered in a 56px band (--header-h) like the page
+   * header title, and centered on the 88px collapsed rail. Keep both in sync.
+   */
   [data-platform="macos"] {
     --titlebar-h: 0px;
+    --mac-inset-top: var(--header-h);
+    --sidebar-w-collapsed: 88px;
+  }
+
+  /* Native fullscreen hides the traffic lights (data-fullscreen, see shell/platform.ts). */
+  [data-platform="macos"][data-fullscreen] {
+    --mac-inset-top: 0px;
+    --sidebar-w-collapsed: 72px;
   }
 
   @media (prefers-reduced-motion: reduce) {

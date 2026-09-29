@@ -8,7 +8,7 @@ export type TextFieldProps = Omit<ComponentPropsWithRef<"input">, "size"> & {
   error?: ReactNode;
   /** Content before the input, e.g. a search icon. */
   leading?: ReactNode;
-  /** Content after the input, e.g. a clear button. */
+  /** Content after the input, e.g. a clear button (replaces the native search cancel button). */
   trailing?: ReactNode;
   /** Visually hides the label while keeping it accessible. */
   hideLabel?: boolean;
@@ -37,7 +37,7 @@ export function TextField({
   return (
     <div className={cx("o-field", Boolean(error) && "o-field--invalid", fieldClassName)}>
       <label className={cx("o-field__label", hideLabel && "sr-only")} htmlFor={inputId}>{label}</label>
-      <div className="o-field__control">
+      <div className={cx("o-field__control", Boolean(trailing) && "o-field__control--trailing")}>
         {leading ? <span className="o-field__adornment">{leading}</span> : null}
         <input
           {...rest}

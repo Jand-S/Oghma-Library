@@ -1,3 +1,5 @@
+@import "../styles/layers.css";
+
 @layer layout {
   .o-sidebar {
     position: relative;
@@ -14,8 +16,9 @@
     color: var(--text);
   }
 
+  /* The top inset holds the native traffic lights; the brand and nav start below them. */
   [data-platform="macos"] .o-sidebar {
-    padding-top: var(--mac-inset-top);
+    padding-top: max(var(--mac-inset-top), var(--space-1));
   }
 
   .o-sidebar__drag {

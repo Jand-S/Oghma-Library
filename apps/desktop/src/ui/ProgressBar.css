@@ -1,3 +1,5 @@
+@import "../styles/layers.css";
+
 @layer components {
   .o-progress {
     --progress-h: calc(var(--space-0-5) + var(--space-0-5) / 2);
