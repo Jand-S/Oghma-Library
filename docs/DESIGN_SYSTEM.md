@@ -1076,3 +1076,16 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 - `data-testid`: `library-card`, …
 - Decisões: …
 ```
+
+### Buscar (`src/features/discover/`)
+
+- Prefixo CSS: `.discover-*`; arquivo `discover.css` em `@layer features`.
+- Controller: `useDiscoverController` (seleção única, prévia, `searchError`/`retrySearch`, estado da gaveta de filtros salvo em `oghma.discover.filtersCollapsed`).
+- Estrutura: `DiscoverView` (layout e Esc/clique no fundo), `DiscoverToolbar` (fonte, busca com debounce de 250 ms, total, ordem A–Z, botão "Filtros"), `DiscoverFilters` (gaveta superior + `ActiveFilterRow`), `DiscoverGrid` (capas 2:3, lotes de 60 com "Mostrar mais" e rolagem infinita), `DiscoverDetailPanel` (hero + configurador fixo embaixo), `filterModel.ts` (chips ativos e contagens).
+- `data-testid`: `toolbar`, `discover-search`, `filter-panel`, `filter-field`, `active-filter-row`, `content-area`, `book-grid`, `book-card`, `card-title`, `card-select`, `discover-sidebar` (painel inteiro), `discover-detail-panel` (hero rolável), `detail-cover`, `queue-panel` (ações), `selection-card`, `selection-hint`, `add-to-queue`.
+- Decisões:
+  - Filtros numa gaveta superior, fechada por padrão: na janela mínima (1120 px) com o painel de detalhes aberto, uma coluna lateral de filtros deixaria a grade com uma coluna só.
+  - Tags em `Chip` com três estados (neutra → exigida → excluída); a excluída usa tom de perigo e texto riscado, e o estado vai no nome acessível.
+  - O card inteiro é clicável; um botão invisível por cima dá foco, nome acessível e navegação por setas (tabindex móvel). Enter seleciona, clique direito abre a prévia.
+  - Um só painel de detalhes substitui as abas Fila/Detalhes. Esc fecha a prévia e, depois, a seleção. Em janelas baixas (≤ 820 px) o hero vira capa pequena ao lado do título.
+  - Botão principal "Baixar" / "Baixar novamente" (com aviso) / "Na fila" (desativado).
