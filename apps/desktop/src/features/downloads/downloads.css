@@ -1,3 +1,5 @@
+@import "../../styles/layers.css";
+
 @layer features {
   /* ---- Page ---------------------------------------------------------- */
 
@@ -209,6 +211,7 @@
     color: var(--accent-text);
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
   }
 
@@ -314,6 +317,7 @@
     color: var(--text-2);
     font-size: var(--fs-sm);
     font-variant-numeric: tabular-nums;
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
   }
 

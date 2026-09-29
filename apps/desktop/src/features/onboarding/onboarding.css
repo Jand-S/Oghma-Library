@@ -1,3 +1,5 @@
+@import "../../styles/layers.css";
+
 @layer features {
   /* Full-window welcome screen, below the Windows/Linux titlebar (0 on macOS). */
   .onboarding {
@@ -48,6 +50,7 @@
     border-radius: var(--radius-lg);
     background: rgb(var(--black-rgb) / 0.35);
     box-shadow: var(--shadow-lg);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
     animation: scale-fade-in var(--dur-slow) var(--ease) both;
   }

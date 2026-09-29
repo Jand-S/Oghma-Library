@@ -1,3 +1,5 @@
+@import "../../styles/layers.css";
+
 @layer features {
   /* ---------- Page frame ---------- */
   .library-page {
@@ -139,6 +141,7 @@
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-pill);
     background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
     color: var(--text);
     font-size: var(--fs-xs);
@@ -153,6 +156,7 @@
     top: var(--space-1);
     left: var(--space-1);
     max-width: calc(100% - var(--space-2));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
     box-shadow: var(--shadow-sm);
   }

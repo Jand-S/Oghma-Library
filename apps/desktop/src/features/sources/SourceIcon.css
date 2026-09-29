@@ -1,3 +1,5 @@
+@import "../../styles/layers.css";
+
 @layer features {
   /* Site icon tile. Favicons sit on a light plate so dark, transparent icons stay visible. */
   .sources-icon {

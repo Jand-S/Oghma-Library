@@ -1,3 +1,5 @@
+@import "../../styles/layers.css";
+
 @layer features {
   /* ---------- Page ---------- */
   /* Page frame (padding, max width) comes from .o-page.o-page--narrow. */
