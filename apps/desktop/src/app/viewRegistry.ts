@@ -1,17 +1,17 @@
 import { createElement as h, type ComponentType } from "react";
-import { BookOpenText, Tablet } from "lucide-react";
+import { BookOpenText } from "lucide-react";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
 import type { DownloadsController } from "../features/downloads/useDownloadsController";
-import { canRedownload, type LibraryController } from "../features/library/useLibraryController";
+import { KindleView } from "../features/kindle/KindleView";
+import { LibraryView } from "../features/library/LibraryView";
+import type { LibraryController } from "../features/library/useLibraryController";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
 import type { TranslationController } from "../features/translation/useTranslationController";
 import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
-import { pageTitleStrings, shellStrings } from "../strings/common";
-import { Button, EmptyState } from "../ui";
+import { pageTitleStrings } from "../strings/common";
 import { DiscoverView } from "../views/discover";
 import { DownloadsView } from "../views/downloads";
-import { LibraryView } from "../views/library";
 import { SettingsView } from "../views/settings";
 import { SourcesView } from "../views/sources";
 import { TranslationView } from "../views/translation";
@@ -86,49 +86,18 @@ function DownloadsPage({ app }: ViewProps) {
 }
 
 function LibraryPage({ app }: ViewProps) {
-  const library = app.library;
-  const conversion = library.conversion;
   return h(LibraryView, {
-    library: library.library,
-    kindleConnected: library.kindleConnected,
-    selectedIds: library.selectedLibraryIds,
-    onToggleSelect: library.toggleLibrarySelect,
-    conversionFormats: conversion.converterFormats,
-    conversionAudiobook: conversion.converterAudiobook,
-    conversionProgress: conversion.converterProgress,
-    conversionRunning: conversion.converterRunning,
-    conversionCurrentItemId: conversion.converterCurrentItemId,
-    onConvertSelected: conversion.startConversion,
-    onToggleConversionFormat: conversion.toggleConverterFormat,
-    onToggleConversionAudiobook: conversion.toggleConverterAudiobook,
-    onRemoveSelected: library.removeSelectedLibraryItem,
-    onReorderSelected: library.setSelectedLibraryIds,
-    onOpenItemFolder: library.openLibraryItemFolder,
-    onUpdateMeta: library.updateLibraryMeta,
-    onDeleteItems: library.deleteLibraryItems,
-    onRedownload: library.redownloadItem,
-    canRedownload,
-    isQueued: app.downloads.isQueued
+    library: app.library,
+    activeJob: app.downloads.activeJob,
+    queuedJobs: app.downloads.queuedJobs,
+    loading: app.loading,
+    navigate: app.navigate
   });
 }
 
-/**
- * Kindle: the Library already switches its queue to "send to Kindle" mode
- * while a device is connected, so this view reuses it. Without a device it
- * shows how to connect one. A dedicated Kindle page comes in a later phase.
- */
+/** Kindle: device status plus the "Enviar ao Kindle" flow over the library. */
 function KindlePage({ app }: ViewProps) {
-  if (app.library.kindleConnected) return h(LibraryPage, { app });
-  return h(
-    "div",
-    { className: "o-app__center" },
-    h(EmptyState, {
-      icon: h(Tablet),
-      title: pageTitleStrings.kindle,
-      description: shellStrings.kindlePageDescription,
-      action: h(Button, { variant: "primary", icon: h(BookOpenText), onClick: () => app.navigate("library") }, shellStrings.kindleOpenLibrary)
-    })
-  );
+  return h(KindleView, { library: app.library, activeJob: app.downloads.activeJob, navigate: app.navigate });
 }
 
 function TranslationPage({ app }: ViewProps) {
@@ -156,8 +125,8 @@ export const viewRegistry: Record<AppView, ViewDefinition> = {
     contentClassName: (app) => app.discover.workspaceClassName
   },
   downloads: { id: "downloads", title: pageTitleStrings.downloads, icon: iconFor("downloads"), component: DownloadsPage },
-  library: { id: "library", title: pageTitleStrings.library, icon: iconFor("library"), component: LibraryPage },
-  kindle: { id: "kindle", title: pageTitleStrings.kindle, icon: iconFor("kindle"), component: KindlePage },
+  library: { id: "library", title: pageTitleStrings.library, icon: iconFor("library"), component: LibraryPage, contentClassName: () => "library-content" },
+  kindle: { id: "kindle", title: pageTitleStrings.kindle, icon: iconFor("kindle"), component: KindlePage, contentClassName: () => "kindle-content" },
   translation: { id: "translation", title: pageTitleStrings.translation, icon: iconFor("translation"), component: TranslationPage },
   sources: { id: "sources", title: pageTitleStrings.sources, icon: iconFor("sources"), component: SourcesPage },
   settings: { id: "settings", title: pageTitleStrings.settings, icon: iconFor("settings"), component: SettingsPage }

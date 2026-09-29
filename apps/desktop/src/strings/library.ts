@@ -1,15 +1,134 @@
 /** Labels for the local library view, pt-BR. */
 export const libraryStrings = {
-  kindleQueueHeading: "Envio ao Kindle",
-  conversionQueueHeading: "Conversão",
-  sendToKindle: "Enviar para o Kindle",
-  convertQueue: "Converter fila",
-  converting: "Convertendo...",
+  // Toolbar
+  count: (count: number) => `${count.toLocaleString("pt-BR")} ${count === 1 ? "livro" : "livros"}`,
+  countFiltered: (shown: number, total: number) => `${shown.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")}`,
+  searchLabel: "Buscar na biblioteca",
+  searchPlaceholder: "Buscar por título, autor ou marcador",
+  clearSearch: "Limpar busca",
+  sortLabel: "Ordenar por",
+  sortRecent: "Recentes",
+  sortTitle: "Título",
+  sortSize: "Tamanho",
+  formatFilterLabel: "Filtrar por formato",
+  favoritesFilter: "Favoritos",
+  viewLabel: "Visualização",
+  viewGrid: "Grade",
+  viewList: "Lista",
+  refresh: "Atualizar biblioteca",
+  refreshed: "Biblioteca atualizada.",
+
+  // Cards and rows
+  cardActions: (title: string) => `Ações de ${title}`,
+  openDetailsOf: (title: string) => `Abrir detalhes de ${title}`,
+  updating: "Atualizando…",
+  updatingPercent: (percent: number) => `Atualizando… ${Math.round(percent)}%`,
+  converting: "Convertendo…",
+  convertingPercent: (percent: number) => `Convertendo… ${Math.round(percent)}%`,
+  waitingInQueue: "Na fila",
+  favorite: "Favorito",
+  chapters: (count: number) => `${count.toLocaleString("pt-BR")} ${count === 1 ? "capítulo" : "capítulos"}`,
+  size: (mb: number) => `${mb.toLocaleString("pt-BR")} MB`,
+  listTitle: "Título",
+  listFormats: "Formatos",
+  listSize: "Tamanho",
+  listDate: "Baixado em",
+  listActions: "Ações",
+  unknownDate: "—",
+
+  // Menu / actions
+  openDetails: "Abrir detalhes",
+  openFolder: "Abrir pasta",
   downloadAgain: "Baixar novamente",
+  sendToKindle: "Enviar ao Kindle",
+  convertFormats: "Converter formatos",
+  convert: "Converter",
+  removeFromLibrary: "Remover da biblioteca",
+  deleteFiles: "Excluir arquivos",
+  moreActions: "Mais ações",
+  addFavorite: "Favoritar",
+  removeFavorite: "Remover dos favoritos",
+
+  // Details
+  detailsLabel: "Detalhes do livro",
+  backToLibrary: "Voltar para a biblioteca",
+  localSource: "Fonte local",
+  unknownAuthor: "Autor desconhecido",
+  downloadedAt: (date: string) => `Baixado em ${date}`,
+  factFormats: "Formatos",
+  factSize: "Tamanho",
+  factChapters: "Capítulos",
+  factDownloaded: "Baixado em",
+  factFolder: "Pasta",
+  synopsis: "Sinopse",
+  noSynopsis: "Sem sinopse local para este livro. Quando ele vier de um índice conhecido, a sinopse aparece aqui.",
+  readingHeading: "Sua leitura",
+  readingStatus: "Status de leitura",
+  tagsLabel: "Marcadores",
+  noTags: "Sem marcadores",
+  addTag: "Adicionar marcador",
+  newTag: "Novo marcador",
+  dangerZone: "Zona de perigo",
+  removeFromLibraryHint: "Some da biblioteca, mas a pasta e os arquivos continuam no disco.",
+  deleteFilesHint: "Apaga a pasta do livro (EPUB, AZW3, capa…) do disco. Não dá para desfazer.",
+  redownloadHint: "Baixa de novo todos os capítulos e substitui a pasta atual quando terminar.",
   notInCatalog: "Livro não encontrado no catálogo",
   alreadyQueued: "Este livro já está na fila",
+  busyConverting: "Aguarde o envio ou a conversão atual terminar.",
+
+  // Confirmations
+  confirmRemoveTitle: (title: string) => `Remover “${title}” da biblioteca?`,
+  confirmRemoveDescription:
+    "O livro deixa de aparecer aqui, mas a pasta e os arquivos continuam no disco. Baixar novamente o traz de volta.",
+  confirmRemove: "Remover da biblioteca",
+  confirmDeleteTitle: (title: string) => `Excluir os arquivos de “${title}”?`,
+  confirmDeleteDescription:
+    "A pasta do livro será apagada do disco, com EPUB, AZW3, PDF e capa. Esta ação não pode ser desfeita.",
+  confirmDelete: "Excluir arquivos",
+
+  // Convert modal
+  convertTitle: (title: string) => `Converter “${title}”`,
+  convertDescription: "Escolha os formatos que faltam. Os que já existem na pasta são mantidos.",
+  convertExisting: "Já existe",
+  convertStart: "Converter",
+  convertNothing: "Selecione ao menos um formato que ainda não existe.",
+  audiobookLabel: "Gerar audiobook",
+  audiobookDescription: "Cria um arquivo de áudio com a voz configurada em Ajustes. Leva mais tempo.",
+
+  // Empty states
+  emptyTitle: "Sua biblioteca está vazia",
+  emptyDescription: "Os livros que você baixar aparecem aqui, prontos para ler, converter e enviar ao Kindle.",
+  emptyAction: "Buscar novels",
+  noMatchTitle: "Nenhum livro encontrado",
+  noMatchDescription: "Nenhum livro corresponde à busca ou aos filtros atuais.",
+  clearFilters: "Limpar filtros",
+  noOutputTitle: "Pasta de saída não configurada",
+  noOutputDescription: "Escolha em Ajustes a pasta onde os livros são salvos para ver sua biblioteca.",
+  noOutputAction: "Abrir Ajustes",
+  loading: "Carregando biblioteca",
+
+  // Reading status
+  readingStatusLabels: {
+    unread: "Não iniciado",
+    reading: "Lendo",
+    paused: "Pausado",
+    completed: "Concluído",
+    dropped: "Abandonado"
+  },
+
+  // Controller feedback (also used by app/useConversionManager)
   conversionDone: "Conversão concluída.",
   kindleSent: (count: number) => `${count} livro(s) enviado(s) ao Kindle na ordem da fila.`,
   conversionSkipped: (title: string) => `${title} já está na fila de downloads; ignorado.`,
-  conversionFailed: (count: number) => `${count} livro(s) não puderam ser convertidos.`
+  conversionFailed: (count: number) => `${count} livro(s) não puderam ser convertidos.`,
+  metaSaveFailed: "Não foi possível salvar os metadados da biblioteca.",
+  hiddenToast: (count: number) =>
+    count === 1 ? "Livro removido da biblioteca. Os arquivos foram mantidos." : `${count} livros removidos da biblioteca. Os arquivos foram mantidos.`,
+  folderNotFound: "Não foi possível localizar a pasta do livro.",
+  deleteDesktopOnly: "Não foi possível excluir: a exclusão de arquivos só está disponível no app desktop.",
+  deletedToast: (count: number) => (count === 1 ? "Livro e arquivos excluídos." : `${count} livros e arquivos excluídos.`),
+  deletedPartial: (deleted: number, failed: number) => `${deleted} livro(s) excluído(s); ${failed} não puderam ser removidos.`,
+  deleteFailed: "Não foi possível excluir os arquivos locais.",
+  allChapters: (count: number) => `Todos os ${count.toLocaleString("pt-BR")} capítulos`,
+  localBook: "Livro local"
 } as const;
