@@ -86,11 +86,12 @@ async def classify_chapters(source: str | None = None) -> list[dict]:
             select(Chapter.id, Chapter.novel_id, Chapter.number, Chapter.title, Chapter.content_hash,
                    Chapter.status, Novel.source_id)
             .join(Novel, Novel.id == Chapter.novel_id)
-            .where(Chapter.content_hash.is_not(None), Chapter.status != "invalid")
+            # Paginas so de ilustracao tem texto vazio e o mesmo hash: nao sao copias.
+            .where(Chapter.content_hash.is_not(None), Chapter.status != "invalid", Chapter.word_count > 0)
             .where(
                 Chapter.content_hash.in_(
                     select(Chapter.content_hash)
-                    .where(Chapter.content_hash.is_not(None))
+                    .where(Chapter.content_hash.is_not(None), Chapter.word_count > 0)
                     .group_by(Chapter.novel_id, Chapter.content_hash)
                     .having(func.count() > 1)
                 )

@@ -511,7 +511,11 @@ async def crawl_source(
                         stats["chapter_image_errors"] += localized.failed
                     raw_path = storage.save_raw(source_id, ref.slug, cref.number, raw.html)
                     content_path = storage.save_content(source_id, ref.slug, cref.number, norm.html)
-                    duplicate = await _duplicate_of(session, novel_id, cid, norm.text_hash)
+                    duplicate = (
+                        await _duplicate_of(session, novel_id, cid, norm.text_hash)
+                        if norm.word_count > 0  # ilustracoes sem texto compartilham o hash vazio
+                        else None
+                    )
                     await _upsert_chapter(
                         session, cid, novel_id, cref, norm, raw_path, content_path,
                         status="duplicate" if duplicate else "ok",

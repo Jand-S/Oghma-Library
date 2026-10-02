@@ -62,16 +62,24 @@ MAX_MISSING = 300
 def missing_chapters(chapters) -> list[dict]:
     """Capitulos sem conteudo e numeros inteiros pulados entre capitulos existentes.
 
-    Copias (`duplicate`) nao entram: o capitulo original esta no livro. Lacunas so sao
-    procuradas entre numeros inteiros, porque algumas fontes usam posicoes decimais
-    (0.1, 1.21) que nao sao numeros de capitulo.
+    Uma copia com o mesmo numero inteiro do original (4 e 4.01) nao falta nada. Ja uma
+    copia em outro numero (o 47 com o texto do 46) significa que o 47 de verdade nao
+    existe na fonte: entra como `repeated`. Lacunas so sao procuradas entre numeros
+    inteiros, porque algumas fontes usam posicoes decimais (0.1, 1.21).
     """
     out: list[dict] = []
     for c in chapters:
         status = getattr(c, "status", None) or "ok"
+        problem = getattr(c, "problem", None) or ""
         if status == "invalid" or (status == "ok" and not (c.content_path and c.downloaded)):
-            out.append({"number": float(c.number), "title": c.title,
-                        "reason": getattr(c, "problem", None) or "empty"})
+            out.append({"number": float(c.number), "title": c.title, "reason": problem or "empty"})
+        elif status == "duplicate" and problem.startswith("same_as:"):
+            try:
+                original = float(problem.split(":", 1)[1])
+            except ValueError:
+                continue
+            if int(original) != int(float(c.number)):
+                out.append({"number": float(c.number), "title": c.title, "reason": "repeated"})
     present = sorted({float(c.number) for c in chapters})
     whole = [n for n in present if n == int(n)]
     for a, b in zip(whole, whole[1:]):

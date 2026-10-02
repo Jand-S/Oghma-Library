@@ -104,6 +104,12 @@ def test_missing_chapters_lists_invalid_and_integer_gaps_but_not_copies():
     assert [_publishable(c) for c in chapters] == [True, True, False, True, False, True]
 
 
+def test_copy_in_another_number_counts_as_missing():
+    # Solo Leveling no Central Novel: o capitulo 47 do site tem o texto do 46.
+    chapters = [_ch(46), _ch(47, status="duplicate", problem="same_as:46"), _ch(48)]
+    assert [(m["number"], m["reason"]) for m in missing_chapters(chapters)] == [(47.0, "repeated")]
+
+
 def test_missing_chapters_ignores_decimal_positions():
     # Novel Mania usa a posicao do site (0.1, 0.2, 1.21) como numero: nao e lacuna.
     chapters = [_ch(0.1), _ch(0.2), _ch(1.21), _ch(3.5)]
