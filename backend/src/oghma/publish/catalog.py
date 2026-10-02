@@ -80,6 +80,7 @@ def build_catalog_json(source: SourceRecord, novels: list[NovelRecord], bundle_i
                 "bundleSha256": bundle_info.get(n.id, {}).get("sha256"),
                 "bundleBytes": bundle_info.get(n.id, {}).get("bytes"),
                 "chapters": [{"number": c.number, "title": c.title} for c in n.chapters],
+                "missingChapters": n.missing,
             }
             for n in novels
         ],

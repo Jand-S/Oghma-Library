@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from html import escape
+from html import escape, unescape
 from html.parser import HTMLParser as StdHTMLParser
 
 from selectolax.parser import HTMLParser
@@ -158,3 +158,90 @@ def normalize(raw: RawPage, content_selector: str, title: str = "") -> Normalize
         text_hash=sha256(text),
         word_count=words,
     )
+
+
+# ---------------------------------------------------------------- validacao de capitulo
+
+# Textos que alguns sites devolvem com HTTP 200 no lugar do capitulo (carregador de SPA,
+# limite de requisicoes, desafio anti-bot). So contam quando o capitulo e curto.
+_PLACEHOLDER_RE = re.compile(
+    r"^(?:\s*(?:loading|carregando)\s*(?:\.{3}|…)?\s*)+$"
+    r"|rate limit exceeded|too many requests|just a moment|checking your browser"
+    r"|enable javascript|attention required",
+    re.IGNORECASE,
+)
+_PLACEHOLDER_MAX_WORDS = 40
+
+
+def chapter_problem(html: str) -> str | None:
+    """Motivo para recusar um capitulo normalizado, ou None se ele tem conteudo.
+
+    `empty`: sem texto e sem imagem. `placeholder`: texto curto que e um carregador ou
+    aviso do site, nao o capitulo. Paginas so de ilustracao sao aceitas.
+    """
+    tree = HTMLParser(html or "")
+    text = tree.text(separator=" ", strip=True) if tree.root is not None else ""
+    has_image = tree.css_first("img[src]") is not None
+    if not text.strip():
+        return None if has_image else "empty"
+    if len(text.split()) <= _PLACEHOLDER_MAX_WORDS and _PLACEHOLDER_RE.search(text.strip()):
+        return "placeholder"
+    return None
+
+
+# ---------------------------------------------------------------- sinopse
+
+_DESC_BLOCK_TAGS = re.compile(r"</?(?:p|div|h[1-6]|li|ul|ol|blockquote|center|section|article)\b[^>]*>", re.I)
+_DESC_BR = re.compile(r"<br\s*/?>", re.I)
+_DESC_HR = re.compile(r"<hr\b[^>]*>", re.I)
+_DESC_TAG = re.compile(r"<[^>]+>")
+# Linha que e propaganda, aviso ou credito, nao sinopse.
+_DESC_JUNK_LINE = re.compile(
+    r"https?://|www\.|discord|patreon|ko-?fi|catarse|picpay|\bpix\b|apoi[ae]|doa[çc][ãa]o|doe\b"
+    r"|an[úu]ncio|publicidade|adblock|leia (?:tamb[ée]m|mais|em)|clique|siga-nos|siga a gente"
+    r"|^(?:tradu[çc][ãa]o|tradutor(?:a)?|revis[ãa]o|revisor(?:a)?|editor(?:a)?|raws?|fonte|status"
+    r"|scan|grupo)\s*:"
+    r"|sem autoriza[çc][ãa]o pr[ée]via|solicitar a remo[çc][ãa]o|direitos legais sobre a obra"
+    r"|entrar em contato|entre em contato|^aviso\b",
+    re.IGNORECASE,
+)
+_DESC_PREFIX = re.compile(r"^\s*(?:sinopse|synopsis|resumo)\s*[:\-–]\s*", re.I)
+# Rodape que alguns sites colam no fim da sinopse (aviso legal do agregador, creditos).
+# Funciona tambem em texto ja salvo sem tags, onde o <hr> se perdeu.
+_DESC_FOOTER = re.compile(
+    r"\bAVISO(?![a-zà-ÿ])|Esta (?:novel|obra|hist[óo]ria) foi traduzida pel[ao]|Se voc[êe] possui os direitos"
+)
+_DESC_FOOTER_MIN_HEAD = 40
+_DESC_INLINE_SPACE = re.compile(r"[ \t ]+")
+_DESC_MAX_CHARS = 4000
+
+
+def clean_description(value: str | None) -> str | None:
+    """Sinopse em texto puro: paragrafos separados por linha em branco, sem HTML, sem
+    entidades e sem os blocos de aviso, credito e propaganda que os sites anexam."""
+    if not value:
+        return None
+    text = value
+    # Tudo depois da primeira linha horizontal e rodape do site, desde que sobre texto antes.
+    head = _DESC_HR.split(text, maxsplit=1)[0]
+    if _DESC_TAG.sub("", unescape(head)).strip():
+        text = head
+    footer = _DESC_FOOTER.search(text)
+    if footer and len(_DESC_TAG.sub("", text[: footer.start()]).strip()) >= _DESC_FOOTER_MIN_HEAD:
+        text = text[: footer.start()]
+    text = _DESC_BR.sub("\n", text)
+    text = _DESC_BLOCK_TAGS.sub("\n\n", text)
+    text = _DESC_TAG.sub("", text)
+    text = unescape(text)
+    paragraphs: list[str] = []
+    for block in re.split(r"\n\s*\n", text):
+        lines = [_DESC_INLINE_SPACE.sub(" ", line).strip() for line in block.splitlines()]
+        lines = [line for line in lines if line and not _DESC_JUNK_LINE.search(line)]
+        if lines:
+            paragraphs.append(" ".join(lines))
+    if paragraphs:
+        paragraphs[0] = _DESC_PREFIX.sub("", paragraphs[0], count=1).strip() or paragraphs[0]
+    out = "\n\n".join(p for p in paragraphs if p)
+    if len(out) > _DESC_MAX_CHARS:
+        out = out[:_DESC_MAX_CHARS].rsplit(" ", 1)[0] + "…"
+    return out or None

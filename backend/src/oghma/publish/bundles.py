@@ -45,6 +45,8 @@ def build_bundle(
                 html = read_content(c.content_path)
             except FileNotFoundError:
                 continue
+            if not html.strip():
+                continue  # arquivo vazio nunca vira capitulo em branco no livro
             fname = f"chapters/{c.number:g}.html"
             _add_bytes(tar, fname, html.encode("utf-8"))
             asset_names.update(_ASSET_RE.findall(html))
@@ -63,6 +65,7 @@ def build_bundle(
             "bundle_version": version,
             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "chapters": chapters_meta,
+            "missingChapters": novel.missing,
             "assets": sorted(asset_names),
         }
         _add_bytes(tar, "meta.json", json.dumps(meta, ensure_ascii=False, indent=2).encode("utf-8"))

@@ -43,6 +43,10 @@ async def _ensure_schema() -> None:
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(text("ALTER TABLE novel ADD COLUMN IF NOT EXISTS tag_keys VARCHAR[] DEFAULT '{}'::varchar[] NOT NULL"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_novel_tag_keys ON novel USING gin (tag_keys)"))
+        await conn.execute(text("ALTER TABLE chapter ADD COLUMN IF NOT EXISTS status VARCHAR(16) DEFAULT 'ok' NOT NULL"))
+        await conn.execute(text("ALTER TABLE chapter ADD COLUMN IF NOT EXISTS problem VARCHAR(32)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chapter_novel_status ON chapter (novel_id, status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chapter_novel_hash ON chapter (novel_id, content_hash)"))
 
 
 @app.command("init-db")
@@ -160,6 +164,8 @@ def probe(url: str, source: str = "central-novel") -> None:
             sel = getattr(connector, attr, None)
             if not sel:
                 continue
+            if isinstance(sel, (tuple, list)):
+                sel = ", ".join(sel)
             nodes = tree.css(sel)
             sample = ""
             if nodes:
@@ -187,6 +193,55 @@ def crawl(
         typer.echo(f"crawl {source}: {stats}")
 
     asyncio.run(_run())
+
+
+def _echo_json(payload: dict) -> None:
+    import json
+
+    typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+
+
+@app.command("audit-content")
+def audit_content_cmd(source: str = typer.Option(None, help="so uma fonte")) -> None:
+    """Relatorio somente leitura: status dos capitulos, sinopses e o que mark-chapters mudaria."""
+    from .maintenance import audit_content
+
+    _echo_json(asyncio.run(audit_content(source)))
+
+
+@app.command("mark-chapters")
+def mark_chapters_cmd(
+    source: str = typer.Option(None, help="so uma fonte"),
+    apply: bool = typer.Option(False, help="grava (sem isso so mostra o que mudaria)"),
+) -> None:
+    """Marca capitulos ja salvos como `invalid` (vazio/placeholder) ou `duplicate` (texto repetido)."""
+    from .maintenance import mark_chapters
+
+    _echo_json(asyncio.run(mark_chapters(source, apply=apply)))
+
+
+@app.command("clean-descriptions")
+def clean_descriptions_cmd(
+    source: str = typer.Option(None, help="so uma fonte"),
+    apply: bool = typer.Option(False, help="grava (sem isso so mostra exemplos)"),
+) -> None:
+    """Limpa as sinopses salvas (HTML, entidades, avisos, propaganda), sem acessar a internet."""
+    from .maintenance import clean_descriptions
+
+    _echo_json(asyncio.run(clean_descriptions(source, apply=apply)))
+
+
+@app.command("refresh-descriptions")
+def refresh_descriptions_cmd(
+    source: str = typer.Option(..., help="fonte"),
+    only_missing: bool = typer.Option(False, help="so novels sem sinopse"),
+    apply: bool = typer.Option(False, help="grava (sem isso so mostra exemplos)"),
+    limit: int = typer.Option(None, help="max de novels (teste)"),
+) -> None:
+    """Busca de novo a pagina da novel no site e atualiza so a sinopse."""
+    from .maintenance import refresh_descriptions
+
+    _echo_json(asyncio.run(refresh_descriptions(source, only_missing=only_missing, apply=apply, limit=limit)))
 
 
 @app.command("reprocess-content")

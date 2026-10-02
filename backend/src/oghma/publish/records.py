@@ -31,6 +31,9 @@ class NovelRecord:
     updated_at: Optional[str]
     extra: dict = field(default_factory=dict)
     chapters: list[ChapterRecord] = field(default_factory=list)
+    # Capitulos que o leitor deve saber que faltam: {"number", "title", "reason"}.
+    # reason: "empty" | "placeholder" | "rejected" | "http_404" | "gap" (numero pulado na fonte)
+    missing: list[dict] = field(default_factory=list)
 
 
 @dataclass

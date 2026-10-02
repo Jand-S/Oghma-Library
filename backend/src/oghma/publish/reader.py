@@ -41,7 +41,42 @@ async def read_source(session, source_id: str) -> tuple[SourceRecord, list[Novel
                         word_count=c.word_count, content_path=c.content_path, content_hash=c.content_hash,
                     )
                     for c in chs
+                    if _publishable(c)
                 ],
+                missing=missing_chapters(chs),
             )
         )
     return source, novels
+
+
+def _publishable(chapter) -> bool:
+    """So capitulos com conteudo proprio entram no livro: invalidos e copias ficam de fora."""
+    status = getattr(chapter, "status", None) or "ok"
+    return status == "ok" and bool(chapter.content_path) and bool(chapter.downloaded)
+
+
+MAX_GAP = 20
+MAX_MISSING = 300
+
+
+def missing_chapters(chapters) -> list[dict]:
+    """Capitulos sem conteudo e numeros inteiros pulados entre capitulos existentes.
+
+    Copias (`duplicate`) nao entram: o capitulo original esta no livro. Lacunas so sao
+    procuradas entre numeros inteiros, porque algumas fontes usam posicoes decimais
+    (0.1, 1.21) que nao sao numeros de capitulo.
+    """
+    out: list[dict] = []
+    for c in chapters:
+        status = getattr(c, "status", None) or "ok"
+        if status == "invalid" or (status == "ok" and not (c.content_path and c.downloaded)):
+            out.append({"number": float(c.number), "title": c.title,
+                        "reason": getattr(c, "problem", None) or "empty"})
+    present = sorted({float(c.number) for c in chapters})
+    whole = [n for n in present if n == int(n)]
+    for a, b in zip(whole, whole[1:]):
+        if 1 < b - a <= MAX_GAP:
+            for k in range(int(a) + 1, int(b)):
+                out.append({"number": float(k), "title": f"Capítulo {k}", "reason": "gap"})
+    out.sort(key=lambda m: m["number"])
+    return out[:MAX_MISSING]

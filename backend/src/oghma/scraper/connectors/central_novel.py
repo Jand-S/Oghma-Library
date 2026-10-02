@@ -45,7 +45,9 @@ class CentralNovelConnector:
     LIST_ITEM = ".soralist a[href*='/series/'], .listupd h2 a[href*='/series/']"
     NOVEL_TITLE = "h1.entry-title, .post-title h1, h1"
     NOVEL_COVER = ".bigcontent .thumb img, .summary_image img, .thumb img, img.wp-post-image"
-    NOVEL_DESC = ".entry-content[itemprop='description'], .description-summary .summary__content, .entry-content"
+    # Em ordem de preferencia; o HTML vai inteiro para clean_description, que corta o
+    # aviso legal depois do <hr> e preserva os paragrafos.
+    NOVEL_DESC = (".entry-content[itemprop='description']", ".description-summary .summary__content")
     NOVEL_TAG = ".infox a[href*='/genre/'], .mgen a, .genres a"
     NOVEL_STATUS = ".infox .spe span, .status, .post-status .summary-content"
     CHAPTER_ITEM = ".eplister li > a, li.wp-manga-chapter > a, ul.main a[href*='-capitulo-']"
@@ -96,7 +98,12 @@ class CentralNovelConnector:
         cover = _attr(tree.css_first(self.NOVEL_COVER), "src") or _attr(
             tree.css_first(self.NOVEL_COVER), "data-src"
         )
-        desc = _first_text(tree, self.NOVEL_DESC)
+        desc = None
+        for selector in self.NOVEL_DESC:
+            node = tree.css_first(selector)
+            if node is not None and node.text(strip=True):
+                desc = node.html
+                break
         tags = []
         for t in tree.css(self.NOVEL_TAG):
             txt = t.text(strip=True)

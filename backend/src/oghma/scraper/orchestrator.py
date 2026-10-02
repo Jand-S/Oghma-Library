@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import httpx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,9 +17,34 @@ from . import registry
 from .base import ChapterRef, NovelMeta, NovelRef
 from .chapter_assets import localize_chapter_images
 from .fetcher import HttpFetcher
+from .normalize import chapter_problem, clean_description
 
 PROGRESS_LOG_EVERY_CHAPTERS = 10
 COVER_REFRESH_AFTER = timedelta(days=180)
+INVALID_SAMPLES = 20
+# Capitulo vazio/placeholder volta a ser tentado so depois deste intervalo: alguns sites
+# servem o placeholder como conteudo definitivo e repetir todo dia so gasta requisicoes.
+RETRY_INVALID_AFTER = timedelta(days=3)
+# Status HTTP que significam "este capitulo nao existe mais nesta URL".
+CHAPTER_GONE_STATUS = {404, 410}
+
+
+def _problem_code(message: str) -> str:
+    lowered = message.lower()
+    if "rate limit" in lowered:
+        return "rate_limit"
+    if "empty" in lowered or "vazio" in lowered:
+        return "empty"
+    if lowered.startswith("http_"):
+        return lowered.split()[0][:32]
+    return "rejected"
+
+
+def _count_invalid(stats: dict, novel_id: str, cref: ChapterRef, problem: str) -> None:
+    stats["chapters_invalid"] = stats.get("chapters_invalid", 0) + 1
+    samples = stats.setdefault("invalid_samples", [])
+    if len(samples) < INVALID_SAMPLES:
+        samples.append({"novel": novel_id, "number": float(cref.number), "url": cref.url, "problem": problem})
 
 
 def _now() -> datetime:
@@ -142,7 +168,8 @@ async def _upsert_novel(session: AsyncSession, novel_id: str, meta: NovelMeta) -
         session.add(nv)
     nv.title = meta.title
     nv.author = meta.author
-    nv.description = meta.description
+    # Sinopse vazia nesta leitura nao apaga a que ja existe.
+    nv.description = clean_description(meta.description) or nv.description
     nv.cover_url = meta.cover_url
     nv.language = meta.language
     nv.status = meta.status
@@ -154,7 +181,10 @@ async def _upsert_novel(session: AsyncSession, novel_id: str, meta: NovelMeta) -
     return nv
 
 
-async def _upsert_chapter(session, cid, novel_id, cref: ChapterRef, norm, raw_path, content_path):
+async def _upsert_chapter(
+    session, cid, novel_id, cref: ChapterRef, norm, raw_path, content_path,
+    *, status: str = "ok", problem: str | None = None,
+):
     ch = await session.get(Chapter, cid)
     if ch is None:
         ch = Chapter(id=cid, novel_id=novel_id, number=cref.number)
@@ -163,11 +193,39 @@ async def _upsert_chapter(session, cid, novel_id, cref: ChapterRef, norm, raw_pa
     ch.source_url = cref.url
     ch.published_at = cref.published_at
     ch.raw_path = raw_path
+    ch.fetched_at = _now()
+    ch.status = status
+    ch.problem = problem
+    if status == "invalid":
+        # Sem conteudo aproveitavel: fica registrado para a proxima tentativa e para o
+        # aviso de capitulo faltante, mas nao entra no livro.
+        ch.content_path = None
+        ch.content_hash = None
+        ch.word_count = 0
+        ch.downloaded = False
+        return ch
     ch.content_path = content_path
     ch.content_hash = norm.text_hash
     ch.word_count = norm.word_count
     ch.downloaded = True
-    ch.fetched_at = _now()
+    return ch
+
+
+async def _duplicate_of(session, novel_id: str, cid: str, text_hash: str | None) -> str | None:
+    """Id de outro capitulo valido da mesma novel com o mesmo texto (o site publicou duas vezes)."""
+    if not text_hash:
+        return None
+    return await session.scalar(
+        select(Chapter.id)
+        .where(
+            Chapter.novel_id == novel_id,
+            Chapter.content_hash == text_hash,
+            Chapter.status == "ok",
+            Chapter.id != cid,
+        )
+        .order_by(Chapter.number)
+        .limit(1)
+    )
 
 
 async def crawl_source(
@@ -293,8 +351,24 @@ async def crawl_source(
                 )
                 incremental_lister = getattr(connector, "list_chapters_after", None)
                 chapter_offset = 0
+                # Capitulos vazios ou com placeholder obrigam a lista completa, para tentar
+                # de novo com a URL atual do site.
+                retry_before = _now() - RETRY_INVALID_AFTER
+                pending_invalid = int(
+                    await session.scalar(
+                        select(func.count()).select_from(Chapter).where(
+                            Chapter.novel_id == novel_id,
+                            Chapter.downloaded.is_(False),
+                            (Chapter.fetched_at.is_(None)) | (Chapter.fetched_at < retry_before),
+                        )
+                    )
+                    or 0
+                )
+                if pending_invalid:
+                    latest_chapter = None
                 if (
                     not refresh
+                    and not pending_invalid
                     and current_count > 0
                     and meta.source_chapter_count is not None
                     and current_count >= meta.source_chapter_count
@@ -358,7 +432,21 @@ async def crawl_source(
                     stats["current_novel_chapters_done"] = progress_index
                     stats["current_chapter_number"] = float(cref.number)
                     stats["current_chapter_title"] = cref.title
-                    if (await session.get(Chapter, cid)) is not None and not refresh:
+                    existing_ch = await session.get(Chapter, cid)
+                    recently_rejected = (
+                        existing_ch is not None
+                        and not existing_ch.downloaded
+                        and existing_ch.fetched_at is not None
+                        and existing_ch.fetched_at >= retry_before
+                    )
+                    if existing_ch is not None and (existing_ch.downloaded or recently_rejected) and not refresh:
+                        # A lista do site e a fonte da verdade para URL e titulo: sites
+                        # reorganizam volumes e a URL antiga passa a dar 404.
+                        if cref.url and existing_ch.source_url != cref.url:
+                            existing_ch.source_url = cref.url
+                            stats["chapter_urls_updated"] = stats.get("chapter_urls_updated", 0) + 1
+                        if cref.title and existing_ch.title != cref.title:
+                            existing_ch.title = cref.title
                         stats["chapters_skipped"] += 1
                         if chapter_index == 1 or chapter_index % PROGRESS_LOG_EVERY_CHAPTERS == 0:
                             stats["stage"] = "skipping_existing"
@@ -375,8 +463,35 @@ async def crawl_source(
                         f"#{cref.number:g}"
                     )
                     await _save_run_progress(session, run_id, stats)
-                    raw = await connector.fetch_chapter(fetcher, cref.url)
-                    norm = connector.normalize_chapter(raw)
+                    try:
+                        raw = await connector.fetch_chapter(fetcher, cref.url)
+                        norm = connector.normalize_chapter(raw)
+                    except (ValueError, httpx.HTTPStatusError) as exc:
+                        # O conector recusou o conteudo (vazio, rate limit) ou a URL sumiu.
+                        # Registra so este capitulo para nova tentativa em vez de abortar a
+                        # novel inteira. Outros erros HTTP continuam abortando a novel.
+                        if isinstance(exc, httpx.HTTPStatusError):
+                            if exc.response.status_code not in CHAPTER_GONE_STATUS:
+                                raise
+                            code = f"http_{exc.response.status_code}"
+                        else:
+                            code = _problem_code(str(exc))
+                        await _upsert_chapter(
+                            session, cid, novel_id, cref, None, None, None,
+                            status="invalid", problem=code,
+                        )
+                        _count_invalid(stats, novel_id, cref, code)
+                        await _save_run_progress(session, run_id, stats)
+                        continue
+                    problem = chapter_problem(norm.html)
+                    if problem:
+                        await _upsert_chapter(
+                            session, cid, novel_id, cref, norm, None, None,
+                            status="invalid", problem=problem,
+                        )
+                        _count_invalid(stats, novel_id, cref, problem)
+                        await _save_run_progress(session, run_id, stats)
+                        continue
                     localized = await localize_chapter_images(
                         fetcher,
                         norm.html,
@@ -396,7 +511,14 @@ async def crawl_source(
                         stats["chapter_image_errors"] += localized.failed
                     raw_path = storage.save_raw(source_id, ref.slug, cref.number, raw.html)
                     content_path = storage.save_content(source_id, ref.slug, cref.number, norm.html)
-                    await _upsert_chapter(session, cid, novel_id, cref, norm, raw_path, content_path)
+                    duplicate = await _duplicate_of(session, novel_id, cid, norm.text_hash)
+                    await _upsert_chapter(
+                        session, cid, novel_id, cref, norm, raw_path, content_path,
+                        status="duplicate" if duplicate else "ok",
+                        problem=f"same_as:{duplicate.rsplit('#', 1)[-1]}" if duplicate else None,
+                    )
+                    if duplicate:
+                        stats["chapters_duplicate"] = stats.get("chapters_duplicate", 0) + 1
                     current_count += 1
                     nv = await session.get(Novel, novel_id)
                     if nv is not None:

@@ -104,6 +104,9 @@ class Chapter(Base):
     word_count: Mapped[int] = mapped_column(Integer, default=0)
     downloaded: Mapped[bool] = mapped_column(Boolean, default=False)
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # ok | invalid (vazio ou placeholder; tenta de novo) | duplicate (mesmo texto de outro capitulo)
+    status: Mapped[str] = mapped_column(String(16), default="ok", server_default="ok")
+    problem: Mapped[str | None] = mapped_column(String(32))
 
     __table_args__ = (Index("ix_chapter_novel_number", "novel_id", "number", unique=True),)
 

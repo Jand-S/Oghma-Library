@@ -11,13 +11,22 @@ from urllib.parse import urlsplit
 import httpx
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
 
 from ..config import get_settings
 from .base import RawPage
+
+_RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _is_transient(exc: BaseException) -> bool:
+    """Erro de rede ou status passageiro. 404/403 sao definitivos: repetir so gasta tempo."""
+    if isinstance(exc, httpx.TransportError):
+        return True
+    return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in _RETRYABLE_STATUS
 
 
 class HttpFetcher:
@@ -62,7 +71,7 @@ class HttpFetcher:
         reraise=True,
         stop=stop_after_attempt(4),
         wait=wait_exponential(multiplier=1, min=2, max=30),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
+        retry=retry_if_exception(_is_transient),
     )
     async def get(self, url: str) -> RawPage:
         host = urlsplit(url).netloc

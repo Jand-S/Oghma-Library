@@ -1,0 +1,143 @@
+"""Validacao de capitulos, limpeza de sinopse e capitulos faltantes na publicacao."""
+import json
+import tarfile
+from pathlib import Path
+from types import SimpleNamespace
+
+import httpx
+
+from oghma.publish.bundles import build_bundle
+from oghma.publish.reader import _publishable, missing_chapters
+from oghma.publish.records import ChapterRecord, NovelRecord
+from oghma.scraper.fetcher import _is_transient
+from oghma.scraper.normalize import chapter_problem, clean_description
+
+# Trecho real da pagina de Super God Gene no Central Novel (02/10/2026).
+CENTRAL_DESC_HTML = """
+<div class="entry-content" itemprop="description"> <div style="text-align: justify;">
+<p>Na era interestelar magn&iacute;fica, a humanidade finalmente desenvolveu a tecnologia de teletransporte.</p>
+<p><center>『Besouro Preto, Criatura de Linhagem Sagrada foi morta.』</center></p>
+<div style="text-align: justify;"> <p>&nbsp;</p> <hr /> <hr />
+<h4 style="text-align: center;"><strong>AVISO</strong></h4>
+<p>Esta novel foi traduzida pela <a href="https://novelmania.com.br/">Novel Mania</a> e seus colaboradores,
+o conteudo e agregado e divulgado pela <a href="https://centralnovel.com/">Central Novel</a> sem autoriza&ccedil;&atilde;o pr&eacute;via dos mesmos.</p>
+</div><hr /><p>Se voc&ecirc; possui os direitos legais sobre a obra, entre em <a href="/contato/">contato</a>.</p>
+</div></div>
+"""
+
+# Como a mesma sinopse esta salva hoje no banco (texto colado, sem <hr>).
+CENTRAL_DESC_STORED = (
+    "Na era interestelar magnífica, a humanidade finalmente desenvolveu a tecnologia de teletransporte."
+    "『Besouro Preto foi morta.』AVISOEsta novel foi traduzida pelaNovel Maniae seus colaboradores, "
+    "o conteúdo é agregado e divulgado pelaCentral Novelsem autorização prévia dos mesmos."
+)
+
+NOVEL_MANIA_DESC = (
+    "<p>Eu, o artista marcial que foi considerado um dos melhores do mundo, agora, estava ca&iacute;do "
+    "no asfalto debaixo da chuva...</p>\n<p>Ap&oacute;s algum tempo, a escurid&atilde;o dispersou.</p>"
+)
+
+
+def test_central_description_drops_legal_notice_and_keeps_paragraphs():
+    out = clean_description(CENTRAL_DESC_HTML)
+    assert out.startswith("Na era interestelar magnífica")
+    assert "AVISO" not in out and "autorização" not in out and "contato" not in out
+    assert "Besouro Preto" in out
+    assert "\n\n" in out  # paragrafos separados
+
+
+def test_stored_central_description_is_cut_at_notice():
+    out = clean_description(CENTRAL_DESC_STORED)
+    assert out.endswith("『Besouro Preto foi morta.』")
+
+
+def test_novel_mania_description_html_becomes_text():
+    out = clean_description(NOVEL_MANIA_DESC)
+    assert "<p>" not in out and "&iacute;" not in out
+    assert "caído no asfalto" in out and "escuridão dispersou" in out
+    assert out.count("\n\n") == 1
+
+
+def test_description_junk_lines_and_prefix_are_removed():
+    raw = (
+        "Sinopse: Um jovem descobre que pode voltar no tempo e tenta salvar a familia.\n\n"
+        "Entre no nosso Discord: discord.gg/abc\n"
+        "Apoie a tradução no PIX\n"
+        "Tradução: Fulano\n"
+        "Leia também nossas outras obras!"
+    )
+    assert clean_description(raw) == "Um jovem descobre que pode voltar no tempo e tenta salvar a familia."
+
+
+def test_description_without_text_stays_none():
+    assert clean_description(None) is None
+    assert clean_description("<p>&nbsp;</p>") is None
+
+
+def test_chapter_problem_detects_empty_and_placeholders():
+    assert chapter_problem("") == "empty"
+    assert chapter_problem("<p> </p>") == "empty"
+    assert chapter_problem("<p>Loading... Loading...</p>") == "placeholder"
+    assert chapter_problem("<p>Rate limit exceeded. Try again later.</p>") == "placeholder"
+
+
+def test_chapter_problem_accepts_real_and_illustrated_chapters():
+    assert chapter_problem('<p></p><img src="../assets/a.webp">') is None
+    assert chapter_problem("<p>Fim do volume. Obrigado por ler!</p>") is None
+    long_text = "<p>" + " ".join(["palavra"] * 60) + " loading</p>"
+    assert chapter_problem(long_text) is None
+
+
+def _ch(number, *, status="ok", content="/c.html", downloaded=True, problem=None, title=None):
+    return SimpleNamespace(number=number, status=status, content_path=content, downloaded=downloaded,
+                           problem=problem, title=title or f"Chapter {number:g}")
+
+
+def test_missing_chapters_lists_invalid_and_integer_gaps_but_not_copies():
+    chapters = [
+        _ch(3), _ch(4), _ch(4.01, status="duplicate", problem="same_as:4"), _ch(6),
+        _ch(7, status="invalid", content=None, downloaded=False, problem="placeholder"),
+        _ch(8),
+    ]
+    missing = missing_chapters(chapters)
+    assert [(m["number"], m["reason"]) for m in missing] == [(5.0, "gap"), (7.0, "placeholder")]
+    assert [_publishable(c) for c in chapters] == [True, True, False, True, False, True]
+
+
+def test_missing_chapters_ignores_decimal_positions():
+    # Novel Mania usa a posicao do site (0.1, 0.2, 1.21) como numero: nao e lacuna.
+    chapters = [_ch(0.1), _ch(0.2), _ch(1.21), _ch(3.5)]
+    assert missing_chapters(chapters) == []
+
+
+def test_bundle_skips_empty_files_and_lists_missing(tmp_path: Path):
+    novel = NovelRecord(
+        id="rolia-scan:unsheathed-novel", source_id="rolia-scan", slug="unsheathed-novel",
+        title="Unsheathed", author=None, description=None, cover_path=None, language="en",
+        status="ongoing", tags=[], tag_keys=[], updated_at=None,
+        chapters=[
+            ChapterRecord(id="a#1", number=1.0, title="One", published_at=None, word_count=5,
+                          content_path="/1.html", content_hash="h1"),
+            ChapterRecord(id="a#2", number=2.0, title="Two", published_at=None, word_count=0,
+                          content_path="/2.html", content_hash="h2"),
+        ],
+        missing=[{"number": 3.0, "title": "Capítulo 3", "reason": "gap"}],
+    )
+    files = {"/1.html": "<p>um</p>", "/2.html": ""}
+    out = tmp_path / "b.tar.gz"
+    build_bundle(str(out), novel, version=1, read_content=lambda p: files[p])
+    with tarfile.open(out, "r:gz") as tar:
+        assert "chapters/2.html" not in tar.getnames()
+        meta = json.loads(tar.extractfile("meta.json").read())
+    assert [c["number"] for c in meta["chapters"]] == [1.0]
+    assert meta["missingChapters"][0]["reason"] == "gap"
+
+
+def test_only_transient_http_errors_are_retried():
+    def status_error(code):
+        req = httpx.Request("GET", "https://x.test")
+        return httpx.HTTPStatusError("x", request=req, response=httpx.Response(code, request=req))
+
+    assert _is_transient(httpx.ConnectError("down"))
+    assert _is_transient(status_error(429)) and _is_transient(status_error(503))
+    assert not _is_transient(status_error(404)) and not _is_transient(status_error(403))
