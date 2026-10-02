@@ -1,3 +1,4 @@
+mod cloud;
 mod files;
 mod kindle;
 mod library_meta;
@@ -7,6 +8,8 @@ mod translation;
 
 #[cfg(target_os = "windows")]
 mod kindle_mtp;
+#[cfg(target_os = "macos")]
+mod kindle_mtp_mac;
 
 pub fn run() {
     tauri::Builder::default()
@@ -29,9 +32,13 @@ pub fn run() {
             staging::commit_export,
             staging::abort_export,
             staging::cleanup_export_root,
+            cloud::icloud_status,
+            cloud::icloud_save,
+            cloud::icloud_reveal,
             kindle::detect_kindle,
             kindle::convert_export_to_azw3,
             kindle::send_to_kindle,
+            kindle::kindle_send_wireless,
             library_meta::list_library_meta,
             library_meta::save_library_meta,
             library_meta::delete_library_meta,

@@ -22,6 +22,14 @@ pub struct KindleStatus {
     target_format: String,
     converter_available: bool,
     transport: String,
+    /// Amazon's "Send to Kindle" app is installed (wireless sending, macOS).
+    wireless_available: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KindleWirelessResult {
+    opened_ids: Vec<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -608,11 +616,89 @@ pub fn detect_kindle() -> KindleStatus {
         target_format: "AZW3".to_string(),
         converter_available: converter_available(),
         transport,
+        wireless_available: send_to_kindle_app().is_some(),
     }
 }
 
+/// Amazon's "Send to Kindle" app for Mac (free; sends EPUB to the Amazon account over Wi-Fi).
+pub fn send_to_kindle_app() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::env::var_os("HOME").map(PathBuf::from);
+        let mut candidates = vec![PathBuf::from("/Applications/Send to Kindle.app")];
+        if let Some(home) = &home {
+            candidates.push(home.join("Applications/Send to Kindle.app"));
+        }
+        if let Some(found) = candidates.into_iter().find(|path| path.is_dir()) {
+            return Some(found);
+        }
+        // Renamed or installed elsewhere: ask Spotlight.
+        let output = std::process::Command::new("mdfind")
+            .arg("kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == 'Send to Kindle*'c")
+            .output()
+            .ok()?;
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(PathBuf::from)
+            .find(|path| path.extension().is_some_and(|ext| ext == "app") && path.is_dir())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+fn epub_for_item(item: &SendKindleItem) -> Result<PathBuf, String> {
+    let dir = item
+        .output_dir
+        .as_deref()
+        .map(expand_home)
+        .ok_or_else(|| format!("{} não tem pasta local de saída", item.title))?;
+    item.output_files
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| dir.join(name))
+        .chain(fs::read_dir(&dir).into_iter().flatten().flatten().map(|entry| entry.path()))
+        .find(|path| path.is_file() && path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("epub")))
+        .ok_or_else(|| format!("{} não tem EPUB para enviar", item.title))
+}
+
+/// Opens Amazon's "Send to Kindle" with the books' EPUBs; the user confirms the send in that app.
 #[tauri::command]
-pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {
+pub fn kindle_send_wireless(items: Vec<SendKindleItem>) -> Result<KindleWirelessResult, String> {
+    let app = send_to_kindle_app()
+        .ok_or("O app Send to Kindle da Amazon não está instalado. Instale em amazon.com/sendtokindle/mac.")?;
+    let mut files = Vec::new();
+    let mut opened_ids = Vec::new();
+    for item in &items {
+        files.push(epub_for_item(item)?);
+        opened_ids.push(item.id.clone());
+    }
+    if files.is_empty() {
+        return Err("Nenhum livro selecionado".into());
+    }
+    let status = std::process::Command::new("open")
+        .arg("-a")
+        .arg(&app)
+        .args(&files)
+        .status()
+        .map_err(|err| format!("Não foi possível abrir o Send to Kindle: {err}"))?;
+    if !status.success() {
+        return Err("O Send to Kindle não abriu os arquivos.".into());
+    }
+    Ok(KindleWirelessResult { opened_ids })
+}
+
+/// Runs off the main thread: an MTP transfer can take a few seconds.
+#[tauri::command]
+pub async fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {
+    tauri::async_runtime::spawn_blocking(move || send_to_kindle_blocking(items))
+        .await
+        .map_err(|err| err.to_string())?
+}
+
+fn send_to_kindle_blocking(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {
     let ms_dir = find_kindle_documents_dir();
     if ms_dir.is_none() && !kindle_usb_present() {
         return Err("Kindle não encontrado por USB".to_string());
@@ -620,9 +706,9 @@ pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, St
     if let Some(dir) = &ms_dir {
         fs::create_dir_all(dir).map_err(|err| format!("Não foi possível acessar a pasta documents do Kindle: {err}"))?;
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     if ms_dir.is_none() {
-        return Err("Envio via MTP so e suportado no Windows por enquanto.".to_string());
+        return Err("Envio via MTP só é suportado no Windows e no macOS.".to_string());
     }
 
     let mut sent_ids = Vec::new();
@@ -655,9 +741,14 @@ pub fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, St
                     crate::kindle_mtp::send_file_to_kindle(&source, &file_name)?;
                     crate::kindle_mtp::send_thumbnail_to_kindle(&thumbnail.file_name, &thumbnail.data)?;
                 }
-                #[cfg(not(target_os = "windows"))]
+                #[cfg(target_os = "macos")]
                 {
-                    return Err("Envio via MTP so e suportado no Windows.".to_string());
+                    let bytes = fs::read(&source).map_err(|err| format!("Não foi possível ler {}: {err}", item.title))?;
+                    crate::kindle_mtp_mac::send_book(&file_name, &bytes, Some((&thumbnail.file_name, &thumbnail.data)))?;
+                }
+                #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+                {
+                    return Err("Envio via MTP só é suportado no Windows e no macOS.".to_string());
                 }
             }
         }

@@ -3212,6 +3212,7 @@ name = "oghma-library"
 version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
+ "futures-lite",
  "getrandom 0.3.4",
  "image",
  "kindling-mobi",
