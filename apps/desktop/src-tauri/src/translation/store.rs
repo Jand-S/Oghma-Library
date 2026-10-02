@@ -129,6 +129,10 @@ pub struct ProjectRow {
     pub status: ProjectStatus,
     pub glossary_status: String,
     pub glossary_hide_at: u8,
+    /// Translate the cover text on export (vision call, cached in `cover_text_json`).
+    pub translate_cover: bool,
+    pub cover_text_json: Option<String>,
+    pub last_preview_at: Option<f64>,
     pub output_dir: Option<String>,
     pub session_started_at: Option<f64>,
     pub resume_at: Option<i64>,
@@ -176,6 +180,9 @@ fn migrate(conn: &Connection) -> Result<(), String> {
         "ALTER TABLE projects ADD COLUMN glossary_min_confidence INTEGER NOT NULL DEFAULT 60",
         "ALTER TABLE projects ADD COLUMN glossary_hide_at INTEGER NOT NULL DEFAULT 80",
         "ALTER TABLE chunks ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE projects ADD COLUMN translate_cover INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE projects ADD COLUMN cover_text_json TEXT",
+        "ALTER TABLE projects ADD COLUMN last_preview_at REAL",
     ] {
         if let Err(e) = conn.execute(sql, []) {
             if !e.to_string().contains("duplicate column") {
@@ -259,7 +266,7 @@ impl Store {
             conn.query_row(
                 "SELECT id, title, source_dir, source_epub, source_novel_id, cover_path, model, effort,
                         workers, scope_json, status, glossary_status, output_dir, session_started_at, resume_at,
-                        glossary_hide_at
+                        glossary_hide_at, translate_cover, cover_text_json, last_preview_at
                  FROM projects WHERE id = ?1",
                 params![id],
                 |row| {
@@ -282,6 +289,9 @@ impl Store {
                         session_started_at: row.get(13)?,
                         resume_at: row.get(14)?,
                         glossary_hide_at: row.get::<_, i64>(15)?.clamp(0, 100) as u8,
+                        translate_cover: row.get::<_, i64>(16)? != 0,
+                        cover_text_json: row.get(17)?,
+                        last_preview_at: row.get(18)?,
                     })
                 },
             )
@@ -344,6 +354,25 @@ impl Store {
             self.set_field(id, "UPDATE projects SET scope_json = ?1, updated_at = ?2 WHERE id = ?3", json.into())?;
         }
         Ok(())
+    }
+
+    pub fn set_translate_cover(&self, id: &str, value: bool) -> Result<(), String> {
+        self.set_field(id, "UPDATE projects SET translate_cover = ?1, updated_at = ?2 WHERE id = ?3", (value as i64).into())
+    }
+
+    /// `None` clears the cache (the next export reads the cover again).
+    pub fn set_cover_text(&self, id: &str, json: Option<&str>) -> Result<(), String> {
+        self.with(|conn| {
+            conn.execute("UPDATE projects SET cover_text_json = ?1 WHERE id = ?2", params![json, id])?;
+            Ok(())
+        })
+    }
+
+    pub fn set_last_preview_at(&self, id: &str, at: f64) -> Result<(), String> {
+        self.with(|conn| {
+            conn.execute("UPDATE projects SET last_preview_at = ?1 WHERE id = ?2", params![at, id])?;
+            Ok(())
+        })
     }
 
     pub fn set_glossary_hide_at(&self, id: &str, value: u8) -> Result<(), String> {
@@ -634,6 +663,14 @@ impl Store {
             resume_at: row.resume_at,
             glossary_status: row.glossary_status,
             glossary_hide_at: row.glossary_hide_at,
+            translate_cover: row.translate_cover,
+            last_preview_at: row.last_preview_at,
+            translated_cover_path: row
+                .output_dir
+                .as_ref()
+                .map(|dir| std::path::Path::new(dir).join("cover.jpg"))
+                .filter(|path| path.is_file())
+                .map(|path| path.to_string_lossy().to_string()),
         })
     }
 

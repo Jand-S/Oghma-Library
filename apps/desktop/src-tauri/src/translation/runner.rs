@@ -468,13 +468,8 @@ impl Engine {
             ),
         );
         self.emit_project(id, true);
-        let engine = Arc::clone(self);
-        let project = id.to_string();
-        let result = tauri::async_runtime::spawn_blocking(move || engine.export_project(&project)).await;
-        // `export_project` logs its own failures.
-        if let Err(err) = result {
-            self.log(id, "error", format!("Falha ao gerar o livro PT-BR: {err}"));
-        }
+        // `export_book` logs its own failures.
+        let _ = self.export_book(id, false).await;
     }
 
     async fn run_workers(

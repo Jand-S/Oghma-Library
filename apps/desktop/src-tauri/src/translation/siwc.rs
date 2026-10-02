@@ -641,10 +641,14 @@ impl SiwcProvider {
     }
 
     async fn translate_once(&self, model: &str, effort: &str, instructions: &str, text: &str) -> Result<ChatOutput, ProviderError> {
+        self.respond_once(model, effort, instructions, json!([{ "type": "input_text", "text": text }])).await
+    }
+
+    async fn respond_once(&self, model: &str, effort: &str, instructions: &str, content: Value) -> Result<ChatOutput, ProviderError> {
         let body = json!({
             "model": model,
             "instructions": instructions,
-            "input": [{ "role": "user", "content": [{ "type": "input_text", "text": text }] }],
+            "input": [{ "role": "user", "content": content }],
             "reasoning": { "effort": effort },
             "stream": true,
             "store": false,
@@ -690,6 +694,22 @@ impl ChatProvider for SiwcProvider {
     ) -> BoxFut<'a, Result<ChatOutput, ProviderError>> {
         Box::pin(async move {
             with_retry(&self.retry_delays, || self.translate_once(model, effort, instructions, text)).await
+        })
+    }
+
+    fn read_image<'a>(
+        &'a self,
+        model: &'a str,
+        instructions: &'a str,
+        prompt: &'a str,
+        image_data_url: &'a str,
+    ) -> BoxFut<'a, Result<ChatOutput, ProviderError>> {
+        Box::pin(async move {
+            let content = json!([
+                { "type": "input_text", "text": prompt },
+                { "type": "input_image", "image_url": image_data_url }
+            ]);
+            with_retry(&self.retry_delays, || self.respond_once(model, "none", instructions, content.clone())).await
         })
     }
 }

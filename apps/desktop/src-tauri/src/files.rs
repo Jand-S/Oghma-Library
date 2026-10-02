@@ -30,6 +30,12 @@ pub struct ExportLibraryItem {
     source_chars: Option<u64>,
     word_count: Option<u64>,
     analysis_format: Option<String>,
+    /// Language of the text ("pt-BR" for translated books).
+    language: Option<String>,
+    /// Novel this book was translated from.
+    source_novel_id: Option<String>,
+    /// 0–100 while the book is a translation preview (only finished chapters); absent when final.
+    translation_progress: Option<u8>,
 }
 
 pub(crate) const LOCAL_BOOK_MANIFEST: &str = ".oghma-book.json";
@@ -56,6 +62,9 @@ pub(crate) struct LocalBookManifest {
     pub source_chars: Option<u64>,
     pub word_count: Option<u64>,
     pub analysis_format: Option<String>,
+    pub language: Option<String>,
+    pub source_novel_id: Option<String>,
+    pub translation_progress: Option<u8>,
 }
 
 impl LocalBookManifest {
@@ -370,6 +379,9 @@ fn scan_book_dir(path: &Path, folder_name: String, include_cover_data: bool) -> 
         source_chars: analysis.as_ref().map(|item| item.source_chars),
         word_count: analysis.as_ref().map(|item| item.word_count),
         analysis_format: analysis.map(|item| item.format),
+        language: manifest.language.clone().filter(|l| !l.trim().is_empty()),
+        source_novel_id: manifest.source_novel_id.clone().filter(|id| !id.trim().is_empty()),
+        translation_progress: manifest.translation_progress.map(|p| p.min(100)),
     }))
 }
 

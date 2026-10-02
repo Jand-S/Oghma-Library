@@ -87,6 +87,18 @@ pub trait ChatProvider: Send + Sync {
         instructions: &'a str,
         text: &'a str,
     ) -> BoxFut<'a, Result<ChatOutput, ProviderError>>;
+
+    /// One request with an image (data URL) plus a text prompt; providers without
+    /// vision return `Fatal`.
+    fn read_image<'a>(
+        &'a self,
+        _model: &'a str,
+        _instructions: &'a str,
+        _prompt: &'a str,
+        _image_data_url: &'a str,
+    ) -> BoxFut<'a, Result<ChatOutput, ProviderError>> {
+        Box::pin(async { Err(ProviderError::Fatal("leitura de imagem indisponível".into())) })
+    }
 }
 
 /// Credits per 1M tokens (input, cached input, output), from learn.chatgpt.com/docs/pricing.

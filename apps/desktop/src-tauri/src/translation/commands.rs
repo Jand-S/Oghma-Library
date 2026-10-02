@@ -107,8 +107,12 @@ pub async fn translation_update_settings(
     workers: Option<u32>,
     scope: Option<Scope>,
     glossary_hide_at: Option<u8>,
+    translate_cover: Option<bool>,
 ) -> Result<ProjectDetail, String> {
     let engine = engine(&state);
+    if let Some(value) = translate_cover {
+        engine.store.set_translate_cover(&project_id, value)?;
+    }
     if let Some(value) = glossary_hide_at {
         engine.store.set_glossary_hide_at(&project_id, value.min(100))?;
     }
@@ -248,8 +252,18 @@ pub async fn translation_verify(state: EngineState<'_>, project_id: String) -> R
 
 /// Builds the PT-BR book now (it also runs automatically when everything is done).
 #[tauri::command]
-pub async fn translation_export(state: EngineState<'_>, project_id: String) -> Result<ExportResult, String> {
-    blocking(engine(&state), move |engine| engine.export_project(&project_id)).await
+pub async fn translation_export(
+    state: EngineState<'_>,
+    project_id: String,
+    partial: Option<bool>,
+) -> Result<ExportResult, String> {
+    engine(&state).export_book(&project_id, partial.unwrap_or(false)).await
+}
+
+/// Reads the cover again (one vision call) and rebuilds the current book or preview.
+#[tauri::command]
+pub async fn translation_regenerate_cover(state: EngineState<'_>, project_id: String) -> Result<ExportResult, String> {
+    engine(&state).regenerate_cover(&project_id).await
 }
 
 #[tauri::command]
