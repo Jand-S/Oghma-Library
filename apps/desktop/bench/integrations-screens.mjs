@@ -42,13 +42,14 @@ async function main() {
       await page.click('[data-testid="nav-library"]');
       await page.waitForSelector('[data-testid="library-card"]');
       await page.locator('[data-testid="library-card"] [data-testid="card-title"]').first().click();
-      await page.waitForSelector('[data-testid="library-kindle-menu"]');
+      await page.waitForSelector('[data-testid="library-icloud"]');
       await shot(page, "1-details");
-      await page.click('[data-testid="library-kindle-menu"]');
-      await shot(page, "2-details-kindle-menu");
-      await page.keyboard.press("Escape");
       await page.click('[data-testid="library-icloud"]');
       await shot(page, "3-icloud-toast");
+      await page.click('[data-testid="nav-discover"]');
+      await page.waitForSelector('[data-testid="book-card"]');
+      await page.locator('[data-testid="card-select"]').first().click();
+      await shot(page, "2-discover-selected");
       await page.click('[data-testid="nav-kindle"]');
       await page.waitForSelector('[data-testid="kindle-hero"]');
       await page.locator('[data-testid="kindle-book"]').first().click();

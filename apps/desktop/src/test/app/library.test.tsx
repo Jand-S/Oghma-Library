@@ -59,8 +59,9 @@ describe("Library browsing", () => {
     expect(within(details).getByRole("heading", { name: libraryStrings.synopsis })).toBeInTheDocument();
     expect(within(within(details).getByTestId("detail-cover")).getByRole("img")).toHaveAttribute("src", expect.stringContaining("oghma-icon.svg"));
     expect(within(details).getByRole("heading", { name: libraryStrings.dangerZone })).toBeInTheDocument();
-    // The Kindle is connected in the mock, so the primary action sends the book.
-    expect(within(details).getByRole("button", { name: libraryStrings.sendToKindle })).toBeInTheDocument();
+    // Sending to the Kindle lives on the Kindle page; the library opens the folder.
+    expect(within(details).getByRole("button", { name: libraryStrings.openFolder })).toBeInTheDocument();
+    expect(within(details).queryByRole("button", { name: /Kindle/ })).not.toBeInTheDocument();
 
     // The shell back button returns to the grid.
     await user.click(screen.getByRole("button", { name: "Voltar" }));
@@ -179,13 +180,13 @@ describe("Library actions", () => {
       libraryStrings.openDetails,
       libraryStrings.openFolder,
       libraryStrings.downloadAgain,
-      libraryStrings.sendToKindle,
       libraryStrings.convertFormats,
       libraryStrings.removeFromLibrary,
       libraryStrings.deleteFiles
     ]) {
       expect(within(menu).getByRole("menuitem", { name: label })).toBeInTheDocument();
     }
+    expect(within(menu).queryByRole("menuitem", { name: /Kindle/ })).not.toBeInTheDocument();
     await user.click(within(menu).getByRole("menuitem", { name: libraryStrings.removeFromLibrary }));
 
     const dialog = screen.getByRole("dialog", { name: libraryStrings.confirmRemoveTitle(MOCKINGBIRD) });
@@ -233,18 +234,4 @@ describe("Library actions", () => {
     await waitFor(() => expect(within(getToastRegion()).getByText(libraryStrings.conversionDone)).toBeInTheDocument());
   });
 
-  it("sends a single book to the Kindle from its details page", async () => {
-    const user = setupUser();
-    const queue = createTestQueue({ runJob: instantRunner });
-    await renderReadyApp(undefined, queue);
-    await openLibrary(user);
-    const details = await openDetails(user, LOST_TEMPLE);
-    await user.click(within(details).getByRole("button", { name: libraryStrings.sendToKindle }));
-
-    await waitFor(() => expect(queue.getSnapshot().completed).toHaveLength(1));
-    expect(queue.getSnapshot().completed[0]).toMatchObject({ kind: "convert", novelId: "lost-temple" });
-    expect(queue.getSnapshot().completed[0].request.formats).toEqual(["AZW3"]);
-    // Outside Tauri the device transfer itself is unavailable.
-    await waitFor(() => expect(within(getToastRegion()).getByText(/Envio direto ao Kindle/)).toBeInTheDocument());
-  });
 });

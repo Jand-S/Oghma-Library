@@ -1,8 +1,8 @@
-import { ChevronDown, Cloud, Download, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Send, Trash2 } from "lucide-react";
+import { Download, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import type { LibraryItem, LibraryReadingStatus } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Button, Chip, Cover, DropdownMenu, IconButton, ProgressBar, SelectField, TextField, cx, type MenuItem } from "../../ui";
+import { AppleLogo, Badge, Button, Chip, Cover, DropdownMenu, IconButton, ProgressBar, SelectField, TextField, cx, type MenuItem } from "../../ui";
 import { formatDownloadedAt, formatsOf, jobLabel, type BookJobState } from "./libraryModel";
 import type { BookActions } from "./useBookActions";
 import type { LibraryController } from "./useLibraryController";
@@ -28,9 +28,6 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
   const running = library.conversion.converterRunning;
   const busy = Boolean(jobState);
   const redownloadReason = actions.redownloadDisabledReason(item);
-  // On macOS the Kindle button is always there (Wi-Fi or cable); elsewhere only while the cable is in.
-  const kindle = library.kindleWirelessSupported || library.kindleConnected;
-  const kindleItems = actions.sendItems(item);
 
   const addTag = () => {
     const value = tagInput.trim();
@@ -42,7 +39,6 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
   };
 
   const overflow: MenuItem[] = [
-    ...(kindle ? [{ label: libraryStrings.openFolder, icon: <FolderOpen />, onSelect: () => library.openLibraryItemFolder(item) }] : []),
     {
       label: item.favorite ? libraryStrings.removeFavorite : libraryStrings.addFavorite,
       icon: <Heart />,
@@ -107,26 +103,9 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                 </div>
               ) : null}
               <div className="library-actions" role="toolbar" aria-label={libraryStrings.moreActions}>
-                {kindle && library.kindleWirelessSupported ? (
-                  <DropdownMenu
-                    label={libraryStrings.sendToKindle}
-                    align="start"
-                    items={kindleItems}
-                    trigger={(
-                      <Button variant="primary" icon={<Send />} iconRight={<ChevronDown />} data-testid="library-kindle-menu">
-                        {libraryStrings.sendToKindle}
-                      </Button>
-                    )}
-                  />
-                ) : kindle ? (
-                  <Button variant="primary" icon={<Send />} onClick={() => actions.sendToKindle(item)} disabled={running || busy}>
-                    {libraryStrings.sendToKindle}
-                  </Button>
-                ) : (
-                  <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
-                    {libraryStrings.openFolder}
-                  </Button>
-                )}
+                <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
+                  {libraryStrings.openFolder}
+                </Button>
                 <Button
                   variant="outline"
                   icon={<Download />}
@@ -141,14 +120,17 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                   {libraryStrings.convert}
                 </Button>
                 {library.icloudAvailable ? (
-                  <IconButton
-                    label={libraryStrings.saveToICloud}
-                    icon={<Cloud />}
+                  <Button
                     variant="outline"
+                    icon={<AppleLogo />}
                     data-testid="library-icloud"
+                    aria-label={libraryStrings.saveToICloud}
+                    title={libraryStrings.saveToICloud}
                     loading={library.savingToICloud}
                     onClick={() => library.saveToICloud([item.id])}
-                  />
+                  >
+                    {libraryStrings.icloudShort}
+                  </Button>
                 ) : null}
                 <DropdownMenu
                   label={libraryStrings.moreActions}

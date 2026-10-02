@@ -19,3 +19,5 @@ export { Spinner, type SpinnerProps } from "./Spinner";
 export { Switch, type SwitchProps } from "./Switch";
 export { TextField, type TextFieldProps } from "./TextField";
 export { DEFAULT_TOAST_DURATION, ToastProvider, useToast, type ToastOptions, type ToastTone } from "./Toast";
+export { SelectionMark } from "./SelectionMark";
+export { AppleLogo } from "./AppleLogo";

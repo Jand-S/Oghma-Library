@@ -4,7 +4,7 @@ import type { AppView } from "../../app/NavigationContext";
 import type { DownloadJob, KindleSendMethod, LibraryItem } from "../../core/types";
 import { kindlePageStrings as strings } from "../../strings/kindle";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Button, Chip, Cover, EmptyState, IconButton, ProgressBar, SegmentedControl, SortableList, TextField, cx } from "../../ui";
+import { Badge, Button, Chip, Cover, EmptyState, IconButton, ProgressBar, SegmentedControl, SelectionMark, SortableList, TextField, cx } from "../../ui";
 import { matchesQuery } from "../library/libraryModel";
 import type { LibraryController } from "../library/useLibraryController";
 import { readIntegrationPreferences } from "../settings/preferences";
@@ -217,7 +217,7 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
                       />
                       <span className="kindle-book__cover">
                         <Cover src={item.coverUrl} title={item.title} size="fill" />
-                        <span className="kindle-book__check" aria-hidden="true"><Check /></span>
+                        {checked ? <SelectionMark /> : null}
                       </span>
                       <span className="kindle-book__title" title={item.title}>{item.title}</span>
                       <span className="kindle-book__meta">{libraryStrings.size(item.sizeMb)}</span>

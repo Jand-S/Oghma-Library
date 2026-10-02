@@ -58,29 +58,13 @@ describe("Mac integrations", () => {
     opener.openExternal.mockResolvedValue(undefined);
   });
 
-  it("sends a book over Wi-Fi from the details menu and keeps the cable option disabled while unplugged", async () => {
-    const user = setupUser();
-    await renderReadyApp(macBackend());
-    const details = await openDetails(user, LOST_TEMPLE);
-
-    await user.click(within(details).getByTestId("library-kindle-menu"));
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getByRole("menuitem", { name: libraryStrings.kindleUsbDisconnected })).toBeDisabled();
-    await user.click(within(menu).getByRole("menuitem", { name: libraryStrings.kindleViaWifi }));
-
-    await waitFor(() => expect(local.sendItemsToKindleWireless).toHaveBeenCalledTimes(1));
-    expect(local.sendItemsToKindleWireless.mock.calls[0][0].map((item: { title: string }) => item.title)).toEqual([LOST_TEMPLE]);
-    expect(await within(getToastRegion()).findByText(libraryStrings.kindleWirelessOpened(1))).toBeInTheDocument();
-  });
-
-  it("offers to install Send to Kindle when the app is missing", async () => {
+  it("offers to install Send to Kindle from the Kindle page when the app is missing", async () => {
     const user = setupUser();
     await renderReadyApp(macBackend({ wirelessAvailable: false }));
-    const details = await openDetails(user, LOST_TEMPLE);
+    await user.click(screen.getByTestId("nav-kindle"));
 
-    await user.click(within(details).getByTestId("library-kindle-menu"));
-    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: libraryStrings.installSendToKindle }));
-    expect(local.sendItemsToKindleWireless).not.toHaveBeenCalled();
+    const status = await screen.findByTestId("kindle-wireless-status");
+    await user.click(within(status).getByRole("button", { name: kindlePageStrings.wirelessInstall }));
     const toast = await within(getToastRegion()).findByText(libraryStrings.sendToKindleMissing);
     await user.click(within(toast.closest(".o-toast") as HTMLElement).getByRole("button", { name: libraryStrings.installSendToKindle }));
     expect(opener.openExternal).toHaveBeenCalledWith("https://www.amazon.com/sendtokindle/mac");
@@ -100,7 +84,7 @@ describe("Mac integrations", () => {
     expect(local.revealInICloud).toHaveBeenCalledWith("/icloud/Livros/Mystery.epub");
   });
 
-  it("lists the Kindle and iCloud actions in the card context menu", async () => {
+  it("offers iCloud, but not the Kindle, in the library", async () => {
     const user = setupUser();
     await renderReadyApp(macBackend({ connected: true, transport: "mtp" }));
     await user.click(screen.getByRole("button", { name: navStrings.library }));
@@ -109,9 +93,8 @@ describe("Mac integrations", () => {
 
     fireEvent.contextMenu(getLibraryCard(LOST_TEMPLE).card, { clientX: 40, clientY: 40 });
     const menu = screen.getByRole("menu");
-    expect(within(menu).getByRole("menuitem", { name: libraryStrings.kindleViaWifiMenu })).toBeEnabled();
-    expect(within(menu).getByRole("menuitem", { name: libraryStrings.kindleViaUsbMenu })).toBeEnabled();
     expect(within(menu).getByRole("menuitem", { name: libraryStrings.saveToICloud })).toBeEnabled();
+    expect(within(menu).queryByRole("menuitem", { name: /Kindle/ })).not.toBeInTheDocument();
   });
 
   it("sends from the Kindle page over Wi-Fi when the cable is unplugged", async () => {
@@ -127,6 +110,8 @@ describe("Mac integrations", () => {
     await user.click(screen.getByRole("checkbox", { name: kindlePageStrings.selectBook(LOST_TEMPLE) }));
     await user.click(screen.getByTestId("kindle-send"));
     await waitFor(() => expect(local.sendItemsToKindleWireless).toHaveBeenCalledTimes(1));
+    expect(local.sendItemsToKindleWireless.mock.calls[0][0].map((item: { title: string }) => item.title)).toEqual([LOST_TEMPLE]);
+    expect(await within(getToastRegion()).findByText(libraryStrings.kindleWirelessOpened(1))).toBeInTheDocument();
   });
 
   it("shows Send to Kindle, the default method and the iCloud folder in Ajustes", async () => {

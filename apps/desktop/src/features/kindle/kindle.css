@@ -251,54 +251,31 @@
     pointer-events: none;
   }
 
+  /* Same selected look as the Buscar cards (accent ring + SelectionMark). */
   .kindle-book__cover {
     position: relative;
     display: block;
-    overflow: hidden;
-    border: calc(var(--hairline) * 2) solid transparent;
     border-radius: var(--radius-md);
-    transition: border-color var(--dur-fast) var(--ease), transform var(--dur-base) var(--ease);
+    transition: box-shadow var(--dur-base) var(--ease), scale var(--dur-base) var(--ease);
   }
 
   .kindle-book:hover .kindle-book__cover {
-    transform: scale(1.02);
+    scale: 1.02;
   }
 
   .kindle-book__cover .o-cover {
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
   }
 
-  .kindle-book__check {
-    position: absolute;
-    top: var(--space-1);
-    left: var(--space-1);
-    display: grid;
-    place-items: center;
-    width: var(--space-3);
-    height: var(--space-3);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-xs);
-    background: rgb(var(--black-rgb) / 0.55);
-    color: transparent;
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    backdrop-filter: blur(var(--glass-blur));
-    transition: all var(--dur-fast) var(--ease);
-  }
-
-  .kindle-book__check svg {
-    width: var(--icon-sm);
-    height: var(--icon-sm);
-  }
 
   .kindle-book.is-checked .kindle-book__cover {
-    border-color: var(--accent);
+    box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) rgb(var(--accent-rgb) / 0.25);
   }
 
-  .kindle-book.is-checked .kindle-book__check {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--accent-fg);
+  .kindle-book.is-checked .kindle-book__title {
+    color: var(--accent-text);
   }
+
 
   .kindle-book:has(.kindle-book__input:focus-visible) .kindle-book__cover {
     box-shadow: var(--focus-ring);

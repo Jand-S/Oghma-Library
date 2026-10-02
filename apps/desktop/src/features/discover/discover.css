@@ -444,25 +444,6 @@
     box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) rgb(var(--accent-rgb) / 0.25);
   }
 
-  .discover-card__check {
-    position: absolute;
-    top: var(--space-1);
-    right: var(--space-1);
-    display: grid;
-    place-items: center;
-    width: var(--icon-lg);
-    height: var(--icon-lg);
-    border-radius: 50%;
-    background: var(--accent);
-    color: var(--accent-fg);
-    box-shadow: var(--shadow-sm);
-    animation: scale-fade-in var(--dur-fast) var(--ease) both;
-  }
-
-  .discover-card__check svg {
-    width: var(--icon-sm);
-    height: var(--icon-sm);
-  }
 
   .discover-card__body {
     display: flex;

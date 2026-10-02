@@ -1,8 +1,7 @@
-import { Check } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import type { Novel } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
-import { Button, Cover, Skeleton, cx } from "../../ui";
+import { Button, Cover, SelectionMark, Skeleton, cx } from "../../ui";
 
 /** Cards rendered per batch; "Mostrar mais" (or scrolling to the end) adds another batch. */
 export const DISCOVER_PAGE_SIZE = 60;
@@ -145,11 +144,7 @@ function NovelCard({
     >
       <div className="discover-card__media">
         <Cover src={novel.coverUrl} title={novel.title} size="fill" sheen className="discover-card__cover" />
-        {selected ? (
-          <span className="discover-card__check" aria-hidden="true">
-            <Check />
-          </span>
-        ) : null}
+        {selected ? <SelectionMark /> : null}
       </div>
       <div className="discover-card__body">
         <strong className="discover-card__title" data-testid="card-title" title={novel.title}>{novel.title}</strong>
