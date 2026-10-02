@@ -140,7 +140,8 @@ function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
     kindleConnected,
     kindleStatus,
     refreshLocalLibrary,
-    notify
+    notify,
+    toast
   });
   const sourcesController = useSourcesController({ backend, sources, setSources, setAppConfig, notify });
   const onboarding = useOnboardingController({

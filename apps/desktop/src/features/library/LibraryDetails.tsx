@@ -1,4 +1,4 @@
-import { Download, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Send, Trash2 } from "lucide-react";
+import { ChevronDown, Cloud, Download, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Send, Trash2 } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import type { LibraryItem, LibraryReadingStatus } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
@@ -28,7 +28,9 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
   const running = library.conversion.converterRunning;
   const busy = Boolean(jobState);
   const redownloadReason = actions.redownloadDisabledReason(item);
-  const kindle = library.kindleConnected;
+  // On macOS the Kindle button is always there (Wi-Fi or cable); elsewhere only while the cable is in.
+  const kindle = library.kindleWirelessSupported || library.kindleConnected;
+  const kindleItems = actions.sendItems(item);
 
   const addTag = () => {
     const value = tagInput.trim();
@@ -105,7 +107,18 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                 </div>
               ) : null}
               <div className="library-actions" role="toolbar" aria-label={libraryStrings.moreActions}>
-                {kindle ? (
+                {kindle && library.kindleWirelessSupported ? (
+                  <DropdownMenu
+                    label={libraryStrings.sendToKindle}
+                    align="start"
+                    items={kindleItems}
+                    trigger={(
+                      <Button variant="primary" icon={<Send />} iconRight={<ChevronDown />} data-testid="library-kindle-menu">
+                        {libraryStrings.sendToKindle}
+                      </Button>
+                    )}
+                  />
+                ) : kindle ? (
                   <Button variant="primary" icon={<Send />} onClick={() => actions.sendToKindle(item)} disabled={running || busy}>
                     {libraryStrings.sendToKindle}
                   </Button>
@@ -127,6 +140,16 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                 <Button variant="outline" icon={<FileCog />} onClick={() => actions.openConvert(item)} disabled={running || busy}>
                   {libraryStrings.convert}
                 </Button>
+                {library.icloudAvailable ? (
+                  <IconButton
+                    label={libraryStrings.saveToICloud}
+                    icon={<Cloud />}
+                    variant="outline"
+                    data-testid="library-icloud"
+                    loading={library.savingToICloud}
+                    onClick={() => library.saveToICloud([item.id])}
+                  />
+                ) : null}
                 <DropdownMenu
                   label={libraryStrings.moreActions}
                   align="start"

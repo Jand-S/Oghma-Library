@@ -92,7 +92,19 @@ export type KindleDeviceStatus = {
   mountPath: string;
   targetFormat: "AZW3";
   converterAvailable?: boolean;
+  /** How the cable connection works: a mounted disk (older Kindles) or MTP (2021+). */
+  transport?: "mass_storage" | "mtp" | "none";
+  /** Amazon's "Send to Kindle" app is installed (Wi-Fi sending, macOS). */
+  wirelessAvailable?: boolean;
+  /** Wi-Fi sending exists on this platform (macOS), installed or not. */
+  wirelessSupported?: boolean;
 };
+
+export type KindleSendMethod = "wireless" | "usb";
+
+export type ICloudStatus = { available: boolean; root: string };
+
+export type ICloudSaveResult = { savedIds: string[]; paths: string[]; folderPath: string };
 
 export type ServerProbe = {
   serverUrl: string;

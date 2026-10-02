@@ -177,7 +177,9 @@
       mountPath: connected ? "/Volumes/Kindle/documents" : "",
       targetFormat: "AZW3",
       converterAvailable: true,
-      transport: connected ? "mass_storage" : "none"
+      transport: connected ? (shimCfg.kindleMtp ? "mtp" : "mass_storage") : "none",
+      wirelessSupported: platform === "macos",
+      wirelessAvailable: platform === "macos" && shimCfg.sendToKindle !== false
     };
   }
 
@@ -250,6 +252,23 @@
       const items = (args && args.items) || [];
       B.kindleSends.push({ t: now(), items });
       return { sentIds: items.map((item) => item.id), convertedFormat: "AZW3" };
+    },
+    kindle_send_wireless(args) {
+      const items = (args && args.items) || [];
+      B.kindleSends.push({ t: now(), items, wireless: true });
+      return { openedIds: items.map((item) => item.id) };
+    },
+    icloud_status() {
+      const available = platform === "macos";
+      return { available, root: available ? "/Users/bench/Library/Mobile Documents/com~apple~CloudDocs" : "" };
+    },
+    icloud_save(args) {
+      const items = (args && args.items) || [];
+      const folderPath = `/Users/bench/Library/Mobile Documents/com~apple~CloudDocs/${(args && args.folder) || "Livros"}`;
+      return { savedIds: items.map((item) => item.id), paths: items.map((item) => `${folderPath}/${item.title}.epub`), folderPath };
+    },
+    icloud_reveal() {
+      return null;
     },
     list_library_meta() {
       return Object.values(B.meta);

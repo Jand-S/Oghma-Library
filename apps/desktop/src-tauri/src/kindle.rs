@@ -24,6 +24,8 @@ pub struct KindleStatus {
     transport: String,
     /// Amazon's "Send to Kindle" app is installed (wireless sending, macOS).
     wireless_available: bool,
+    /// Wireless sending exists on this platform (macOS), installed or not.
+    wireless_supported: bool,
 }
 
 #[derive(Serialize)]
@@ -617,6 +619,7 @@ pub fn detect_kindle() -> KindleStatus {
         converter_available: converter_available(),
         transport,
         wireless_available: send_to_kindle_app().is_some(),
+        wireless_supported: cfg!(target_os = "macos"),
     }
 }
 

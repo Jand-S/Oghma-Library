@@ -4,9 +4,21 @@ import type { AppConfig, EnqueueResult, KindleDeviceStatus, LibraryItem, Library
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { sanitizeFileName } from "../../services/downloadManager";
 import type { DownloadQueue } from "../../services/downloadQueue";
-import { deleteLibraryMetadata, deleteLocalLibraryFiles, joinPath, saveLibraryMetadata } from "../../services/localFiles";
+import {
+  deleteLibraryMetadata,
+  deleteLocalLibraryFiles,
+  getICloudStatus,
+  joinPath,
+  revealInICloud,
+  saveItemsToICloud,
+  saveLibraryMetadata,
+  sendItemsToKindleWireless
+} from "../../services/localFiles";
 import { libraryStrings } from "../../strings/library";
+import type { ToastOptions } from "../../ui";
 import { openOutputFolder } from "../downloads/useDownloadsController";
+import { openExternal } from "../settings/appInfo";
+import { readIntegrationPreferences, SEND_TO_KINDLE_URL } from "../settings/preferences";
 import { useLibraryBrowse } from "./useLibraryBrowse";
 
 export function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
@@ -43,6 +55,8 @@ type LibraryControllerArgs = {
   kindleStatus?: KindleDeviceStatus | null;
   refreshLocalLibrary: () => void;
   notify: (message: string) => void;
+  /** Rich toasts (with an action button) for the Mac integrations; falls back to `notify`. */
+  toast?: (options: ToastOptions) => void;
 };
 
 /** What the conversion manager is set up to do: send to the Kindle, or convert in place. */
@@ -67,7 +81,8 @@ export function useLibraryController({
   kindleConnected,
   kindleStatus,
   refreshLocalLibrary,
-  notify
+  notify,
+  toast
 }: LibraryControllerArgs) {
   const browse = useLibraryBrowse(library);
   /** Books picked on the Kindle page, in send order. */
@@ -75,6 +90,22 @@ export function useLibraryController({
   /** The batch the conversion manager works on (the Kindle send list, or one book to convert). */
   const [run, setRun] = useState<{ target: ConversionTarget; ids: string[] }>({ target: "kindle", ids: [] });
   const [startToken, setStartToken] = useState(0);
+  /** iCloud Drive is on (macOS); false until checked and outside the desktop app. */
+  const [icloudAvailable, setICloudAvailable] = useState(false);
+  const [savingToICloud, setSavingToICloud] = useState(false);
+  const showToast = (options: ToastOptions) => (toast ? toast(options) : notify(String(options.message)));
+
+  useEffect(() => {
+    let cancelled = false;
+    void getICloudStatus()
+      .then((status) => {
+        if (!cancelled) setICloudAvailable(Boolean(status?.available));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const runItems = useMemo(
     () => run.ids
@@ -109,6 +140,54 @@ export function useLibraryController({
     if (ids.length === 0 || !kindleConnected || !ensureIdle()) return false;
     setRun({ target: "kindle", ids });
     setStartToken((value) => value + 1);
+    return true;
+  };
+
+  const itemsById = (ids: string[]) => ids
+    .map((id) => library.find((item) => item.id === id))
+    .filter((item): item is LibraryItem => Boolean(item));
+
+  const offerSendToKindleInstall = () => showToast({
+    message: libraryStrings.sendToKindleMissing,
+    tone: "warning",
+    duration: 0,
+    action: { label: libraryStrings.installSendToKindle, onClick: () => void openExternal(SEND_TO_KINDLE_URL) }
+  });
+
+  /** Opens Amazon's Send to Kindle app with the books' EPUBs (Wi-Fi; no AZW3 conversion). */
+  const sendToKindleWireless = (ids: string[]) => {
+    const items = itemsById(ids);
+    if (items.length === 0) return false;
+    if (!kindleStatus?.wirelessAvailable) {
+      offerSendToKindleInstall();
+      return false;
+    }
+    void sendItemsToKindleWireless(libraryToQueueItems(items))
+      .then((result) => {
+        if (result) showToast({ message: libraryStrings.kindleWirelessOpened(result.openedIds.length), tone: "success" });
+      })
+      .catch((error: unknown) => showToast({ message: getErrorMessage(error, libraryStrings.kindleWirelessFailed), tone: "danger" }));
+    return true;
+  };
+
+  /** Copies the books' EPUBs to iCloud Drive (folder from Ajustes → iCloud). */
+  const saveToICloud = (ids: string[]) => {
+    const items = itemsById(ids);
+    if (items.length === 0 || savingToICloud) return false;
+    const { icloudFolder } = readIntegrationPreferences();
+    setSavingToICloud(true);
+    void saveItemsToICloud(libraryToQueueItems(items), icloudFolder)
+      .then((result) => {
+        if (!result) return;
+        const first = result.paths[0];
+        showToast({
+          message: libraryStrings.icloudSaved(result.savedIds.length, icloudFolder),
+          tone: "success",
+          action: first ? { label: libraryStrings.showInFinder, onClick: () => void revealInICloud(first).catch(() => undefined) } : undefined
+        });
+      })
+      .catch((error: unknown) => showToast({ message: getErrorMessage(error, libraryStrings.icloudFailed), tone: "danger" }))
+      .finally(() => setSavingToICloud(false));
     return true;
   };
 
@@ -233,6 +312,13 @@ export function useLibraryController({
     browse,
     kindleConnected,
     kindleStatus: kindleStatus ?? null,
+    /** Wi-Fi sending through Amazon's app exists here (macOS), installed or not. */
+    kindleWirelessSupported: Boolean(kindleStatus?.wirelessSupported),
+    sendToKindleWireless,
+    offerSendToKindleInstall,
+    icloudAvailable,
+    savingToICloud,
+    saveToICloud,
     /** Library root; empty when the output folder is not configured. */
     outputPath: appConfig.outputPath,
     /** Rescans the output folder. */

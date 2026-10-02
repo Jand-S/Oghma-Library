@@ -358,6 +358,11 @@
     background: var(--glass);
   }
 
+  .kindle-queue__method {
+    align-self: flex-start;
+    margin-bottom: var(--space-1);
+  }
+
   .kindle-queue__label {
     color: var(--text-muted);
     font-size: var(--fs-xs);

@@ -182,6 +182,7 @@ function SettingsPage({ app }: ViewProps) {
     serverCheck: sources.serverCheck,
     onVerifyServer: sources.verifyServer,
     kindleConnected: app.library.kindleConnected,
+    kindleStatus: app.library.kindleStatus,
     onNavigate: (view: AppView) => app.navigate(view),
     translation: {
       account: app.translation.account,

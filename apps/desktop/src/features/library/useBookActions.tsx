@@ -1,4 +1,4 @@
-import { Download, FileCog, FolderOpen, Heart, HeartOff, Info, Send, Trash2, EyeOff } from "lucide-react";
+import { Cloud, Download, FileCog, FolderOpen, Heart, HeartOff, Info, Send, Trash2, EyeOff, Usb, Wifi } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
@@ -38,6 +38,39 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails }
 
   const sendToKindle = (item: LibraryItem) => library.sendToKindle([item.id]);
 
+  /**
+   * Kindle and iCloud entries. On macOS the Kindle send offers Wi-Fi (Amazon's Send to
+   * Kindle app) and the USB cable; elsewhere only the cable, shown while it is connected.
+   */
+  const sendItems = (item: LibraryItem, options: { menu?: boolean } = {}): MenuItem[] => {
+    const blocked = running || isBusy(item);
+    const items: MenuItem[] = [];
+    if (library.kindleWirelessSupported) {
+      const wireless = library.kindleStatus?.wirelessAvailable;
+      items.push(
+        {
+          label: wireless ? (options.menu ? libraryStrings.kindleViaWifiMenu : libraryStrings.kindleViaWifi) : libraryStrings.installSendToKindle,
+          icon: <Wifi />,
+          onSelect: () => (wireless ? library.sendToKindleWireless([item.id]) : library.offerSendToKindleInstall())
+        },
+        {
+          label: library.kindleConnected
+            ? (options.menu ? libraryStrings.kindleViaUsbMenu : libraryStrings.kindleViaUsb)
+            : libraryStrings.kindleUsbDisconnected,
+          icon: <Usb />,
+          onSelect: () => sendToKindle(item),
+          disabled: blocked || !library.kindleConnected
+        }
+      );
+    } else if (library.kindleConnected) {
+      items.push({ label: libraryStrings.sendToKindle, icon: <Send />, onSelect: () => sendToKindle(item), disabled: blocked });
+    }
+    if (options.menu && library.icloudAvailable) {
+      items.push({ label: libraryStrings.saveToICloud, icon: <Cloud />, onSelect: () => library.saveToICloud([item.id]), disabled: library.savingToICloud });
+    }
+    return items;
+  };
+
   const askRemove = (item: LibraryItem) => setConfirm({ kind: "remove", item });
   const askDelete = (item: LibraryItem) => setConfirm({ kind: "delete", item });
   const toggleFavorite = (item: LibraryItem) => library.updateLibraryMeta(item, { favorite: !item.favorite });
@@ -57,9 +90,7 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails }
         disabled: Boolean(redownloadDisabledReason(item))
       }
     );
-    if (library.kindleConnected) {
-      items.push({ label: libraryStrings.sendToKindle, icon: <Send />, onSelect: () => sendToKindle(item), disabled: running || isBusy(item) });
-    }
+    items.push(...sendItems(item, { menu: true }));
     items.push(
       { label: libraryStrings.convertFormats, icon: <FileCog />, onSelect: () => openConvert(item), disabled: running || isBusy(item) },
       {
@@ -111,6 +142,7 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails }
     dialogs,
     openConvert,
     sendToKindle,
+    sendItems,
     askRemove,
     askDelete,
     toggleFavorite,

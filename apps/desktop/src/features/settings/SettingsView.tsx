@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { AppView } from "../../app/NavigationContext";
-import type { AppConfig, IndexMode, SourceSite } from "../../core/types";
+import type { AppConfig, IndexMode, KindleDeviceStatus, SourceSite } from "../../core/types";
 import { settingsStrings } from "../../strings/settings";
 import { cx, useToast } from "../../ui";
 import type { ServerCheck } from "../sources/useSourcesController";
@@ -49,6 +49,8 @@ export type SettingsViewProps = {
   serverCheck: ServerCheck;
   onVerifyServer: (serverUrl: string, indexMode: IndexMode) => void;
   kindleConnected: boolean;
+  /** Full device status (cable transport, Send to Kindle installed). */
+  kindleStatus?: KindleDeviceStatus | null;
   onNavigate: (view: AppView) => void;
   /** ChatGPT account for the translation group of "Áudio e tradução". */
   translation: TranslationSettingsProps;
@@ -123,7 +125,16 @@ export function SettingsView(props: SettingsViewProps) {
       );
       break;
     case "kindle":
-      body = <KindleSection config={props.config} save={save} kindleConnected={props.kindleConnected} onNavigate={props.onNavigate} />;
+      body = (
+        <KindleSection
+          config={props.config}
+          save={save}
+          saved={saved}
+          kindleConnected={props.kindleConnected}
+          kindleStatus={props.kindleStatus ?? null}
+          onNavigate={props.onNavigate}
+        />
+      );
       break;
     case "audio":
       body = <AudioSection config={props.config} save={save} saved={saved} onNavigate={props.onNavigate} translation={props.translation} />;

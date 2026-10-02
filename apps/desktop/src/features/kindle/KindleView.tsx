@@ -1,12 +1,13 @@
-import { BookOpenText, Check, Search, Send, Tablet, Usb, X } from "lucide-react";
+import { BookOpenText, Check, Download, Search, Send, Tablet, Usb, Wifi, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { AppView } from "../../app/NavigationContext";
-import type { DownloadJob, LibraryItem } from "../../core/types";
+import type { DownloadJob, KindleSendMethod, LibraryItem } from "../../core/types";
 import { kindlePageStrings as strings } from "../../strings/kindle";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Button, Chip, Cover, EmptyState, IconButton, ProgressBar, SortableList, TextField, cx } from "../../ui";
+import { Badge, Button, Chip, Cover, EmptyState, IconButton, ProgressBar, SegmentedControl, SortableList, TextField, cx } from "../../ui";
 import { matchesQuery } from "../library/libraryModel";
 import type { LibraryController } from "../library/useLibraryController";
+import { readIntegrationPreferences } from "../settings/preferences";
 import "./kindle.css";
 
 type KindleViewProps = {
@@ -21,6 +22,10 @@ function DeviceHero({ library }: { library: LibraryController }) {
   const connected = library.kindleConnected;
   const status = library.kindleStatus;
   const name = connected ? status?.deviceName || strings.genericDevice : strings.noDevice;
+  const wirelessSupported = library.kindleWirelessSupported;
+  const description = connected
+    ? strings.connectedDescription
+    : wirelessSupported ? strings.disconnectedWirelessDescription : strings.disconnectedDescription;
   return (
     <section className={cx("kindle-hero", connected && "kindle-hero--connected")} aria-label={strings.statusLabel} data-testid="kindle-hero">
       <span className="kindle-hero__icon" aria-hidden="true">
@@ -34,20 +39,40 @@ function DeviceHero({ library }: { library: LibraryController }) {
             {connected ? strings.connected : strings.disconnected}
           </Badge>
         </div>
-        <p className="kindle-hero__description">{connected ? strings.connectedDescription : strings.disconnectedDescription}</p>
-        {connected ? (
+        <p className="kindle-hero__description">{description}</p>
+        {connected || wirelessSupported ? (
           <dl className="kindle-hero__facts">
+            {connected ? (
+              <div className="kindle-hero__fact">
+                <dt>{strings.cableLabel}</dt>
+                <dd>{status?.transport === "mtp" ? strings.cableMtp : strings.cableDisk}</dd>
+              </div>
+            ) : null}
+            {wirelessSupported ? (
+              <div className="kindle-hero__fact" data-testid="kindle-wireless-status">
+                <dt>{strings.wirelessLabel}</dt>
+                <dd>
+                  {status?.wirelessAvailable ? strings.wirelessInstalled : (
+                    <Button variant="ghost" size="sm" icon={<Download />} onClick={library.offerSendToKindleInstall}>
+                      {strings.wirelessInstall}
+                    </Button>
+                  )}
+                </dd>
+              </div>
+            ) : null}
             {status?.mountPath ? (
               <div className="kindle-hero__fact">
                 <dt>{strings.mountPath}</dt>
                 <dd><code>{status.mountPath}</code></dd>
               </div>
             ) : null}
-            <div className="kindle-hero__fact">
-              <dt>{strings.targetFormat}</dt>
-              <dd>{status?.targetFormat ?? "AZW3"}</dd>
-            </div>
-            {status?.converterAvailable === false ? (
+            {connected ? (
+              <div className="kindle-hero__fact">
+                <dt>{strings.targetFormat}</dt>
+                <dd>{status?.targetFormat ?? "AZW3"}</dd>
+              </div>
+            ) : null}
+            {connected && status?.converterAvailable === false ? (
               <div className="kindle-hero__fact">
                 <dd><Badge tone="warning">{strings.converterMissing}</Badge></dd>
               </div>
@@ -79,6 +104,11 @@ function ConnectTips({ onOpenLibrary }: { onOpenLibrary: () => void }) {
 /** Kindle page: device status and, while connected, the "Enviar ao Kindle" flow. */
 export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
   const [query, setQuery] = useState("");
+  const wirelessSupported = library.kindleWirelessSupported;
+  const [method, setMethod] = useState<KindleSendMethod>(() =>
+    wirelessSupported ? readIntegrationPreferences().kindleMethod : "usb");
+  // Without the cable on macOS, Wi-Fi is the only way; the choice comes back when it is plugged in.
+  const sendMethod: KindleSendMethod = wirelessSupported && (method === "wireless" || !library.kindleConnected) ? "wireless" : "usb";
   const conversion = library.conversion;
   const running = conversion.converterRunning;
   const sendingToKindle = running && library.conversionTarget === "kindle";
@@ -118,7 +148,13 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
     library.setSelectedLibraryIds(next);
   };
 
-  if (!library.kindleConnected) {
+  const send = () => {
+    const ids = selected.map((item) => item.id);
+    if (sendMethod === "wireless") library.sendToKindleWireless(ids);
+    else library.sendToKindle(ids);
+  };
+
+  if (!library.kindleConnected && !wirelessSupported) {
     return (
       <div className="o-page kindle-page" data-testid="kindle-page">
         <DeviceHero library={library} />
@@ -203,11 +239,31 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
           </header>
 
           <div className="kindle-queue__format">
+            {wirelessSupported ? (
+              <>
+                <span className="kindle-queue__label">{strings.methodLabel}</span>
+                <SegmentedControl<KindleSendMethod>
+                  aria-label={strings.methodLabel}
+                  size="sm"
+                  className="kindle-queue__method"
+                  value={sendMethod}
+                  onChange={setMethod}
+                  options={[
+                    { value: "usb", label: strings.methodUsb, icon: <Usb />, disabled: !library.kindleConnected || running },
+                    { value: "wireless", label: strings.methodWireless, icon: <Wifi />, disabled: running }
+                  ]}
+                />
+              </>
+            ) : null}
             <span className="kindle-queue__label">{strings.formatLabel}</span>
             <div className="kindle-queue__chips" role="group" aria-label={strings.formatLabel}>
-              <Chip selected icon={<Check />}>AZW3</Chip>
+              <Chip selected icon={<Check />}>{sendMethod === "wireless" ? "EPUB" : "AZW3"}</Chip>
             </div>
-            <span className="kindle-muted kindle-queue__hint">{strings.formatHint}</span>
+            <span className="kindle-muted kindle-queue__hint">
+              {sendMethod === "wireless"
+                ? strings.wirelessHint
+                : wirelessSupported && !library.kindleConnected ? strings.usbDisconnectedHint : strings.formatHint}
+            </span>
           </div>
 
           {selected.length === 0 ? (
@@ -272,7 +328,7 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
                 icon={<Send />}
                 loading={sendingToKindle}
                 disabled={selected.length === 0 || running}
-                onClick={() => library.sendToKindle(selected.map((item) => item.id))}
+                onClick={send}
                 data-testid="kindle-send"
               >
                 {selected.length > 0 ? strings.send(selected.length) : strings.sendIdle}

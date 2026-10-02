@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { AppView } from "../../app/NavigationContext";
-import type { ChapterPreset } from "../../core/types";
+import type { ChapterPreset, KindleSendMethod } from "../../core/types";
 import type { TranslationEffort, TranslationModelId } from "../../services/translationClient";
 
 /**
@@ -114,6 +114,66 @@ export function useTranslationPreferences() {
     setPreferences((current) => {
       const next = { ...current, ...patch };
       writeTranslationPreferences(next);
+      return next;
+    });
+  }, []);
+  return [preferences, update] as const;
+}
+
+/**
+ * Mac integrations (Ajustes → Kindle / iCloud): the Kindle page's default send method
+ * and the iCloud Drive folder that "Salvar no iCloud" copies EPUBs into.
+ */
+export type IntegrationPreferences = {
+  kindleMethod: KindleSendMethod;
+  icloudFolder: string;
+};
+
+export const integrationPreferencesKey = "oghma.integrations.v1";
+export const DEFAULT_ICLOUD_FOLDER = "Livros";
+export const SEND_TO_KINDLE_URL = "https://www.amazon.com/sendtokindle/mac";
+const kindleMethods: KindleSendMethod[] = ["wireless", "usb"];
+
+export const defaultIntegrationPreferences: IntegrationPreferences = { kindleMethod: "usb", icloudFolder: DEFAULT_ICLOUD_FOLDER };
+
+/** Relative folder names only, matching the Rust check (no "..", no hidden parts). */
+export function normalizeICloudFolder(value: unknown): string {
+  if (typeof value !== "string") return DEFAULT_ICLOUD_FOLDER;
+  const parts = value.split("/").map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 0 || parts.some((part) => part.startsWith("."))) return DEFAULT_ICLOUD_FOLDER;
+  return parts.join("/");
+}
+
+export function readIntegrationPreferences(): IntegrationPreferences {
+  try {
+    const raw = window.localStorage.getItem(integrationPreferencesKey);
+    if (!raw) return defaultIntegrationPreferences;
+    const value = JSON.parse(raw) as Partial<Record<keyof IntegrationPreferences, unknown>>;
+    return {
+      kindleMethod: kindleMethods.includes(value.kindleMethod as KindleSendMethod)
+        ? (value.kindleMethod as KindleSendMethod)
+        : defaultIntegrationPreferences.kindleMethod,
+      icloudFolder: normalizeICloudFolder(value.icloudFolder)
+    };
+  } catch {
+    return defaultIntegrationPreferences;
+  }
+}
+
+export function writeIntegrationPreferences(preferences: IntegrationPreferences) {
+  try {
+    window.localStorage.setItem(integrationPreferencesKey, JSON.stringify(preferences));
+  } catch {
+    // Storage unavailable: the choice only lasts for this session.
+  }
+}
+
+export function useIntegrationPreferences() {
+  const [preferences, setPreferences] = useState(readIntegrationPreferences);
+  const update = useCallback((patch: Partial<IntegrationPreferences>) => {
+    setPreferences((current) => {
+      const next = { ...current, ...patch };
+      writeIntegrationPreferences(next);
       return next;
     });
   }, []);

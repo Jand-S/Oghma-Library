@@ -1,4 +1,4 @@
-import type { KindleDeviceStatus, LibraryMeta, QueueItem } from "../core/types";
+import type { ICloudSaveResult, ICloudStatus, KindleDeviceStatus, LibraryMeta, QueueItem } from "../core/types";
 import { isTauriRuntime } from "../core/windowControls";
 
 export type FileData = string | Uint8Array;
@@ -268,12 +268,44 @@ export async function detectKindleDevice(): Promise<KindleDeviceStatus | null> {
 export async function sendItemsToKindle(items: QueueItem[]): Promise<{ sentIds: string[]; convertedFormat: "AZW3" } | null> {
   const invoke = await loadInvoke();
   if (!invoke) return null;
-  return invoke<{ sentIds: string[]; convertedFormat: "AZW3" }>("send_to_kindle", {
-    items: items.map((item) => ({
-      id: item.id,
-      title: item.title,
-      outputDir: item.outputDir,
-      outputFiles: item.outputFiles
-    }))
-  });
+  return invoke<{ sentIds: string[]; convertedFormat: "AZW3" }>("send_to_kindle", { items: bookFiles(items) });
 }
+
+/** The item fields the Kindle and iCloud commands read (`CloudItem`/`SendKindleItem` in Rust). */
+function bookFiles(items: QueueItem[]) {
+  return items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    outputDir: item.outputDir,
+    outputFiles: item.outputFiles
+  }));
+}
+
+/** Opens Amazon's "Send to Kindle" app with each book's EPUB; the user confirms the send there. */
+export async function sendItemsToKindleWireless(items: QueueItem[]): Promise<{ openedIds: string[] } | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  return invoke<{ openedIds: string[] }>("kindle_send_wireless", { items: bookFiles(items) });
+}
+
+export async function getICloudStatus(): Promise<ICloudStatus | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  return invoke<ICloudStatus>("icloud_status");
+}
+
+/** Copies each book's EPUB to `<iCloud Drive>/<folder>`, replacing older copies. */
+export async function saveItemsToICloud(items: QueueItem[], folder: string): Promise<ICloudSaveResult | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  return invoke<ICloudSaveResult>("icloud_save", { items: bookFiles(items), folder });
+}
+
+/** Shows a file saved in iCloud Drive in Finder. */
+export async function revealInICloud(path: string): Promise<boolean> {
+  const invoke = await loadInvoke();
+  if (!invoke) return false;
+  await invoke("icloud_reveal", { path });
+  return true;
+}
+
