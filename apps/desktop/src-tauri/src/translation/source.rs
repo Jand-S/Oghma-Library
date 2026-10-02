@@ -183,7 +183,7 @@ pub fn decode_entities(s: &str) -> String {
     while let Some(pos) = rest.find('&') {
         out.push_str(&rest[..pos]);
         let tail = &rest[pos..];
-        let semi = tail[..tail.len().min(12)].find(';');
+        let semi = prefix_within(tail, 12).find(';');
         let decoded = semi.and_then(|semi| {
             let name = &tail[1..semi];
             let ch = match name {
@@ -225,6 +225,15 @@ pub fn decode_entities(s: &str) -> String {
 
 /// Visible text, tags replaced by spaces, entities decoded, whitespace collapsed
 /// (like BeautifulSoup `get_text(" ", strip=True)`).
+/// The longest prefix of `s` that is at most `max` bytes and ends on a char boundary.
+pub fn prefix_within(s: &str, max: usize) -> &str {
+    let mut end = s.len().min(max);
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 pub fn text_of(html: &str) -> String {
     let mut raw = String::with_capacity(html.len());
     let mut i = 0;
@@ -242,7 +251,9 @@ pub fn text_of(html: &str) -> String {
                 continue;
             }
         }
-        let next = rest[1..].find('<').map(|p| i + 1 + p).unwrap_or(html.len());
+        // Step over the first char (it may be multi-byte, e.g. “) before looking for the next tag.
+        let first = rest.chars().next().map(char::len_utf8).unwrap_or(1);
+        let next = rest[first..].find('<').map(|p| i + first + p).unwrap_or(html.len());
         raw.push_str(&html[i..next]);
         i = next;
     }
@@ -617,5 +628,56 @@ mod tests {
         assert_eq!(book.assets.len(), 1);
         assert_eq!(book.assets[0].href, "assets/map.png");
         assert_eq!(find_epub(dir.path()).unwrap(), path);
+    }
+}
+
+#[cfg(test)]
+mod multibyte_regression {
+    use super::*;
+
+    // Regression: a text run starting with a multi-byte char (“) used to panic with
+    // "start byte index 1 is not a char boundary" while creating a project.
+    #[test]
+    fn text_of_handles_multibyte_text_runs() {
+        let html = "<p>“You think so?” Lin Feng — sneered… &ldquo;Again&rdquo; café</p>“Loose text” <b>ação</b>";
+        let text = text_of(html);
+        assert!(text.starts_with("“You think so?”"));
+        assert!(text.contains("“Again”"));
+        assert!(text.contains("“Loose text” ação"));
+    }
+
+    #[test]
+    fn entity_window_never_splits_a_char() {
+        // '&' followed by multi-byte chars inside the 12-byte look-ahead window.
+        let out = decode_entities("A & “ção” &amp; çççç;ok &#8220;x&#8221;");
+        assert_eq!(out, "A & “ção” & çççç;ok “x”");
+        assert_eq!(prefix_within("açã", 2), "a");
+        assert_eq!(prefix_within("abc", 12), "abc");
+    }
+
+    #[test]
+    fn glossary_candidates_survive_curly_quotes() {
+        let chapter = "<p>“Lin Feng!” shouted Elder Mo. “Lin Feng, the Crimson Moon Sect waits.”</p>".repeat(40);
+        let texts = vec![text_of(&chapter)];
+        let _ = crate::translation::glossary::candidates(&texts, None);
+        let blocks = split_blocks(&format!("<body>{chapter}</body>"));
+        assert_eq!(blocks.len(), 40);
+    }
+}
+
+#[cfg(test)]
+mod real_books {
+    // Manual check against real EPUBs (no network): OGHMA_EPUBS="a.epub:b.epub" cargo test real_books -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn parse_real_epubs() {
+        let list = std::env::var("OGHMA_EPUBS").unwrap_or_default();
+        for path in list.split(':').filter(|p| !p.is_empty()) {
+            let book = super::read_epub(std::path::Path::new(path)).expect(path);
+            let texts: Vec<String> = book.chapters.iter().map(|c| c.blocks.iter().map(|b| super::text_of(b)).collect::<Vec<_>>().join(" ")).collect();
+            let words: usize = texts.iter().map(|t| t.split_whitespace().count()).sum();
+            let cands = crate::translation::glossary::candidates(&texts, None);
+            println!("{path}: {} chapters, {words} words, glossary candidates ok ({:?})", book.chapters.len(), std::mem::size_of_val(&cands));
+        }
     }
 }

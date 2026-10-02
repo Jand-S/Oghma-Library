@@ -1,6 +1,7 @@
 //! SQLite store (`app_data_dir/translation.db`), modelled on `mol/db.py`:
 //! projects, chapters, chunks (with resume), glossary, events (log), pilot runs.
 
+use super::LockExt;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
@@ -182,7 +183,7 @@ impl Store {
     }
 
     fn with<T>(&self, f: impl FnOnce(&mut Connection) -> rusqlite::Result<T>) -> Result<T, String> {
-        let mut conn = self.conn.lock().map_err(|_| "Banco de tradução indisponível".to_string())?;
+        let mut conn = self.conn.lock_safe();
         f(&mut conn).map_err(err)
     }
 

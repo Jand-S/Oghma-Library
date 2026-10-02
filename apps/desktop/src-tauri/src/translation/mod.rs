@@ -38,6 +38,20 @@ use provider::ChatProvider;
 use siwc::SiwcProvider;
 use store::Store;
 
+/// Locks a mutex even if a previous holder panicked. A panic in one task must not
+/// leave the whole translation engine unusable ("poisoned" lock); the guarded
+/// data here (SQLite connection, job maps, timers) stays consistent on its own.
+pub(crate) trait LockExt<T> {
+    fn lock_safe(&self) -> std::sync::MutexGuard<'_, T>;
+}
+
+impl<T> LockExt<T> for std::sync::Mutex<T> {
+    fn lock_safe(&self) -> std::sync::MutexGuard<'_, T> {
+        self.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+
 // ---------------------------------------------------------------------------
 // Contract types (serde camelCase, mirrors the TS shapes)
 // ---------------------------------------------------------------------------
@@ -394,13 +408,14 @@ impl Engine {
     }
 
     pub fn limit_state(&self) -> Option<LimitState> {
-        self.limit.lock().ok().and_then(|limit| limit.clone())
+        self.limit.lock_safe().clone()
     }
 
     fn store_limit(&self, state: Option<LimitState>) {
         let json = state.as_ref().and_then(|s| serde_json::to_string(s).ok()).unwrap_or_default();
         let _ = self.store.meta_set(LIMIT_META_KEY, &json);
-        if let Ok(mut limit) = self.limit.lock() {
+        {
+            let mut limit = self.limit.lock_safe();
             *limit = state;
         }
         self.emit_usage();
@@ -455,9 +470,9 @@ impl Engine {
     }
 
     fn active_chapter_titles(&self, project_id: &str) -> Option<Vec<String>> {
-        let runners = self.runners.lock().ok()?;
+        let runners = self.runners.lock_safe();
         let handle = runners.get(project_id)?;
-        let active: BTreeSet<u32> = handle.active.lock().ok()?.clone();
+        let active: BTreeSet<u32> = handle.active.lock_safe().clone();
         Some(
             active
                 .into_iter()
@@ -471,7 +486,7 @@ impl Engine {
     pub fn emit_project(self: &Arc<Self>, project_id: &str, force: bool) {
         let interval = self.config.project_event_interval;
         let wait = {
-            let Ok(mut map) = self.throttle.lock() else { return };
+            let mut map = self.throttle.lock_safe();
             let state = map
                 .entry(project_id.to_string())
                 .or_insert(ThrottleState { last: None, pending: false });
@@ -497,7 +512,8 @@ impl Engine {
                 let id = project_id.to_string();
                 tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(delay).await;
-                    if let Ok(mut map) = engine.throttle.lock() {
+                    {
+                    let mut map = engine.throttle.lock_safe();
                         if let Some(state) = map.get_mut(&id) {
                             state.pending = false;
                             state.last = Some(Instant::now());

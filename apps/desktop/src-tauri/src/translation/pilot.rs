@@ -2,6 +2,7 @@
 //! translated by each model ("Rápido" and "Qualidade"), with time, tokens,
 //! credits and the projection for the whole book ("créditos estimados").
 
+use super::LockExt;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -51,7 +52,7 @@ impl Engine {
         }
         let (source_html, words) = sample(self, id, self.config.pilot_words)?;
         {
-            let mut jobs = self.pilot_jobs.lock().map_err(|_| "Estado do piloto indisponível")?;
+            let mut jobs = self.pilot_jobs.lock_safe();
             if !jobs.insert(id.to_string()) {
                 return Ok(());
             }
@@ -63,7 +64,8 @@ impl Engine {
         let id = id.to_string();
         tauri::async_runtime::spawn(async move {
             engine.run_pilot(&id, run).await;
-            if let Ok(mut jobs) = engine.pilot_jobs.lock() {
+            {
+                let mut jobs = engine.pilot_jobs.lock_safe();
                 jobs.remove(&id);
             }
         });

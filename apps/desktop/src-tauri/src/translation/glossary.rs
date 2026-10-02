@@ -2,6 +2,7 @@
 //! `mol/glossary.py` + `mol/terms.py`), then ONE curation request returning
 //! `{keep:[...], translate:{en:pt}}` (prompt modelled on `mol/build_glossary.py`).
 
+use super::LockExt;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, OnceLock};
 
@@ -470,7 +471,7 @@ impl Engine {
     /// Runs the automatic extraction in the background (`translation://glossary`).
     pub fn start_glossary(self: &Arc<Self>, id: &str) {
         {
-            let Ok(mut jobs) = self.glossary_jobs.lock() else { return };
+            let mut jobs = self.glossary_jobs.lock_safe();
             if !jobs.insert(id.to_string()) {
                 return;
             }
@@ -492,7 +493,8 @@ impl Engine {
                 }
             };
             let _ = engine.store.set_glossary_status(&id, status);
-            if let Ok(mut jobs) = engine.glossary_jobs.lock() {
+            {
+                let mut jobs = engine.glossary_jobs.lock_safe();
                 jobs.remove(&id);
             }
             engine.emit_glossary(&id, status);

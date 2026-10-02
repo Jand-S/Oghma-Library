@@ -66,7 +66,7 @@ fn escape_text(text: &str) -> String {
     while let Some(pos) = rest.find('&') {
         out.push_str(&rest[..pos]);
         let tail = &rest[pos..];
-        let entity = tail[..tail.len().min(12)].find(';').map(|semi| &tail[..=semi]);
+        let entity = super::source::prefix_within(tail, 12).find(';').map(|semi| &tail[..=semi]);
         match entity {
             Some(entity) if matches!(entity, "&amp;" | "&lt;" | "&gt;" | "&quot;" | "&apos;") => {
                 out.push_str(entity);
