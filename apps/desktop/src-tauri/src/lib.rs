@@ -51,6 +51,7 @@ pub fn run() {
             translation::commands::translation_glossary,
             translation::commands::translation_glossary_upsert,
             translation::commands::translation_glossary_delete,
+            translation::commands::translation_glossary_suggest,
             translation::commands::translation_glossary_regenerate,
             translation::commands::translation_run_pilot,
             translation::commands::translation_pilot,

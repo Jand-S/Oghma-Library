@@ -187,6 +187,8 @@ pub struct ProjectDetail {
     /// Next automatic retry while `waiting_limit` (unix seconds).
     pub resume_at: Option<i64>,
     pub glossary_status: String,
+    /// Glossary entries below this confidence are hidden and not sent to the model.
+    pub glossary_min_confidence: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -198,6 +200,24 @@ pub struct GlossaryEntry {
     pub count: u64,
     pub source: String,
     pub missed: u64,
+    /// 0–100. Manual entries are always 100; automatic ones are scored from the
+    /// extraction signals (see `glossary::confidence`).
+    #[serde(default = "full_confidence")]
+    pub confidence: u8,
+}
+
+fn full_confidence() -> u8 {
+    100
+}
+
+/// AI suggestion for one glossary term.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GlossarySuggestion {
+    pub term: String,
+    pub kind: String,
+    pub target: Option<String>,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

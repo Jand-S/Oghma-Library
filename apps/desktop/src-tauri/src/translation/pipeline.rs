@@ -243,9 +243,9 @@ mod tests {
     #[test]
     fn prompt_filters_glossary_and_marks_continuity() {
         let glossary = vec![
-            GlossaryEntry { term: "Crimson Moon".into(), kind: "translate".into(), target: Some("Lua Carmesim".into()), count: 3, source: "auto".into(), missed: 0 },
-            GlossaryEntry { term: "Lin Feng".into(), kind: "keep".into(), target: None, count: 9, source: "auto".into(), missed: 0 },
-            GlossaryEntry { term: "Elder".into(), kind: "translate".into(), target: Some("Ancião".into()), count: 2, source: "auto".into(), missed: 0 },
+            GlossaryEntry { term: "Crimson Moon".into(), kind: "translate".into(), target: Some("Lua Carmesim".into()), count: 3, source: "auto".into(), missed: 0, confidence: 100 },
+            GlossaryEntry { term: "Lin Feng".into(), kind: "keep".into(), target: None, count: 9, source: "auto".into(), missed: 0, confidence: 100 },
+            GlossaryEntry { term: "Elder".into(), kind: "translate".into(), target: Some("Ancião".into()), count: 2, source: "auto".into(), missed: 0, confidence: 100 },
         ];
         let prompt = build_prompt("<p>Lin Feng saw the Crimson Moon.</p>", &glossary, "fim do trecho", Some("be strict"));
         assert!(prompt.contains("Crimson Moon -> Lua Carmesim"));

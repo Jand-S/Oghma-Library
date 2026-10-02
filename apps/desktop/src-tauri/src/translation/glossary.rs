@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use super::pipeline::clean_output;
 use super::provider::ProviderError;
 use super::source::text_of;
-use super::{events, Engine, GlossaryEntry};
+use super::{events, Engine, GlossaryEntry, GlossarySuggestion};
 
 /// Capitalized words that are not names (sentence starters, pronouns, days, …).
 const STOP: &str = "The A An And But Or So Yet For Nor If When While Then Than That This These Those There Here
@@ -131,6 +131,8 @@ pub struct Candidates {
     pub invented: Vec<(String, usize)>,
     /// Lowercase bigrams with high mutual information ("time loop").
     pub common: Vec<(String, usize)>,
+    /// Confidence points from the extraction signal of each term (see `confidence`).
+    pub signals: HashMap<String, f64>,
 }
 
 impl Candidates {
@@ -259,12 +261,48 @@ pub fn candidates(texts: &[String], dictionary: Option<&HashSet<String>>) -> Can
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     let common: Vec<(String, usize)> = scored.into_iter().take(45).map(|(_, p, n)| (p, n)).collect();
 
-    Candidates {
-        names: top(single, 150),
-        phrases: top(phrases, 120),
-        invented: top(invented, 80),
-        common,
+    let names = top(single, 150);
+    let phrases = top(phrases, 120);
+    let invented = top(invented, 80);
+    let mut signals = HashMap::new();
+    for (term, n) in &names {
+        // Share of mid-sentence capitalized uses: 0.3 (threshold) .. 1.0 => up to +15.
+        let ratio = mid.get(term).copied().unwrap_or(0) as f64 / (*n).max(1) as f64;
+        signals.insert(term.clone(), 15.0 * ratio.clamp(0.0, 1.0));
     }
+    for (term, _) in &phrases {
+        signals.insert(term.clone(), 10.0);
+    }
+    for (term, _) in &invented {
+        signals.insert(term.clone(), 10.0);
+    }
+    for (term, _) in &common {
+        // Lowercase collocations are the noisiest source.
+        signals.insert(term.clone(), -15.0);
+    }
+    Candidates { names, phrases, invented, common, signals }
+}
+
+/// Confidence (0–100) of an automatic glossary entry:
+/// base by origin (curated by the model 60, heuristic only 35) + frequency
+/// (0..+25, logarithmic, 50+ occurrences = +25) + extraction signal (−15..+15).
+/// Manual entries are always 100.
+pub fn confidence(source: &str, curated: bool, count: u64, signal: Option<f64>) -> u8 {
+    if source == "manual" {
+        return 100;
+    }
+    let base = if curated { 60.0 } else { 35.0 };
+    let frequency = if count <= 1 { 0.0 } else { 25.0 * ((count as f64).ln() / 50f64.ln()).min(1.0) };
+    (base + frequency + signal.unwrap_or(0.0)).round().clamp(0.0, 100.0) as u8
+}
+
+/// Entries used for translation: manual ones always, automatic ones only when
+/// they reach the project's minimum confidence.
+pub fn usable(entries: Vec<GlossaryEntry>, min_confidence: u8) -> Vec<GlossaryEntry> {
+    entries
+        .into_iter()
+        .filter(|e| e.source == "manual" || e.confidence >= min_confidence)
+        .collect()
 }
 
 pub const CURATION_INSTRUCTIONS: &str = "You build glossaries for literary translation from English into Brazilian Portuguese (pt-BR). Reply with a single JSON object only: no commentary, no code fences.";
@@ -388,6 +426,98 @@ pub fn parse_curation(text: &str) -> Result<Curated, String> {
     Ok(curated)
 }
 
+pub const SUGGEST_INSTRUCTIONS: &str = "You help build glossaries for literary translation from English into Brazilian Portuguese (pt-BR). Reply with a single JSON object only: no commentary, no code fences.";
+
+/// Up to `limit` sentences of the corpus containing `term` (each at most ~300 chars).
+pub fn contexts(texts: &[String], term: &str, limit: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    for text in texts {
+        for sentence in text.split_inclusive(['.', '!', '?']) {
+            if sentence.contains(term) {
+                let sentence: String = sentence.trim().chars().take(300).collect();
+                if !sentence.is_empty() && !out.contains(&sentence) {
+                    out.push(sentence);
+                }
+                if out.len() >= limit {
+                    return out;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// One prompt for several terms: each with its contexts, plus approved entries for consistency.
+pub fn suggestion_prompt(items: &[(String, Vec<String>)], approved: &[GlossaryEntry]) -> String {
+    let terms: Vec<Value> = items
+        .iter()
+        .map(|(term, ctx)| json!({ "term": term, "contexts": ctx }))
+        .collect();
+    let approved: Vec<String> = approved
+        .iter()
+        .take(40)
+        .map(|e| match &e.target {
+            Some(target) => format!("{} → {}", e.term, target),
+            None => format!("{} (manter)", e.term),
+        })
+        .collect();
+    format!(
+        "For each term below (from an English novel being translated into Brazilian Portuguese), decide whether to \
+keep it unchanged (proper names of people, places, unique coinages) or translate it, and give the best pt-BR rendering. \
+Stay consistent with the approved glossary. The reason must be one short sentence in Brazilian Portuguese.\n\n\
+Approved glossary:\n{}\n\nTerms:\n{}\n\n\
+Reply as JSON: {{\"suggestions\": [{{\"term\": \"...\", \"kind\": \"keep\" | \"translate\", \"target\": \"...\" (only when translate), \"reason\": \"...\"}}]}}",
+        if approved.is_empty() { "(vazio)".to_string() } else { approved.join("\n") },
+        serde_json::to_string_pretty(&terms).unwrap_or_default()
+    )
+}
+
+/// Lenient parse of the suggestions reply (first JSON object; `suggestions` array or a bare array).
+pub fn parse_suggestions(text: &str) -> Result<Vec<GlossarySuggestion>, String> {
+    let cleaned = clean_output(text);
+    let value: Value = match (cleaned.find('{'), cleaned.find('[')) {
+        (Some(o), a) if a.map_or(true, |a| o < a) => cleaned
+            .rfind('}')
+            .and_then(|end| serde_json::from_str(&cleaned[o..=end]).ok())
+            .or_else(|| balanced_object(&cleaned, o).and_then(|obj| serde_json::from_str(obj).ok())),
+        (_, Some(a)) => cleaned.rfind(']').and_then(|end| serde_json::from_str(&cleaned[a..=end]).ok()),
+        _ => None,
+    }
+    .ok_or("Resposta da sugestão sem JSON válido")?;
+    let items = match &value {
+        Value::Array(items) => items.clone(),
+        Value::Object(map) => match map.get("suggestions") {
+            Some(Value::Array(items)) => items.clone(),
+            _ => vec![value.clone()],
+        },
+        _ => Vec::new(),
+    };
+    let suggestions: Vec<GlossarySuggestion> = items
+        .iter()
+        .filter_map(|item| {
+            let term = item.get("term")?.as_str()?.trim().to_string();
+            let target = item.get("target").and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty());
+            let kind = match item.get("kind").and_then(Value::as_str) {
+                Some("translate") if target.is_some_and(|t| t != term) => "translate",
+                Some("translate") | Some("keep") | None if target.is_none() || target == Some(term.as_str()) => "keep",
+                _ if target.is_some() => "translate",
+                _ => "keep",
+            };
+            Some(GlossarySuggestion {
+                kind: kind.into(),
+                target: if kind == "translate" { target.map(str::to_string) } else { None },
+                reason: item.get("reason").and_then(Value::as_str).unwrap_or("").trim().to_string(),
+                term,
+            })
+        })
+        .filter(|s| !s.term.is_empty())
+        .collect();
+    if suggestions.is_empty() {
+        return Err("A IA não retornou sugestões".into());
+    }
+    Ok(suggestions)
+}
+
 /// Case-sensitive occurrences of `term` across the corpus texts.
 pub fn count_occurrences(texts: &[String], term: &str) -> usize {
     if term.is_empty() {
@@ -411,6 +541,7 @@ pub fn entries_from(curated: &Curated, candidates: &Candidates, texts: &[String]
                 count: count(term),
                 source: "auto".into(),
                 missed: 0,
+                confidence: confidence("auto", true, count(term), candidates.signals.get(term).copied()),
             });
         }
     }
@@ -423,6 +554,7 @@ pub fn entries_from(curated: &Curated, candidates: &Candidates, texts: &[String]
                 count: count(term),
                 source: "auto".into(),
                 missed: 0,
+                confidence: confidence("auto", true, count(term), candidates.signals.get(term).copied()),
             });
         }
     }
@@ -441,6 +573,7 @@ pub fn heuristic_entries(candidates: &Candidates) -> Vec<GlossaryEntry> {
             count: *n as u64,
             source: "auto".into(),
             missed: 0,
+            confidence: confidence("auto", false, *n as u64, candidates.signals.get(term).copied()),
         })
         .collect()
 }
@@ -548,6 +681,43 @@ impl Engine {
         }
     }
 
+    /// Asks the model for a keep/translate suggestion for each term (one call for all).
+    pub async fn glossary_suggest(&self, id: &str, terms: Vec<String>) -> Result<Vec<GlossarySuggestion>, String> {
+        let terms: Vec<String> = terms.into_iter().map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).take(40).collect();
+        if terms.is_empty() {
+            return Err("Nenhum termo para sugerir".into());
+        }
+        if !self.provider.account().logged_in {
+            return Err("Conecte sua conta do ChatGPT para pedir sugestões.".into());
+        }
+        let row = self.store.project(id)?;
+        let texts = corpus_texts(&self.store.corpus(id)?);
+        let items: Vec<(String, Vec<String>)> = terms.iter().map(|t| (t.clone(), contexts(&texts, t, 3))).collect();
+        let approved: Vec<GlossaryEntry> = self
+            .store
+            .glossary(id)?
+            .into_iter()
+            .filter(|e| !terms.contains(&e.term) && (e.source == "manual" || e.confidence >= row.glossary_min_confidence))
+            .collect();
+        let reply = self
+            .provider
+            .translate(&row.model, "none", SUGGEST_INSTRUCTIONS, &suggestion_prompt(&items, &approved))
+            .await;
+        match reply {
+            Ok(out) => {
+                let _ = self.store.log_usage(Some(id), &row.model, 0, &out.usage);
+                self.clear_limit();
+                parse_suggestions(&out.text)
+            }
+            Err(err) => {
+                if let ProviderError::UsageLimit(message) = &err {
+                    self.set_limit(message);
+                }
+                Err(err.to_string())
+            }
+        }
+    }
+
     /// Adds or edits a manual entry (manual entries survive regeneration).
     pub fn glossary_upsert(&self, id: &str, term: &str, kind: &str, target: Option<String>) -> Result<Vec<GlossaryEntry>, String> {
         let term = term.trim();
@@ -579,6 +749,7 @@ impl Engine {
                 count: count_occurrences(&texts, term) as u64,
                 source: "manual".into(),
                 missed: previous_missed,
+                confidence: 100,
             },
         )?;
         self.store.glossary(id)
@@ -677,10 +848,90 @@ mod tests {
             count: 1,
             source: "auto".into(),
             missed: 0,
+            confidence: 100,
         }];
         let src = "<p>He reached the Cyoria Academy.</p>";
         assert!(check_misses(&entries, src, "<p>Ele chegou à Academia de Cyoria.</p>").is_empty());
         assert_eq!(check_misses(&entries, src, "<p>Ele chegou à Cyoria Academy.</p>").len(), 1);
         assert!(check_misses(&entries, "<p>nothing</p>", "<p>nada</p>").is_empty());
+    }
+
+    fn entry(term: &str, source: &str, confidence: u8) -> GlossaryEntry {
+        GlossaryEntry { term: term.into(), kind: "keep".into(), target: None, count: 5, source: source.into(), missed: 0, confidence }
+    }
+
+    #[test]
+    fn confidence_scores_origin_frequency_and_signal() {
+        assert_eq!(confidence("manual", false, 0, Some(-10.0)), 100);
+        let heuristic = confidence("auto", false, 3, None);
+        let curated = confidence("auto", true, 3, None);
+        assert!(heuristic < curated, "{heuristic} < {curated}");
+        assert!(confidence("auto", true, 60, None) > confidence("auto", true, 3, None));
+        assert_eq!(confidence("auto", true, 60, Some(15.0)), 100);
+        assert!(confidence("auto", true, 5, Some(-15.0)) < 60, "noisy bigrams fall below the default");
+        assert!(confidence("auto", false, 0, Some(-50.0)) == 0);
+    }
+
+    #[test]
+    fn usable_keeps_manual_and_confident_entries() {
+        let entries = vec![entry("Low", "auto", 40), entry("High", "auto", 80), entry("Mine", "manual", 10)];
+        let kept: Vec<String> = usable(entries, 60).into_iter().map(|e| e.term).collect();
+        assert_eq!(kept, vec!["High".to_string(), "Mine".to_string()]);
+    }
+
+    #[test]
+    fn candidates_record_signals() {
+        let texts: Vec<String> = synthetic_book().iter().map(|c| text_of(c)).collect();
+        let found = candidates(&texts, None);
+        let zorian = found.signals.get("Zorian").copied().expect("name signal");
+        assert!(zorian > 0.0 && zorian <= 15.0);
+        for (term, _) in &found.common {
+            assert_eq!(found.signals.get(term), Some(&-15.0));
+        }
+    }
+
+    #[test]
+    fn parses_suggestions_leniently() {
+        let reply = "Claro!\n```json\n{\"suggestions\": [\
+            {\"term\": \"Crimson Moon Sect\", \"kind\": \"translate\", \"target\": \"Seita da Lua Carmesim\", \"reason\": \"Nome de organização.\"},\
+            {\"term\": \"Zorian\", \"kind\": \"keep\", \"reason\": \"Nome próprio.\"},\
+            {\"term\": \"Kael\", \"kind\": \"translate\", \"target\": \"Kael\"}]}\n```";
+        let out = parse_suggestions(reply).unwrap();
+        assert_eq!(out.len(), 3);
+        assert_eq!(out[0].kind, "translate");
+        assert_eq!(out[0].target.as_deref(), Some("Seita da Lua Carmesim"));
+        assert_eq!(out[1].kind, "keep");
+        assert!(out[1].target.is_none());
+        assert_eq!(out[2].kind, "keep", "identical rendering means keep");
+        let bare = parse_suggestions("[{\"term\":\"mana\",\"kind\":\"translate\",\"target\":\"mana\"}]").unwrap();
+        assert_eq!(bare[0].kind, "keep");
+        assert!(parse_suggestions("sem json").is_err());
+    }
+
+    #[test]
+    fn contexts_find_sentences_with_the_term() {
+        let texts = vec!["Zorian woke. He saw Kael at the Cyoria Academy! Nothing else.".to_string()];
+        assert_eq!(contexts(&texts, "Cyoria Academy", 3), vec!["He saw Kael at the Cyoria Academy!".to_string()]);
+        assert!(contexts(&texts, "Missing", 3).is_empty());
+    }
+
+    #[test]
+    fn suggest_calls_the_model_once_with_contexts() {
+        use crate::translation::runner::tests::{create, fixture, glossary_settled};
+        tauri::async_runtime::block_on(async {
+            let f = fixture(1000);
+            let id = create(&f);
+            glossary_settled(&f, &id).await;
+            let before = f.provider.call_count();
+            f.provider.set_responder(Box::new(|_, prompt| {
+                prompt.contains("Terms:").then(|| {
+                    Ok("{\"suggestions\":[{\"term\":\"Lin Feng\",\"kind\":\"keep\",\"reason\":\"Nome próprio.\"}]}".to_string())
+                })
+            }));
+            let out = f.engine.glossary_suggest(&id, vec!["Lin Feng".into(), " ".into()]).await.unwrap();
+            assert_eq!(out, vec![GlossarySuggestion { term: "Lin Feng".into(), kind: "keep".into(), target: None, reason: "Nome próprio.".into() }]);
+            assert_eq!(f.provider.call_count(), before + 1);
+            assert!(f.engine.glossary_suggest(&id, vec![]).await.is_err());
+        });
     }
 }

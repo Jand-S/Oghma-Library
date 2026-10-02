@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS glossary (
     count INTEGER NOT NULL DEFAULT 0,
     source TEXT NOT NULL,
     missed INTEGER NOT NULL DEFAULT 0,
+    confidence INTEGER NOT NULL DEFAULT 100,
     PRIMARY KEY (project_id, term)
 );
 CREATE TABLE IF NOT EXISTS events (
@@ -127,6 +128,7 @@ pub struct ProjectRow {
     pub scope: Scope,
     pub status: ProjectStatus,
     pub glossary_status: String,
+    pub glossary_min_confidence: u8,
     pub output_dir: Option<String>,
     pub session_started_at: Option<f64>,
     pub resume_at: Option<i64>,
@@ -164,6 +166,22 @@ fn err(e: rusqlite::Error) -> String {
     format!("Erro no banco de tradução: {e}")
 }
 
+/// Columns added after the first release. `ALTER TABLE … ADD COLUMN` fails with
+/// "duplicate column" once applied, which is ignored, so this is idempotent.
+fn migrate(conn: &Connection) -> Result<(), String> {
+    for sql in [
+        "ALTER TABLE glossary ADD COLUMN confidence INTEGER NOT NULL DEFAULT 100",
+        "ALTER TABLE projects ADD COLUMN glossary_min_confidence INTEGER NOT NULL DEFAULT 60",
+    ] {
+        if let Err(e) = conn.execute(sql, []) {
+            if !e.to_string().contains("duplicate column") {
+                return Err(err(e));
+            }
+        }
+    }
+    Ok(())
+}
+
 impl Store {
     pub fn open(path: &Path) -> Result<Store, String> {
         let conn = Connection::open(path).map_err(err)?;
@@ -179,6 +197,7 @@ impl Store {
     fn init(conn: Connection) -> Result<Store, String> {
         conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(err)?;
         conn.execute_batch(SCHEMA).map_err(err)?;
+        migrate(&conn)?;
         Ok(Store { conn: Mutex::new(conn) })
     }
 
@@ -235,7 +254,8 @@ impl Store {
         let row = self.with(|conn| {
             conn.query_row(
                 "SELECT id, title, source_dir, source_epub, source_novel_id, cover_path, model, effort,
-                        workers, scope_json, status, glossary_status, output_dir, session_started_at, resume_at
+                        workers, scope_json, status, glossary_status, output_dir, session_started_at, resume_at,
+                        glossary_min_confidence
                  FROM projects WHERE id = ?1",
                 params![id],
                 |row| {
@@ -257,6 +277,7 @@ impl Store {
                         output_dir: row.get(12)?,
                         session_started_at: row.get(13)?,
                         resume_at: row.get(14)?,
+                        glossary_min_confidence: row.get::<_, i64>(15)?.clamp(0, 100) as u8,
                     })
                 },
             )
@@ -319,6 +340,14 @@ impl Store {
             self.set_field(id, "UPDATE projects SET scope_json = ?1, updated_at = ?2 WHERE id = ?3", json.into())?;
         }
         Ok(())
+    }
+
+    pub fn set_glossary_min_confidence(&self, id: &str, value: u8) -> Result<(), String> {
+        self.set_field(
+            id,
+            "UPDATE projects SET glossary_min_confidence = ?1, updated_at = ?2 WHERE id = ?3",
+            (value.min(100) as i64).into(),
+        )
     }
 
     /// Starts an ETA session: chunks/min is measured from here.
@@ -568,6 +597,7 @@ impl Store {
             eta_seconds,
             resume_at: row.resume_at,
             glossary_status: row.glossary_status,
+            glossary_min_confidence: row.glossary_min_confidence,
         })
     }
 
@@ -576,7 +606,7 @@ impl Store {
     pub fn glossary(&self, id: &str) -> Result<Vec<GlossaryEntry>, String> {
         self.with(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT term, kind, target, count, source, missed FROM glossary WHERE project_id = ?1
+                "SELECT term, kind, target, count, source, missed, confidence FROM glossary WHERE project_id = ?1
                  ORDER BY count DESC, term COLLATE NOCASE",
             )?;
             let rows = stmt.query_map(params![id], |row| {
@@ -587,6 +617,7 @@ impl Store {
                     count: row.get::<_, i64>(3)? as u64,
                     source: row.get(4)?,
                     missed: row.get::<_, i64>(5)? as u64,
+                    confidence: row.get::<_, i64>(6)?.clamp(0, 100) as u8,
                 })
             })?;
             rows.collect()
@@ -596,10 +627,11 @@ impl Store {
     pub fn glossary_upsert(&self, id: &str, entry: &GlossaryEntry) -> Result<(), String> {
         self.with(|conn| {
             conn.execute(
-                "INSERT INTO glossary (project_id, term, kind, target, count, source, missed) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)
+                "INSERT INTO glossary (project_id, term, kind, target, count, source, missed, confidence)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)
                  ON CONFLICT (project_id, term) DO UPDATE SET kind = excluded.kind, target = excluded.target,
-                     count = excluded.count, source = excluded.source",
-                params![id, entry.term, entry.kind, entry.target, entry.count as i64, entry.source],
+                     count = excluded.count, source = excluded.source, confidence = excluded.confidence",
+                params![id, entry.term, entry.kind, entry.target, entry.count as i64, entry.source, entry.confidence as i64],
             )?;
             Ok(())
         })
@@ -619,9 +651,9 @@ impl Store {
             tx.execute("DELETE FROM glossary WHERE project_id = ?1 AND source = 'auto'", params![id])?;
             for entry in entries {
                 tx.execute(
-                    "INSERT OR IGNORE INTO glossary (project_id, term, kind, target, count, source, missed)
-                     VALUES (?1, ?2, ?3, ?4, ?5, 'auto', 0)",
-                    params![id, entry.term, entry.kind, entry.target, entry.count as i64],
+                    "INSERT OR IGNORE INTO glossary (project_id, term, kind, target, count, source, missed, confidence)
+                     VALUES (?1, ?2, ?3, ?4, ?5, 'auto', 0, ?6)",
+                    params![id, entry.term, entry.kind, entry.target, entry.count as i64, entry.confidence as i64],
                 )?;
             }
             tx.commit()
@@ -740,5 +772,32 @@ impl Store {
             )?;
             Ok(())
         })
+    }
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::*;
+
+    #[test]
+    fn migrates_databases_created_before_confidence() {
+        let path = std::env::temp_dir().join(format!("oghma-migrate-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE glossary (project_id TEXT NOT NULL, term TEXT NOT NULL, kind TEXT NOT NULL, target TEXT,
+                 count INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL, missed INTEGER NOT NULL DEFAULT 0,
+                 PRIMARY KEY (project_id, term));
+                 INSERT INTO glossary VALUES ('p', 'Lin Feng', 'keep', NULL, 3, 'auto', 0);",
+            )
+            .unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        let entries = store.glossary("p").unwrap();
+        assert_eq!(entries[0].confidence, 100, "old rows default to visible");
+        drop(store);
+        Store::open(&path).expect("migration is idempotent");
+        let _ = std::fs::remove_file(&path);
     }
 }

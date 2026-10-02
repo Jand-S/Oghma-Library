@@ -10,7 +10,7 @@ use tauri::State;
 
 use super::{
     AccountStatus, ChapterView, Engine, ExportResult, GlossaryEntry, LogEvent, PilotRun, ProjectDetail,
-    ProjectSummary, Scope, UsageSnapshot, VerifyReport,
+    ProjectSummary, Scope, UsageSnapshot, VerifyReport, GlossarySuggestion,
 };
 
 type EngineState<'a> = State<'a, Arc<Engine>>;
@@ -106,8 +106,13 @@ pub async fn translation_update_settings(
     effort: Option<String>,
     workers: Option<u32>,
     scope: Option<Scope>,
+    glossary_min_confidence: Option<u8>,
 ) -> Result<ProjectDetail, String> {
-    engine(&state).update_settings(&project_id, model, effort, workers, scope)
+    let engine = engine(&state);
+    if let Some(value) = glossary_min_confidence {
+        engine.store.set_glossary_min_confidence(&project_id, value.min(100))?;
+    }
+    engine.update_settings(&project_id, model, effort, workers, scope)
 }
 
 // -- runner ----------------------------------------------------------------------
@@ -155,6 +160,15 @@ pub async fn translation_glossary_delete(
 ) -> Result<Vec<GlossaryEntry>, String> {
     state.store.glossary_delete(&project_id, &term)?;
     state.store.glossary(&project_id)
+}
+
+#[tauri::command]
+pub async fn translation_glossary_suggest(
+    state: EngineState<'_>,
+    project_id: String,
+    terms: Vec<String>,
+) -> Result<Vec<GlossarySuggestion>, String> {
+    engine(&state).glossary_suggest(&project_id, terms).await
 }
 
 /// Async: `translation://glossary` fires when the extraction finishes.
