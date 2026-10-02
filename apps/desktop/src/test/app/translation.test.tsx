@@ -48,7 +48,7 @@ function makeDetail(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
     etaSeconds: null,
     resumeAt: null,
     glossaryStatus: "ready",
-    glossaryMinConfidence: 60,
+    glossaryHideAt: 80,
     ...overrides
   };
 }
@@ -478,8 +478,8 @@ describe("Translation", () => {
     const engine = createEngine({
       projects: [makeDetail()],
       glossary: [
-        { term: "Mana", kind: "keep", target: null, count: 40, source: "auto", missed: 0, confidence: 90 },
-        { term: "Sect", kind: "translate", target: "Seita", count: 12, source: "auto", missed: 2, confidence: 75 }
+        { term: "Mana", kind: "keep", target: null, count: 40, source: "auto", missed: 0, confidence: 60 },
+        { term: "Sect", kind: "translate", target: "Seita", count: 12, source: "auto", missed: 2, confidence: 50 }
       ]
     });
     await openProject(user, engine);
@@ -523,13 +523,13 @@ describe("Translation", () => {
     });
   });
 
-  it("hides low-confidence terms and suggests translations", async () => {
+  it("hides confident terms (still used) and shows the uncertain ones for review", async () => {
     const user = setupUser();
     const engine = createEngine({
       projects: [makeDetail()],
       glossary: [
         { term: "Lin Feng", kind: "keep", target: null, count: 80, source: "auto", missed: 0, confidence: 95 },
-        { term: "Crimson Moon", kind: "keep", target: null, count: 9, source: "auto", missed: 0, confidence: 70 },
+        { term: "Crimson Moon", kind: "keep", target: null, count: 9, source: "auto", missed: 0, confidence: 60 },
         { term: "time loop", kind: "translate", target: "loop temporal", count: 5, source: "auto", missed: 0, confidence: 45 },
         { term: "Dantian", kind: "keep", target: null, count: 2, source: "manual", missed: 0, confidence: 100 }
       ]
@@ -537,30 +537,28 @@ describe("Translation", () => {
     await openProject(user, engine);
     await user.click(workspaceTab(t.tabGlossary));
     const glossary = await screen.findByTestId("translation-glossary");
-    const terms = () => within(glossary).getAllByTestId("glossary-row").map((row) => row.getAttribute("data-term"));
+    const terms = () => within(glossary).queryAllByTestId("glossary-row").map((row) => row.getAttribute("data-term"));
 
-    // Default 60%: "time loop" (45%) is hidden.
-    await waitFor(() => expect(terms()).toEqual(["Lin Feng", "Crimson Moon", "Dantian"]));
-    expect(within(glossary).getByTestId("glossary-hidden")).toHaveTextContent(t.hiddenTerms(1, 60));
+    // Default 80%: only the uncertain terms are listed for review.
+    await waitFor(() => expect(terms()).toEqual(["Crimson Moon", "time loop"]));
+    expect(within(glossary).getByTestId("glossary-hidden")).toHaveTextContent(t.hiddenTerms(2, 80));
     await user.click(within(glossary).getByRole("button", { name: t.showHidden }));
-    expect(terms()).toContain("time loop");
-    const hidden = within(glossary).getAllByTestId("glossary-row").find((row) => row.getAttribute("data-term") === "time loop")!;
-    expect(hidden).toHaveClass("is-hidden");
-    await user.click(within(hidden).getByRole("button", { name: t.useTerm("time loop") }));
-    expect(engine.calls("translation_glossary_upsert").at(-1)).toEqual({ projectId: "p1", entry: { term: "time loop", kind: "translate", target: "loop temporal" } });
+    expect(terms()).toEqual(["Lin Feng", "Crimson Moon", "time loop", "Dantian"]);
+    const approved = within(glossary).getAllByTestId("glossary-row").find((row) => row.getAttribute("data-term") === "Lin Feng")!;
+    expect(approved).toHaveTextContent(t.approved);
+    await user.click(within(glossary).getByRole("button", { name: t.hideHidden }));
 
-    // Raising the minimum hides more and is saved on release.
+    // Lowering the threshold approves more terms; it is saved on release.
     const slider = within(glossary).getByTestId("glossary-min-confidence");
+    fireEvent.change(slider, { target: { value: "50" } });
+    fireEvent.pointerUp(slider);
+    await waitFor(() => expect(engine.calls("translation_update_settings").at(-1)).toEqual({ projectId: "p1", glossaryHideAt: 50 }));
+    expect(terms()).toEqual(["time loop"]);
     fireEvent.change(slider, { target: { value: "80" } });
     fireEvent.pointerUp(slider);
-    await waitFor(() => expect(engine.calls("translation_update_settings").at(-1)).toEqual({ projectId: "p1", glossaryMinConfidence: 80 }));
-    await user.click(within(glossary).getByRole("button", { name: t.hideHidden }));
-    expect(terms()).not.toContain("Crimson Moon");
-    fireEvent.change(slider, { target: { value: "60" } });
-    fireEvent.pointerUp(slider);
+    await waitFor(() => expect(terms()).toEqual(["Crimson Moon", "time loop"]));
 
-    // Per-term suggestion: accept.
-    await waitFor(() => expect(terms()).toContain("Crimson Moon"));
+    // Per-term suggestion: accepting approves it (it stays listed this visit, marked "Aprovado").
     await user.click(within(glossary).getByRole("button", { name: t.suggest("Crimson Moon") }));
     expect(engine.calls("translation_glossary_suggest").at(-1)).toEqual({ projectId: "p1", terms: ["Crimson Moon"] });
     const suggestion = await within(glossary).findByTestId("glossary-suggestion");
@@ -569,12 +567,13 @@ describe("Translation", () => {
     await user.click(within(suggestion).getByRole("button", { name: t.acceptSuggestion }));
     expect(engine.calls("translation_glossary_upsert").at(-1)).toEqual({ projectId: "p1", entry: { term: "Crimson Moon", kind: "translate", target: "Lua Carmesim" } });
     await waitFor(() => expect(within(glossary).queryByTestId("glossary-suggestion")).not.toBeInTheDocument());
+    const accepted = within(glossary).getAllByTestId("glossary-row").find((row) => row.getAttribute("data-term") === "Crimson Moon")!;
+    await waitFor(() => expect(accepted).toHaveTextContent(t.approved));
 
-    // Batch suggestion for the visible auto "keep" terms, then dismiss one.
+    // Batch suggestion for the terms still under review, then dismiss.
     await user.click(within(glossary).getByRole("button", { name: t.suggestAll(1) }));
-    expect(engine.calls("translation_glossary_suggest").at(-1)).toEqual({ projectId: "p1", terms: ["Lin Feng"] });
+    expect(engine.calls("translation_glossary_suggest").at(-1)).toEqual({ projectId: "p1", terms: ["time loop"] });
     const keep = await within(glossary).findByTestId("glossary-suggestion");
-    expect(keep).toHaveTextContent(t.suggestionKeep);
     await user.click(within(keep).getByRole("button", { name: t.dismissSuggestion }));
     expect(within(glossary).queryByTestId("glossary-suggestion")).not.toBeInTheDocument();
   });

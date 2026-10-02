@@ -71,8 +71,8 @@ export type ProjectDetail = ProjectSummary & {
   /** Unix seconds of the next automatic retry (while `waiting_limit`). */
   resumeAt: number | null;
   glossaryStatus: GlossaryStatus;
-  /** Automatic glossary entries below this confidence are hidden and not used. */
-  glossaryMinConfidence: number;
+  /** Entries at or above this confidence are auto-approved (hidden from review); all entries are used. */
+  glossaryHideAt: number;
 };
 
 export type GlossaryKind = "keep" | "translate";
@@ -138,7 +138,7 @@ export type ProjectSettingsPatch = {
   effort?: TranslationEffort;
   workers?: number;
   scope?: TranslationScope;
-  glossaryMinConfidence?: number;
+  glossaryHideAt?: number;
 };
 
 // ---------- Events ----------

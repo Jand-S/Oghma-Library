@@ -382,8 +382,8 @@ export function useTranslationController({ client: injected, library, toast, ref
     toast({ message: t.regenerateStarted, tone: "info" });
   }, [api, toast, withBusy]);
 
-  const setMinConfidence = useCallback(async (id: string, value: number) => {
-    await updateSettings(id, { glossaryMinConfidence: Math.max(0, Math.min(100, Math.round(value))) });
+  const setHideAt = useCallback(async (id: string, value: number) => {
+    await updateSettings(id, { glossaryHideAt: Math.max(0, Math.min(100, Math.round(value))) });
   }, [updateSettings]);
 
   /** Asks the model for suggestions (one call for all `terms`); results stay pending until accepted or dismissed. */
@@ -414,8 +414,11 @@ export function useTranslationController({ client: injected, library, toast, ref
       kind: suggestion.kind,
       target: suggestion.kind === "translate" ? suggestion.target ?? undefined : undefined
     });
-    if (ok) dismissSuggestion(id, suggestion.term);
-  }, [dismissSuggestion, upsertTerm]);
+    if (ok) {
+      dismissSuggestion(id, suggestion.term);
+      toast({ message: t.termApproved(suggestion.term), tone: "success" });
+    }
+  }, [dismissSuggestion, toast, upsertTerm]);
 
   /* ---------- Review ---------- */
 
@@ -478,7 +481,7 @@ export function useTranslationController({ client: injected, library, toast, ref
     upsertTerm,
     deleteTerm,
     regenerateGlossary,
-    setMinConfidence,
+    setHideAt,
     suggestions: suggestions[selectedId] ?? {},
     suggestTerms,
     acceptSuggestion,

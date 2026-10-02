@@ -106,11 +106,11 @@ pub async fn translation_update_settings(
     effort: Option<String>,
     workers: Option<u32>,
     scope: Option<Scope>,
-    glossary_min_confidence: Option<u8>,
+    glossary_hide_at: Option<u8>,
 ) -> Result<ProjectDetail, String> {
     let engine = engine(&state);
-    if let Some(value) = glossary_min_confidence {
-        engine.store.set_glossary_min_confidence(&project_id, value.min(100))?;
+    if let Some(value) = glossary_hide_at {
+        engine.store.set_glossary_hide_at(&project_id, value.min(100))?;
     }
     engine.update_settings(&project_id, model, effort, workers, scope)
 }

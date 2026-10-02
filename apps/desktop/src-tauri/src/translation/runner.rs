@@ -507,7 +507,8 @@ impl Engine {
                 let _ = self.store.save_chunk(chunk.id, &chunk.src_html, "done", None, &row.model, 0, 0);
                 continue;
             }
-            let glossary = super::glossary::usable(self.store.glossary(id).unwrap_or_default(), row.glossary_min_confidence);
+            // Every entry is used; confidence only decides what the glossary tab shows for review.
+            let glossary = self.store.glossary(id).unwrap_or_default();
             let translation =
                 translate_fragment(self.provider.as_ref(), &row.model, &row.effort, &chunk.src_html, &glossary, &prev_tail);
             let result = tokio::select! {

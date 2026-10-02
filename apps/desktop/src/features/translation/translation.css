@@ -878,8 +878,9 @@
     font-size: var(--fs-xs);
   }
 
-  .translation-table tr.is-hidden > * {
-    opacity: 0.55;
+  .translation-term__approved svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
   }
 
   .translation-table__suggestion > td {

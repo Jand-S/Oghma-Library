@@ -128,7 +128,7 @@ pub struct ProjectRow {
     pub scope: Scope,
     pub status: ProjectStatus,
     pub glossary_status: String,
-    pub glossary_min_confidence: u8,
+    pub glossary_hide_at: u8,
     pub output_dir: Option<String>,
     pub session_started_at: Option<f64>,
     pub resume_at: Option<i64>,
@@ -172,6 +172,7 @@ fn migrate(conn: &Connection) -> Result<(), String> {
     for sql in [
         "ALTER TABLE glossary ADD COLUMN confidence INTEGER NOT NULL DEFAULT 100",
         "ALTER TABLE projects ADD COLUMN glossary_min_confidence INTEGER NOT NULL DEFAULT 60",
+        "ALTER TABLE projects ADD COLUMN glossary_hide_at INTEGER NOT NULL DEFAULT 80",
     ] {
         if let Err(e) = conn.execute(sql, []) {
             if !e.to_string().contains("duplicate column") {
@@ -255,7 +256,7 @@ impl Store {
             conn.query_row(
                 "SELECT id, title, source_dir, source_epub, source_novel_id, cover_path, model, effort,
                         workers, scope_json, status, glossary_status, output_dir, session_started_at, resume_at,
-                        glossary_min_confidence
+                        glossary_hide_at
                  FROM projects WHERE id = ?1",
                 params![id],
                 |row| {
@@ -277,7 +278,7 @@ impl Store {
                         output_dir: row.get(12)?,
                         session_started_at: row.get(13)?,
                         resume_at: row.get(14)?,
-                        glossary_min_confidence: row.get::<_, i64>(15)?.clamp(0, 100) as u8,
+                        glossary_hide_at: row.get::<_, i64>(15)?.clamp(0, 100) as u8,
                     })
                 },
             )
@@ -342,10 +343,10 @@ impl Store {
         Ok(())
     }
 
-    pub fn set_glossary_min_confidence(&self, id: &str, value: u8) -> Result<(), String> {
+    pub fn set_glossary_hide_at(&self, id: &str, value: u8) -> Result<(), String> {
         self.set_field(
             id,
-            "UPDATE projects SET glossary_min_confidence = ?1, updated_at = ?2 WHERE id = ?3",
+            "UPDATE projects SET glossary_hide_at = ?1, updated_at = ?2 WHERE id = ?3",
             (value.min(100) as i64).into(),
         )
     }
@@ -597,7 +598,7 @@ impl Store {
             eta_seconds,
             resume_at: row.resume_at,
             glossary_status: row.glossary_status,
-            glossary_min_confidence: row.glossary_min_confidence,
+            glossary_hide_at: row.glossary_hide_at,
         })
     }
 

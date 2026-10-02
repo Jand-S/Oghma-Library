@@ -283,7 +283,7 @@ pub fn candidates(texts: &[String], dictionary: Option<&HashSet<String>>) -> Can
     Candidates { names, phrases, invented, common, signals }
 }
 
-/// Confidence (0–100) of an automatic glossary entry:
+/// Fallback confidence (0–100) when the model gave none (or curation failed):
 /// base by origin (curated by the model 60, heuristic only 35) + frequency
 /// (0..+25, logarithmic, 50+ occurrences = +25) + extraction signal (−15..+15).
 /// Manual entries are always 100.
@@ -296,14 +296,6 @@ pub fn confidence(source: &str, curated: bool, count: u64, signal: Option<f64>) 
     (base + frequency + signal.unwrap_or(0.0)).round().clamp(0.0, 100.0) as u8
 }
 
-/// Entries used for translation: manual ones always, automatic ones only when
-/// they reach the project's minimum confidence.
-pub fn usable(entries: Vec<GlossaryEntry>, min_confidence: u8) -> Vec<GlossaryEntry> {
-    entries
-        .into_iter()
-        .filter(|e| e.source == "manual" || e.confidence >= min_confidence)
-        .collect()
-}
 
 pub const CURATION_INSTRUCTIONS: &str = "You build glossaries for literary translation from English into Brazilian Portuguese (pt-BR). Reply with a single JSON object only: no commentary, no code fences.";
 
@@ -318,8 +310,10 @@ Build the glossary used for the whole book:
 - "translate": descriptive titles, nicknames, orders, guilds, institutions and setting-specific terminology (magic-system vocabulary, invented disciplines, recurring in-world concepts), each with the ONE natural pt-BR rendering used everywhere.
 - DISCARD ordinary English words and everyday phrases that need no fixed translation.
 
+For EVERY kept or translated term also give "confidence": 0-100, how sure you are that the decision (keep as-is, or that exact pt-BR rendering) is right for this book. Use 90+ only when obvious (clear personal names, unambiguous terms); use below 70 when the context is ambiguous, the term may be an ordinary word, or several renderings are plausible.
+
 Reply with JSON only, exactly in this shape:
-{{"keep": ["Name", ...], "translate": {{"English term": "tradução", ...}}}}
+{{"keep": ["Name", ...], "translate": {{"English term": "tradução", ...}}, "confidence": {{"Name": 95, "English term": 60, ...}}}}
 
 PROPER NAME CANDIDATES:
 {}
@@ -340,6 +334,8 @@ TERMINOLOGY CANDIDATES:
 pub struct Curated {
     pub keep: Vec<String>,
     pub translate: Vec<(String, String)>,
+    /// Model's certainty (0–100) that each decision/rendering is right, when given.
+    pub confidence: HashMap<String, u8>,
 }
 
 fn balanced_object(text: &str, start: usize) -> Option<&str> {
@@ -418,6 +414,14 @@ pub fn parse_curation(text: &str) -> Result<Curated, String> {
         for (term, target) in object {
             if let Some(target) = target.as_str() {
                 push_pair(term, target, &mut curated);
+            }
+        }
+    }
+    if let Some(Value::Object(map)) = object.get("confidence") {
+        for (term, value) in map {
+            let n = value.as_f64().or_else(|| value.as_str().and_then(|s| s.trim().trim_end_matches('%').parse().ok()));
+            if let Some(n) = n {
+                curated.confidence.insert(term.trim().to_string(), n.round().clamp(0.0, 100.0) as u8);
             }
         }
     }
@@ -541,7 +545,11 @@ pub fn entries_from(curated: &Curated, candidates: &Candidates, texts: &[String]
                 count: count(term),
                 source: "auto".into(),
                 missed: 0,
-                confidence: confidence("auto", true, count(term), candidates.signals.get(term).copied()),
+                confidence: curated
+                    .confidence
+                    .get(term)
+                    .copied()
+                    .unwrap_or_else(|| confidence("auto", true, count(term), candidates.signals.get(term).copied())),
             });
         }
     }
@@ -554,7 +562,11 @@ pub fn entries_from(curated: &Curated, candidates: &Candidates, texts: &[String]
                 count: count(term),
                 source: "auto".into(),
                 missed: 0,
-                confidence: confidence("auto", true, count(term), candidates.signals.get(term).copied()),
+                confidence: curated
+                    .confidence
+                    .get(term)
+                    .copied()
+                    .unwrap_or_else(|| confidence("auto", true, count(term), candidates.signals.get(term).copied())),
             });
         }
     }
@@ -697,7 +709,7 @@ impl Engine {
             .store
             .glossary(id)?
             .into_iter()
-            .filter(|e| !terms.contains(&e.term) && (e.source == "manual" || e.confidence >= row.glossary_min_confidence))
+            .filter(|e| !terms.contains(&e.term) && (e.source == "manual" || e.confidence >= row.glossary_hide_at))
             .collect();
         let reply = self
             .provider
@@ -856,10 +868,6 @@ mod tests {
         assert!(check_misses(&entries, "<p>nothing</p>", "<p>nada</p>").is_empty());
     }
 
-    fn entry(term: &str, source: &str, confidence: u8) -> GlossaryEntry {
-        GlossaryEntry { term: term.into(), kind: "keep".into(), target: None, count: 5, source: source.into(), missed: 0, confidence }
-    }
-
     #[test]
     fn confidence_scores_origin_frequency_and_signal() {
         assert_eq!(confidence("manual", false, 0, Some(-10.0)), 100);
@@ -870,13 +878,6 @@ mod tests {
         assert_eq!(confidence("auto", true, 60, Some(15.0)), 100);
         assert!(confidence("auto", true, 5, Some(-15.0)) < 60, "noisy bigrams fall below the default");
         assert!(confidence("auto", false, 0, Some(-50.0)) == 0);
-    }
-
-    #[test]
-    fn usable_keeps_manual_and_confident_entries() {
-        let entries = vec![entry("Low", "auto", 40), entry("High", "auto", 80), entry("Mine", "manual", 10)];
-        let kept: Vec<String> = usable(entries, 60).into_iter().map(|e| e.term).collect();
-        assert_eq!(kept, vec!["High".to_string(), "Mine".to_string()]);
     }
 
     #[test]
@@ -933,5 +934,29 @@ mod tests {
             assert_eq!(f.provider.call_count(), before + 1);
             assert!(f.engine.glossary_suggest(&id, vec![]).await.is_err());
         });
+    }
+
+    #[test]
+    fn curation_reads_model_confidence() {
+        let reply = "{\"keep\": [\"Zorian\"], \"translate\": {\"Cyoria Academy\": \"Academia de Cyoria\"}, \"confidence\": {\"Zorian\": 97, \"Cyoria Academy\": \"55%\"}}";
+        let curated = parse_curation(reply).unwrap();
+        assert_eq!(curated.confidence.get("Zorian"), Some(&97));
+        assert_eq!(curated.confidence.get("Cyoria Academy"), Some(&55));
+        let texts: Vec<String> = synthetic_book().iter().map(|c| text_of(c)).collect();
+        let found = candidates(&texts, None);
+        let entries = entries_from(&curated, &found, &texts);
+        let get = |t: &str| entries.iter().find(|e| e.term == t).unwrap().confidence;
+        assert_eq!(get("Zorian"), 97, "model confidence wins");
+        assert_eq!(get("Cyoria Academy"), 55);
+        // Without a model value, the heuristic fallback applies.
+        let plain = parse_curation("{\"keep\": [\"Kael\"]}").unwrap();
+        let fallback = entries_from(&plain, &found, &texts);
+        assert!(fallback[0].confidence > 0 && fallback[0].confidence <= 100);
+    }
+
+    #[test]
+    fn curation_prompt_asks_for_confidence() {
+        let prompt = curation_prompt(&Candidates::default());
+        assert!(prompt.contains("\"confidence\""));
     }
 }

@@ -187,8 +187,9 @@ pub struct ProjectDetail {
     /// Next automatic retry while `waiting_limit` (unix seconds).
     pub resume_at: Option<i64>,
     pub glossary_status: String,
-    /// Glossary entries below this confidence are hidden and not sent to the model.
-    pub glossary_min_confidence: u8,
+    /// Glossary entries at or above this confidence are auto-approved: hidden from the
+    /// review list but still used. Lower ones are shown for review. All entries are used.
+    pub glossary_hide_at: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
