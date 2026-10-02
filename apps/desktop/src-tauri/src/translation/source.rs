@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-const VOID_TAGS: &[&str] = &[
+pub(crate) const VOID_TAGS: &[&str] = &[
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
 ];
 const BLOCK_TAGS: &[&str] = &[
@@ -26,17 +26,17 @@ const BLOCK_TAGS: &[&str] = &[
 const XHTML_NS: &str = " xmlns=\"http://www.w3.org/1999/xhtml\"";
 
 #[derive(Debug, Clone)]
-struct Tag {
-    name: String,
-    closing: bool,
-    self_closing: bool,
+pub(crate) struct Tag {
+    pub(crate) name: String,
+    pub(crate) closing: bool,
+    pub(crate) self_closing: bool,
     /// Byte index just past the closing `>`.
-    end: usize,
+    pub(crate) end: usize,
 }
 
 /// Parses the tag starting at `start` (`s[start] == '<'`). Returns `None` for a
 /// `<` that does not start a tag (it is then plain text).
-fn parse_tag(s: &str, start: usize) -> Option<Tag> {
+pub(crate) fn parse_tag(s: &str, start: usize) -> Option<Tag> {
     let bytes = s.as_bytes();
     let mut i = start + 1;
     let closing = bytes.get(i) == Some(&b'/');
@@ -70,7 +70,7 @@ fn parse_tag(s: &str, start: usize) -> Option<Tag> {
 }
 
 /// Skips `<!-- -->`, `<!DOCTYPE>`, `<?xml?>`; returns the index after it.
-fn skip_special(s: &str, i: usize) -> Option<usize> {
+pub(crate) fn skip_special(s: &str, i: usize) -> Option<usize> {
     let rest = &s[i..];
     if rest.starts_with("<!--") {
         return Some(rest.find("-->").map(|p| i + p + 3).unwrap_or(s.len()));

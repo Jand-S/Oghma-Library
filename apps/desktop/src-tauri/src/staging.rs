@@ -21,8 +21,8 @@ pub(crate) const TRASH_DIR: &str = ".oghma-trash";
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BeginExportResult {
-    staging_dir: String,
-    final_dir: String,
+    pub(crate) staging_dir: String,
+    pub(crate) final_dir: String,
 }
 
 /// Staging/trash paths in use by this process; startup cleanup never touches them.
@@ -326,7 +326,7 @@ pub(crate) fn cleanup_export_root_at(root: &Path) -> usize {
 }
 
 /// Keys whose `hidden` flag is reset when a book is (re)committed.
-fn meta_keys_for(final_dir: &Path, raw_final_dir: &str, novel_id: &str) -> Vec<String> {
+pub(crate) fn meta_keys_for(final_dir: &Path, raw_final_dir: &str, novel_id: &str) -> Vec<String> {
     let mut keys = vec![
         format!("novel:{novel_id}"),
         raw_final_dir.to_string(),
