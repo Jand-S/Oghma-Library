@@ -8,6 +8,7 @@ import {
   type ChapterView,
   type GlossaryEntry,
   type GlossaryKind,
+  type GlossarySuggestion,
   type LogEvent,
   type PilotRun,
   type ProjectDetail,
@@ -88,6 +89,8 @@ export function useTranslationController({ client: injected, library, toast, ref
   const [logs, setLogs] = useState<Record<string, LogEvent[]>>({});
   const [pilots, setPilots] = useState<Record<string, PilotRun | null>>({});
   const [glossaries, setGlossaries] = useState<Record<string, GlossaryEntry[]>>({});
+  // projectId -> term -> pending AI suggestion
+  const [suggestions, setSuggestions] = useState<Record<string, Record<string, GlossarySuggestion>>>({});
   const [reports, setReports] = useState<Record<string, VerifyReport>>({});
   const [busy, setBusy] = useState<Set<string>>(() => new Set());
 
@@ -379,6 +382,41 @@ export function useTranslationController({ client: injected, library, toast, ref
     toast({ message: t.regenerateStarted, tone: "info" });
   }, [api, toast, withBusy]);
 
+  const setMinConfidence = useCallback(async (id: string, value: number) => {
+    await updateSettings(id, { glossaryMinConfidence: Math.max(0, Math.min(100, Math.round(value))) });
+  }, [updateSettings]);
+
+  /** Asks the model for suggestions (one call for all `terms`); results stay pending until accepted or dismissed. */
+  const suggestTerms = useCallback(async (id: string, terms: string[]) => {
+    if (terms.length === 0) return;
+    const key = terms.length === 1 ? `${id}:suggest:${terms[0]}` : `${id}:suggest-all`;
+    const found = await withBusy(key, () => api.glossarySuggest(id, terms), t.suggestFailed);
+    if (!found) return;
+    setSuggestions((current) => {
+      const next = { ...(current[id] ?? {}) };
+      for (const suggestion of found) next[suggestion.term] = suggestion;
+      return { ...current, [id]: next };
+    });
+    if (found.length === 0) toast({ message: t.suggestNone, tone: "info" });
+  }, [api, toast, withBusy]);
+
+  const dismissSuggestion = useCallback((id: string, term: string) => {
+    setSuggestions((current) => {
+      const next = { ...(current[id] ?? {}) };
+      delete next[term];
+      return { ...current, [id]: next };
+    });
+  }, []);
+
+  const acceptSuggestion = useCallback(async (id: string, suggestion: GlossarySuggestion) => {
+    const ok = await upsertTerm(id, {
+      term: suggestion.term,
+      kind: suggestion.kind,
+      target: suggestion.kind === "translate" ? suggestion.target ?? undefined : undefined
+    });
+    if (ok) dismissSuggestion(id, suggestion.term);
+  }, [dismissSuggestion, upsertTerm]);
+
   /* ---------- Review ---------- */
 
   const verify = useCallback(async (id: string) => {
@@ -440,6 +478,11 @@ export function useTranslationController({ client: injected, library, toast, ref
     upsertTerm,
     deleteTerm,
     regenerateGlossary,
+    setMinConfidence,
+    suggestions: suggestions[selectedId] ?? {},
+    suggestTerms,
+    acceptSuggestion,
+    dismissSuggestion,
     report: reports[selectedId] ?? null,
     verify,
     loadChapter,

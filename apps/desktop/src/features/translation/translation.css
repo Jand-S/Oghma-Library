@@ -842,6 +842,85 @@
     max-width: 20rem;
   }
 
+  .translation-glossary__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .translation-confidence {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+  }
+
+  .translation-confidence input[type="range"] {
+    width: 10rem;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .translation-confidence__value {
+    min-width: 3ch;
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--fw-semibold);
+    color: var(--text);
+  }
+
+  .translation-glossary__hidden {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .translation-table tr.is-hidden > * {
+    opacity: 0.55;
+  }
+
+  .translation-table__suggestion > td {
+    padding-top: 0;
+  }
+
+  .translation-suggestion {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    padding: var(--space-1) var(--space-1-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: rgb(var(--accent-rgb) / 0.08);
+  }
+
+  .translation-suggestion__icon {
+    flex: none;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    color: var(--accent-text);
+  }
+
+  .translation-suggestion__text {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--text);
+  }
+
+  .translation-suggestion__reason {
+    color: var(--text-muted);
+  }
+
+  .translation-suggestion__actions {
+    display: inline-flex;
+    flex: none;
+    gap: var(--space-0-5);
+  }
+
   .translation-glossary__count {
     display: inline-flex;
     align-items: center;

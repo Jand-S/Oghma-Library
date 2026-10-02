@@ -71,6 +71,8 @@ export type ProjectDetail = ProjectSummary & {
   /** Unix seconds of the next automatic retry (while `waiting_limit`). */
   resumeAt: number | null;
   glossaryStatus: GlossaryStatus;
+  /** Automatic glossary entries below this confidence are hidden and not used. */
+  glossaryMinConfidence: number;
 };
 
 export type GlossaryKind = "keep" | "translate";
@@ -82,6 +84,15 @@ export type GlossaryEntry = {
   count: number;
   source: "auto" | "manual";
   missed: number;
+  /** 0–100; manual entries are always 100. */
+  confidence: number;
+};
+
+export type GlossarySuggestion = {
+  term: string;
+  kind: GlossaryKind;
+  target: string | null;
+  reason: string;
 };
 
 export type PilotSample = {
@@ -127,6 +138,7 @@ export type ProjectSettingsPatch = {
   effort?: TranslationEffort;
   workers?: number;
   scope?: TranslationScope;
+  glossaryMinConfidence?: number;
 };
 
 // ---------- Events ----------
@@ -223,6 +235,8 @@ export function translationApi(client: TranslationClient) {
       call<GlossaryEntry[]>("translation_glossary_upsert", { projectId, entry }),
     glossaryDelete: (projectId: string, term: string) => call<GlossaryEntry[]>("translation_glossary_delete", { projectId, term }),
     glossaryRegenerate: (projectId: string) => call<void>("translation_glossary_regenerate", { projectId }),
+    glossarySuggest: (projectId: string, terms: string[]) =>
+      call<GlossarySuggestion[]>("translation_glossary_suggest", { projectId, terms }),
     runPilot: (projectId: string) => call<void>("translation_run_pilot", { projectId }),
     pilot: (projectId: string) => call<PilotRun | null>("translation_pilot", { projectId }),
     chooseModel: (projectId: string, model: string) => call<ProjectDetail>("translation_choose_model", { projectId, model }),
