@@ -53,6 +53,7 @@ async function main() {
       await page.click('[data-testid="nav-kindle"]');
       await page.waitForSelector('[data-testid="kindle-hero"]');
       await page.locator('[data-testid="kindle-book"]').first().click();
+      await page.locator('[data-testid="kindle-book"]').nth(1).hover();
       await shot(page, "4-kindle-wifi");
       await page.click('[data-testid="nav-settings"]');
       await page.getByRole("tab", { name: /Kindle/ }).click();

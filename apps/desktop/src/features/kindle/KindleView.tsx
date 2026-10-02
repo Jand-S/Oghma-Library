@@ -216,7 +216,7 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
                         aria-label={strings.selectBook(item.title)}
                       />
                       <span className="kindle-book__cover">
-                        <Cover src={item.coverUrl} title={item.title} size="fill" />
+                        <Cover src={item.coverUrl} title={item.title} size="fill" sheen />
                         {checked ? <SelectionMark /> : null}
                       </span>
                       <span className="kindle-book__title" title={item.title}>{item.title}</span>

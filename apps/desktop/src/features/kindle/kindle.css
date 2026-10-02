@@ -259,8 +259,25 @@
     transition: box-shadow var(--dur-base) var(--ease), scale var(--dur-base) var(--ease);
   }
 
-  .kindle-book:hover .kindle-book__cover {
+  /* Hover matches the Buscar cards: slight zoom, shadow and the cover sheen. */
+  .kindle-book .o-cover--sheen::after {
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease);
+  }
+
+  .kindle-book:hover .kindle-book__cover,
+  .kindle-book:has(.kindle-book__input:focus-visible) .kindle-book__cover {
     scale: 1.02;
+    box-shadow: var(--shadow-md);
+  }
+
+  .kindle-book:hover .o-cover--sheen::after,
+  .kindle-book:has(.kindle-book__input:focus-visible) .o-cover--sheen::after {
+    opacity: 1;
+  }
+
+  .kindle-book:has(.kindle-book__input:disabled):hover .kindle-book__cover {
+    scale: 1;
   }
 
   .kindle-book__cover .o-cover {
