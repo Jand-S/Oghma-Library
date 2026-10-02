@@ -17,8 +17,6 @@ use super::source::{
     decode_entities, join_zip, parse_tag, read_epub, skip_special, split_blocks, text_of, word_count, xml_escape,
     BLOCK_TAGS, VOID_TAGS,
 };
-use super::cover::{cover_data_url, parse_cover_text, render_cover, CoverText, COVER_INSTRUCTIONS, COVER_PROMPT};
-use super::provider::ProviderError;
 use super::{events, iso_utc, now_secs, Engine, ExportResult, ProjectStatus};
 use crate::files::{pick_cover, write_export_file, LOCAL_BOOK_MANIFEST};
 use crate::paths::sanitize_file_name;
@@ -40,7 +38,6 @@ pub struct EpubAsset {
     pub data: Vec<u8>,
 }
 
-#[derive(Clone)]
 pub struct EpubCover {
     /// `cover.jpg`, `cover.png`, …
     pub name: String,
@@ -356,89 +353,20 @@ impl Engine {
     /// included when they are fully translated (e.g. retranslated ones).
     #[cfg(test)]
     pub fn export_project(self: &Arc<Self>, id: &str) -> Result<ExportResult, String> {
-        let cover_text = self.cached_cover_text(id);
-        self.export_with(id, false, cover_text)
+        self.export_with(id, false)
     }
 
-    /// Final book (`partial = false`) or preview with only the finished chapters
-    /// (`partial = true`). Reads the cover text first (one vision call, cached).
+    /// Final book (`partial = false`) or preview with only the finished chapters (`partial = true`).
     pub async fn export_book(self: &Arc<Self>, id: &str, partial: bool) -> Result<ExportResult, String> {
-        let cover_text = self.ensure_cover_text(id).await;
         let engine = Arc::clone(self);
         let project = id.to_string();
-        tauri::async_runtime::spawn_blocking(move || engine.export_with(&project, partial, cover_text))
+        tauri::async_runtime::spawn_blocking(move || engine.export_with(&project, partial))
             .await
             .map_err(|err| err.to_string())?
     }
 
-    /// Forgets the cached cover reading and rebuilds the current book (final or preview).
-    pub async fn regenerate_cover(self: &Arc<Self>, id: &str) -> Result<ExportResult, String> {
-        self.store.set_cover_text(id, None)?;
-        let partial = self.store.project(id)?.status != ProjectStatus::Exported;
-        self.export_book(id, partial).await
-    }
-
-    fn cached_cover_text(&self, id: &str) -> Option<CoverText> {
-        let row = self.store.project(id).ok()?;
-        if !row.translate_cover {
-            return None;
-        }
-        serde_json::from_str(row.cover_text_json.as_deref()?).ok()
-    }
-
-    /// The model reads the original cover once per project; failures fall back to
-    /// a badge-only cover (logged, never fatal for the export).
-    async fn ensure_cover_text(&self, id: &str) -> Option<CoverText> {
-        let row = self.store.project(id).ok()?;
-        if !row.translate_cover {
-            return None;
-        }
-        if let Some(cached) = self.cached_cover_text(id) {
-            return Some(cached);
-        }
-        if !self.provider.account().logged_in {
-            return None;
-        }
-        let path = original_cover_path(&row)?;
-        let url = match fs::read(&path).map_err(|e| e.to_string()).and_then(|bytes| cover_data_url(&bytes)) {
-            Ok(url) => url,
-            Err(err) => {
-                self.log(id, "warn", format!("Capa não lida: {err}"));
-                return None;
-            }
-        };
-        match self.provider.read_image(&row.model, COVER_INSTRUCTIONS, COVER_PROMPT, &url).await {
-            Ok(out) => {
-                let _ = self.store.log_usage(Some(id), &row.model, 0, &out.usage);
-                match parse_cover_text(&out.text) {
-                    Ok(text) => {
-                        if let Ok(json) = serde_json::to_string(&text) {
-                            let _ = self.store.set_cover_text(id, Some(&json));
-                        }
-                        match text.band_title() {
-                            Some(title) => self.log(id, "info", format!("Capa traduzida: “{title}”")),
-                            None => self.log(id, "info", "A capa não precisa de tradução: só o selo PT-BR foi aplicado."),
-                        }
-                        Some(text)
-                    }
-                    Err(err) => {
-                        self.log(id, "warn", format!("Não foi possível ler a capa: {err}"));
-                        None
-                    }
-                }
-            }
-            Err(err) => {
-                if let ProviderError::UsageLimit(message) = &err {
-                    self.set_limit(message);
-                }
-                self.log(id, "warn", format!("Não foi possível ler a capa: {err}"));
-                None
-            }
-        }
-    }
-
-    fn export_with(self: &Arc<Self>, id: &str, partial: bool, cover_text: Option<CoverText>) -> Result<ExportResult, String> {
-        let result = self.build_and_commit(id, partial, cover_text.as_ref());
+    fn export_with(self: &Arc<Self>, id: &str, partial: bool) -> Result<ExportResult, String> {
+        let result = self.build_and_commit(id, partial);
         if partial {
             match &result {
                 Ok(done) => {
@@ -471,7 +399,7 @@ impl Engine {
         result
     }
 
-    fn build_and_commit(&self, id: &str, partial: bool, cover_text: Option<&CoverText>) -> Result<ExportResult, String> {
+    fn build_and_commit(&self, id: &str, partial: bool) -> Result<ExportResult, String> {
         let row = self.store.project(id)?;
         let source = read_epub(Path::new(&row.source_epub)).ok();
         let asset_hrefs: Vec<String> = source
@@ -540,20 +468,11 @@ impl Engine {
         };
 
         let source_dir = PathBuf::from(&row.source_dir);
-        let original = original_cover_path(&row).and_then(|path| {
+        let cover = original_cover_path(&row).and_then(|path| {
             let (ext, media_type) = cover_media(&path)?;
             let data = fs::read(&path).ok().filter(|data| !data.is_empty())?;
             Some(EpubCover { name: format!("cover.{ext}"), media_type: media_type.to_string(), data })
         });
-        // Translated cover (badge + pt-BR title band); the original is kept as `cover-original.*`.
-        let translated = original.as_ref().filter(|_| row.translate_cover).and_then(|orig| {
-            let title = cover_text.and_then(|t| t.band_title());
-            let subtitle = cover_text.and_then(|t| t.subtitle_pt.as_deref());
-            render_cover(&orig.data, title, subtitle)
-                .map(|data| EpubCover { name: "cover.jpg".into(), media_type: "image/jpeg".into(), data })
-                .ok()
-        });
-        let cover = translated.clone().or_else(|| original.clone());
 
         let source_id = row
             .source_novel_id
@@ -592,10 +511,6 @@ impl Engine {
             write_export_file(&staging, &format!("{}.epub", sanitize_file_name(&title)), &epub)?;
             if let Some(cover) = &cover {
                 write_export_file(&staging, &cover.name, &cover.data)?;
-            }
-            if let (Some(_), Some(orig)) = (&translated, &original) {
-                let ext = orig.name.rsplit('.').next().unwrap_or("jpg");
-                write_export_file(&staging, &format!("cover-original.{ext}"), &orig.data)?;
             }
             let json = serde_json::to_vec_pretty(&manifest).map_err(|err| err.to_string())?;
             write_export_file(&staging, LOCAL_BOOK_MANIFEST, &json)?;
@@ -705,7 +620,7 @@ mod tests {
     }
 
     #[test]
-    fn preview_then_final_replace_the_same_book_with_a_translated_cover() {
+    fn preview_then_final_replace_the_same_book() {
         tauri::async_runtime::block_on(async {
             let f = fixture(70);
             // A real (decodable) cover so the translated cover can be drawn.
@@ -728,9 +643,7 @@ mod tests {
             let manifest: serde_json::Value = serde_json::from_slice(&fs::read(out.join(LOCAL_BOOK_MANIFEST)).unwrap()).unwrap();
             assert_eq!(manifest["translation_progress"], 33);
             assert_eq!(manifest["chapter_count"], 1);
-            assert!(out.join("cover.jpg").is_file(), "translated cover");
-            assert!(out.join("cover-original.png").is_file(), "original kept");
-            assert!(!out.join("cover.png").exists());
+            assert!(out.join("cover.png").is_file(), "the original cover is used as is");
             let row = f.engine.store.project(&id).unwrap();
             assert!(row.last_preview_at.is_some());
             assert_ne!(row.status, ProjectStatus::Exported, "a preview does not finish the project");
@@ -743,7 +656,7 @@ mod tests {
             let book = listed.iter().find(|item| item["novelId"] == "cn:livro:pt-BR").unwrap();
             assert_eq!(book["translationProgress"], 33);
             assert_eq!(book["language"], "pt-BR");
-            assert!(book["coverPath"].as_str().unwrap().ends_with("cover.jpg"));
+            assert!(book["coverPath"].as_str().unwrap().ends_with("cover.png"));
             assert_eq!(read_epub(&out.join("Livro (PT-BR).epub")).unwrap().chapters.len(), 1);
 
             // Finishing replaces the same folder; the preview mark is gone.

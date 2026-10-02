@@ -14,7 +14,6 @@
 //! - `commands`: Tauri commands.
 
 pub mod commands;
-pub mod cover;
 pub mod export;
 pub mod glossary;
 pub mod pilot;
@@ -191,11 +190,8 @@ pub struct ProjectDetail {
     /// Glossary entries at or above this confidence are auto-approved: hidden from the
     /// review list but still used. Lower ones are shown for review. All entries are used.
     pub glossary_hide_at: u8,
-    pub translate_cover: bool,
     /// Unix seconds of the last preview export (partial book).
     pub last_preview_at: Option<f64>,
-    /// `cover.jpg` of the translated book, once exported (translated cover).
-    pub translated_cover_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

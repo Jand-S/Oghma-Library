@@ -62,7 +62,6 @@ pub fn run() {
             translation::commands::translation_mark_reviewed,
             translation::commands::translation_verify,
             translation::commands::translation_export,
-            translation::commands::translation_regenerate_cover,
             translation::commands::translation_log
         ])
         .run(tauri::generate_context!())

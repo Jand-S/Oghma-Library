@@ -350,14 +350,6 @@ export function useTranslationController({ client: injected, library, toast, ref
     }
   }, [api, withBusy]);
 
-  const regenerateCover = useCallback(async (id: string) => {
-    const result = await withBusy(`${id}:cover`, () => api.regenerateCover(id), t.coverFailed);
-    if (result) {
-      refreshLibrary();
-      toast({ message: t.coverRegenerated, tone: "success" });
-    }
-  }, [api, refreshLibrary, toast, withBusy]);
-
   const openInLibrary = useCallback((outputDir: string) => {
     navigate("library", { book: libraryBookId(outputDir) });
   }, [navigate]);
@@ -499,7 +491,6 @@ export function useTranslationController({ client: injected, library, toast, ref
     cancel,
     exportBook,
     exportPreview,
-    regenerateCover,
     openInLibrary,
     // per-project data
     logs: logs[selectedId] ?? [],

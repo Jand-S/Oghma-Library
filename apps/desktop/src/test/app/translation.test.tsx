@@ -374,9 +374,9 @@ describe("Translation", () => {
     expect(within(getToastRegion()).getByText(t.projectCreated("To Kill a Mockingbird"))).toBeInTheDocument();
   });
 
-  it("builds a preview before the end and toggles the cover translation", async () => {
+  it("builds a preview before the end", async () => {
     const user = setupUser();
-    const engine = createEngine({ projects: [makeDetail({ status: "paused", chaptersDone: 4, chaptersTotal: 31, translateCover: true })] });
+    const engine = createEngine({ projects: [makeDetail({ status: "paused", chaptersDone: 4, chaptersTotal: 31 })] });
     await openProject(user, engine);
 
     const book = await screen.findByTestId("translation-book");
@@ -386,9 +386,6 @@ describe("Translation", () => {
 
     engine.emit("translation://exported", { projectId: "p1", outputDir: "/books/x (PT-BR)", title: "To Kill a Mockingbird (PT-BR)", preview: true });
     expect(await within(getToastRegion()).findByText(t.previewToast("To Kill a Mockingbird (PT-BR)"))).toBeInTheDocument();
-
-    await user.click(within(book).getByRole("switch", { name: t.translateCover }));
-    expect(engine.calls("translation_update_settings").at(-1)).toEqual({ projectId: "p1", translateCover: false });
   });
 
   it("updates the progress dashboard from translation://project events", async () => {

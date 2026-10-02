@@ -696,22 +696,6 @@ impl ChatProvider for SiwcProvider {
             with_retry(&self.retry_delays, || self.translate_once(model, effort, instructions, text)).await
         })
     }
-
-    fn read_image<'a>(
-        &'a self,
-        model: &'a str,
-        instructions: &'a str,
-        prompt: &'a str,
-        image_data_url: &'a str,
-    ) -> BoxFut<'a, Result<ChatOutput, ProviderError>> {
-        Box::pin(async move {
-            let content = json!([
-                { "type": "input_text", "text": prompt },
-                { "type": "input_image", "image_url": image_data_url }
-            ]);
-            with_retry(&self.retry_delays, || self.respond_once(model, "none", instructions, content.clone())).await
-        })
-    }
 }
 
 #[cfg(test)]
