@@ -849,7 +849,7 @@
 
 
   .translation-table__suggestion > td {
-    padding-top: 0;
+    padding-block: var(--space-1-5);
   }
 
   .translation-suggestion {
