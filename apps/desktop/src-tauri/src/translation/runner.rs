@@ -152,6 +152,28 @@ impl Engine {
         let translated: Vec<&str> = chunks.iter().filter_map(|c| c.dst_html.as_deref()).collect();
         let status = chapter_status(chunks.iter().map(|c| c.status.as_str()));
         let issues = super::verify::chapter_issues(&chunks);
+        let chunk_views = chunks
+            .iter()
+            .map(|chunk| {
+                let src = super::source::split_blocks(&chunk.src_html);
+                let dst = chunk.dst_html.as_deref().map(super::source::split_blocks).unwrap_or_default();
+                let pairs = (0..src.len().max(dst.len()))
+                    .map(|i| super::ParagraphPair { source: src.get(i).cloned(), translated: dst.get(i).cloned() })
+                    .collect();
+                let english_words = match chunk.dst_html.as_deref() {
+                    Some(html) if !chunk.reviewed => super::verify::english_words(&text_of(html)),
+                    _ => Vec::new(),
+                };
+                super::ChunkView {
+                    index: chunk.index,
+                    status: chunk.status.clone(),
+                    reviewed: chunk.reviewed,
+                    issues: super::verify::chunk_issues(chunk),
+                    english_words,
+                    pairs,
+                }
+            })
+            .collect();
         Ok(ChapterView {
             index: chapter,
             title,
@@ -159,7 +181,37 @@ impl Engine {
             translated_html: (!translated.is_empty()).then(|| translated.join("\n")),
             status,
             issues,
+            chunks: chunk_views,
         })
+    }
+
+    /// Retranslates only one chunk of a chapter (cheaper than the whole chapter).
+    pub fn retranslate_chunk(self: &Arc<Self>, id: &str, chapter: u32, chunk: u32) -> Result<(), String> {
+        let title = self.store.chapter_title(id, chapter)?;
+        self.store
+            .reset_chunk(id, chapter, chunk)
+            .map_err(|_| format!("Trecho {} não encontrado no capítulo {chapter}", chunk + 1))?;
+        self.log(id, "info", format!("Retraduzindo o trecho {} de {title}", chunk + 1));
+        let running = self.is_running(id);
+        if running {
+            self.log(id, "info", "O trecho entra na fila quando a rodada atual terminar.");
+        } else {
+            self.store.set_status(id, ProjectStatus::Ready)?;
+        }
+        self.emit_project(id, true);
+        if !running {
+            self.start(id)?;
+        }
+        Ok(())
+    }
+
+    /// The user accepts a chunk as it is: its issues stop being reported.
+    pub fn mark_chunk_reviewed(self: &Arc<Self>, id: &str, chapter: u32, chunk: u32) -> Result<ChapterView, String> {
+        self.store
+            .mark_chunk_reviewed(id, chapter, chunk)
+            .map_err(|_| format!("Trecho {} ainda não foi traduzido", chunk + 1))?;
+        self.emit_project(id, true);
+        self.chapter_view(id, chapter)
     }
 
     /// Resets a chapter's chunks and runs it again (even outside the scope).

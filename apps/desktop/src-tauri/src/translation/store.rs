@@ -150,6 +150,8 @@ pub struct ChunkRow {
     pub src_words: u64,
     pub dst_html: Option<String>,
     pub status: String,
+    /// Marked as reviewed by the user: its automatic issues are no longer reported.
+    pub reviewed: bool,
 }
 
 impl ChunkRow {
@@ -173,6 +175,7 @@ fn migrate(conn: &Connection) -> Result<(), String> {
         "ALTER TABLE glossary ADD COLUMN confidence INTEGER NOT NULL DEFAULT 100",
         "ALTER TABLE projects ADD COLUMN glossary_min_confidence INTEGER NOT NULL DEFAULT 60",
         "ALTER TABLE projects ADD COLUMN glossary_hide_at INTEGER NOT NULL DEFAULT 80",
+        "ALTER TABLE chunks ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0",
     ] {
         if let Err(e) = conn.execute(sql, []) {
             if !e.to_string().contains("duplicate column") {
@@ -400,7 +403,7 @@ impl Store {
     pub fn chunks(&self, id: &str, chapter: u32) -> Result<Vec<ChunkRow>, String> {
         self.with(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, idx, src_html, src_words, dst_html, status
+                "SELECT id, idx, src_html, src_words, dst_html, status, reviewed
                  FROM chunks WHERE project_id = ?1 AND chapter_idx = ?2 ORDER BY idx",
             )?;
             let rows = stmt.query_map(params![id, chapter], |row| {
@@ -411,6 +414,7 @@ impl Store {
                     src_words: row.get::<_, i64>(3)? as u64,
                     dst_html: row.get(4)?,
                     status: row.get(5)?,
+                    reviewed: row.get::<_, i64>(6)? != 0,
                 })
             })?;
             rows.collect()
@@ -468,10 +472,41 @@ impl Store {
     pub fn reset_chapter(&self, id: &str, chapter: u32) -> Result<(), String> {
         self.with(|conn| {
             conn.execute(
-                "UPDATE chunks SET status = 'pending', dst_html = NULL, error = NULL WHERE project_id = ?1 AND chapter_idx = ?2",
+                "UPDATE chunks SET status = 'pending', dst_html = NULL, error = NULL, reviewed = 0 WHERE project_id = ?1 AND chapter_idx = ?2",
                 params![id, chapter],
             )?;
             conn.execute("UPDATE chapters SET forced = 1 WHERE project_id = ?1 AND idx = ?2", params![id, chapter])?;
+            Ok(())
+        })
+    }
+
+    /// Resets one chunk so the next run translates it again (chapter forced into the run).
+    pub fn reset_chunk(&self, id: &str, chapter: u32, chunk: u32) -> Result<(), String> {
+        self.with(|conn| {
+            let changed = conn.execute(
+                "UPDATE chunks SET status = 'pending', dst_html = NULL, error = NULL, reviewed = 0
+                 WHERE project_id = ?1 AND chapter_idx = ?2 AND idx = ?3",
+                params![id, chapter, chunk],
+            )?;
+            if changed == 0 {
+                return Err(rusqlite::Error::QueryReturnedNoRows);
+            }
+            conn.execute("UPDATE chapters SET forced = 1 WHERE project_id = ?1 AND idx = ?2", params![id, chapter])?;
+            Ok(())
+        })
+    }
+
+    /// The user accepted the chunk as is: hide its automatic issues ("needs_review" becomes "done").
+    pub fn mark_chunk_reviewed(&self, id: &str, chapter: u32, chunk: u32) -> Result<(), String> {
+        self.with(|conn| {
+            let changed = conn.execute(
+                "UPDATE chunks SET reviewed = 1, status = CASE WHEN status = 'needs_review' THEN 'done' ELSE status END
+                 WHERE project_id = ?1 AND chapter_idx = ?2 AND idx = ?3 AND dst_html IS NOT NULL",
+                params![id, chapter, chunk],
+            )?;
+            if changed == 0 {
+                return Err(rusqlite::Error::QueryReturnedNoRows);
+            }
             Ok(())
         })
     }

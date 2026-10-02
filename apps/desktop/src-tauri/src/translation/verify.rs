@@ -38,7 +38,45 @@ fn pct(value: f64) -> String {
     format!("{:.1}%", value * 100.0).replace('.', ",")
 }
 
-/// Issues of one chapter, from its chunks.
+/// Issues of one translated chunk (codes without the "trecho N" detail). Reviewed
+/// chunks report nothing: the user accepted them as they are.
+pub fn chunk_issues(chunk: &ChunkRow) -> Vec<String> {
+    let Some(dst_html) = chunk.dst_html.as_deref() else { return Vec::new() };
+    if chunk.reviewed {
+        return Vec::new();
+    }
+    let mut issues = Vec::new();
+    let (n_src, n_dst) = (split_blocks(&chunk.src_html).len(), split_blocks(dst_html).len());
+    if n_src != n_dst {
+        issues.push(format!("paragraphMismatch: {n_src} → {n_dst}"));
+    }
+    let src_words = text_of(&chunk.src_html).split_whitespace().count();
+    let text = text_of(dst_html);
+    let dst_words = text.split_whitespace().count();
+    if src_words > 0 && (dst_words as f64 / src_words as f64) < SHORT_RATIO {
+        issues.push(format!("tooShort: {} das palavras", pct(dst_words as f64 / src_words as f64)));
+    }
+    if dst_words >= 30 {
+        let ratio = english_ratio(&text);
+        if ratio > ENGLISH_THRESHOLD {
+            issues.push(format!("englishLeft: {}", pct(ratio)));
+        }
+    }
+    if chunk.status == "needs_review" {
+        issues.push("needsReview".to_string());
+    }
+    issues
+}
+
+/// English function words left in a translated text (lowercase, unique), to highlight.
+pub fn english_words(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = english_re().find_iter(text).map(|m| m.as_str().to_lowercase()).collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Issues of one chapter, from its chunks ("code: trecho N (detail)").
 pub fn chapter_issues(chunks: &[ChunkRow]) -> Vec<String> {
     let mut issues = Vec::new();
     let missing = chunks.iter().filter(|c| c.dst_html.is_none()).count();
@@ -46,27 +84,13 @@ pub fn chapter_issues(chunks: &[ChunkRow]) -> Vec<String> {
         issues.push(format!("missingChunks: {missing} de {} trechos", chunks.len()));
         return issues;
     }
-    let src_html = chunks.iter().map(|c| c.src_html.as_str()).collect::<Vec<_>>().join("\n");
-    let dst_html = chunks.iter().filter_map(|c| c.dst_html.as_deref()).collect::<Vec<_>>().join("\n");
-    let (n_src, n_dst) = (split_blocks(&src_html).len(), split_blocks(&dst_html).len());
-    if n_src != n_dst {
-        issues.push(format!("paragraphMismatch: {n_src} → {n_dst}"));
-    }
-    let src_words = text_of(&src_html).split_whitespace().count();
-    let dst_words = text_of(&dst_html).split_whitespace().count();
-    if src_words > 0 && (dst_words as f64 / src_words as f64) < SHORT_RATIO {
-        issues.push(format!("tooShort: {} das palavras", pct(dst_words as f64 / src_words as f64)));
-    }
     for chunk in chunks {
-        let text = text_of(chunk.dst_html.as_deref().unwrap_or(""));
-        if text.split_whitespace().count() >= 30 {
-            let ratio = english_ratio(&text);
-            if ratio > ENGLISH_THRESHOLD {
-                issues.push(format!("englishLeft: trecho {} ({})", chunk.index + 1, pct(ratio)));
-            }
-        }
-        if chunk.status == "needs_review" {
-            issues.push(format!("needsReview: trecho {}", chunk.index + 1));
+        for issue in chunk_issues(chunk) {
+            let (code, detail) = issue.split_once(": ").map(|(c, d)| (c, Some(d))).unwrap_or((issue.as_str(), None));
+            issues.push(match detail {
+                Some(detail) => format!("{code}: trecho {} ({detail})", chunk.index + 1),
+                None => format!("{code}: trecho {}", chunk.index + 1),
+            });
         }
     }
     issues
@@ -120,6 +144,7 @@ mod tests {
             src_words: 0,
             dst_html: dst.map(str::to_string),
             status: status.into(),
+            reviewed: false,
         }
     }
 
@@ -131,11 +156,16 @@ mod tests {
         assert_eq!(chapter_issues(&[chunk(0, &en, None, "pending"), chunk(1, &en, Some(&pt), "done")]), vec!["missingChunks: 1 de 2 trechos"]);
         let issues = chapter_issues(&[chunk(0, &format!("{en}{en}"), Some(&en), "needs_review")]);
         assert_eq!(issues.len(), 4, "{issues:?}");
-        assert!(issues[0].starts_with("paragraphMismatch: 2 → 1"));
-        assert!(issues[1].starts_with("tooShort: 50,0%"));
-        assert!(issues[2].starts_with("englishLeft: trecho 1"));
+        assert_eq!(issues[0], "paragraphMismatch: trecho 1 (2 → 1)");
+        assert_eq!(issues[1], "tooShort: trecho 1 (50,0% das palavras)");
+        assert!(issues[2].starts_with("englishLeft: trecho 1 ("));
         assert_eq!(issues[3], "needsReview: trecho 1");
         assert!(!is_blocking(&issues[3]) && is_blocking(&issues[0]));
+
+        let mut reviewed = chunk(0, &format!("{en}{en}"), Some(&en), "done");
+        reviewed.reviewed = true;
+        assert!(chapter_issues(&[reviewed]).is_empty(), "reviewed chunks report nothing");
+        assert_eq!(english_words("the man and o homem"), vec!["and".to_string(), "the".to_string()]);
     }
 
     #[test]
@@ -156,5 +186,46 @@ mod tests {
             assert!(report.ok, "{:?}", report.chapters);
             assert!(report.chapters.is_empty());
         });
+    }
+
+    #[test]
+    fn chunk_level_review_actions() {
+        tauri::async_runtime::block_on(async {
+            let f = fixture(1000);
+            let id = create(&f);
+            glossary_settled(&f, &id).await;
+            f.engine.start(&id).unwrap();
+            let engine = Arc::clone(&f.engine);
+            let pid = id.clone();
+            wait_until(move || engine.store.project(&pid).unwrap().status == ProjectStatus::Exported).await;
+
+            let chapter = f.engine.chapter_view(&id, 1).unwrap();
+            assert!(!chapter.chunks.is_empty());
+            let first = &chapter.chunks[0];
+            assert!(!first.pairs.is_empty());
+            assert!(first.pairs.iter().all(|p| p.source.is_some() && p.translated.is_some()), "pairs align");
+
+            // Force an issue on chunk 0, then accept it as reviewed.
+            f.engine.store.save_chunk(first_chunk_id(&f, &id), "<p>x</p>", "needs_review", Some("nota"), "m", 0, 0).unwrap();
+            assert!(!f.engine.chapter_view(&id, 1).unwrap().chunks[0].issues.is_empty());
+            let view = f.engine.mark_chunk_reviewed(&id, 1, 0).unwrap();
+            assert!(view.chunks[0].reviewed && view.chunks[0].issues.is_empty());
+            assert_eq!(view.chunks[0].status, "done");
+
+            // Retranslating one chunk resets only that chunk and runs again.
+            f.engine.retranslate_chunk(&id, 1, 0).unwrap();
+            let engine = Arc::clone(&f.engine);
+            let pid = id.clone();
+            wait_until(move || {
+                let chunks = engine.store.chunks(&pid, 1).unwrap();
+                chunks[0].dst_html.as_deref().is_some_and(|h| h != "<p>x</p>") && !chunks[0].reviewed
+            })
+            .await;
+            assert!(f.engine.retranslate_chunk(&id, 1, 999).is_err());
+        });
+    }
+
+    fn first_chunk_id(f: &crate::translation::runner::tests::Fixture, id: &str) -> i64 {
+        f.engine.store.chunks(id, 1).unwrap()[0].id
     }
 }

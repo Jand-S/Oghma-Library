@@ -58,6 +58,8 @@ pub fn run() {
             translation::commands::translation_choose_model,
             translation::commands::translation_chapter,
             translation::commands::translation_retranslate,
+            translation::commands::translation_retranslate_chunk,
+            translation::commands::translation_mark_reviewed,
             translation::commands::translation_verify,
             translation::commands::translation_export,
             translation::commands::translation_log

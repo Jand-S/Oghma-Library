@@ -222,6 +222,26 @@ pub async fn translation_retranslate(
 }
 
 #[tauri::command]
+pub async fn translation_retranslate_chunk(
+    state: EngineState<'_>,
+    project_id: String,
+    chapter_index: u32,
+    chunk_index: u32,
+) -> Result<(), String> {
+    engine(&state).retranslate_chunk(&project_id, chapter_index, chunk_index)
+}
+
+#[tauri::command]
+pub async fn translation_mark_reviewed(
+    state: EngineState<'_>,
+    project_id: String,
+    chapter_index: u32,
+    chunk_index: u32,
+) -> Result<ChapterView, String> {
+    engine(&state).mark_chunk_reviewed(&project_id, chapter_index, chunk_index)
+}
+
+#[tauri::command]
 pub async fn translation_verify(state: EngineState<'_>, project_id: String) -> Result<VerifyReport, String> {
     blocking(engine(&state), move |engine| engine.verify(&project_id)).await
 }

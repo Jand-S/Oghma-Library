@@ -284,6 +284,29 @@ pub struct ChapterView {
     pub translated_html: Option<String>,
     pub status: String,
     pub issues: Vec<String>,
+    /// The chapter split in its chunks, with paragraph pairs for the review reader.
+    pub chunks: Vec<ChunkView>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChunkView {
+    pub index: u32,
+    pub status: String,
+    pub reviewed: bool,
+    /// Issue codes of this chunk (`"code"` or `"code: detail"`).
+    pub issues: Vec<String>,
+    /// English words left in the translation (to highlight).
+    pub english_words: Vec<String>,
+    /// Source/translation paragraphs aligned by position (None when one side is shorter).
+    pub pairs: Vec<ParagraphPair>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParagraphPair {
+    pub source: Option<String>,
+    pub translated: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
