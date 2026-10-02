@@ -674,6 +674,7 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), String> {
     if let Err(err) = engine.recover() {
         eprintln!("translation recovery failed: {err}");
     }
+    engine.start_background();
     Ok(())
 }
 

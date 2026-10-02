@@ -408,7 +408,8 @@ impl SiwcProvider {
             login_cancel: Mutex::new(None),
             api_base: API_BASE.to_string(),
             auth_base: AUTH_BASE.to_string(),
-            timeout: Duration::from_secs(120),
+            // ~1,000 words take ~35 s; one huge paragraph can take minutes.
+            timeout: Duration::from_secs(300),
             retry_delays: vec![Duration::from_secs(3), Duration::from_secs(15), Duration::from_secs(45)],
         }
     }
@@ -707,7 +708,7 @@ impl SiwcProvider {
         };
         tokio::time::timeout(self.timeout, attempt)
             .await
-            .map_err(|_| ProviderError::Transient("tempo esgotado (120 s)".into()))?
+            .map_err(|_| ProviderError::Transient(format!("tempo esgotado ({} s)", self.timeout.as_secs())))?
     }
 }
 
@@ -805,6 +806,96 @@ mod tests {
         assert_eq!(store.load().unwrap().client_id, "c");
         store.clear().unwrap();
         assert!(store.load().is_none());
+    }
+
+    /// Real call against `/v1/responses` with the spike's tokens (never printed).
+    /// `cargo test smoke_real_translation -- --ignored --nocapture`
+    /// Tokens: `$OGHMA_SIWC_TOKENS` or `~/Documents/Oghma-wt/siwc-spike/tokens.json`.
+    /// An expired access token is refreshed and written back to that file (0600).
+    #[test]
+    #[ignore]
+    fn smoke_real_translation() {
+        use crate::translation::pipeline::{translate_fragment, validate};
+        let path = std::env::var("OGHMA_SIWC_TOKENS")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| crate::paths::expand_home("~/Documents/Oghma-wt/siwc-spike/tokens.json"));
+        let Ok(raw) = std::fs::read(&path) else {
+            println!("SKIP: no token file at {}", path.display());
+            return;
+        };
+        let mut spike: serde_json::Map<String, Value> = serde_json::from_slice(&raw).expect("token file is JSON");
+        let text = |key: &str| spike.get(key).and_then(Value::as_str).map(str::to_string);
+        let saved_at = std::fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let (email, plan) = text("id_token").as_deref().map(identity_from_id_token).unwrap_or((None, None));
+        let original = StoredTokens {
+            access_token: text("access_token").expect("access_token"),
+            refresh_token: text("refresh_token"),
+            id_token: text("id_token"),
+            client_id: text("client_id").expect("client_id"),
+            expires_at: saved_at + spike.get("expires_in").and_then(Value::as_i64).unwrap_or(3600),
+            email,
+            plan_type: plan,
+        };
+        println!(
+            "account: plan={:?}, token expires in {} s",
+            original.plan_type,
+            original.expires_at - now_secs()
+        );
+        let mut provider = SiwcProvider::new(Box::new(MemoryTokenStore(Mutex::new(Some(original.clone())))), None);
+        provider.retry_delays = vec![Duration::from_secs(3)];
+
+        let paragraph = "<p>The rain had not stopped for three days, and the old watchtower at the edge of Greywater groaned \
+            under its weight. Mira climbed the last flight of stairs with a lantern in one hand and her father's letter in the \
+            other, counting the steps the way he had taught her when she was small. <em>Forty-two,</em> she thought, and pushed \
+            the door open. The room smelled of wet stone and candle smoke. Someone had been here recently; the ashes in the \
+            hearth were still warm, and a cup of tea sat half finished on the windowsill, a thin skin of cold milk floating on \
+            top. She set the lantern down and unfolded the letter again, although she knew every word by heart. “If you are \
+            reading this,” it began, “then the bridge has fallen, and you must not wait for me.” Outside, thunder rolled across \
+            the valley like a cart full of iron.</p>";
+        println!("source words: {}", crate::translation::source::word_count(paragraph));
+        tauri::async_runtime::block_on(async {
+            let started = std::time::Instant::now();
+            let result = translate_fragment(&provider, "gpt-6-luna", "none", paragraph, &[], "").await;
+            match result {
+                Ok(fragment) => {
+                    println!("seconds: {:.1}, requests: {}", started.elapsed().as_secs_f64(), fragment.requests);
+                    println!(
+                        "usage: input={} (cached {}), output={} (reasoning {}), total={}; credits={:.5}",
+                        fragment.usage.input_tokens,
+                        fragment.usage.cached_input_tokens,
+                        fragment.usage.output_tokens,
+                        fragment.usage.reasoning_output_tokens,
+                        fragment.usage.total_tokens,
+                        crate::translation::provider::credits("gpt-6-luna", &fragment.usage)
+                    );
+                    println!("valid: {:?}, note: {:?}", validate(paragraph, &fragment.html), fragment.note);
+                    println!("output:\n{}", fragment.html);
+                    assert!(!fragment.html.is_empty());
+                }
+                Err(ProviderError::NotLoggedIn(message)) => println!("SKIP: login expired and refresh failed: {message}"),
+                Err(err) => panic!("real translation failed: {err}"),
+            }
+        });
+        // Persist rotated tokens so the spike scripts keep working.
+        if let Some(current) = provider.current() {
+            if current.access_token != original.access_token {
+                spike.insert("access_token".into(), Value::String(current.access_token.clone()));
+                if let Some(refresh) = &current.refresh_token {
+                    spike.insert("refresh_token".into(), Value::String(refresh.clone()));
+                }
+                if let Some(id_token) = &current.id_token {
+                    spike.insert("id_token".into(), Value::String(id_token.clone()));
+                }
+                spike.insert("expires_in".into(), json!(current.expires_at - now_secs()));
+                write_private(&path, &serde_json::to_vec_pretty(&spike).unwrap()).expect("save refreshed tokens");
+                println!("token refreshed and saved back to the spike file");
+            }
+        }
     }
 
     #[test]

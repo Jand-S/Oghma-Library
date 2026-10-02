@@ -189,7 +189,12 @@ impl Engine {
     }
 
     pub fn start(self: &Arc<Self>, id: &str) -> Result<(), String> {
-        self.store.project(id)?;
+        let row = self.store.project(id)?;
+        if row.status == ProjectStatus::Exported && self.store.chapters_to_run(id, &row.scope)?.is_empty() {
+            // Nothing left to translate; `translation_export` rebuilds the book on demand.
+            self.emit_project(id, true);
+            return Ok(());
+        }
         let (rx, active) = {
             let mut runners = self.runners.lock().map_err(|_| "Estado do tradutor indisponível")?;
             if runners.contains_key(id) {
