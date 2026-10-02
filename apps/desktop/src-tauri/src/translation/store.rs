@@ -142,14 +142,11 @@ pub struct ChapterRow {
 #[derive(Debug, Clone)]
 pub struct ChunkRow {
     pub id: i64,
-    pub chapter: u32,
     pub index: u32,
     pub src_html: String,
     pub src_words: u64,
-    pub src_blocks: u32,
     pub dst_html: Option<String>,
     pub status: String,
-    pub error: Option<String>,
 }
 
 impl ChunkRow {
@@ -173,6 +170,7 @@ impl Store {
         Self::init(conn)
     }
 
+    #[cfg(test)]
     pub fn open_in_memory() -> Result<Store, String> {
         Self::init(Connection::open_in_memory().map_err(err)?)
     }
@@ -371,20 +369,17 @@ impl Store {
     pub fn chunks(&self, id: &str, chapter: u32) -> Result<Vec<ChunkRow>, String> {
         self.with(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, chapter_idx, idx, src_html, src_words, src_blocks, dst_html, status, error
+                "SELECT id, idx, src_html, src_words, dst_html, status
                  FROM chunks WHERE project_id = ?1 AND chapter_idx = ?2 ORDER BY idx",
             )?;
             let rows = stmt.query_map(params![id, chapter], |row| {
                 Ok(ChunkRow {
                     id: row.get(0)?,
-                    chapter: row.get::<_, i64>(1)? as u32,
-                    index: row.get::<_, i64>(2)? as u32,
-                    src_html: row.get(3)?,
-                    src_words: row.get::<_, i64>(4)? as u64,
-                    src_blocks: row.get::<_, i64>(5)? as u32,
-                    dst_html: row.get(6)?,
-                    status: row.get(7)?,
-                    error: row.get(8)?,
+                    index: row.get::<_, i64>(1)? as u32,
+                    src_html: row.get(2)?,
+                    src_words: row.get::<_, i64>(3)? as u64,
+                    dst_html: row.get(4)?,
+                    status: row.get(5)?,
                 })
             })?;
             rows.collect()

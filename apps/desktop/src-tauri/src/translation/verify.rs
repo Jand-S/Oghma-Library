@@ -109,14 +109,11 @@ mod tests {
     fn chunk(index: u32, src: &str, dst: Option<&str>, status: &str) -> ChunkRow {
         ChunkRow {
             id: index as i64,
-            chapter: 1,
             index,
             src_html: src.into(),
             src_words: 0,
-            src_blocks: 0,
             dst_html: dst.map(str::to_string),
             status: status.into(),
-            error: None,
         }
     }
 

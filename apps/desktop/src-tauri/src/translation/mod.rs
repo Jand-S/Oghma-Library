@@ -343,6 +343,7 @@ pub struct Engine {
 }
 
 impl Engine {
+    #[cfg(test)]
     pub fn new(store: Store, provider: Arc<dyn ChatProvider>, host: Arc<dyn Host>, config: EngineConfig) -> Arc<Engine> {
         Self::with_login(store, provider, None, host, config)
     }

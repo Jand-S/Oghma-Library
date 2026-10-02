@@ -187,9 +187,11 @@ impl TokenStore for KeychainTokenStore {
     }
 }
 
+#[cfg(test)]
 #[derive(Default)]
 pub struct MemoryTokenStore(pub Mutex<Option<StoredTokens>>);
 
+#[cfg(test)]
 impl TokenStore for MemoryTokenStore {
     fn load(&self) -> Option<StoredTokens> {
         self.0.lock().ok()?.clone()

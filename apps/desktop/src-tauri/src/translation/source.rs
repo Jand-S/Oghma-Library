@@ -19,7 +19,7 @@ use regex::Regex;
 pub(crate) const VOID_TAGS: &[&str] = &[
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
 ];
-const BLOCK_TAGS: &[&str] = &[
+pub(crate) const BLOCK_TAGS: &[&str] = &[
     "p", "h1", "h2", "h3", "h4", "h5", "h6", "div", "ul", "ol", "dl", "blockquote", "hr", "table", "pre",
     "section", "figure", "aside", "header", "footer",
 ];
@@ -342,7 +342,7 @@ fn percent_decode(value: &str) -> String {
     String::from_utf8_lossy(&out).to_string()
 }
 
-fn join_zip(dir: &str, href: &str) -> String {
+pub(crate) fn join_zip(dir: &str, href: &str) -> String {
     let href = href.split('#').next().unwrap_or(href);
     let mut parts: Vec<&str> = if dir.is_empty() { Vec::new() } else { dir.split('/').collect() };
     for part in href.split('/') {
@@ -362,15 +362,6 @@ fn read_entry<R: Read + std::io::Seek>(zip: &mut zip::ZipArchive<R>, name: &str)
     let mut text = String::new();
     file.read_to_string(&mut text).ok()?;
     Some(text)
-}
-
-pub fn read_entry_bytes(epub: &Path, name: &str) -> Option<Vec<u8>> {
-    let file = fs::File::open(epub).ok()?;
-    let mut zip = zip::ZipArchive::new(file).ok()?;
-    let mut entry = zip.by_name(name).ok()?;
-    let mut bytes = Vec::new();
-    entry.read_to_end(&mut bytes).ok()?;
-    Some(bytes)
 }
 
 /// The book's EPUB inside its library folder (the one named like the folder wins).

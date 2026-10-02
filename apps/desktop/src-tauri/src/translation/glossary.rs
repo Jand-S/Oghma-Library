@@ -345,7 +345,7 @@ pub fn parse_curation(text: &str) -> Result<Curated, String> {
     let object = value.as_object().ok_or("JSON do glossário inválido")?;
 
     let mut curated = Curated::default();
-    let mut push_pair = |term: &str, target: &str, curated: &mut Curated| {
+    let push_pair = |term: &str, target: &str, curated: &mut Curated| {
         let (term, target) = (term.trim(), target.trim());
         if term.is_empty() || target.is_empty() {
             return;

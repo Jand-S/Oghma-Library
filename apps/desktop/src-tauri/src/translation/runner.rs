@@ -168,7 +168,7 @@ impl Engine {
         self.store.reset_chapter(id, chapter)?;
         let title = self.store.chapter_title(id, chapter)?;
         self.log(id, "info", format!("Retraduzindo o capítulo {chapter}: {title}"));
-        let running = self.runners.lock().map(|r| r.contains_key(id)).unwrap_or(false);
+        let running = self.is_running(id);
         if running {
             // The current run picks it up only if it already drained its queue; queue a new run after it.
             self.log(id, "info", "O capítulo entra na fila quando a rodada atual terminar.");
@@ -414,10 +414,9 @@ impl Engine {
         let engine = Arc::clone(self);
         let project = id.to_string();
         let result = tauri::async_runtime::spawn_blocking(move || engine.export_project(&project)).await;
-        match result {
-            Ok(Ok(_)) => {}
-            Ok(Err(err)) => self.log(id, "error", format!("Falha ao gerar o livro PT-BR: {err}")),
-            Err(err) => self.log(id, "error", format!("Falha ao gerar o livro PT-BR: {err}")),
+        // `export_project` logs its own failures.
+        if let Err(err) = result {
+            self.log(id, "error", format!("Falha ao gerar o livro PT-BR: {err}"));
         }
     }
 
@@ -569,7 +568,7 @@ impl Engine {
     }
 }
 
-/// `pending` | `in_progress` | `done` | `needs_review` | `error` from chunk statuses.
+/// `pending` | `running` (partly translated) | `done` | `needs_review` | `error` from chunk statuses.
 pub fn chapter_status<'a>(statuses: impl Iterator<Item = &'a str>) -> String {
     let statuses: Vec<&str> = statuses.collect();
     if statuses.iter().any(|s| *s == "error") {
@@ -577,7 +576,7 @@ pub fn chapter_status<'a>(statuses: impl Iterator<Item = &'a str>) -> String {
     } else if statuses.iter().all(|s| *s == "pending") {
         "pending"
     } else if statuses.iter().any(|s| *s == "pending") {
-        "in_progress"
+        "running"
     } else if statuses.iter().any(|s| *s == "needs_review") {
         "needs_review"
     } else {
@@ -688,7 +687,7 @@ pub(crate) mod tests {
             assert!(f.host.count(events::USAGE) >= 1);
             assert!(f.host.last(events::EXPORTED).is_some());
             let local = f.engine.store.local_usage().unwrap();
-            assert!(local.words_5h > 0 && local.tokens_5h > 0 && local.credits_5h > 0.0);
+            assert!(local.words_5h > 0 && local.words_7d >= local.words_5h && local.credits_5h > 0.0);
             // Chapter one: h1 + 3 paragraphs over 70 words + image block (no text) -> chunks.
             let view = f.engine.chapter_view(&id, 1).unwrap();
             assert_eq!(view.status, "done");
@@ -843,7 +842,7 @@ pub(crate) mod tests {
     #[test]
     fn chapter_status_rules() {
         assert_eq!(chapter_status(["pending", "pending"].into_iter()), "pending");
-        assert_eq!(chapter_status(["done", "pending"].into_iter()), "in_progress");
+        assert_eq!(chapter_status(["done", "pending"].into_iter()), "running");
         assert_eq!(chapter_status(["done", "needs_review"].into_iter()), "needs_review");
         assert_eq!(chapter_status(["done", "error"].into_iter()), "error");
         assert_eq!(chapter_status(["done"].into_iter()), "done");
