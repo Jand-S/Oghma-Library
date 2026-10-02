@@ -1,142 +1,288 @@
-import { AlertTriangle, BookA, Check, Plus, Sparkles, Trash2 } from "lucide-react";
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { AlertTriangle, BookA, Check, Pencil, Plus, RefreshCcw, Search, Trash2, X } from "lucide-react";
+import { useMemo, useState, type KeyboardEvent } from "react";
+import type { GlossaryEntry, GlossaryKind, ProjectDetail } from "../../services/translationClient";
 import { translationStrings as t } from "../../strings/translation";
-import { Badge, Button, EmptyState, IconButton, Section, Switch, TextField, type BadgeTone } from "../../ui";
+import { Badge, Button, EmptyState, IconButton, SelectField, Spinner, TextField } from "../../ui";
 import type { TranslationController } from "./useTranslationController";
-import type { TranslationMemory } from "./useTranslationMemory";
 
-const severityTone: Record<string, BadgeTone> = { high: "danger", medium: "warning", low: "neutral" };
+const kindOptions: { value: GlossaryKind; label: string }[] = [
+  { value: "keep", label: t.kindKeep },
+  { value: "translate", label: t.kindTranslate }
+];
 
-function GroupHeader({ icon, title, count, description }: { icon: ReactNode; title: string; count: number; description?: string }) {
-  return (
-    <div className="translation-group__header">
-      <span className="translation-group__icon" aria-hidden="true">{icon}</span>
-      <h3 className="translation-group__title">{title}</h3>
-      <Badge>{count}</Badge>
-      {description ? <p className="translation-group__description">{description}</p> : null}
-    </div>
-  );
-}
+type Draft = { term: string; kind: GlossaryKind; target: string };
 
-export function GlossaryTab({ controller, memory }: { controller: TranslationController; memory: TranslationMemory }) {
-  const [source, setSource] = useState("");
-  const [target, setTarget] = useState("");
-  const sourceRef = useRef<HTMLInputElement>(null);
-  const { glossaryTerms, selectedKey, settings, patchSettings, removeGlossaryTerm } = controller;
-  const canAdd = source.trim().length > 0 && target.trim().length > 0;
+/** Inline editor row, used both for "Adicionar termo" and for editing an entry. */
+function EditRow({
+  initial,
+  isNew,
+  saving,
+  onSave,
+  onCancel
+}: {
+  initial: Draft;
+  isNew: boolean;
+  saving: boolean;
+  onSave: (draft: Draft) => Promise<boolean>;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const [error, setError] = useState<{ term?: string; target?: string }>({});
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!canAdd) return;
-    memory.addTerm(source.trim(), target.trim());
-    setSource("");
-    setTarget("");
-    sourceRef.current?.focus();
+  const submit = async () => {
+    const term = draft.term.trim();
+    const target = draft.target.trim();
+    const next: typeof error = {};
+    if (!term) next.term = t.termRequired;
+    if (draft.kind === "translate" && !target) next.target = t.targetRequired;
+    setError(next);
+    if (next.term || next.target) return;
+    await onSave({ term, kind: draft.kind, target });
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void submit();
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      onCancel();
+    }
   };
 
   return (
-    <Section className="translation-tab" title={t.glossaryHeading} description={t.glossaryDescription}>
-      <form className="translation-glossary-form" onSubmit={submit}>
-        <div className="translation-glossary-form__row">
-          <TextField ref={sourceRef} label={t.termSource} value={source} onChange={(event) => setSource(event.target.value)} />
-          <TextField label={t.termTarget} value={target} onChange={(event) => setTarget(event.target.value)} />
-          <Button type="submit" icon={<Plus />} disabled={!canAdd}>{t.addTerm}</Button>
+    <tr className="translation-table__edit" data-testid="glossary-edit-row" onKeyDown={onKeyDown}>
+      <th scope="row">
+        {isNew ? (
+          <TextField
+            label={t.termField}
+            hideLabel
+            placeholder={t.termField}
+            fieldClassName="o-field--sm"
+            autoFocus
+            value={draft.term}
+            error={error.term}
+            onChange={(event) => setDraft({ ...draft, term: event.target.value })}
+          />
+        ) : (
+          <span className="translation-term">{draft.term}</span>
+        )}
+      </th>
+      <td colSpan={2}>
+        <div className="translation-term-edit">
+          <SelectField<GlossaryKind>
+            label={t.kindField}
+            hideLabel
+            fieldClassName="o-field--sm translation-term-edit__kind"
+            options={kindOptions}
+            value={draft.kind}
+            onChange={(event) => setDraft({ ...draft, kind: event.target.value as GlossaryKind })}
+          />
+          {draft.kind === "translate" ? (
+            <TextField
+              label={t.targetField}
+              hideLabel
+              placeholder={t.targetField}
+              fieldClassName="o-field--sm translation-term-edit__target"
+              autoFocus={!isNew}
+              value={draft.target}
+              error={error.target}
+              onChange={(event) => setDraft({ ...draft, target: event.target.value })}
+            />
+          ) : null}
         </div>
-        <Switch
-          label={t.applyExisting}
-          description={t.applyExistingDescription}
-          checked={settings.applyGlossaryToExisting}
-          onChange={(checked) => patchSettings({ applyGlossaryToExisting: checked })}
-        />
-      </form>
+      </td>
+      <td className="translation-table__actions">
+        <IconButton size="sm" variant="primary" label={t.saveTerm} icon={<Check />} loading={saving} onClick={() => void submit()} />
+        <IconButton size="sm" label={t.cancelEdit} icon={<X />} onClick={onCancel} />
+      </td>
+    </tr>
+  );
+}
 
-      <div className="translation-group">
-        <GroupHeader icon={<BookA />} title={t.manualTerms} count={glossaryTerms.length} />
-        {glossaryTerms.length === 0 ? (
+/** Glossário: the auto-generated table, editable inline. */
+export function GlossaryTab({ controller, project }: { controller: TranslationController; project: ProjectDetail }) {
+  const entries = controller.glossary;
+  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const saving = controller.isBusy(`${project.id}:glossary`);
+  const extracting = project.glossaryStatus === "running";
+
+  const rows = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return [...(entries ?? [])]
+      .filter((entry) => !needle || `${entry.term} ${entry.target ?? ""}`.toLowerCase().includes(needle))
+      .sort((a, b) => b.count - a.count || a.term.localeCompare(b.term));
+  }, [entries, query]);
+  const missedCount = (entries ?? []).filter((entry) => entry.missed > 0).length;
+
+  const save = async (draft: Draft) => {
+    const ok = await controller.upsertTerm(project.id, {
+      term: draft.term,
+      kind: draft.kind,
+      target: draft.kind === "translate" ? draft.target : undefined
+    });
+    if (ok) {
+      setEditing(null);
+      setAdding(false);
+    }
+    return ok;
+  };
+
+  const toDraft = (entry: GlossaryEntry): Draft => ({ term: entry.term, kind: entry.kind, target: entry.target ?? "" });
+  const empty = entries !== undefined && entries.length === 0 && !adding;
+
+  return (
+    <div className="translation-glossary" data-testid="translation-glossary">
+      <section className="translation-block" aria-labelledby="translation-glossary-title">
+        <header className="translation-block__header">
+          <div className="translation-block__heading translation-block__heading--inline">
+            <h3 className="translation-block__title" id="translation-glossary-title" title={t.glossaryDescription}>{t.glossaryHeading}</h3>
+            {entries && entries.length > 0 ? (
+              <span className="translation-glossary__count">
+                {t.glossaryCount(entries.length)}
+                {missedCount > 0 ? (
+                  <span className="translation-glossary__missed" title={t.missedSummary(missedCount)}>
+                    <AlertTriangle aria-hidden="true" />
+                    {t.missedSummary(missedCount)}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+          </div>
+          <div className="translation-block__actions">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<RefreshCcw />}
+              title={t.regenerateHint}
+              disabled={extracting || saving || !controller.loggedIn}
+              onClick={() => void controller.regenerateGlossary(project.id)}
+            >
+              {t.regenerate}
+            </Button>
+            <Button
+              size="sm"
+              icon={<Plus />}
+              disabled={adding}
+              onClick={() => {
+                setEditing(null);
+                setAdding(true);
+              }}
+            >
+              {t.addTerm}
+            </Button>
+          </div>
+        </header>
+
+        {extracting ? (
+          <p className="translation-inline-status" role="status" data-testid="glossary-status">
+            <Spinner size="sm" />
+            {t.glossaryRunning}
+          </p>
+        ) : project.glossaryStatus === "error" ? (
+          <p className="translation-inline-status translation-inline-status--danger" role="alert" data-testid="glossary-status">
+            <AlertTriangle aria-hidden="true" />
+            {t.glossaryError}
+          </p>
+        ) : null}
+
+        {entries && entries.length > 8 ? (
+          <TextField
+            label={t.glossarySearch}
+            hideLabel
+            placeholder={t.glossarySearch}
+            leading={<Search />}
+            fieldClassName="o-field--sm translation-glossary__search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        ) : null}
+
+        {empty ? (
           <EmptyState
             className="translation-empty--compact"
             icon={<BookA />}
-            title={t.emptyGlossaryTitle}
-            description={t.emptyGlossaryDescription}
-            action={<Button size="sm" icon={<Plus />} onClick={() => sourceRef.current?.focus()}>{t.emptyGlossaryAction}</Button>}
+            title={t.glossaryEmptyTitle}
+            description={`${t.glossaryDescription} ${t.glossaryEmptyDescription}`}
           />
-        ) : (
-          <ul className="translation-terms" aria-label={t.manualTerms}>
-            {glossaryTerms.map((term) => (
-              <li className="translation-term" key={term.id} data-testid="translation-term">
-                <span className="translation-term__pair">
-                  <strong>{term.source}</strong>
-                  <span aria-hidden="true">→</span>
-                  <span>{term.target}</span>
-                </span>
-                <span className="translation-term__note">{term.note}</span>
-                <IconButton size="sm" label={t.removeTerm(term.source)} icon={<Trash2 />} onClick={() => removeGlossaryTerm(selectedKey, term.id)} />
-              </li>
-            ))}
-          </ul>
+        ) : entries === undefined ? null : (
+          <div className="translation-table-wrap">
+            <table className="translation-table translation-table--glossary" aria-label={t.glossaryTable}>
+              <thead>
+                <tr>
+                  <th scope="col">{t.colTerm}</th>
+                  <th scope="col">{t.colTarget}</th>
+                  <th scope="col" className="is-num">{t.colCount}</th>
+                  <th scope="col"><span className="sr-only">{t.colActions}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {adding ? (
+                  <EditRow
+                    isNew
+                    initial={{ term: "", kind: "translate", target: "" }}
+                    saving={saving}
+                    onSave={save}
+                    onCancel={() => setAdding(false)}
+                  />
+                ) : null}
+                {rows.map((entry) => (editing === entry.term ? (
+                  <EditRow key={entry.term} isNew={false} initial={toDraft(entry)} saving={saving} onSave={save} onCancel={() => setEditing(null)} />
+                ) : (
+                  <tr key={entry.term} data-testid="glossary-row" data-term={entry.term}>
+                    <th scope="row">
+                      <span className="translation-term">
+                        {entry.term}
+                        <Badge tone={entry.source === "manual" ? "accent" : "neutral"} className={entry.source === "manual" ? "translation-term__source" : "translation-term__source is-auto"} title={t.colSource}>
+                          {entry.source === "manual" ? t.sourceManual : t.sourceAuto}
+                        </Badge>
+                        {entry.missed > 0 ? (
+                          <span className="translation-term__warn" title={t.missed(entry.missed)}>
+                            <AlertTriangle aria-hidden="true" />
+                            <span className="sr-only">{t.missed(entry.missed)}</span>
+                          </span>
+                        ) : null}
+                      </span>
+                    </th>
+                    <td>
+                      {entry.kind === "keep" ? (
+                        <span className="translation-table__muted">{t.kindKeep}</span>
+                      ) : (
+                        <span className="translation-target">
+                          <span className="translation-target__kind">{t.kindTranslate}</span>
+                          {entry.target}
+                        </span>
+                      )}
+                    </td>
+                    <td className="is-num">{entry.count.toLocaleString("pt-BR")}</td>
+                    <td className="translation-table__actions">
+                      <IconButton
+                        size="sm"
+                        label={t.editTerm(entry.term)}
+                        icon={<Pencil />}
+                        onClick={() => {
+                          setAdding(false);
+                          setEditing(entry.term);
+                        }}
+                      />
+                      <IconButton size="sm" label={t.removeTerm(entry.term)} icon={<Trash2 />} disabled={saving} onClick={() => void controller.deleteTerm(project.id, entry.term)} />
+                    </td>
+                  </tr>
+                )))}
+                {rows.length === 0 && !adding ? (
+                  <tr>
+                    <td colSpan={4} className="translation-table__muted">{t.glossaryNoMatch}</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
-
-      {memory.memoryTerms.length ? (
-        <div className="translation-group">
-          <GroupHeader icon={<Sparkles />} title={t.memoryTerms} count={memory.memoryTerms.length} description={t.memoryTermsDescription} />
-          <ul className="translation-terms" aria-label={t.memoryTerms}>
-            {memory.memoryTerms.map((term) => (
-              <li className="translation-term" key={`${term.source}-${term.target}`}>
-                <span className="translation-term__pair">
-                  <strong>{term.source}</strong>
-                  <span aria-hidden="true">→</span>
-                  <span>{term.target}</span>
-                </span>
-                <span className="translation-term__note">
-                  {t.termStatus[term.status] ?? term.status} · {t.termUses(term.occurrences)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {memory.alerts.length ? (
-        <div className="translation-group">
-          <GroupHeader icon={<AlertTriangle />} title={t.alerts} count={memory.alerts.length} description={t.alertsDescription} />
-          <ul className="translation-terms" aria-label={t.alerts}>
-            {memory.alerts.map(({ key, conflict, suggestion }) => {
-              const canApply = Boolean(suggestion && suggestion.action !== "review_only");
-              const severity = conflict?.severity ?? suggestion?.severity ?? "low";
-              const pair = conflict
-                ? `${conflict.source} / ${conflict.relatedSource}`
-                : suggestion ? `${suggestion.source} / ${suggestion.relatedSource}` : "";
-              const detail = suggestion && canApply
-                ? t.suggested(suggestion.source, suggestion.suggestedTarget)
-                : conflict ? `${conflict.target} / ${conflict.relatedTarget}` : "";
-              return (
-                <li className="translation-term translation-term--alert" key={key} data-testid="translation-alert">
-                  <span className="translation-term__pair">
-                    <strong>{pair}</strong>
-                    <Badge tone={severityTone[severity] ?? "neutral"}>{t.severity[severity] ?? severity}</Badge>
-                  </span>
-                  <span className="translation-term__note">
-                    {detail}
-                    {suggestion?.reason ?? conflict?.message ? <> · {suggestion?.reason ?? conflict?.message}</> : null}
-                  </span>
-                  {canApply && suggestion ? (
-                    <Button
-                      size="sm"
-                      icon={<Check />}
-                      aria-label={t.applySuggestionFor(suggestion.source)}
-                      loading={memory.resolving.has(key)}
-                      onClick={() => memory.applySuggestion(suggestion)}
-                    >
-                      {t.applySuggestion}
-                    </Button>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-    </Section>
+      </section>
+    </div>
   );
 }

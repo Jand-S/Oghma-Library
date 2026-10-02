@@ -183,6 +183,14 @@ function SettingsPage({ app }: ViewProps) {
     onVerifyServer: sources.verifyServer,
     kindleConnected: app.library.kindleConnected,
     onNavigate: (view: AppView) => app.navigate(view),
+    translation: {
+      account: app.translation.account,
+      connecting: app.translation.connecting,
+      loggingOut: app.translation.isBusy("logout"),
+      onConnect: () => void app.translation.connect(),
+      onCancelConnect: app.translation.cancelConnect,
+      onLogout: () => void app.translation.logout()
+    },
     initialCategory: isSettingsCategory(params.section) ? params.section : undefined
   });
 }

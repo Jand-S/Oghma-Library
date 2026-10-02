@@ -16,6 +16,7 @@ import { useSourcesController } from "./features/sources/useSourcesController";
 import { useTranslationController } from "./features/translation/useTranslationController";
 import type { BackendClient } from "./services/backendClient";
 import { getDownloadQueue, type DownloadQueue } from "./services/downloadQueue";
+import type { TranslationClient } from "./services/translationClient";
 import { openLocalPath } from "./services/localFiles";
 import { AppShell, SplashScreen, type BootStep } from "./shell";
 import { bootStrings, shellStrings } from "./strings/common";
@@ -28,21 +29,23 @@ type AppProps = {
   backend: BackendClient;
   /** Download queue store; defaults to the app-wide singleton (tests inject their own). */
   downloadQueue?: DownloadQueue;
+  /** Translation engine transport; defaults to Tauri IPC (tests inject a fake). */
+  translationClient?: TranslationClient;
 };
 
 const ERROR_MESSAGE = /^n[aã]o foi poss[ií]vel/i;
 
-export function App({ backend, downloadQueue }: AppProps) {
+export function App({ backend, downloadQueue, translationClient }: AppProps) {
   return (
     <ToastProvider>
       <NavigationProvider initialView={readUiPreferences().startPage}>
-        <AppContent backend={backend} downloadQueue={downloadQueue} />
+        <AppContent backend={backend} downloadQueue={downloadQueue} translationClient={translationClient} />
       </NavigationProvider>
     </ToastProvider>
   );
 }
 
-function AppContent({ backend, downloadQueue }: AppProps) {
+function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
   const navigation = useNavigation();
   const { view, params, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
@@ -156,13 +159,13 @@ function AppContent({ backend, downloadQueue }: AppProps) {
     onConnectionChanged: onboarding.resetServerProbe,
     onOpenOnboarding: onboarding.openOnboarding
   });
+  // Also refreshes the library when a PT-BR book is exported (`translation://exported`).
   const translation = useTranslationController({
-    backend,
+    client: translationClient,
     library,
-    config: appConfig,
-    onConfigChange: settings.patchConfig,
-    onOpenItemFolder: libraryController.openLibraryItemFolder,
-    notify
+    toast,
+    refreshLibrary: refreshLocalLibrary,
+    navigate
   });
 
   const controllers: AppControllers = {

@@ -21,6 +21,7 @@ import {
   KindleSection,
   ServerSection
 } from "./SettingsSections";
+import type { TranslationSettingsProps } from "./SettingsSections";
 import "./settings.css";
 
 import { settingsCategories, type SettingsCategory } from "./categories";
@@ -49,6 +50,8 @@ export type SettingsViewProps = {
   onVerifyServer: (serverUrl: string, indexMode: IndexMode) => void;
   kindleConnected: boolean;
   onNavigate: (view: AppView) => void;
+  /** ChatGPT account for the translation group of "Áudio e tradução". */
+  translation: TranslationSettingsProps;
   initialCategory?: SettingsCategory;
 };
 
@@ -123,7 +126,7 @@ export function SettingsView(props: SettingsViewProps) {
       body = <KindleSection config={props.config} save={save} kindleConnected={props.kindleConnected} onNavigate={props.onNavigate} />;
       break;
     case "audio":
-      body = <AudioSection config={props.config} save={save} onNavigate={props.onNavigate} />;
+      body = <AudioSection config={props.config} save={save} saved={saved} onNavigate={props.onNavigate} translation={props.translation} />;
       break;
     case "about":
       body = <AboutSection onOpenOnboarding={props.onOpenOnboarding} />;

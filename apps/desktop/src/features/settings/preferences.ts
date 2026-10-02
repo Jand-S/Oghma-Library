@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { AppView } from "../../app/NavigationContext";
 import type { ChapterPreset } from "../../core/types";
+import type { TranslationEffort, TranslationModelId } from "../../services/translationClient";
 
 /**
  * UI preferences that are not part of `AppConfig` (which is shared with the backend
@@ -51,6 +52,68 @@ export function useUiPreferences() {
     setPreferences((current) => {
       const next = { ...current, ...patch };
       writeUiPreferences(next);
+      return next;
+    });
+  }, []);
+  return [preferences, update] as const;
+}
+
+/**
+ * Defaults for new translation projects (Ajustes → Áudio e tradução). They are passed to
+ * `translation_update_settings` right after `translation_create_project`.
+ */
+export type TranslationPreferences = {
+  model: TranslationModelId;
+  effort: TranslationEffort;
+  workers: number;
+};
+
+export const translationPreferencesKey = "oghma.translation.prefs.v1";
+export const translationModels: TranslationModelId[] = ["gpt-6-luna", "gpt-6-sol"];
+export const translationEfforts: TranslationEffort[] = ["none", "low"];
+export const TRANSLATION_WORKERS_MAX = 3;
+
+export const defaultTranslationPreferences: TranslationPreferences = {
+  model: "gpt-6-luna",
+  effort: "none",
+  workers: 2
+};
+
+function clampInt(value: unknown, min: number, max: number, fallback: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+export function readTranslationPreferences(): TranslationPreferences {
+  try {
+    const raw = window.localStorage.getItem(translationPreferencesKey);
+    if (!raw) return defaultTranslationPreferences;
+    const value = JSON.parse(raw) as Partial<Record<keyof TranslationPreferences, unknown>>;
+    const d = defaultTranslationPreferences;
+    return {
+      model: translationModels.includes(value.model as TranslationModelId) ? (value.model as TranslationModelId) : d.model,
+      effort: translationEfforts.includes(value.effort as TranslationEffort) ? (value.effort as TranslationEffort) : d.effort,
+      workers: clampInt(value.workers, 1, TRANSLATION_WORKERS_MAX, d.workers)
+    };
+  } catch {
+    return defaultTranslationPreferences;
+  }
+}
+
+export function writeTranslationPreferences(preferences: TranslationPreferences) {
+  try {
+    window.localStorage.setItem(translationPreferencesKey, JSON.stringify(preferences));
+  } catch {
+    // Storage unavailable: the defaults only last for this session.
+  }
+}
+
+export function useTranslationPreferences() {
+  const [preferences, setPreferences] = useState(readTranslationPreferences);
+  const update = useCallback((patch: Partial<TranslationPreferences>) => {
+    setPreferences((current) => {
+      const next = { ...current, ...patch };
+      writeTranslationPreferences(next);
       return next;
     });
   }, []);

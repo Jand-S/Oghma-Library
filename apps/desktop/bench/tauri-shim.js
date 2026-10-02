@@ -11,6 +11,8 @@
 //   begin_export, commit_export, abort_export, cleanup_export_root (export staging),
 //   plugin:window|* , plugin:event|listen/unlisten/emit, plugin:opener|*, plugin:os|*, plugin:dialog|open
 // Unknown commands resolve to null and are listed in __BENCH__.unknown.
+// Extension points: __BENCH__.handlers (add commands) and __BENCH__.emit(event, payload) (Tauri events);
+// translation-shim.js uses them for the translation_* commands.
 (() => {
   const cfg = window.__BENCH_CONFIG__ || {};
   const shimCfg = cfg.shim || {};
@@ -377,6 +379,14 @@
     }
   };
   // Helpers for the harness
+  // Later init scripts (e.g. translation-shim.js) can add command handlers and push events.
+  B.handlers = handlers;
+  B.emit = (event, payload) => {
+    for (const entry of listeners.get(event) || []) {
+      const cb = callbacks.get(entry.handler);
+      if (cb) cb({ event, id: entry.id, payload });
+    }
+  };
   B.setKindle = (connected) => {
     shimCfg.kindle = Boolean(connected);
   };

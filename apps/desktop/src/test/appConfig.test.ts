@@ -32,7 +32,6 @@ describe("appConfig", () => {
       enabledSourceIds: ["central-novel"],
       indexMode: "incremental_recent",
       defaultFormats: ["EPUB"],
-      translationEngine: "local",
       ttsSpeed: 1.2
     });
   });

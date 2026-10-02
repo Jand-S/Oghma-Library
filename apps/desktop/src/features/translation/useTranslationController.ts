@@ -1,257 +1,449 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AppConfig, LibraryItem, TranslationJob } from "../../core/types";
-import { getErrorMessage, type BackendClient } from "../../services/backendClient";
-import { translationStrings } from "../../strings/translation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AppView, NavParams } from "../../app/NavigationContext";
+import type { LibraryItem } from "../../core/types";
+import { getErrorMessage } from "../../services/backendClient";
 import {
-  AUTOMATIC_MODEL,
-  defaultSettings,
-  MAX_WORKERS,
-  parseDecimal,
-  patchSessionFromJob,
-  PILOT_CHAPTERS,
-  projectKey,
-  type FormatFilter,
-  type GlossaryTerm,
-  type TranslationBatchDraft,
-  type TranslationSessionItem,
-  type TranslationSettings
-} from "./translationModel";
+  getTranslationClient,
+  translationApi,
+  type ChapterView,
+  type GlossaryEntry,
+  type GlossaryKind,
+  type LogEvent,
+  type PilotRun,
+  type ProjectDetail,
+  type ProjectSettingsPatch,
+  type ProjectSummary,
+  type TranslationClient,
+  type UsageSnapshot,
+  type VerifyReport
+} from "../../services/translationClient";
+import { modelLabel, translationStrings as t } from "../../strings/translation";
+import type { ToastOptions } from "../../ui";
+import { readTranslationPreferences } from "../settings/preferences";
+
+export type TranslationAccountState =
+  | { status: "loading" }
+  | { status: "unavailable" }
+  | { status: "error"; message: string }
+  | { status: "logged_out" }
+  | { status: "logged_in"; email?: string; planType?: string };
+
+export type TranslationTab = "progress" | "pilot" | "glossary" | "review";
 
 type TranslationControllerArgs = {
-  backend: BackendClient;
+  /** Transport; defaults to the Tauri client (tests inject a fake). */
+  client?: TranslationClient;
   library: LibraryItem[];
-  config: AppConfig;
-  onConfigChange: (patch: Partial<AppConfig>) => void;
-  onOpenItemFolder: (item: LibraryItem) => void;
-  notify: (message: string) => void;
+  toast: (options: ToastOptions) => void;
+  /** Rescans the library (after a PT-BR book is exported). */
+  refreshLibrary: () => void;
+  navigate: (view: AppView, params?: NavParams) => void;
 };
 
-const JOB_POLL_MS = 3000;
+const LOG_LIMIT = 300;
+export const CHATGPT_USAGE_URL = "https://chatgpt.com/settings/usage";
+const SUMMARY_KEYS = ["id", "title", "coverUrl", "sourceNovelId", "status", "chaptersTotal", "chaptersDone", "chunksTotal", "chunksDone", "percent", "outputDir"] as const;
 
-function withFlag(set: Set<string>, id: string, on: boolean) {
-  const next = new Set(set);
-  if (on) next.add(id);
-  else next.delete(id);
+function toSummary(detail: ProjectDetail): ProjectSummary {
+  const summary = {} as Record<string, unknown>;
+  for (const key of SUMMARY_KEYS) if (detail[key] !== undefined) summary[key] = detail[key];
+  return summary as ProjectSummary;
+}
+
+function upsertSummary(list: ProjectSummary[], summary: ProjectSummary) {
+  const index = list.findIndex((item) => item.id === summary.id);
+  if (index < 0) return [summary, ...list];
+  const next = [...list];
+  next[index] = { ...next[index], ...summary };
   return next;
 }
 
+/** Library id of an exported book (see `buildLibraryItems`). */
+export const libraryBookId = (outputDir: string) => `local-${outputDir}`;
+
+/** Only books with an EPUB on disk can be translated; PT-BR outputs are not offered again. */
+export function isTranslatable(item: LibraryItem) {
+  const formats = item.formats?.length ? item.formats : [item.format];
+  return Boolean(item.outputDir) && formats.includes("EPUB") && !item.novelId?.endsWith(":pt-BR");
+}
+
 /**
- * State and actions of the Translation workspace that must outlive the page:
- * selected project, next-batch settings, prepared batches (and their jobs) and
- * the manual glossary. Estimates and translation memory are page-scoped and
- * live in `useTranslationPlanner` / `useTranslationMemory`.
+ * Translation workspace state that outlives the page (it also listens to engine events
+ * app-wide, so the library refreshes when a PT-BR book is exported on another screen).
  */
-export function useTranslationController({ backend, library, config, onConfigChange, onOpenItemFolder, notify }: TranslationControllerArgs) {
+export function useTranslationController({ client: injected, library, toast, refreshLibrary, navigate }: TranslationControllerArgs) {
+  const [client] = useState(() => injected ?? getTranslationClient());
+  const api = useMemo(() => translationApi(client), [client]);
+
+  const [account, setAccount] = useState<TranslationAccountState>(() => (client.available ? { status: "loading" } : { status: "unavailable" }));
+  const [connecting, setConnecting] = useState(false);
+  const connectingRef = useRef(false);
+  const [usage, setUsage] = useState<UsageSnapshot | null>(null);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState("");
-  const [query, setQuery] = useState("");
-  const [format, setFormat] = useState<FormatFilter>("all");
-  const [settings, setSettings] = useState<TranslationSettings>(() => defaultSettings(config.translationEngine));
-  const [sessionItems, setSessionItems] = useState<TranslationSessionItem[]>([]);
-  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
-  const [glossaryByProject, setGlossaryByProject] = useState<Record<string, GlossaryTerm[]>>({});
+  const [tab, setTab] = useState<TranslationTab>("progress");
+  const [details, setDetails] = useState<Record<string, ProjectDetail>>({});
+  const [logs, setLogs] = useState<Record<string, LogEvent[]>>({});
+  const [pilots, setPilots] = useState<Record<string, PilotRun | null>>({});
+  const [glossaries, setGlossaries] = useState<Record<string, GlossaryEntry[]>>({});
+  const [reports, setReports] = useState<Record<string, VerifyReport>>({});
+  const [busy, setBusy] = useState<Set<string>>(() => new Set());
 
-  const selectedItem = library.find((item) => item.id === selectedId) ?? null;
+  // Latest callbacks for the long-lived event listeners.
+  const latest = useRef({ toast, refreshLibrary, navigate });
+  latest.current = { toast, refreshLibrary, navigate };
+  const selectedRef = useRef(selectedId);
+  selectedRef.current = selectedId;
 
-  const resetScopeFor = useCallback((item: LibraryItem | undefined) => {
-    const chapters = Math.max(1, item?.chapters || 1);
-    setSettings((current) => ({ ...current, scope: "pilot", rangeStart: 1, rangeEnd: Math.min(PILOT_CHAPTERS, chapters) }));
+  const fail = useCallback((message: string, error: unknown) => {
+    const detail = getErrorMessage(error, "");
+    latest.current.toast({ message: detail && detail !== "unavailable" ? `${message} (${detail.slice(0, 140)})` : message, tone: "danger" });
   }, []);
+
+  const withBusy = useCallback(async <T,>(key: string, run: () => Promise<T>, failMessage: string): Promise<T | undefined> => {
+    setBusy((current) => new Set(current).add(key));
+    try {
+      return await run();
+    } catch (error) {
+      fail(failMessage, error);
+      return undefined;
+    } finally {
+      setBusy((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
+  }, [fail]);
+
+  const isBusy = useCallback((key: string) => busy.has(key), [busy]);
+
+  const loadUsage = useCallback(() => {
+    void api.usage().then(setUsage).catch(() => undefined);
+  }, [api]);
+
+  const refreshAccount = useCallback(async () => {
+    if (!client.available) {
+      setAccount({ status: "unavailable" });
+      return;
+    }
+    setAccount({ status: "loading" });
+    try {
+      const info = await api.account();
+      if (info.loggedIn) setAccount({ status: "logged_in", email: info.email, planType: info.planType });
+      else setAccount({ status: "logged_out" });
+      loadUsage();
+      const list = await api.listProjects();
+      setProjects(list);
+      setSelectedId((current) => (current && list.some((item) => item.id === current) ? current : list[0]?.id ?? ""));
+    } catch (error) {
+      setAccount({ status: "error", message: getErrorMessage(error, t.accountError) });
+    } finally {
+      setProjectsLoaded(true);
+    }
+  }, [api, client.available, loadUsage]);
+
+  useEffect(() => {
+    void refreshAccount();
+  }, [refreshAccount]);
+
+  // Engine events.
+  useEffect(() => {
+    if (!client.available) return;
+    let disposed = false;
+    const unlisteners: Array<() => void> = [];
+    const track = (promise: Promise<() => void>) => {
+      void promise.then((unlisten) => {
+        if (disposed) unlisten();
+        else unlisteners.push(unlisten);
+      }).catch(() => undefined);
+    };
+
+    track(client.listen("translation://usage", (snapshot) => setUsage(snapshot)));
+    track(client.listen("translation://project", (detail) => {
+      setDetails((current) => ({ ...current, [detail.id]: detail }));
+      setProjects((current) => upsertSummary(current, toSummary(detail)));
+    }));
+    track(client.listen("translation://log", ({ projectId, event }) => {
+      setLogs((current) => ({ ...current, [projectId]: [...(current[projectId] ?? []), event].slice(-LOG_LIMIT) }));
+    }));
+    track(client.listen("translation://pilot", ({ projectId, run }) => {
+      setPilots((current) => ({ ...current, [projectId]: run }));
+    }));
+    track(client.listen("translation://glossary", ({ projectId, status }) => {
+      setDetails((current) => (current[projectId] ? { ...current, [projectId]: { ...current[projectId], glossaryStatus: status } } : current));
+      if (status === "ready") {
+        void api.glossary(projectId).then((entries) => setGlossaries((current) => ({ ...current, [projectId]: entries }))).catch(() => undefined);
+      }
+    }));
+    track(client.listen("translation://account", (info) => {
+      const wasConnecting = connectingRef.current;
+      connectingRef.current = false;
+      setConnecting(false);
+      if (info.loggedIn) {
+        setAccount({ status: "logged_in", email: info.email, planType: info.planType });
+        if (wasConnecting) latest.current.toast({ message: t.connectedToast(info.email), tone: "success" });
+        loadUsage();
+      } else {
+        setAccount({ status: "logged_out" });
+      }
+    }));
+    track(client.listen("translation://exported", ({ projectId, outputDir, title }) => {
+      latest.current.refreshLibrary();
+      setProjects((current) => current.map((item) => (item.id === projectId ? { ...item, outputDir } : item)));
+      setDetails((current) => (current[projectId] ? { ...current, [projectId]: { ...current[projectId], outputDir } } : current));
+      latest.current.toast({
+        message: t.exportedToast(title),
+        tone: "success",
+        action: { label: t.openInLibrary, onClick: () => latest.current.navigate("library", { book: libraryBookId(outputDir) }) }
+      });
+    }));
+
+    return () => {
+      disposed = true;
+      for (const unlisten of unlisteners) unlisten();
+    };
+  }, [api, client, loadUsage]);
+
+  // While ChatGPT refuses for limits, re-read the state shortly after the engine's next retry.
+  useEffect(() => {
+    const retryAt = usage?.limitReached?.nextRetryAt;
+    if (retryAt == null) return;
+    const delayMs = Math.min(2 ** 31 - 1, Math.max(5, retryAt - Date.now() / 1000 + 10) * 1000);
+    const handle = window.setTimeout(loadUsage, delayMs);
+    return () => window.clearTimeout(handle);
+  }, [loadUsage, usage]);
+
+  // Load the selected project's data.
+  useEffect(() => {
+    if (!selectedId || !client.available) return;
+    let alive = true;
+    const id = selectedId;
+    void api.getProject(id).then((detail) => {
+      if (!alive) return;
+      setDetails((current) => ({ ...current, [id]: detail }));
+      setProjects((current) => upsertSummary(current, toSummary(detail)));
+    }).catch((error: unknown) => fail(t.genericError, error));
+    void api.log(id, LOG_LIMIT).then((events) => alive && setLogs((current) => ({ ...current, [id]: events }))).catch(() => undefined);
+    void api.pilot(id).then((run) => alive && setPilots((current) => ({ ...current, [id]: run }))).catch(() => undefined);
+    void api.glossary(id).then((entries) => alive && setGlossaries((current) => ({ ...current, [id]: entries }))).catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [api, client.available, fail, selectedId]);
 
   const selectProject = useCallback((id: string) => {
     setSelectedId(id);
-    resetScopeFor(library.find((item) => item.id === id));
-  }, [library, resetScopeFor]);
-
-  // Keep a valid selection while the library loads or changes.
-  useEffect(() => {
-    if (library.length === 0) {
-      if (selectedId) setSelectedId("");
-      return;
-    }
-    if (!library.some((item) => item.id === selectedId)) selectProject(library[0].id);
-  }, [library, selectedId, selectProject]);
-
-  const patchSettings = useCallback((patch: Partial<TranslationSettings>) => {
-    setSettings((current) => {
-      const next = { ...current, ...patch };
-      if (next.workerCount !== current.workerCount) next.workerCount = Math.max(1, Math.min(MAX_WORKERS, Math.round(next.workerCount) || 1));
-      // The editorial grader is a paid call: it can only stay on while paid providers are allowed.
-      if (!next.allowPaidProviders) next.allowEditorialGrader = false;
-      return next;
-    });
   }, []);
 
-  const setModel = useCallback((model: string) => patchSettings({ model }), [patchSettings]);
+  /* ---------- Account ---------- */
 
-  // Poll job stats while any batch has a job.
-  const hasJobs = sessionItems.some((item) => item.jobId);
-  useEffect(() => {
-    if (!hasJobs) return;
-    let cancelled = false;
-    const refreshJobs = () => {
-      void backend.listTranslationJobs()
-        .then((jobs) => {
-          if (cancelled) return;
-          const jobById = new Map(jobs.map((job) => [job.id, job]));
-          setSessionItems((items) => items.map((item) => {
-            const job = item.jobId ? jobById.get(item.jobId) : null;
-            return job ? patchSessionFromJob(item, job) : item;
-          }));
-        })
-        .catch(() => undefined);
-    };
-    refreshJobs();
-    const handle = window.setInterval(refreshJobs, JOB_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(handle);
-    };
-  }, [backend, hasJobs]);
-
-  const applyJob = useCallback((itemId: string, job: TranslationJob) => {
-    setSessionItems((items) => items.map((item) => (item.id === itemId ? patchSessionFromJob(item, job) : item)));
-  }, []);
-
-  const addBatch = useCallback((draft: TranslationBatchDraft) => {
-    const entry: TranslationSessionItem = { ...draft, id: `${draft.projectId}-${Date.now()}`, status: "ready" };
-    setSessionItems((items) => [entry, ...items]);
-    notify(translationStrings.batchAdded(draft.title));
-  }, [notify]);
-
-  const removeBatch = useCallback((itemId: string) => {
-    setSessionItems((items) => items.filter((item) => item.id !== itemId));
-  }, []);
-
-  const runJob = useCallback(async (item: TranslationSessionItem, quiet = false) => {
-    if (!item.jobId) return;
-    setBusyIds((ids) => withFlag(ids, item.id, true));
+  /** Rust runs the PKCE flow and opens the browser; we wait for `translation://account`. */
+  const connect = useCallback(async () => {
+    connectingRef.current = true;
+    setConnecting(true);
     try {
-      const job = await backend.runTranslationJob(item.jobId, settings.allowPaidProviders, settings.allowEditorialGrader);
-      applyJob(item.id, job);
-      if (!quiet) {
-        notify(settings.allowPaidProviders ? translationStrings.runPaid(settings.allowEditorialGrader) : translationStrings.runSafe);
+      await api.login();
+      // If the command only returns after the flow, the account may already be connected.
+      if (connectingRef.current) {
+        const info = await api.account().catch(() => null);
+        if (info?.loggedIn && connectingRef.current) {
+          connectingRef.current = false;
+          setConnecting(false);
+          setAccount({ status: "logged_in", email: info.email, planType: info.planType });
+          toast({ message: t.connectedToast(info.email), tone: "success" });
+          loadUsage();
+        }
       }
     } catch (error) {
-      notify(getErrorMessage(error, translationStrings.runFailed));
-    } finally {
-      setBusyIds((ids) => withFlag(ids, item.id, false));
+      // A cancelled login rejects too; only report real failures.
+      if (connectingRef.current) fail(t.connectFailed, error);
+      connectingRef.current = false;
+      setConnecting(false);
     }
-  }, [applyJob, backend, notify, settings.allowEditorialGrader, settings.allowPaidProviders]);
+  }, [api, fail, loadUsage, toast]);
 
-  /** Creates jobs for the project's batches that have none yet, then runs them. */
-  const startTranslation = useCallback(async (projectId: string) => {
-    const pending = sessionItems.filter((item) => item.projectId === projectId && !item.jobId);
-    if (pending.length === 0) {
-      notify(translationStrings.nothingToStart);
-      return;
-    }
-    const pendingIds = new Set(pending.map((item) => item.id));
-    setSessionItems((items) => items.map((item) => (pendingIds.has(item.id) ? { ...item, status: "waiting" } : item)));
-    const usdBrl = parseDecimal(settings.usdBrl);
-    const budgetBrl = parseDecimal(settings.maxBudgetBrl);
-    const maxCostUsd = budgetBrl > 0 && usdBrl > 0 ? budgetBrl / usdBrl : null;
-    let created: Array<{ item: TranslationSessionItem; job: TranslationJob }>;
-    try {
-      created = await Promise.all(pending.map(async (item) => ({
-        item,
-        job: await backend.createTranslationJob({
-          novelId: item.novelId,
-          chapterFrom: item.chapterFrom,
-          chapterTo: item.chapterTo,
-          targetLanguage: config.targetLanguage,
-          mode: item.mode,
-          strategy: item.model === AUTOMATIC_MODEL ? "automatic" : "manual",
-          selectedModel: item.model,
-          provider: item.provider,
-          workerCount: item.workerCount,
-          reuseExisting: true,
-          maxCostUsd,
-          usdBrlRate: usdBrl,
-          sourceChars: item.sourceChars
-        })
-      })));
-    } catch (error) {
-      setSessionItems((items) => items.map((item) => (pendingIds.has(item.id) ? { ...item, status: "ready" } : item)));
-      notify(getErrorMessage(error, translationStrings.createJobsFailed));
-      return;
-    }
-    for (const { item, job } of created) applyJob(item.id, job);
-    await Promise.all(created.map(({ item, job }) => runJob({ ...item, jobId: job.id }, true)));
-    notify(settings.allowPaidProviders
-      ? `${translationStrings.jobsStarted(created.length)} ${translationStrings.runPaid(settings.allowEditorialGrader)}`
-      : `${translationStrings.jobsStarted(created.length)} ${translationStrings.jobsStartedSafe}`);
-  }, [applyJob, backend, config.targetLanguage, notify, runJob, sessionItems, settings.allowEditorialGrader, settings.allowPaidProviders, settings.maxBudgetBrl, settings.usdBrl]);
+  const cancelConnect = useCallback(() => {
+    connectingRef.current = false;
+    setConnecting(false);
+    void api.loginCancel().catch(() => undefined);
+  }, [api]);
 
-  const jobAction = useCallback(async (
-    item: TranslationSessionItem,
-    call: (jobId: string) => Promise<TranslationJob>,
-    fallback: string
-  ) => {
-    if (!item.jobId) return;
-    setBusyIds((ids) => withFlag(ids, item.id, true));
-    try {
-      applyJob(item.id, await call(item.jobId));
-    } catch (error) {
-      notify(getErrorMessage(error, fallback));
-    } finally {
-      setBusyIds((ids) => withFlag(ids, item.id, false));
-    }
-  }, [applyJob, notify]);
+  const logout = useCallback(async () => {
+    const ok = await withBusy("logout", () => api.logout().then(() => true), t.logoutFailed);
+    if (!ok) return;
+    setAccount({ status: "logged_out" });
+    toast({ message: t.loggedOut, tone: "info" });
+  }, [api, toast, withBusy]);
 
-  const pauseJob = useCallback((item: TranslationSessionItem) => jobAction(item, (id) => backend.pauseTranslationJob(id), translationStrings.pauseFailed), [backend, jobAction]);
-  const resumeJob = useCallback((item: TranslationSessionItem) => jobAction(item, (id) => backend.resumeTranslationJob(id), translationStrings.resumeFailed), [backend, jobAction]);
-  const cancelJob = useCallback((item: TranslationSessionItem) => jobAction(item, (id) => backend.cancelTranslationJob(id), translationStrings.cancelFailed), [backend, jobAction]);
+  /** "Gerenciar uso": the ChatGPT usage settings page. */
+  const openUsagePage = useCallback(() => {
+    void client.openUrl(usage?.settingsUrl || CHATGPT_USAGE_URL);
+  }, [client, usage?.settingsUrl]);
 
-  const addGlossaryTerm = useCallback((projectId: string, source: string, target: string) => {
-    const term: GlossaryTerm = { id: `${source}-${Date.now()}`, source, target, note: translationStrings.manualNote };
-    setGlossaryByProject((current) => ({ ...current, [projectId]: [term, ...(current[projectId] ?? [])] }));
+  /* ---------- Projects ---------- */
+
+  const applyDetail = useCallback((detail: ProjectDetail | undefined) => {
+    if (!detail) return;
+    setDetails((current) => ({ ...current, [detail.id]: detail }));
+    setProjects((current) => upsertSummary(current, toSummary(detail)));
   }, []);
 
-  const removeGlossaryTerm = useCallback((projectId: string, termId: string) => {
-    setGlossaryByProject((current) => ({ ...current, [projectId]: (current[projectId] ?? []).filter((term) => term.id !== termId) }));
-  }, []);
+  const createProject = useCallback(async (item: LibraryItem) => {
+    if (!item.outputDir) return false;
+    const outputDir = item.outputDir;
+    const created = await withBusy("create", async () => {
+      const summary = await api.createProject({ sourceDir: outputDir, sourceNovelId: item.novelId, title: item.title });
+      setProjects((current) => upsertSummary(current, summary));
+      const prefs = readTranslationPreferences();
+      const detail = await api.updateSettings(summary.id, { model: prefs.model, effort: prefs.effort, workers: prefs.workers });
+      applyDetail(detail);
+      return summary;
+    }, t.createFailed);
+    if (!created) return false;
+    setSelectedId(created.id);
+    setTab("pilot");
+    toast({ message: t.projectCreated(item.title), tone: "success" });
+    return true;
+  }, [api, applyDetail, toast, withBusy]);
 
-  const selectedKey = selectedItem ? projectKey(selectedItem) : "";
-  const projectItems = useMemo(
-    () => sessionItems.filter((item) => item.projectId === selectedId),
-    [selectedId, sessionItems]
-  );
+  const deleteProject = useCallback(async (id: string) => {
+    const title = projects.find((item) => item.id === id)?.title ?? "";
+    const ok = await withBusy(`${id}:delete`, () => api.deleteProject(id).then(() => true), t.deleteFailed);
+    if (!ok) return;
+    const remaining = projects.filter((item) => item.id !== id);
+    setProjects((current) => current.filter((item) => item.id !== id));
+    if (selectedRef.current === id) setSelectedId(remaining[0]?.id ?? "");
+    toast({ message: t.deleted(title), tone: "info" });
+  }, [api, projects, toast, withBusy]);
+
+  const updateSettings = useCallback(async (id: string, patch: ProjectSettingsPatch, failMessage: string = t.settingsFailed) => {
+    const detail = await withBusy(`${id}:settings`, () => api.updateSettings(id, patch), failMessage);
+    applyDetail(detail);
+    return Boolean(detail);
+  }, [api, applyDetail, withBusy]);
+
+  const start = useCallback((id: string) => withBusy(`${id}:run`, () => api.start(id), t.startFailed), [api, withBusy]);
+  const pause = useCallback((id: string) => withBusy(`${id}:run`, () => api.pause(id), t.pauseFailed), [api, withBusy]);
+  const cancel = useCallback((id: string) => withBusy(`${id}:run`, () => api.cancel(id), t.cancelFailed), [api, withBusy]);
+
+  const exportBook = useCallback(async (id: string) => {
+    const result = await withBusy(`${id}:export`, () => api.exportBook(id), t.exportFailed);
+    if (result) {
+      setProjects((current) => current.map((item) => (item.id === id ? { ...item, outputDir: result.outputDir } : item)));
+      setDetails((current) => (current[id] ? { ...current, [id]: { ...current[id], outputDir: result.outputDir } } : current));
+    }
+  }, [api, withBusy]);
+
+  const openInLibrary = useCallback((outputDir: string) => {
+    navigate("library", { book: libraryBookId(outputDir) });
+  }, [navigate]);
+
+  /* ---------- Pilot ---------- */
+
+  const runPilot = useCallback(async (id: string) => {
+    setPilots((current) => ({
+      ...current,
+      [id]: { createdAt: Date.now() / 1000, sourceHtml: current[id]?.sourceHtml ?? "", words: current[id]?.words ?? 0, samples: [], status: "running" }
+    }));
+    const ok = await withBusy(`${id}:pilot`, () => api.runPilot(id).then(() => true), t.pilotRunFailed);
+    if (!ok) void api.pilot(id).then((run) => setPilots((current) => ({ ...current, [id]: run }))).catch(() => undefined);
+  }, [api, withBusy]);
+
+  const chooseModel = useCallback(async (id: string, model: string) => {
+    const detail = await withBusy(`${id}:model`, () => api.chooseModel(id, model), t.chooseFailed);
+    if (!detail) return;
+    applyDetail(detail);
+    toast({ message: t.modelChosen(modelLabel(model)), tone: "success" });
+  }, [api, applyDetail, toast, withBusy]);
+
+  /* ---------- Glossary ---------- */
+
+  const upsertTerm = useCallback(async (id: string, entry: { term: string; kind: GlossaryKind; target?: string }) => {
+    const entries = await withBusy(`${id}:glossary`, () => api.glossaryUpsert(id, entry), t.termSaveFailed);
+    if (entries) setGlossaries((current) => ({ ...current, [id]: entries }));
+    return Boolean(entries);
+  }, [api, withBusy]);
+
+  const deleteTerm = useCallback(async (id: string, term: string) => {
+    const entries = await withBusy(`${id}:glossary`, () => api.glossaryDelete(id, term), t.termRemoveFailed);
+    if (entries) setGlossaries((current) => ({ ...current, [id]: entries }));
+  }, [api, withBusy]);
+
+  const regenerateGlossary = useCallback(async (id: string) => {
+    const ok = await withBusy(`${id}:glossary`, () => api.glossaryRegenerate(id).then(() => true), t.regenerateFailed);
+    if (!ok) return;
+    setDetails((current) => (current[id] ? { ...current, [id]: { ...current[id], glossaryStatus: "running" } } : current));
+    toast({ message: t.regenerateStarted, tone: "info" });
+  }, [api, toast, withBusy]);
+
+  /* ---------- Review ---------- */
+
+  const verify = useCallback(async (id: string) => {
+    const report = await withBusy(`${id}:verify`, () => api.verify(id), t.verifyFailed);
+    if (report) setReports((current) => ({ ...current, [id]: report }));
+  }, [api, withBusy]);
+
+  const loadChapter = useCallback((id: string, index: number): Promise<ChapterView> => api.chapter(id, index), [api]);
+
+  const retranslate = useCallback(async (id: string, index: number, title: string) => {
+    const ok = await withBusy(`${id}:retranslate`, () => api.retranslate(id, index).then(() => true), t.retranslateFailed);
+    if (ok) toast({ message: t.retranslateStarted(title), tone: "info" });
+    return Boolean(ok);
+  }, [api, toast, withBusy]);
+
+  const selectedSummary = projects.find((item) => item.id === selectedId) ?? null;
+  const selected: ProjectDetail | null = selectedId && details[selectedId]
+    ? { ...details[selectedId], ...(selectedSummary ?? {}) }
+    : null;
+  const translatable = useMemo(() => library.filter(isTranslatable), [library]);
+  const loggedIn = account.status === "logged_in";
 
   return {
-    backend,
+    available: client.available,
+    account,
+    loggedIn,
+    connecting,
+    refreshAccount,
+    connect,
+    cancelConnect,
+    logout,
+    openUsagePage,
+    usage,
+    // projects
+    projects,
+    projectsLoaded,
     library,
-    config,
-    onConfigChange,
-    notify,
-    openFolder: onOpenItemFolder,
-    // project list
-    query,
-    setQuery,
-    format,
-    setFormat,
+    translatable,
     selectedId,
-    selectedItem,
-    selectedKey,
+    selectedSummary,
+    selected,
     selectProject,
-    // next-batch settings
-    settings,
-    patchSettings,
-    setModel,
-    // batches and jobs
-    sessionItems,
-    projectItems,
-    busyIds,
-    addBatch,
-    removeBatch,
-    startTranslation,
-    runJob,
-    pauseJob,
-    resumeJob,
-    cancelJob,
-    // manual glossary
-    glossaryTerms: glossaryByProject[selectedKey] ?? [],
-    addGlossaryTerm,
-    removeGlossaryTerm
+    tab,
+    setTab,
+    createProject,
+    deleteProject,
+    updateSettings,
+    start,
+    pause,
+    cancel,
+    exportBook,
+    openInLibrary,
+    // per-project data
+    logs: logs[selectedId] ?? [],
+    pilot: pilots[selectedId] ?? null,
+    runPilot,
+    chooseModel,
+    glossary: glossaries[selectedId],
+    upsertTerm,
+    deleteTerm,
+    regenerateGlossary,
+    report: reports[selectedId] ?? null,
+    verify,
+    loadChapter,
+    retranslate,
+    isBusy
   };
 }
 
