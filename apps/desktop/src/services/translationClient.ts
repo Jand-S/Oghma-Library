@@ -71,6 +71,12 @@ export type ProjectDetail = ProjectSummary & {
   /** Unix seconds of the next automatic retry (while `waiting_limit`). */
   resumeAt: number | null;
   glossaryStatus: GlossaryStatus;
+  /** Translate the cover text on export (badge + pt-BR title band). */
+  translateCover?: boolean;
+  /** Unix seconds of the last preview (partial book) export. */
+  lastPreviewAt?: number | null;
+  /** Path of the translated book's cover (after the first export). */
+  translatedCoverPath?: string | null;
 };
 
 export type GlossaryKind = "keep" | "translate";
@@ -148,6 +154,7 @@ export type ProjectSettingsPatch = {
   effort?: TranslationEffort;
   workers?: number;
   scope?: TranslationScope;
+  translateCover?: boolean;
 };
 
 // ---------- Events ----------
@@ -159,7 +166,7 @@ export type TranslationEvents = {
   "translation://pilot": { projectId: string; run: PilotRun };
   "translation://glossary": { projectId: string; status: GlossaryStatus };
   "translation://account": { loggedIn: boolean; email?: string; planType?: string };
-  "translation://exported": { projectId: string; outputDir: string; title: string };
+  "translation://exported": { projectId: string; outputDir: string; title: string; preview?: boolean };
 };
 
 export type TranslationEventName = keyof TranslationEvents;
@@ -256,7 +263,8 @@ export function translationApi(client: TranslationClient) {
     markReviewed: (projectId: string, chapterIndex: number, chunkIndex: number) =>
       call<ChapterView>("translation_mark_reviewed", { projectId, chapterIndex, chunkIndex }),
     verify: (projectId: string) => call<VerifyReport>("translation_verify", { projectId }),
-    exportBook: (projectId: string) => call<ExportResult>("translation_export", { projectId }),
+    exportBook: (projectId: string, partial = false) => call<ExportResult>("translation_export", { projectId, partial }),
+    regenerateCover: (projectId: string) => call<ExportResult>("translation_regenerate_cover", { projectId }),
     log: (projectId: string, limit?: number) => call<LogEvent[]>("translation_log", { projectId, limit })
   };
 }

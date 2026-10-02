@@ -131,6 +131,12 @@ export type LibraryItem = {
   sourceChars?: number;
   wordCount?: number;
   analysisFormat?: string;
+  /** Set on books produced by the translation screen ("pt-BR"). */
+  language?: string;
+  /** Novel id of the original book this one was translated from. */
+  translatedFrom?: string;
+  /** 0–99 while the translated book is only a preview. */
+  translationProgress?: number;
   coverClass: string;
   coverUrl?: string;
   bundleKey?: string;

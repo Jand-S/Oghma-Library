@@ -374,6 +374,23 @@ describe("Translation", () => {
     expect(within(getToastRegion()).getByText(t.projectCreated("To Kill a Mockingbird"))).toBeInTheDocument();
   });
 
+  it("builds a preview before the end and toggles the cover translation", async () => {
+    const user = setupUser();
+    const engine = createEngine({ projects: [makeDetail({ status: "paused", chaptersDone: 4, chaptersTotal: 31, translateCover: true })] });
+    await openProject(user, engine);
+
+    const book = await screen.findByTestId("translation-book");
+    expect(book).toHaveTextContent(t.previewHint(4, 31));
+    await user.click(within(book).getByRole("button", { name: t.previewNow }));
+    expect(engine.calls("translation_export")).toEqual([{ projectId: "p1", partial: true }]);
+
+    engine.emit("translation://exported", { projectId: "p1", outputDir: "/books/x (PT-BR)", title: "To Kill a Mockingbird (PT-BR)", preview: true });
+    expect(await within(getToastRegion()).findByText(t.previewToast("To Kill a Mockingbird (PT-BR)"))).toBeInTheDocument();
+
+    await user.click(within(book).getByRole("switch", { name: t.translateCover }));
+    expect(engine.calls("translation_update_settings").at(-1)).toEqual({ projectId: "p1", translateCover: false });
+  });
+
   it("updates the progress dashboard from translation://project events", async () => {
     const user = setupUser();
     const engine = createEngine({ projects: [makeDetail()] });
@@ -422,7 +439,7 @@ describe("Translation", () => {
 
     engine.emit("translation://project", makeDetail({ status: "done", chunksDone: 10, chaptersDone: 31, percent: 100, pending: 0 }));
     await user.click(await screen.findByRole("button", { name: t.exportBook }));
-    expect(engine.calls("translation_export")).toEqual([{ projectId: "p1" }]);
+    expect(engine.calls("translation_export")).toEqual([{ projectId: "p1", partial: false }]);
 
     engine.emit("translation://exported", { projectId: "p1", outputDir: "/books/x (PT-BR)", title: "To Kill a Mockingbird (PT-BR)" });
     expect(await within(getToastRegion()).findByText(t.exportedToast("To Kill a Mockingbird (PT-BR)"))).toBeInTheDocument();

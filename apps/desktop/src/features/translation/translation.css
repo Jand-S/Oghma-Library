@@ -1008,6 +1008,42 @@
     gap: var(--space-1);
   }
 
+  /* ---- Livro PT-BR (preview + cover) ------------------------------------- */
+  .translation-book__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-1-5);
+  }
+
+  .translation-book__hint {
+    flex: 1 1 18rem;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .translation-book__covers {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+
+  .translation-book__cover {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+    width: 8rem;
+    margin: 0;
+  }
+
+  .translation-book__cover figcaption {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    text-align: center;
+  }
+
   /* ---- Revisar ---------------------------------------------------------- */
   .translation-issues {
     display: inline-flex;

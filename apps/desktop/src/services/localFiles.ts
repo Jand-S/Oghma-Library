@@ -21,6 +21,11 @@ export type LocalLibraryEntry = {
   sourceChars?: number;
   wordCount?: number;
   analysisFormat?: string;
+  /** "pt-BR" for books produced by the translation screen. */
+  language?: string;
+  sourceNovelId?: string;
+  /** 0–99 while the translated book is a preview (only finished chapters). */
+  translationProgress?: number;
 };
 
 /** Raw `ExportLibraryItem` returned by the Rust `list_export_library` command. */
@@ -39,6 +44,9 @@ export type ExportLibraryRow = {
   sourceChars?: number | null;
   wordCount?: number | null;
   analysisFormat?: string | null;
+  language?: string | null;
+  sourceNovelId?: string | null;
+  translationProgress?: number | null;
 };
 
 type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
@@ -147,7 +155,10 @@ export function mapLibraryRow(row: ExportLibraryRow, convertFileSrc: ConvertFile
     chapterCount: row.chapterCount ?? undefined,
     sourceChars: row.sourceChars ?? undefined,
     wordCount: row.wordCount ?? undefined,
-    analysisFormat: row.analysisFormat ?? undefined
+    analysisFormat: row.analysisFormat ?? undefined,
+    language: row.language ?? undefined,
+    sourceNovelId: row.sourceNovelId ?? undefined,
+    translationProgress: row.translationProgress ?? undefined
   };
 }
 

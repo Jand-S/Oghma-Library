@@ -6,6 +6,8 @@ import { Badge, Button, Chip, Cover, DropdownMenu, IconButton, ProgressBar, Sele
 import { formatDownloadedAt, formatsOf, jobLabel, type BookJobState } from "./libraryModel";
 import type { BookActions } from "./useBookActions";
 import type { LibraryController } from "./useLibraryController";
+import { useNavigation } from "../../app/NavigationContext";
+import { TranslationBadge } from "./LibraryCollection";
 
 type LibraryDetailsProps = {
   item: LibraryItem;
@@ -20,6 +22,8 @@ const readingStatuses: LibraryReadingStatus[] = ["unread", "reading", "paused", 
 export function LibraryDetails({ item, library, actions, jobState }: LibraryDetailsProps) {
   const [tagInput, setTagInput] = useState("");
   const formats = formatsOf(item);
+  const { navigate } = useNavigation();
+  const original = item.translatedFrom ? library.library.find((book) => book.novelId === item.translatedFrom) : undefined;
   const tags = item.personalTags ?? [];
   const running = library.conversion.converterRunning;
   const busy = Boolean(jobState);
@@ -67,9 +71,20 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
               <h2 className="library-hero__title">{item.title}</h2>
               <p className="library-hero__author">{item.author || libraryStrings.unknownAuthor}</p>
               <div className="library-hero__badges">
+                <TranslationBadge item={item} />
                 {formats.map((format) => <Badge key={format} tone="accent">{format}</Badge>)}
                 {item.favorite ? <Badge><Heart aria-hidden="true" />{libraryStrings.favorite}</Badge> : null}
               </div>
+              {item.translatedFrom ? (
+                <p className="library-hero__origin" data-testid="library-translated-from">
+                  {libraryStrings.translatedFrom}{" "}
+                  <strong>{original?.title ?? item.translatedFrom}</strong>
+                  {" · "}
+                  <button type="button" className="library-hero__link" onClick={() => navigate("translation")}>
+                    {libraryStrings.openTranslation}
+                  </button>
+                </p>
+              ) : null}
               <dl className="library-hero__facts">
                 {facts.map((fact) => (
                   <div key={fact.label} className="library-hero__fact">

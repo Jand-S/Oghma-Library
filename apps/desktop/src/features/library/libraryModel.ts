@@ -9,8 +9,14 @@ export type LibraryFilters = {
   query: string;
   formats: ReadonlySet<DownloadFormat>;
   favoritesOnly: boolean;
+  translatedOnly?: boolean;
   sort: LibrarySort;
 };
+
+/** Books produced by the translation screen. */
+export function isTranslated(item: LibraryItem) {
+  return Boolean(item.language) || item.analysisFormat === "translation";
+}
 
 export function formatsOf(item: LibraryItem): DownloadFormat[] {
   return item.formats?.length ? item.formats : [item.format];
@@ -59,6 +65,7 @@ export function filterLibrary(library: LibraryItem[], filters: LibraryFilters): 
     .filter(({ item }) =>
       matchesQuery(item, filters.query)
       && (!filters.favoritesOnly || Boolean(item.favorite))
+      && (!filters.translatedOnly || isTranslated(item))
       && (filters.formats.size === 0 || formatsOf(item).some((format) => filters.formats.has(format))));
 
   const collator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });

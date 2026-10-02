@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type { DownloadFormat, LibraryItem } from "../../core/types";
-import { availableFormats, filterLibrary, type LibrarySort, type LibraryViewMode } from "./libraryModel";
+import { availableFormats, filterLibrary, type LibrarySort, type LibraryViewMode, isTranslated } from "./libraryModel";
 
 const VIEW_KEY = "oghma.library.view";
 const SORT_KEY = "oghma.library.sort";
@@ -31,13 +31,14 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const [query, setQuery] = useState("");
   const [selectedFormats, setSelectedFormats] = useState<ReadonlySet<DownloadFormat>>(() => new Set());
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [translatedOnly, setTranslatedOnly] = useState(false);
   const [sort, setSortState] = useState<LibrarySort>(() => readPref(SORT_KEY, ["recent", "title", "size"], "recent"));
   const [view, setViewState] = useState<LibraryViewMode>(() => readPref(VIEW_KEY, ["grid", "list"], "grid"));
 
   const formats = useMemo(() => availableFormats(library), [library]);
   const filtered = useMemo(
-    () => filterLibrary(library, { query, formats: selectedFormats, favoritesOnly, sort }),
-    [favoritesOnly, library, query, selectedFormats, sort]
+    () => filterLibrary(library, { query, formats: selectedFormats, favoritesOnly, translatedOnly, sort }),
+    [favoritesOnly, library, query, selectedFormats, sort, translatedOnly]
   );
 
   const setSort = useCallback((value: LibrarySort) => {
@@ -60,11 +61,14 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   }, []);
 
   const toggleFavorites = useCallback(() => setFavoritesOnly((value) => !value), []);
+  const toggleTranslated = useCallback(() => setTranslatedOnly((value) => !value), []);
+  const hasTranslated = useMemo(() => library.some(isTranslated), [library]);
 
   const clearFilters = useCallback(() => {
     setQuery("");
     setSelectedFormats(new Set());
     setFavoritesOnly(false);
+    setTranslatedOnly(false);
   }, []);
 
   return {
@@ -75,6 +79,9 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     toggleFormat,
     favoritesOnly,
     toggleFavorites,
+    translatedOnly,
+    toggleTranslated,
+    hasTranslated,
     sort,
     setSort,
     view,

@@ -193,12 +193,14 @@ export function useTranslationController({ client: injected, library, toast, ref
         setAccount({ status: "logged_out" });
       }
     }));
-    track(client.listen("translation://exported", ({ projectId, outputDir, title }) => {
+    track(client.listen("translation://exported", ({ projectId, outputDir, title, preview }) => {
       latest.current.refreshLibrary();
       setProjects((current) => current.map((item) => (item.id === projectId ? { ...item, outputDir } : item)));
-      setDetails((current) => (current[projectId] ? { ...current, [projectId]: { ...current[projectId], outputDir } } : current));
+      setDetails((current) => (current[projectId]
+        ? { ...current, [projectId]: { ...current[projectId], outputDir, ...(preview ? { lastPreviewAt: Date.now() / 1000 } : {}) } }
+        : current));
       latest.current.toast({
-        message: t.exportedToast(title),
+        message: preview ? t.previewToast(title) : t.exportedToast(title),
         tone: "success",
         action: { label: t.openInLibrary, onClick: () => latest.current.navigate("library", { book: libraryBookId(outputDir) }) }
       });
@@ -340,6 +342,22 @@ export function useTranslationController({ client: injected, library, toast, ref
     }
   }, [api, withBusy]);
 
+  /** A preview with only the finished chapters, in the same library book as the final one. */
+  const exportPreview = useCallback(async (id: string) => {
+    const result = await withBusy(`${id}:preview`, () => api.exportBook(id, true), t.previewFailed);
+    if (result) {
+      setDetails((current) => (current[id] ? { ...current, [id]: { ...current[id], outputDir: result.outputDir, lastPreviewAt: Date.now() / 1000 } } : current));
+    }
+  }, [api, withBusy]);
+
+  const regenerateCover = useCallback(async (id: string) => {
+    const result = await withBusy(`${id}:cover`, () => api.regenerateCover(id), t.coverFailed);
+    if (result) {
+      refreshLibrary();
+      toast({ message: t.coverRegenerated, tone: "success" });
+    }
+  }, [api, refreshLibrary, toast, withBusy]);
+
   const openInLibrary = useCallback((outputDir: string) => {
     navigate("library", { book: libraryBookId(outputDir) });
   }, [navigate]);
@@ -480,6 +498,8 @@ export function useTranslationController({ client: injected, library, toast, ref
     pause,
     cancel,
     exportBook,
+    exportPreview,
+    regenerateCover,
     openInLibrary,
     // per-project data
     logs: logs[selectedId] ?? [],

@@ -1,12 +1,13 @@
-import { BookPlus, Library, Pause, Play, RotateCcw, X } from "lucide-react";
+import { BookPlus, Eye, ImageIcon, Library, Pause, Play, RotateCcw, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { LimitState, LogEvent, ProjectDetail, TranslationScope } from "../../services/translationClient";
 import { translationStrings as t } from "../../strings/translation";
-import { Button, ConfirmationModal, ProgressBar, SegmentedControl, TextField, cx } from "../../ui";
+import { Button, ConfirmationModal, Cover, ProgressBar, SegmentedControl, Switch, TextField, cx } from "../../ui";
 import { limitMessage } from "./AccountStrip";
 import {
   formatClock,
   formatCredits,
+  formatDateTime,
   formatDecimal,
   formatDuration,
   formatPercent,
@@ -172,6 +173,68 @@ function ScopeControl({ project, locked, onChange }: { project: ProjectDetail; l
   );
 }
 
+/** "Livro PT-BR": preview before the end, translated cover (original × translated), cover switch. */
+function BookBlock({ controller, project }: { controller: TranslationController; project: ProjectDetail }) {
+  const id = project.id;
+  const finished = project.status === "done" || project.status === "exported";
+  const translatedId = project.sourceNovelId ? `${project.sourceNovelId}:pt-BR` : null;
+  const original = controller.library.find((item) => project.sourceNovelId && item.novelId === project.sourceNovelId);
+  const translated = controller.library.find((item) => translatedId && item.novelId === translatedId);
+  const coverOn = project.translateCover !== false;
+  return (
+    <section className="translation-block" aria-labelledby="translation-book-title" data-testid="translation-book">
+      <header className="translation-block__header">
+        <h3 className="translation-block__title" id="translation-book-title">{t.bookHeading}</h3>
+      </header>
+      {!finished ? (
+        <div className="translation-book__row">
+          <Button
+            icon={<Eye />}
+            loading={controller.isBusy(`${id}:preview`)}
+            disabled={project.chaptersDone === 0}
+            onClick={() => void controller.exportPreview(id)}
+            data-testid="translation-preview"
+          >
+            {t.previewNow}
+          </Button>
+          <p className="translation-book__hint">
+            {t.previewHint(project.chaptersDone, project.chaptersTotal)}
+            {project.lastPreviewAt ? <> {t.previewAgo(formatDateTime(project.lastPreviewAt))}</> : null}
+          </p>
+        </div>
+      ) : null}
+      <Switch
+        label={t.translateCover}
+        description={t.translateCoverHint}
+        checked={coverOn}
+        onChange={(checked) => void controller.updateSettings(id, { translateCover: checked })}
+      />
+      {translated?.coverUrl ? (
+        <div className="translation-book__covers" data-testid="translation-covers">
+          <figure className="translation-book__cover">
+            <Cover src={original?.coverUrl} title={project.title} size="fill" />
+            <figcaption>{t.coverOriginal}</figcaption>
+          </figure>
+          <figure className="translation-book__cover">
+            <Cover src={translated.coverUrl} title={translated.title} size="fill" />
+            <figcaption>{t.coverTranslated}</figcaption>
+          </figure>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<ImageIcon />}
+            loading={controller.isBusy(`${id}:cover`)}
+            disabled={!controller.loggedIn || !coverOn}
+            onClick={() => void controller.regenerateCover(id)}
+          >
+            {t.regenerateCover}
+          </Button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 /** Progresso: the mol dashboard (4 cards, bar, situation, controls, log). */
 export function ProgressTab({ controller, project }: { controller: TranslationController; project: ProjectDetail }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -255,6 +318,8 @@ export function ProgressTab({ controller, project }: { controller: TranslationCo
           {!controller.loggedIn && !finished ? <span className="translation-actions__hint">{t.needsLogin}</span> : null}
         </div>
       </section>
+
+      <BookBlock controller={controller} project={project} />
 
       <section className="translation-block" aria-labelledby="translation-status-title">
         <header className="translation-block__header">

@@ -151,21 +151,61 @@
     white-space: nowrap;
   }
 
-  .library-tile__status {
+  /* Top-left stack: job state ("Atualizando…") and translation ("PT-BR" / "Prévia 42%").
+     Leaves room for the ⋮ menu on the right so nothing overlaps or overflows. */
+  .library-tile__flags {
     position: absolute;
     top: var(--space-1);
     left: var(--space-1);
-    max-width: calc(100% - var(--space-2));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-0-5);
+    max-width: calc(100% - var(--space-6));
+  }
+
+  .library-tile__flags > .o-badge {
+    max-width: 100%;
     -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
     box-shadow: var(--shadow-sm);
   }
 
-  .library-tile__status.o-badge--neutral {
+  .library-tile__flags > .o-badge--neutral {
     background: rgb(var(--black-rgb) / 0.6);
   }
 
-  .library-tile__status .o-spinner {
+  .library-lang {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    min-width: 0;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .library-lang svg {
+    flex: none;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .library-lang__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .library-tile__flags > .library-lang.o-badge--accent {
+    background: rgb(var(--accent-rgb) / 0.85);
+    color: var(--accent-fg);
+  }
+
+  .library-tile__flags > .library-lang.o-badge--warning {
+    background: rgb(var(--black-rgb) / 0.65);
+  }
+
+  .library-tile__flags .o-spinner {
     width: var(--fs-xs);
     height: var(--fs-xs);
   }
@@ -453,6 +493,22 @@
   .library-hero__author {
     color: var(--text-2);
     font-size: var(--fs-lg);
+  }
+
+  .library-hero__origin {
+    margin: 0;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+  }
+
+  .library-hero__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
 
   .library-hero__badges {

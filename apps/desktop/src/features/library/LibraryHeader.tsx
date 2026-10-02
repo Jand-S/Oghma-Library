@@ -1,4 +1,4 @@
-import { Heart, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
+import { Heart, Languages, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import { libraryStrings } from "../../strings/library";
 import { Badge, Chip, IconButton, SegmentedControl, SelectField, TextField } from "../../ui";
@@ -83,6 +83,11 @@ export function LibraryFilterBar({ browse }: { browse: LibraryBrowse }) {
         <Chip selected={browse.favoritesOnly} onToggle={browse.toggleFavorites} icon={<Heart />}>
           {libraryStrings.favoritesFilter}
         </Chip>
+        {browse.hasTranslated || browse.translatedOnly ? (
+          <Chip selected={browse.translatedOnly} onToggle={browse.toggleTranslated} icon={<Languages />}>
+            {libraryStrings.translatedFilter}
+          </Chip>
+        ) : null}
       </div>
       <SelectField
         label={libraryStrings.sortLabel}

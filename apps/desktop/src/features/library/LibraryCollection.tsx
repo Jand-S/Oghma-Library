@@ -1,9 +1,9 @@
-import { FolderOpen, Heart, MoreVertical } from "lucide-react";
+import { FolderOpen, Heart, Languages, MoreVertical } from "lucide-react";
 import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 import { Badge, Cover, DropdownMenu, IconButton, Spinner, cx, type MenuPoint } from "../../ui";
-import { formatDownloadedAt, formatSummary, formatsOf, jobLabel, type BookJobState, type LibraryViewMode } from "./libraryModel";
+import { formatDownloadedAt, formatSummary, formatsOf, isTranslated, jobLabel, type BookJobState, type LibraryViewMode } from "./libraryModel";
 import type { BookActions } from "./useBookActions";
 
 type CollectionProps = {
@@ -39,6 +39,23 @@ function JobBadge({ state, className }: { state: BookJobState; className?: strin
 }
 
 /** Grid of covers or dense list, with a shared right-click menu. */
+/** "PT-BR" (finished translation) or "Prévia 42%" (partial book). */
+export function TranslationBadge({ item, className }: { item: LibraryItem; className?: string }) {
+  if (!isTranslated(item)) return null;
+  const preview = item.translationProgress != null;
+  return (
+    <Badge
+      tone={preview ? "warning" : "accent"}
+      className={cx("library-lang", className)}
+      title={preview ? libraryStrings.previewBadgeTitle(item.translationProgress!) : libraryStrings.translatedBadgeTitle}
+      data-testid="library-translation-badge"
+    >
+      <Languages aria-hidden="true" />
+      <span className="library-lang__text">{preview ? libraryStrings.previewBadge(item.translationProgress!) : libraryStrings.translatedBadge}</span>
+    </Badge>
+  );
+}
+
 export function LibraryCollection({ items, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
 
@@ -82,7 +99,12 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                     <Cover src={item.coverUrl} title={item.title} size="fill" sheen className="library-tile__cover" />
                     <div className="library-tile__overlay" aria-hidden="true" />
                     <span className="library-tile__formats" title={formatsOf(item).join(", ")}>{formatSummary(item)}</span>
-                    {state ? <JobBadge state={state} className="library-tile__status" /> : null}
+                    {state || isTranslated(item) ? (
+                      <div className="library-tile__flags">
+                        {state ? <JobBadge state={state} /> : null}
+                        <TranslationBadge item={item} />
+                      </div>
+                    ) : null}
                     {item.favorite ? (
                       <span className="library-tile__favorite" title={libraryStrings.favorite}>
                         <Heart aria-hidden="true" />
@@ -144,6 +166,7 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                     </span>
                   </div>
                   <div className="library-row__formats">
+                    <TranslationBadge item={item} />
                     {formatsOf(item).map((format) => <Badge key={format}>{format}</Badge>)}
                   </div>
                   <span className="library-row__num">{libraryStrings.size(item.sizeMb)}</span>
