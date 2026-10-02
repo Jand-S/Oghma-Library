@@ -252,7 +252,7 @@ export const translationStrings = {
   chapterNoIssues: "sem problemas",
   noChapters: "Nenhum capítulo traduzido ainda.",
   issue: {
-    missingChunks: "Trechos faltando",
+    missingChunks: "Tradução incompleta",
     paragraphMismatch: "Parágrafos diferentes",
     tooShort: "Texto curto",
     englishLeft: "Inglês restante",

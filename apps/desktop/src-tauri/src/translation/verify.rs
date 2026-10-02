@@ -87,6 +87,12 @@ impl Engine {
                 continue;
             }
             let chunks = self.store.chunks(id, chapter.index)?;
+            // Chapters not started yet are not "problems": they just aren't translated.
+            // They keep the book incomplete (ok = false) but stay out of the issue list.
+            if !chunks.is_empty() && chunks.iter().all(|c| c.dst_html.is_none()) {
+                ok = false;
+                continue;
+            }
             let issues = chapter_issues(&chunks);
             if issues.iter().any(|issue| is_blocking(issue)) {
                 ok = false;
@@ -139,9 +145,8 @@ mod tests {
             let id = create(&f);
             glossary_settled(&f, &id).await;
             let report = f.engine.verify(&id).unwrap();
-            assert!(!report.ok);
-            assert_eq!(report.chapters.len(), 3);
-            assert!(report.chapters[0].issues[0].starts_with("missingChunks"));
+            assert!(!report.ok, "untranslated book is not ok");
+            assert!(report.chapters.is_empty(), "chapters not started are not listed as problems");
 
             f.engine.start(&id).unwrap();
             let engine = Arc::clone(&f.engine);
