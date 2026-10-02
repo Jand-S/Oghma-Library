@@ -148,6 +148,13 @@ function createEngine(initial: Partial<EngineState> = {}, overrides: Record<stri
       return chapter;
     },
     translation_retranslate: () => undefined,
+    translation_retranslate_chunk: () => undefined,
+    translation_mark_reviewed: (args) => {
+      const chapter = state.chapters[args.chapterIndex as number];
+      const chunks = chapter.chunks.map((c) => (c.index === args.chunkIndex ? { ...c, reviewed: true, issues: [], status: "done" } : c));
+      state.chapters[args.chapterIndex as number] = { ...chapter, chunks };
+      return state.chapters[args.chapterIndex as number];
+    },
     ...overrides
   };
 
@@ -557,44 +564,68 @@ describe("Translation", () => {
     expect(within(glossary).queryByTestId("glossary-suggestion")).not.toBeInTheDocument();
   });
 
-  it("reviews chapters side by side and re-translates one", async () => {
+  it("reviews problems paragraph by paragraph, chunk by chunk", async () => {
     const user = setupUser();
+    const pair = (source: string, translated: string | null) => ({ source, translated });
     const engine = createEngine({
       projects: [makeDetail({ status: "done", chunksDone: 10, percent: 100 })],
       report: {
         ok: false,
         chapters: [
-          { index: 1, title: "Capítulo 1", issues: [] },
-          { index: 2, title: "Capítulo 2", issues: ["tooShort: 62%", "englishLeft"] }
+          { index: 2, title: "Capítulo 2", issues: ["tooShort: trecho 2 (62% das palavras)", "englishLeft: trecho 2 (9,0%)"] },
+          { index: 3, title: "Capítulo 3", issues: ["needsReview: trecho 1"] }
         ]
       },
       chapters: {
-        1: { index: 1, title: "Capítulo 1", sourceHtml: "<p>One.</p>", translatedHtml: "<p>Um.</p>", status: "done", issues: [] },
-        2: { index: 2, title: "Capítulo 2", sourceHtml: "<p>Two <script>alert(1)</script>words.</p>", translatedHtml: null, status: "needs_review", issues: ["tooShort: 62%"] }
+        1: { index: 1, title: "Capítulo 1", sourceHtml: "", translatedHtml: "", status: "done", issues: [], chunks: [
+          { index: 0, status: "done", reviewed: false, issues: [], englishWords: [], pairs: [pair("<p>One.</p>", "<p>Um.</p>")] }
+        ] },
+        2: { index: 2, title: "Capítulo 2", sourceHtml: "", translatedHtml: "", status: "done", issues: [], chunks: [
+          { index: 0, status: "done", reviewed: false, issues: [], englishWords: [], pairs: [pair("<p>Two <script>alert(1)</script>words.</p>", "<p>Duas palavras.</p>")] },
+          { index: 1, status: "done", reviewed: false, issues: ["tooShort: 62% das palavras", "englishLeft: 9,0%"], englishWords: ["the"], pairs: [pair("<p>He saw the sea.</p>", "<p>Ele viu the mar.</p>"), pair("<p>Then he left.</p>", null)] }
+        ] },
+        3: { index: 3, title: "Capítulo 3", sourceHtml: "", translatedHtml: "", status: "needs_review", issues: [], chunks: [
+          { index: 0, status: "needs_review", reviewed: false, issues: ["needsReview"], englishWords: [], pairs: [pair("<p>Three.</p>", "<p>Três.</p>")] }
+        ] }
       }
     });
     await openProject(user, engine);
     await user.click(workspaceTab(t.tabReview));
 
     const review = await screen.findByTestId("translation-review");
-    expect(await within(review).findByTestId("review-summary")).toHaveTextContent(t.reviewIssues(1));
+    expect(await within(review).findByTestId("review-summary")).toHaveTextContent(t.reviewIssues(2));
     expect(engine.calls("translation_verify")).toEqual([{ projectId: "p1" }]);
-    const issues = within(review).getAllByTestId("review-issue").map((badge) => badge.textContent);
-    expect(issues).toEqual([t.issue.tooShort, t.issue.englishLeft]);
 
-    // The first chapter with problems opens by default.
-    await waitFor(() => expect(within(review).getByTestId("review-source")).toHaveTextContent("Two words."));
-    expect(engine.calls("translation_chapter")).toContainEqual({ projectId: "p1", chapterIndex: 2 });
-    expect(within(review).getByTestId("review-source").querySelector("script")).toBeNull();
-    expect(within(review).getByTestId("review-translation")).toHaveTextContent(t.notTranslated);
-    expect(within(review).getByText(t.chapterStatus.needs_review)).toBeInTheDocument();
+    // Opens on the first problem: chapter 2, chunk 2, with an explanation and per-chunk actions.
+    await waitFor(() => expect(within(review).getByTestId("review-nav")).toHaveTextContent(t.problemNav(1, 2)));
+    const alert = await within(review).findByTestId("review-chunk-alert");
+    expect(alert).toHaveTextContent(t.chunkLabel(2, 2));
+    expect(alert).toHaveTextContent(t.issueHelp.tooShort);
+    expect(alert).toHaveTextContent(t.englishMarked);
+    const reader = within(review).getByTestId("review-reader");
+    expect(reader.querySelector("script")).toBeNull();
+    expect(reader).toHaveTextContent("Two words.");
+    const marked = [...reader.querySelectorAll("mark.translation-review__en")].map((m) => m.textContent);
+    expect(marked).toEqual(["the"]);
+    expect(reader).toHaveTextContent(t.paragraphMissing);
 
+    await user.click(within(alert).getByRole("button", { name: t.retranslateChunk }));
+    expect(engine.calls("translation_retranslate_chunk")).toEqual([{ projectId: "p1", chapterIndex: 2, chunkIndex: 1 }]);
+    expect(await within(getToastRegion()).findByText(t.chunkRetranslateStarted(2))).toBeInTheDocument();
+
+    // Next problem: chapter 3; accept it as reviewed.
+    await user.click(within(review).getByRole("button", { name: t.nextProblem }));
+    expect(within(review).getByTestId("review-nav")).toHaveTextContent(t.problemNav(2, 2));
+    await waitFor(() => expect(within(review).getByTestId("review-reader")).toHaveTextContent("Três."));
+    const alert3 = within(review).getByTestId("review-chunk-alert");
+    await user.click(within(alert3).getByRole("button", { name: t.markReviewed }));
+    expect(engine.calls("translation_mark_reviewed")).toEqual([{ projectId: "p1", chapterIndex: 3, chunkIndex: 0 }]);
+    await waitFor(() => expect(within(review).queryByTestId("review-chunk-alert")).not.toBeInTheDocument());
+    expect(within(review).getByText(t.reviewedBadge)).toBeInTheDocument();
+    expect(engine.calls("translation_verify").length).toBeGreaterThan(1);
+
+    // Whole-chapter retranslation is still available.
     await user.click(within(review).getByRole("button", { name: t.retranslate }));
-    expect(engine.calls("translation_retranslate")).toEqual([{ projectId: "p1", chapterIndex: 2 }]);
-    expect(await within(getToastRegion()).findByText(t.retranslateStarted("Capítulo 2"))).toBeInTheDocument();
-
-    await user.selectOptions(within(review).getByRole("combobox", { name: t.chapterList }), "1");
-    await waitFor(() => expect(within(review).getByTestId("review-translation")).toHaveTextContent("Um."));
-    expect(within(review).getByTestId("review-source")).toHaveTextContent("One.");
+    expect(engine.calls("translation_retranslate")).toEqual([{ projectId: "p1", chapterIndex: 3 }]);
   });
 });

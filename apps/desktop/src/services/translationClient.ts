@@ -118,6 +118,19 @@ export type LogLevel = "info" | "warn" | "error";
 /** `at` is a unix timestamp in seconds. */
 export type LogEvent = { at: number; level: LogLevel; message: string };
 
+export type ParagraphPair = { source: string | null; translated: string | null };
+
+export type ChunkView = {
+  index: number;
+  status: string;
+  reviewed: boolean;
+  /** Issue codes of this chunk: `"code"` or `"code: detail"`. */
+  issues: string[];
+  /** English words left in the translation, to highlight. */
+  englishWords: string[];
+  pairs: ParagraphPair[];
+};
+
 export type ChapterView = {
   index: number;
   title: string;
@@ -125,6 +138,7 @@ export type ChapterView = {
   translatedHtml?: string | null;
   status: string;
   issues: string[];
+  chunks: ChunkView[];
 };
 
 export type ExportResult = { outputDir: string; title: string };
@@ -237,6 +251,10 @@ export function translationApi(client: TranslationClient) {
     chooseModel: (projectId: string, model: string) => call<ProjectDetail>("translation_choose_model", { projectId, model }),
     chapter: (projectId: string, chapterIndex: number) => call<ChapterView>("translation_chapter", { projectId, chapterIndex }),
     retranslate: (projectId: string, chapterIndex: number) => call<void>("translation_retranslate", { projectId, chapterIndex }),
+    retranslateChunk: (projectId: string, chapterIndex: number, chunkIndex: number) =>
+      call<void>("translation_retranslate_chunk", { projectId, chapterIndex, chunkIndex }),
+    markReviewed: (projectId: string, chapterIndex: number, chunkIndex: number) =>
+      call<ChapterView>("translation_mark_reviewed", { projectId, chapterIndex, chunkIndex }),
     verify: (projectId: string) => call<VerifyReport>("translation_verify", { projectId }),
     exportBook: (projectId: string) => call<ExportResult>("translation_export", { projectId }),
     log: (projectId: string, limit?: number) => call<LogEvent[]>("translation_log", { projectId, limit })

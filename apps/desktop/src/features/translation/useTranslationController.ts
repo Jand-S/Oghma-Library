@@ -431,6 +431,19 @@ export function useTranslationController({ client: injected, library, toast, ref
     return Boolean(ok);
   }, [api, toast, withBusy]);
 
+  const retranslateChunk = useCallback(async (id: string, chapter: number, chunk: number) => {
+    const ok = await withBusy(`${id}:retranslate:${chapter}:${chunk}`, () => api.retranslateChunk(id, chapter, chunk).then(() => true), t.retranslateFailed);
+    if (ok) toast({ message: t.chunkRetranslateStarted(chunk + 1), tone: "info" });
+    return Boolean(ok);
+  }, [api, toast, withBusy]);
+
+  /** Accepts a chunk as it is; returns the refreshed chapter and re-runs the (free) verification. */
+  const markReviewed = useCallback(async (id: string, chapter: number, chunk: number) => {
+    const view = await withBusy(`${id}:reviewed:${chapter}:${chunk}`, () => api.markReviewed(id, chapter, chunk), t.markReviewedFailed);
+    if (view) void verify(id);
+    return view ?? null;
+  }, [api, verify, withBusy]);
+
   const selectedSummary = projects.find((item) => item.id === selectedId) ?? null;
   const selected: ProjectDetail | null = selectedId && details[selectedId]
     ? { ...details[selectedId], ...(selectedSummary ? toSummary(selectedSummary) : {}) }
@@ -485,6 +498,8 @@ export function useTranslationController({ client: injected, library, toast, ref
     verify,
     loadChapter,
     retranslate,
+    retranslateChunk,
+    markReviewed,
     isBusy
   };
 }

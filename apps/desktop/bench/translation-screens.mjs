@@ -75,6 +75,15 @@ async function main() {
         await tab(page, "Revisar");
         await page.waitForSelector('[data-testid="review-reader"]');
         await shot(page, `${k}-4-review`);
+        await page.getByRole("button", { name: "Próximo problema" }).click();
+        await sleep(600);
+        await shot(page, `${k}-4b-review-next`);
+        await page.evaluate(() => {
+          const body = document.querySelector(".translation-main__body");
+          if (body) body.scrollTop = body.scrollHeight;
+        });
+        await sleep(300);
+        await shot(page, `${k}-4c-review-scrolled`);
         await tab(page, "Progresso");
         await page.locator('[data-testid="translation-project"][data-status="waiting_limit"]').click();
         await page.waitForSelector('[data-testid="translation-banner"][data-kind="waiting"]');

@@ -126,10 +126,19 @@
   };
 
   const chapterTitle = (i) => `Capítulo ${i}`;
-  const issuesFor = { 7: ["tooShort: 64% das palavras"], 18: ["paragraphMismatch: 31 × 29", "needsReview"], 41: ["englishLeft: 6%"] };
+  // Per chunk (0-based) issues; chapter issues are derived as "code: trecho N (detail)".
+  const chunkIssuesFor = { 7: { 1: ["tooShort: 64% das palavras"] }, 18: { 0: ["paragraphMismatch: 6 → 5", "needsReview"] }, 41: { 1: ["englishLeft: 6,0%"] } };
+  const issuesFor = Object.fromEntries(Object.entries(chunkIssuesFor).map(([ch, byChunk]) => [ch,
+    Object.entries(byChunk).flatMap(([chunk, list]) => list.map((issue) => {
+      const [code, detail] = issue.split(": ");
+      return detail ? `${code}: trecho ${Number(chunk) + 1} (${detail})` : `${code}: trecho ${Number(chunk) + 1}`;
+    }))]));
+  const reviewed = {};
   const reports = (id) => {
     const p = projects[id];
-    const chapters = Array.from({ length: p.chaptersDone }, (_, k) => ({ index: k + 1, title: chapterTitle(k + 1), issues: id === "p1" ? issuesFor[k + 1] || [] : [] }));
+    const live = (ch) => (issuesFor[ch] || []).filter((issue) => !reviewed[`${ch}:${Number(/trecho (\d+)/.exec(issue)[1]) - 1}`]);
+    const chapters = Array.from({ length: p.chaptersDone }, (_, k) => ({ index: k + 1, title: chapterTitle(k + 1), issues: id === "p1" ? live(k + 1) : [] }))
+      .filter((c) => c.issues.length > 0);
     return { ok: chapters.every((c) => c.issues.length === 0), chapters };
   };
 
@@ -204,14 +213,39 @@
   h.translation_run_pilot = () => null;
   h.translation_pilot = ({ projectId }) => clone(pilots[projectId] || null);
   h.translation_choose_model = ({ projectId, model }) => { projects[projectId].model = model; return clone(projects[projectId]); };
+  const chapterChunks = (projectId, chapterIndex) => {
+    const src = SOURCE.split("\n").map((b) => b.replace("Chapter 1", `Chapter ${chapterIndex}`));
+    const dst = LUNA.split("\n").map((b) => b.replace("Capítulo 1", `Capítulo ${chapterIndex}`));
+    const half = Math.ceil(src.length / 2);
+    return [0, 1].map((chunk) => {
+      const from = chunk === 0 ? 0 : half;
+      const to = chunk === 0 ? half : src.length;
+      const key = `${chapterIndex}:${chunk}`;
+      const issues = projectId === "p1" && !reviewed[key] ? ((chunkIssuesFor[chapterIndex] || {})[chunk] || []) : [];
+      const english = issues.some((i) => i.startsWith("englishLeft"));
+      const pairs = src.slice(from, to).map((source, i) => {
+        let translated = dst[from + i] ?? null;
+        if (english && translated && i === 1) translated = translated.replace("da porta", "from the doorway, and the");
+        return { source, translated };
+      });
+      if (issues.some((i) => i.startsWith("tooShort")) && pairs.length > 1) pairs[pairs.length - 1].translated = null;
+      return { index: chunk, status: issues.includes("needsReview") ? "needs_review" : "done", reviewed: Boolean(reviewed[key]), issues, englishWords: english ? ["and", "the"] : [], pairs };
+    });
+  };
   h.translation_chapter = ({ projectId, chapterIndex }) => ({
     index: chapterIndex,
     title: chapterTitle(chapterIndex),
-    sourceHtml: SOURCE.replace("Chapter 1", `Chapter ${chapterIndex}`) + "\n" + SOURCE.split("\n").slice(1).join("\n"),
-    translatedHtml: (LUNA.replace("Capítulo 1", `Capítulo ${chapterIndex}`) + "\n" + LUNA.split("\n").slice(1).join("\n")),
-    status: (issuesFor[chapterIndex] || []).includes("needsReview") ? "needs_review" : "translated",
-    issues: projectId === "p1" ? issuesFor[chapterIndex] || [] : []
+    sourceHtml: SOURCE,
+    translatedHtml: LUNA,
+    status: (issuesFor[chapterIndex] || []).some((i) => i.startsWith("needsReview")) ? "needs_review" : "done",
+    issues: projectId === "p1" ? issuesFor[chapterIndex] || [] : [],
+    chunks: chapterChunks(projectId, chapterIndex)
   });
+  h.translation_retranslate_chunk = () => null;
+  h.translation_mark_reviewed = ({ projectId, chapterIndex, chunkIndex }) => {
+    reviewed[`${chapterIndex}:${chunkIndex}`] = true;
+    return h.translation_chapter({ projectId, chapterIndex });
+  };
   h.translation_retranslate = () => null;
   h.translation_verify = ({ projectId }) => reports(projectId);
   h.translation_export = ({ projectId }) => ({ outputDir: projects[projectId].outputDir || "~/Documents/Oghma Library/exports/PT-BR", title: `${projects[projectId].title} (PT-BR)` });

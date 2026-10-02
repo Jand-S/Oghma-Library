@@ -1009,23 +1009,87 @@
   }
 
   /* ---- Revisar ---------------------------------------------------------- */
+  .translation-issues {
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: var(--space-0-5);
+    vertical-align: middle;
+  }
+
+  .translation-review__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+  }
+
+  .translation-review__nav-count {
+    min-width: 9rem;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  /* The review header (status + problem navigation) stays visible while the chapter scrolls. */
+  .translation-review__bar {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .translation-review__layout {
+    display: grid;
+    grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-1-5);
+  }
+
+  .translation-review__layout--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Chapter list: sticks while the chapter scrolls (the tab body is the scroller). */
+  .translation-review__side {
+    position: sticky;
+    top: var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-height: calc(100vh - var(--space-8) * 4);
+    padding: var(--space-1-5);
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+  }
+
+  .translation-review__side-title {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
   .translation-review__issues {
     display: flex;
     flex-direction: column;
     gap: var(--space-0-5);
-    max-height: calc(var(--space-8) * 2 + var(--space-4));
     margin: 0;
     padding: 0;
-    overflow-y: auto;
     list-style: none;
   }
 
   .translation-review__issue {
     display: flex;
-    align-items: center;
-    gap: var(--space-1-5);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-0-5);
     width: 100%;
-    padding: var(--space-0-5) var(--space-1);
+    padding: var(--space-1);
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -1045,17 +1109,13 @@
   }
 
   .translation-review__chapter {
-    flex: 1 1 auto;
-    min-width: 0;
     font-size: var(--fs-sm);
     font-weight: var(--fw-medium);
+    line-height: var(--lh-tight);
   }
 
-  .translation-issues {
-    display: flex;
-    flex: 0 0 auto;
-    flex-wrap: wrap;
-    gap: var(--space-0-5);
+  .translation-review__main {
+    min-width: 0;
   }
 
   .translation-review__head {
@@ -1070,27 +1130,136 @@
     min-width: 0;
   }
 
-  .translation-compare {
+  .translation-review__columns {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    padding-inline: var(--space-1-5);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .translation-review__chunks {
+    display: flex;
+    flex-direction: column;
     gap: var(--space-1-5);
   }
 
-  .translation-compare__col {
+  .translation-review__chunk {
     display: flex;
     flex-direction: column;
-    gap: var(--space-0-5);
+    gap: var(--space-1);
+    padding: var(--space-1-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-app);
+    scroll-margin-top: calc(var(--space-8) + var(--space-2));
+  }
+
+  .translation-review__chunk--issue {
+    border-color: rgb(var(--warning-rgb) / 0.55);
+    background: rgb(var(--warning-rgb) / 0.04);
+  }
+
+  .translation-review__alert {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-1) var(--space-1-5);
+    padding: var(--space-1) var(--space-1-5);
+    border-radius: var(--radius-sm);
+    background: rgb(var(--warning-rgb) / 0.1);
+  }
+
+  .translation-review__alert-icon {
+    flex: none;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    margin-top: var(--space-0-5);
+    color: var(--warning);
+  }
+
+  .translation-review__alert-body {
+    flex: 1 1 16rem;
     min-width: 0;
   }
 
-  .translation-compare .translation-reader {
-    height: calc(var(--space-8) * 7);
-    padding: var(--space-2) var(--space-3);
-    font-size: var(--fs-md);
+  .translation-review__alert-title {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
   }
 
-  .translation-compare .translation-reader__text :is(h1, h2, h3, h4) {
+  .translation-review__help {
+    margin: var(--space-0-5) 0 0;
+    padding-left: var(--space-2);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+  }
+
+  .translation-review__alert-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-0-5);
+  }
+
+  .translation-review__chunk-meta {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .translation-review__pairs {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .translation-review__pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .translation-review__pair:first-child {
+    border-top: 0;
+  }
+
+  .translation-review__text {
+    min-width: 0;
+    color: var(--text);
+    font-family: var(--font-serif);
+    font-size: var(--fs-md);
+    line-height: 1.65;
+  }
+
+  .translation-review__text--source {
+    color: var(--text-2);
+  }
+
+  .translation-review__text--missing {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .translation-review__text :is(p, h1, h2, h3, h4, blockquote) {
+    margin: 0;
+  }
+
+  .translation-review__text :is(h1, h2, h3, h4) {
     font-size: var(--fs-lg);
+  }
+
+  .translation-review__en {
+    padding: 0 var(--space-0-5);
+    border-radius: var(--radius-xs);
+    background: rgb(var(--warning-rgb) / 0.3);
+    color: var(--text);
   }
 
   /* ---- Modals ----------------------------------------------------------- */
@@ -1194,6 +1363,17 @@
   @container translation-body (max-width: 30rem) {
     .translation-cards {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @container translation-body (max-width: 52rem) {
+    .translation-review__layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .translation-review__side {
+      position: static;
+      max-height: calc(var(--space-8) * 3);
     }
   }
 
