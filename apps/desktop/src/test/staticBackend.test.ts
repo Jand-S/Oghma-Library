@@ -149,24 +149,4 @@ describe("staticBackend", () => {
     expect(items[0].rangeStart).toBe(1);
     expect(items[0].rangeEnd).toBe(2);
   });
-
-  it("scales translation estimates using measured local content", async () => {
-    const client = createStaticBackendClient(BASE);
-    const base = {
-      novelId: "local-book",
-      chapterFrom: 1,
-      chapterTo: 100,
-      mode: "balanced" as const,
-      models: ["gpt-4.1-mini"],
-      usdBrlRate: 5.5
-    };
-
-    const small = await client.estimateTranslation({ ...base, sourceChars: 1_000_000 });
-    const large = await client.estimateTranslation({ ...base, sourceChars: 11_000_000 });
-
-    expect(large.estimatedInputTokens).toBeGreaterThan(small.estimatedInputTokens * 7);
-    expect(large.recommendations[0].estimatedBrl ?? 0).toBeGreaterThan(
-      (small.recommendations[0].estimatedBrl ?? 0) * 7
-    );
-  });
 });

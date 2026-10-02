@@ -127,7 +127,6 @@ export const settingsStrings = {
     { value: "OGG", label: "OGG" }
   ],
   translationTitle: "Motor e idioma de destino",
-  translationHint: "Motor, idioma de destino e revisão ficam na tela Tradução.",
   openTranslation: "Abrir Tradução",
 
   // Sobre

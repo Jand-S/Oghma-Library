@@ -1,9 +1,4 @@
-import type {
-  AppConfig,
-  DownloadFormat,
-  IndexMode,
-  TranslationEngine
-} from "./types";
+import type { AppConfig, DownloadFormat, IndexMode } from "./types";
 import { downloadFormats } from "./types";
 
 export const setupStorageKey = "oghma.setup.v1";
@@ -11,7 +6,6 @@ export const setupCompleteKey = "oghma.setup.complete.v1";
 
 const defaultOutputPath = "~/Documents/Oghma Library/exports";
 const defaultFormats: DownloadFormat[] = ["EPUB"];
-const translationEngines: TranslationEngine[] = ["local", "openai", "deepl", "google"];
 const indexModes: IndexMode[] = ["catalog_only", "incremental_recent", "guarded_refresh"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -20,10 +14,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isDownloadFormat(value: unknown): value is DownloadFormat {
   return typeof value === "string" && downloadFormats.includes(value as DownloadFormat);
-}
-
-function isTranslationEngine(value: unknown): value is TranslationEngine {
-  return typeof value === "string" && translationEngines.includes(value as TranslationEngine);
 }
 
 function isIndexMode(value: unknown): value is IndexMode {
@@ -40,7 +30,6 @@ export function defaultAppConfig(sourceIds: string[] = []): AppConfig {
     translateDefault: false,
     audiobookDefault: false,
     targetLanguage: "PT-BR",
-    translationEngine: "local",
     ttsVoice: "pt-BR-Antonio",
     ttsSpeed: 1,
     audioFormat: "M4B",
@@ -66,7 +55,6 @@ export function normalizeStoredAppConfig(value: unknown): Partial<AppConfig> | n
   if (typeof value.translateDefault === "boolean") next.translateDefault = value.translateDefault;
   if (typeof value.audiobookDefault === "boolean") next.audiobookDefault = value.audiobookDefault;
   if (typeof value.targetLanguage === "string") next.targetLanguage = value.targetLanguage;
-  if (isTranslationEngine(value.translationEngine)) next.translationEngine = value.translationEngine;
   if (typeof value.ttsVoice === "string") next.ttsVoice = value.ttsVoice;
   if (typeof value.ttsSpeed === "number" && Number.isFinite(value.ttsSpeed)) next.ttsSpeed = value.ttsSpeed;
   if (typeof value.audioFormat === "string") next.audioFormat = value.audioFormat;
