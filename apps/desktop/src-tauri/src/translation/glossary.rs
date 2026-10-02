@@ -310,10 +310,8 @@ Build the glossary used for the whole book:
 - "translate": descriptive titles, nicknames, orders, guilds, institutions and setting-specific terminology (magic-system vocabulary, invented disciplines, recurring in-world concepts), each with the ONE natural pt-BR rendering used everywhere.
 - DISCARD ordinary English words and everyday phrases that need no fixed translation.
 
-For EVERY kept or translated term also give "confidence": 0-100, how sure you are that the decision (keep as-is, or that exact pt-BR rendering) is right for this book. Use 90+ only when obvious (clear personal names, unambiguous terms); use below 70 when the context is ambiguous, the term may be an ordinary word, or several renderings are plausible.
-
 Reply with JSON only, exactly in this shape:
-{{"keep": ["Name", ...], "translate": {{"English term": "tradução", ...}}, "confidence": {{"Name": 95, "English term": 60, ...}}}}
+{{"keep": ["Name", ...], "translate": {{"English term": "tradução", ...}}}}
 
 PROPER NAME CANDIDATES:
 {}
@@ -952,11 +950,5 @@ mod tests {
         let plain = parse_curation("{\"keep\": [\"Kael\"]}").unwrap();
         let fallback = entries_from(&plain, &found, &texts);
         assert!(fallback[0].confidence > 0 && fallback[0].confidence <= 100);
-    }
-
-    #[test]
-    fn curation_prompt_asks_for_confidence() {
-        let prompt = curation_prompt(&Candidates::default());
-        assert!(prompt.contains("\"confidence\""));
     }
 }

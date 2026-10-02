@@ -1,5 +1,5 @@
-import { AlertTriangle, BookA, Check, Eye, Pencil, Plus, RefreshCcw, Search, Sparkles, Trash2, X } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { AlertTriangle, BookA, Check, Pencil, Plus, RefreshCcw, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Fragment, useMemo, useState, type KeyboardEvent } from "react";
 import type { GlossaryEntry, GlossaryKind, GlossarySuggestion, ProjectDetail } from "../../services/translationClient";
 import { translationStrings as t } from "../../strings/translation";
 import { Badge, Button, EmptyState, IconButton, SelectField, Spinner, TextField } from "../../ui";
@@ -70,7 +70,7 @@ function EditRow({
           <span className="translation-term">{draft.term}</span>
         )}
       </th>
-      <td colSpan={3}>
+      <td colSpan={2}>
         <div className="translation-term-edit">
           <SelectField<GlossaryKind>
             label={t.kindField}
@@ -102,10 +102,6 @@ function EditRow({
   );
 }
 
-function confidenceTone(value: number) {
-  return value >= 80 ? "success" : "neutral";
-}
-
 /** Inline row under a term with the AI suggestion and accept/dismiss. */
 function SuggestionRow({ suggestion, saving, onAccept, onDismiss }: {
   suggestion: GlossarySuggestion;
@@ -115,7 +111,7 @@ function SuggestionRow({ suggestion, saving, onAccept, onDismiss }: {
 }) {
   return (
     <tr className="translation-table__suggestion" data-testid="glossary-suggestion" data-term={suggestion.term}>
-      <td colSpan={5}>
+      <td colSpan={4}>
         <div className="translation-suggestion">
           <Sparkles aria-hidden="true" className="translation-suggestion__icon" />
           <p className="translation-suggestion__text">
@@ -140,32 +136,16 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
   const [adding, setAdding] = useState(false);
   const saving = controller.isBusy(`${project.id}:glossary`);
   const extracting = project.glossaryStatus === "running";
-  const savedHideAt = project.glossaryHideAt ?? 80;
-  const [hideAt, setHideAt] = useState(savedHideAt);
-  const [showHidden, setShowHidden] = useState(false);
-  // Terms saved or accepted in this visit stay listed (marked "Aprovado") so they don't vanish on save.
-  const [touched, setTouched] = useState<Set<string>>(() => new Set());
-  const touch = (term: string) => setTouched((current) => new Set(current).add(term));
-  // Sync from the saved value only when switching projects, so a late save reply
-  // never overrides what the user is dragging right now.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => setHideAt(savedHideAt), [project.id]);
-  /** Auto-approved: confident enough to leave the review list (still used in translation). */
-  const isApproved = (entry: GlossaryEntry) => (entry.confidence ?? 100) >= hideAt;
 
-  const hiddenCount = (entries ?? []).filter(isApproved).length;
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return [...(entries ?? [])]
-      .filter((entry) => showHidden || (entry.confidence ?? 100) < hideAt || touched.has(entry.term))
       .filter((entry) => !needle || `${entry.term} ${entry.target ?? ""}`.toLowerCase().includes(needle))
       .sort((a, b) => b.count - a.count || a.term.localeCompare(b.term));
-  }, [entries, query, showHidden, hideAt, touched]);
-  const suggestable = (entries ?? []).filter((entry) => !isApproved(entry));
+  }, [entries, query]);
+  // Batch suggestions for automatic terms still kept untranslated (the backend caps one call at 40).
+  const suggestable = (entries ?? []).filter((entry) => entry.source === "auto" && entry.kind === "keep").slice(0, 40);
   const suggestingAll = controller.isBusy(`${project.id}:suggest-all`);
-  const commitHideAt = () => {
-    if (hideAt !== savedHideAt) void controller.setHideAt(project.id, hideAt);
-  };
   const missedCount = (entries ?? []).filter((entry) => entry.missed > 0).length;
 
   const save = async (draft: Draft) => {
@@ -175,7 +155,6 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
       target: draft.kind === "translate" ? draft.target : undefined
     });
     if (ok) {
-      touch(draft.term);
       setEditing(null);
       setAdding(false);
     }
@@ -253,36 +232,6 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
           </p>
         ) : null}
 
-        {entries && entries.length > 0 ? (
-          <div className="translation-glossary__filters">
-            <label className="translation-confidence" title={t.hideAtHint}>
-              <span className="translation-confidence__label">{t.hideAt}</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={hideAt}
-                aria-label={t.hideAt}
-                data-testid="glossary-min-confidence"
-                onChange={(event) => setHideAt(Number(event.target.value))}
-                onPointerUp={commitHideAt}
-                onKeyUp={commitHideAt}
-                onBlur={commitHideAt}
-              />
-              <span className="translation-confidence__value">{hideAt}%</span>
-            </label>
-            {hiddenCount > 0 ? (
-              <span className="translation-glossary__hidden" data-testid="glossary-hidden">
-                {t.hiddenTerms(hiddenCount, hideAt)}
-                <Button size="sm" variant="ghost" icon={<Eye />} onClick={() => setShowHidden((value) => !value)}>
-                  {showHidden ? t.hideHidden : t.showHidden}
-                </Button>
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-
         {entries && entries.length > 8 ? (
           <TextField
             label={t.glossarySearch}
@@ -309,7 +258,6 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
                 <tr>
                   <th scope="col">{t.colTerm}</th>
                   <th scope="col">{t.colTarget}</th>
-                  <th scope="col" className="is-num">{t.colConfidence}</th>
                   <th scope="col" className="is-num">{t.colCount}</th>
                   <th scope="col"><span className="sr-only">{t.colActions}</span></th>
                 </tr>
@@ -328,19 +276,13 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
                   <EditRow key={entry.term} isNew={false} initial={toDraft(entry)} saving={saving} onSave={save} onCancel={() => setEditing(null)} />
                 ) : (
                   <Fragment key={entry.term}>
-                  <tr data-testid="glossary-row" data-term={entry.term} className={isApproved(entry) ? "is-approved" : undefined}>
+                  <tr data-testid="glossary-row" data-term={entry.term}>
                     <th scope="row">
                       <span className="translation-term">
                         {entry.term}
                         <Badge tone={entry.source === "manual" ? "accent" : "neutral"} className={entry.source === "manual" ? "translation-term__source" : "translation-term__source is-auto"} title={t.colSource}>
                           {entry.source === "manual" ? t.sourceManual : t.sourceAuto}
                         </Badge>
-                        {isApproved(entry) ? (
-                          <Badge tone="success" className="translation-term__approved" title={t.hideAtHint}>
-                            <Check aria-hidden="true" />
-                            {t.approved}
-                          </Badge>
-                        ) : null}
                         {entry.missed > 0 ? (
                           <span className="translation-term__warn" title={t.missed(entry.missed)}>
                             <AlertTriangle aria-hidden="true" />
@@ -358,11 +300,6 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
                           {entry.target}
                         </span>
                       )}
-                    </td>
-                    <td className="is-num">
-                      <Badge tone={confidenceTone(entry.confidence ?? 100)} title={t.confidenceTitle(entry.confidence ?? 100)} data-testid="glossary-confidence">
-                        {entry.confidence ?? 100}%
-                      </Badge>
                     </td>
                     <td className="is-num">{entry.count.toLocaleString("pt-BR")}</td>
                     <td className="translation-table__actions">
@@ -390,10 +327,7 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
                     <SuggestionRow
                       suggestion={controller.suggestions[entry.term]}
                       saving={saving}
-                      onAccept={() => {
-                        touch(entry.term);
-                        void controller.acceptSuggestion(project.id, controller.suggestions[entry.term]);
-                      }}
+                      onAccept={() => void controller.acceptSuggestion(project.id, controller.suggestions[entry.term])}
                       onDismiss={() => controller.dismissSuggestion(project.id, entry.term)}
                     />
                   ) : null}
@@ -401,9 +335,7 @@ export function GlossaryTab({ controller, project }: { controller: TranslationCo
                 )))}
                 {rows.length === 0 && !adding ? (
                   <tr>
-                    <td colSpan={5} className="translation-table__muted" data-testid="glossary-all-reviewed">
-                      {query.trim() ? t.glossaryNoMatch : t.reviewAllDone(hiddenCount)}
-                    </td>
+                    <td colSpan={4} className="translation-table__muted">{t.glossaryNoMatch}</td>
                   </tr>
                 ) : null}
               </tbody>

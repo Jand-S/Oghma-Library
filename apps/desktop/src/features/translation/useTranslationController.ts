@@ -382,10 +382,6 @@ export function useTranslationController({ client: injected, library, toast, ref
     toast({ message: t.regenerateStarted, tone: "info" });
   }, [api, toast, withBusy]);
 
-  const setHideAt = useCallback(async (id: string, value: number) => {
-    await updateSettings(id, { glossaryHideAt: Math.max(0, Math.min(100, Math.round(value))) });
-  }, [updateSettings]);
-
   /** Asks the model for suggestions (one call for all `terms`); results stay pending until accepted or dismissed. */
   const suggestTerms = useCallback(async (id: string, terms: string[]) => {
     if (terms.length === 0) return;
@@ -416,7 +412,7 @@ export function useTranslationController({ client: injected, library, toast, ref
     });
     if (ok) {
       dismissSuggestion(id, suggestion.term);
-      toast({ message: t.termApproved(suggestion.term), tone: "success" });
+      toast({ message: t.termSaved(suggestion.term), tone: "success" });
     }
   }, [dismissSuggestion, toast, upsertTerm]);
 
@@ -481,7 +477,6 @@ export function useTranslationController({ client: injected, library, toast, ref
     upsertTerm,
     deleteTerm,
     regenerateGlossary,
-    setHideAt,
     suggestions: suggestions[selectedId] ?? {},
     suggestTerms,
     acceptSuggestion,
