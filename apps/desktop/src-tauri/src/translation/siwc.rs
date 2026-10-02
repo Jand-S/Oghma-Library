@@ -24,8 +24,6 @@ pub const API_BASE: &str = "https://api.openai.com/v1";
 const RESOURCE: &str = "https://api.openai.com/v1";
 const SCOPE: &str = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
 const DYNAMIC_CLIENT: &str = "dynamic_agent_client";
-const KEYRING_SERVICE: &str = "com.oghmalibrary.desktop.chatgpt";
-const KEYRING_USER: &str = "tokens";
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -97,7 +95,9 @@ pub trait TokenStore: Send + Sync {
     fn clear(&self) -> Result<(), String>;
 }
 
-/// JSON file with mode 0600.
+/// JSON file with mode 0600 in the app data dir (like Codex's `~/.codex/auth.json`).
+/// The macOS Keychain was dropped: the app is ad-hoc signed, so every rebuild or
+/// reinstall changed its identity and macOS asked for the login-keychain password.
 pub struct FileTokenStore(pub PathBuf);
 
 impl TokenStore for FileTokenStore {
@@ -139,52 +139,6 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     #[cfg(not(unix))]
     std::fs::write(&temp, bytes).map_err(|err| err.to_string())?;
     std::fs::rename(&temp, path).map_err(|err| err.to_string())
-}
-
-/// macOS Keychain / Windows Credential Manager, falling back to the 0600 file
-/// when the keychain is unavailable (and on other platforms).
-pub struct KeychainTokenStore {
-    pub fallback: FileTokenStore,
-}
-
-#[cfg(any(target_os = "macos", windows))]
-impl KeychainTokenStore {
-    fn entry() -> Option<keyring::Entry> {
-        keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).ok()
-    }
-}
-
-impl TokenStore for KeychainTokenStore {
-    fn load(&self) -> Option<StoredTokens> {
-        #[cfg(any(target_os = "macos", windows))]
-        if let Some(json) = Self::entry().and_then(|entry| entry.get_password().ok()) {
-            if let Ok(tokens) = serde_json::from_str(&json) {
-                return Some(tokens);
-            }
-        }
-        self.fallback.load()
-    }
-
-    fn save(&self, tokens: &StoredTokens) -> Result<(), String> {
-        #[cfg(any(target_os = "macos", windows))]
-        {
-            let json = serde_json::to_string(tokens).map_err(|err| err.to_string())?;
-            if Self::entry().is_some_and(|entry| entry.set_password(&json).is_ok()) {
-                let _ = self.fallback.clear();
-                return Ok(());
-            }
-        }
-        self.fallback.save(tokens)
-    }
-
-    fn clear(&self) -> Result<(), String> {
-        #[cfg(any(target_os = "macos", windows))]
-        if let Some(entry) = Self::entry() {
-            let _ = entry.delete_credential();
-        }
-        let _ = (KEYRING_SERVICE, KEYRING_USER);
-        self.fallback.clear()
-    }
 }
 
 #[cfg(test)]

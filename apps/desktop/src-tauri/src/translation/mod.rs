@@ -676,7 +676,7 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), String> {
         .map_err(|err| format!("Não foi possível localizar dados do app: {err}"))?;
     std::fs::create_dir_all(&dir).map_err(|err| format!("Não foi possível criar dados do app: {err}"))?;
     let store = Store::open(&dir.join("translation.db"))?;
-    let tokens = siwc::KeychainTokenStore { fallback: siwc::FileTokenStore(dir.join("chatgpt-tokens.json")) };
+    let tokens = siwc::FileTokenStore(dir.join("chatgpt-tokens.json"));
     let siwc = Arc::new(SiwcProvider::new(Box::new(tokens), Some(dir.join("chatgpt-client.json"))));
     let provider: Arc<dyn ChatProvider> = siwc.clone();
     let engine = Engine::with_login(
