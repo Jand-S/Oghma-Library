@@ -44,7 +44,8 @@ const LOG_LIMIT = 300;
 export const CHATGPT_USAGE_URL = "https://chatgpt.com/settings/usage";
 const SUMMARY_KEYS = ["id", "title", "coverUrl", "sourceNovelId", "status", "chaptersTotal", "chaptersDone", "chunksTotal", "chunksDone", "percent", "outputDir"] as const;
 
-function toSummary(detail: ProjectDetail): ProjectSummary {
+/** Only the summary fields (a list entry must not override the detail's other fields). */
+function toSummary(detail: ProjectSummary): ProjectSummary {
   const summary = {} as Record<string, unknown>;
   for (const key of SUMMARY_KEYS) if (detail[key] !== undefined) summary[key] = detail[key];
   return summary as ProjectSummary;
@@ -395,7 +396,7 @@ export function useTranslationController({ client: injected, library, toast, ref
 
   const selectedSummary = projects.find((item) => item.id === selectedId) ?? null;
   const selected: ProjectDetail | null = selectedId && details[selectedId]
-    ? { ...details[selectedId], ...(selectedSummary ?? {}) }
+    ? { ...details[selectedId], ...(selectedSummary ? toSummary(selectedSummary) : {}) }
     : null;
   const translatable = useMemo(() => library.filter(isTranslatable), [library]);
   const loggedIn = account.status === "logged_in";

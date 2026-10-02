@@ -22,7 +22,7 @@ type ProjectSettingsModalProps = {
   onSave: (patch: { model: string; effort: TranslationEffort; workers: number }) => Promise<boolean>;
 };
 
-/** Model, effort, simultaneous translations and auto-pause of one project. */
+/** Model, effort and simultaneous translations of one project. */
 export function ProjectSettingsModal({ open, project, saving, onClose, onSave }: ProjectSettingsModalProps) {
   const [model, setModel] = useState(project.model);
   const [effort, setEffort] = useState<TranslationEffort>(project.effort);
