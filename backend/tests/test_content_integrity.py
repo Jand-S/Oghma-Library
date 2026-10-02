@@ -69,6 +69,11 @@ def test_description_junk_lines_and_prefix_are_removed():
     assert clean_description(raw) == "Um jovem descobre que pode voltar no tempo e tenta salvar a familia."
 
 
+def test_plain_text_description_keeps_its_line_breaks():
+    raw = "《一击魔法师》\n作者: 隐语者\n\"There is no problem that one Fireball cannot solve.\"\n\"If there is, then use two.\""
+    assert clean_description(raw) == raw
+
+
 def test_description_without_text_stays_none():
     assert clean_description(None) is None
     assert clean_description("<p>&nbsp;</p>") is None

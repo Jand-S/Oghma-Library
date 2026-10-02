@@ -222,6 +222,7 @@ def clean_description(value: str | None) -> str | None:
     if not value:
         return None
     text = value
+    is_html = bool(_DESC_TAG.search(text))
     # Tudo depois da primeira linha horizontal e rodape do site, desde que sobre texto antes.
     head = _DESC_HR.split(text, maxsplit=1)[0]
     if _DESC_TAG.sub("", unescape(head)).strip():
@@ -238,7 +239,9 @@ def clean_description(value: str | None) -> str | None:
         lines = [_DESC_INLINE_SPACE.sub(" ", line).strip() for line in block.splitlines()]
         lines = [line for line in lines if line and not _DESC_JUNK_LINE.search(line)]
         if lines:
-            paragraphs.append(" ".join(lines))
+            # Em HTML a quebra dentro de um bloco e so formatacao do codigo-fonte; em texto
+            # puro e uma quebra que o autor escreveu e fica.
+            paragraphs.append(" ".join(lines) if is_html else "\n".join(lines))
     if paragraphs:
         paragraphs[0] = _DESC_PREFIX.sub("", paragraphs[0], count=1).strip() or paragraphs[0]
     out = "\n\n".join(p for p in paragraphs if p)
