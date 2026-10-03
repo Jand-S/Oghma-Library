@@ -24,6 +24,15 @@ O `.env` é lido do diretório de trabalho (`WorkingDirectory` do serviço) ou d
 | `oghma publish-prune [--source X] [--keep 2] [--dry-run] [--local-only]` | apaga versões antigas de bundles/catálogos no B2 e no disco |
 | `oghma probe-connector --source X [--novel-url URL]` | teste ao vivo de um conector (sai com 1 se reprovar) |
 
+Comandos rodados à mão precisam das mesmas variáveis do serviço: o uploader lê `OGHMA_S3_*` do ambiente do processo, então um `sudo -u oghma python -m oghma.publish` puro falha com `KeyError: 'OGHMA_S3_BUCKET'`. Use `systemd-run`, que também deixa o log no journal:
+
+```bash
+systemd-run --unit oghma-publish-manual --uid=oghma --gid=oghma \
+  -p EnvironmentFile=/opt/oghma/.env -p WorkingDirectory=/opt/oghma/app/backend -p Nice=10 \
+  /opt/oghma/venv/bin/python -m oghma.publish --source X
+journalctl -u oghma-publish-manual -o cat | tail
+```
+
 O `oghma rodizio` termina de forma limpa com SIGTERM/SIGINT: as coletas em andamento são canceladas e o `crawl_run` delas fica `error` ("parado"). Use `KillSignal=SIGTERM` e `TimeoutStopSec=60` no unit.
 
 ## Variáveis de ambiente
