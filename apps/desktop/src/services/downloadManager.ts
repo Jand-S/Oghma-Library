@@ -16,7 +16,10 @@ import { convertLocalEpubToAzw3, saveLocalFile, type FileData } from "./localFil
 
 export type SaveFile = (fileName: string, data: FileData) => Promise<void>;
 
-export type DownloadNovelInput = {
+/** Book metadata from the catalog, written to the EPUB (author, real synopsis, language). */
+export type BookMeta = { author?: string; description?: string; language?: string };
+
+export type DownloadNovelInput = BookMeta & {
   id: string;
   title: string;
   bundleKey?: string;
@@ -290,7 +293,8 @@ async function buildEpub(
   onProgress?: (percent: number) => void,
   cover?: EpubCover,
   signal?: AbortSignal,
-  novelId?: string
+  novelId?: string,
+  meta: BookMeta = {}
 ): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const chapters = bundle.chapters.filter((chapter) => !range || (chapter.number >= range.start && chapter.number <= range.end));
@@ -314,7 +318,9 @@ async function buildEpub(
     ? `<item id="cover-page" href="cover.xhtml" media-type="application/xhtml+xml"/>\n    <item id="cover-image" href="${xmlEscape(cover.name)}" media-type="${cover.mediaType}" properties="cover-image"/>`
     : "";
   const coverSpine = cover ? '<itemref idref="cover-page" linear="no"/>' : "";
-  const plainDescription = stripHtml(chapters[0]?.html ?? title);
+  // The catalog synopsis; old queue items without it fall back to the start of chapter 1.
+  const plainDescription = meta.description?.trim() || stripHtml(chapters[0]?.html ?? title).slice(0, 1000);
+  const language = meta.language?.trim() || "pt-BR";
 
   return createZip([
     { name: "mimetype", data: enc.encode("application/epub+zip") },
@@ -324,7 +330,8 @@ async function buildEpub(
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="book-id">oghma:${xmlEscape(novelId || title)}</dc:identifier>
     <dc:title>${xmlEscape(title)}</dc:title>
-    <dc:language>pt-BR</dc:language>
+    <dc:language>${xmlEscape(language)}</dc:language>
+    ${meta.author?.trim() ? `<dc:creator>${xmlEscape(meta.author.trim())}</dc:creator>` : ""}
     <dc:description>${xmlEscape(plainDescription)}</dc:description>
     ${cover ? '<meta name="cover" content="cover-image"/>' : ""}
   </metadata>
@@ -411,7 +418,8 @@ export async function buildOutputs(
   cover?: EpubCover,
   signal?: AbortSignal,
   /** Stable book id for the EPUB `dc:identifier` (falls back to the title). */
-  novelId?: string
+  novelId?: string,
+  meta: BookMeta = {}
 ): Promise<Array<{ fileName: string; data: FileData }>> {
   throwIfAborted(signal);
   // Empty or missing chapters become an "indisponível na fonte" page (the book stays in order).
@@ -419,7 +427,7 @@ export async function buildOutputs(
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
   if (formats.includes("EPUB")) {
-    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress, cover, signal, novelId) });
+    outputs.push({ fileName: `${base}.epub`, data: await buildEpub(bundle, title, range, onProgress, cover, signal, novelId, meta) });
     throwIfAborted(signal);
   }
   if (formats.includes("TXT")) {
@@ -541,7 +549,8 @@ export async function runDownload(req: DownloadRequest, opts: RunDownloadOptions
     }),
     cover?.epub,
     signal,
-    req.novel.id
+    req.novel.id,
+    { author: req.novel.author, description: req.novel.description, language: req.novel.language }
   );
   bundle = null; // Outputs are built; let the extracted bundle go before writing.
   throwIfAborted(signal);

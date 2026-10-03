@@ -320,3 +320,21 @@ describe("downloadManager", () => {
 
 afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => vi.unstubAllGlobals());
+
+describe("EPUB metadata", () => {
+  it("writes the catalog author, synopsis and language instead of chapter 1 and a fixed pt-BR", async () => {
+    const { buildOutputs } = await import("../services/downloadManager");
+    const bundle = { meta: null, assets: [], chapters: [{ number: 1, title: "Um", html: "<p>Texto do capítulo um.</p>" }] };
+    const [epub] = await buildOutputs(bundle, "Shadow Slave", ["EPUB"], undefined, undefined, undefined, undefined, "gn:ss",
+      { author: "Guiltythree", description: "Sunny sobrevive.", language: "en" });
+    const opf = new TextDecoder().decode(epub.data as Uint8Array);
+    expect(opf).toContain("<dc:creator>Guiltythree</dc:creator>");
+    expect(opf).toContain("<dc:description>Sunny sobrevive.</dc:description>");
+    expect(opf).toContain("<dc:language>en</dc:language>");
+
+    const [legacy] = await buildOutputs(bundle, "Shadow Slave", ["EPUB"]);
+    const old = new TextDecoder().decode(legacy.data as Uint8Array);
+    expect(old).toContain("<dc:language>pt-BR</dc:language>");
+    expect(old).not.toContain("<dc:creator>");
+  });
+});

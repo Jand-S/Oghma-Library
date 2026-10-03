@@ -58,7 +58,16 @@ export function createJobRunner(overrides: Partial<JobRunnerDeps> = {}): RunJob 
       const outputFiles = await deps.runDownload(
         {
           serverUrl: job.request.serverUrl,
-          novel: { id: job.novelId, title: job.title, bundleKey: job.request.bundleKey, bundleSha256: job.request.bundleSha256, coverUrl: job.coverUrl },
+          novel: {
+            id: job.novelId,
+            title: job.title,
+            bundleKey: job.request.bundleKey,
+            bundleSha256: job.request.bundleSha256,
+            coverUrl: job.coverUrl,
+            author: job.request.author,
+            description: job.request.description,
+            language: job.request.language
+          },
           formats,
           outputDir: stage.stagingDir,
           range: jobRange(job)

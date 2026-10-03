@@ -88,6 +88,10 @@ export type QueueItem = {
   coverUrl?: string;
   bundleKey?: string;
   bundleSha256?: string;
+  /** Catalog metadata for the EPUB. */
+  author?: string;
+  description?: string;
+  language?: string;
   preset: ChapterPreset;
   rangeStart?: number;
   rangeEnd?: number;
@@ -275,6 +279,10 @@ export type DownloadJobRequest = {
   bundleKey?: string;
   /** Catalog sha256 of the bundle; checked while it streams. */
   bundleSha256?: string;
+  /** Catalog metadata for the EPUB (author, synopsis, language). */
+  author?: string;
+  description?: string;
+  language?: string;
   formats: DownloadFormat[];
   preset: ChapterPreset;
   rangeStart?: number;
