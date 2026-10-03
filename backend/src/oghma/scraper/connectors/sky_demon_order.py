@@ -17,6 +17,7 @@ from ...config import get_settings
 from ..base import ChapterRef, NormalizedChapter, NovelMeta, NovelRef, RawPage
 from ..normalize import normalize
 from ..registry import register
+from ._common import attr as _attr, meta_content as _meta_content
 
 _PROJECT_HREF = re.compile(
     r"https?://skydemonorder\.com/projects/(?P<slug>[a-z0-9][a-z0-9._-]*)/?(?:$|[?#\"' <])",
@@ -39,12 +40,6 @@ _TITLE_PREFIX_RE = re.compile(r"\s+--?\s+Sky Demon Order\s*$", re.I)
 _COVER_URL_RE = re.compile(r"https://skydemonorder\.nyc3\.cdn\.digitaloceanspaces\.com/covers/[^'\"\s]+", re.I)
 
 
-def _attr(node, name: str) -> str | None:
-    if node is None:
-        return None
-    value = node.attributes.get(name)
-    return value.strip() if value else None
-
 
 def _first_text(tree: HTMLParser, selector: str) -> str | None:
     node = tree.css_first(selector)
@@ -53,14 +48,6 @@ def _first_text(tree: HTMLParser, selector: str) -> str | None:
     text = node.text(separator=" ", strip=True)
     return text or None
 
-
-def _meta_content(tree: HTMLParser, *names: str) -> str | None:
-    for name in names:
-        node = tree.css_first(f"meta[property='{name}'], meta[name='{name}']")
-        value = _attr(node, "content")
-        if value:
-            return value
-    return None
 
 
 def _cover_url(tree: HTMLParser) -> str | None:

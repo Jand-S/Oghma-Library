@@ -18,6 +18,7 @@ from selectolax.parser import HTMLParser
 from ..base import ChapterRef, NormalizedChapter, NovelMeta, NovelRef, RawPage
 from ..normalize import normalize
 from ..registry import register
+from ._common import attr as _attr, meta_content as _meta_content
 
 _NOVEL_HREF = re.compile(
     r"(?P<url>(?:https?://novelmania\.com\.br)?/novels/(?P<slug>[a-z0-9][a-z0-9._-]*))"
@@ -54,20 +55,6 @@ def _first_text(tree: HTMLParser, selector: str) -> Optional[str]:
     return text or None
 
 
-def _attr(node, name: str) -> Optional[str]:
-    if node is None:
-        return None
-    value = node.attributes.get(name)
-    return value.strip() if value else None
-
-
-def _meta_content(tree: HTMLParser, *names: str) -> Optional[str]:
-    for name in names:
-        node = tree.css_first(f"meta[property='{name}'], meta[name='{name}']")
-        value = _attr(node, "content")
-        if value:
-            return value
-    return None
 
 
 def _clean_title(value: str, fallback: str) -> str:

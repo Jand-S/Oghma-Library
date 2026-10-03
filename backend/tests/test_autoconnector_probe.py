@@ -43,7 +43,8 @@ class FakeConnector:
 
     async def fetch_novel(self, fetcher, ref):
         return NovelMeta(self.id, ref.slug, "Novel A", ref.url, cover_url="https://fake.test/a.jpg",
-                         description="<p>" + "Uma historia longa o bastante para passar. " * 3 + "</p>")
+                         description="<p>" + "Uma historia longa o bastante para passar. " * 3 + "</p>",
+                         tags=["Fantasia"], source_chapter_count=getattr(self, "announced", None))
 
     async def list_chapters(self, fetcher, novel):
         return [ChapterRef(float(i), f"Cap {i}", f"https://fake.test/a/{i}") for i in range(1, len(self.chapters_html) + 1)]
@@ -78,3 +79,12 @@ def test_probe_rejects_placeholder_chapters():
     report = _run(FakeConnector(html))
     assert not report.ok
     assert next(c for c in report.checks if c.name == "chapter_content").ok is False
+
+
+def test_probe_fails_when_the_listing_stops_short_of_the_site_total():
+    connector = FakeConnector(["<p>texto do capitulo com varias palavras</p>"] * 7)
+    connector.announced = 967  # o site anuncia 967; a paginacao do conector parou em 7
+    report = _run(connector)
+    failed = {c.name: c.detail for c in report.checks if not c.ok}
+    assert not report.ok and "chapter_count_matches_site" in failed
+    assert "967" in failed["chapter_count_matches_site"]

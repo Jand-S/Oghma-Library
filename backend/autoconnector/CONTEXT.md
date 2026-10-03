@@ -28,6 +28,18 @@ Você faz parte de uma cadeia que cria um **conector de site de novels** para o 
 - `AGENT_NOTES.md`: anotações curtas para quem vier depois (cada papel acrescenta uma seção).
 - Fixtures reais do site: `backend/tests/fixtures/<source_id>/`.
 
+## Helpers comuns
+
+Importe de `oghma.scraper.connectors._common` (`attr`, `meta_content`) em vez de copiar
+helpers de outro conector. Preencha também `source_chapter_count` quando o site mostra o
+total de capítulos: o portão confere se a listagem chega nele.
+
+## O que o portão exige da novel de teste
+
+Título, sinopse (em pelo menos uma das novels amostradas), capa, **tags/gêneros**, capítulos
+listados com números únicos e, se o site anuncia o total, a listagem chegando a ele (até 2% de
+diferença). Autor e nota entram quando o site tem.
+
 ## Exemplos para copiar o estilo
 - WordPress / API REST: `connectors/golden_novel.py`, `connectors/rolia_scan.py`
 - API JSON própria: `connectors/house_saikai.py`, `connectors/novel_mania.py`

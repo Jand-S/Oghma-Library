@@ -17,18 +17,13 @@ from selectolax.parser import HTMLParser
 from ..base import ChapterRef, NormalizedChapter, NovelMeta, NovelRef, RawPage
 from ..normalize import normalize
 from ..registry import register
+from ._common import attr as _attr
 
 _CHAPTER_NUM = re.compile(r"(?:chapter|chap\.?|ch\.?)\D*([0-9]+(?:[.,][0-9]+)?)", re.I)
 _AUTHOR_RE = re.compile(r"(?:author|作者)\s*[:：]\s*(?P<author>[^\n\r<]+)", re.I)
 _BR_RE = re.compile(r"<br\s*/?>", re.I)
 _TAG_RE = re.compile(r"<[^>]+>")
 
-
-def _attr(node, name: str) -> str | None:
-    if node is None:
-        return None
-    value = node.attributes.get(name)
-    return value.strip() if value else None
 
 
 def _decode_json(raw: RawPage) -> object:

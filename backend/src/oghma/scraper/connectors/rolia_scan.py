@@ -19,17 +19,12 @@ from selectolax.parser import HTMLParser, Node
 from ..base import ChapterRef, NormalizedChapter, NovelMeta, NovelRef, RawPage
 from ..normalize import normalize
 from ..registry import register
+from ._common import attr as _attr
 
 _SPACE_RE = re.compile(r"\s+")
 _MANGA_RE = re.compile(r"^/manga/(?P<slug>[^/?#]+)/?$")
 _READ_RE = re.compile(r"/read/(?P<slug>[^/]+)/")
 
-
-def _attr(node: Node | None, name: str) -> str | None:
-    if node is None:
-        return None
-    value = node.attributes.get(name)
-    return value.strip() if value else None
 
 
 def _text(node: Node | None) -> str:

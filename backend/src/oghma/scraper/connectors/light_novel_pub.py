@@ -19,6 +19,7 @@ from ...config import get_settings
 from ..base import ChapterRef, NormalizedChapter, NovelMeta, NovelRef, RawPage
 from ..normalize import normalize
 from ..registry import register
+from ._common import attr as _attr
 
 _BR_RE = re.compile(r"<br\s*/?>", re.I)
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -27,12 +28,6 @@ _CHAPTER_RE = re.compile(r"\bchapter\D*(?P<num>\d+)(?:\D+(?P<part>\d{1,3}))?", r
 _BOOK_RE = re.compile(r"^/book/(?P<slug>[^/?#]+)/*$")
 _LIST_LAST_RE = re.compile(r"/list/[^/]+/(?P<page>\d+)")
 
-
-def _attr(node: Node | None, name: str) -> str | None:
-    if node is None:
-        return None
-    value = node.attributes.get(name)
-    return value.strip() if value else None
 
 
 def _text(node: Node | None) -> str:

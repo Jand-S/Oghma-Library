@@ -16,18 +16,13 @@ from selectolax.parser import HTMLParser
 from ..base import ChapterRef, NormalizedChapter, NovelMeta, NovelRef, RawPage
 from ..normalize import normalize
 from ..registry import register
+from ._common import attr as _attr
 
 _NEXT_DATA_RE = re.compile(
     r'<script[^>]+id=["\']__NEXT_DATA__["\'][^>]*>(?P<json>.*?)</script>',
     re.S | re.I,
 )
 
-
-def _attr(node, name: str) -> str | None:
-    if node is None:
-        return None
-    value = node.attributes.get(name)
-    return value.strip() if value else None
 
 
 def _next_data(html: bytes) -> dict:

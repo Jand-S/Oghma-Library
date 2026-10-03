@@ -123,6 +123,8 @@ async def probe_connector(source: str, novel_url: str | None = None, fetcher=Non
         report.add("description", max(lengths) >= MIN_DESCRIPTION_CHARS,
                    f"sinopse limpa nas novels testadas: {lengths} caracteres")
         report.add("cover", bool(meta.cover_url), meta.cover_url or "sem capa")
+        # Os generos alimentam a busca, os filtros e o filtro inteligente do app.
+        report.add("tags", bool(meta.tags), ", ".join(meta.tags[:8]) or "sem tags/generos")
 
         try:
             chapters = await connector.list_chapters(fetcher, meta)
@@ -132,6 +134,10 @@ async def probe_connector(source: str, novel_url: str | None = None, fetcher=Non
         report.chapters_listed = len(chapters)
         numbers = [float(c.number) for c in chapters]
         report.add("list_chapters", bool(chapters), f"{len(chapters)} capitulos")
+        if meta.source_chapter_count:
+            # O site anuncia o total: a listagem precisa chegar perto (paginacao que para no meio).
+            report.add("chapter_count_matches_site", len(chapters) >= meta.source_chapter_count * 0.98,
+                       f"{len(chapters)} listados, o site anuncia {meta.source_chapter_count}")
         report.add("chapter_numbers_unique", len(numbers) == len(set(numbers)),
                    f"{len(numbers) - len(set(numbers))} numeros repetidos")
         report.add("chapter_order", numbers == sorted(numbers), "lista em ordem crescente")
