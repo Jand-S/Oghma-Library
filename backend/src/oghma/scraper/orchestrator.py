@@ -9,7 +9,7 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import storage
+from .. import coldstore, storage
 from ..models import Chapter, CrawlRun, Novel, SourceSite
 from ..taxonomy import canonical_tag_keys
 from . import connectors  # noqa: F401  (registra conectores)
@@ -187,9 +187,13 @@ async def _upsert_chapter(
     *, status: str = "ok", problem: str | None = None,
 ):
     ch = await session.get(Chapter, cid)
-    if ch is None:
-        ch = Chapter(id=cid, novel_id=novel_id, number=cref.number)
+    created = ch is None
+    if created:
+        ch = Chapter(id=cid, novel_id=novel_id, number=cref.number, first_seen_at=_now())
         session.add(ch)
+    elif ch.first_seen_at is None:
+        ch.first_seen_at = ch.fetched_at or _now()
+    was_ok = (not created) and ch.status == "ok" and bool(ch.downloaded)
     ch.title = cref.title
     ch.source_url = cref.url
     ch.published_at = cref.published_at
@@ -209,6 +213,11 @@ async def _upsert_chapter(
     ch.content_hash = norm.text_hash
     ch.word_count = norm.word_count
     ch.downloaded = True
+    if status == "ok" and not was_ok:
+        # Capitulo novo de verdade (ou recuperado agora): a novel esta viva.
+        nv = await session.get(Novel, novel_id)
+        if nv is not None:
+            nv.last_new_chapter_at = _now()
     return ch
 
 
@@ -515,7 +524,9 @@ async def crawl_source(
                         stats["chapter_images_downloaded"] += localized.downloaded
                         stats["chapter_images_reused"] += localized.reused
                         stats["chapter_image_errors"] += localized.failed
-                    raw_path = storage.save_raw(source_id, ref.slug, cref.number, raw.html)
+                    # Novel fria: volta os arquivos do B2 antes de acrescentar o capitulo.
+                    await coldstore.ensure_hot(session, novel_id)
+                    raw_path = coldstore.archive_raw(storage.save_raw(source_id, ref.slug, cref.number, raw.html))
                     content_path = storage.save_content(source_id, ref.slug, cref.number, norm.html)
                     duplicate = (
                         await _duplicate_of(session, novel_id, cid, norm.text_hash)

@@ -64,6 +64,9 @@ class Novel(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     last_crawled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # hot: content/assets locais | cold: so no B2 (bundle publicado), reidratado quando preciso
+    storage_state: Mapped[str] = mapped_column(String(8), default="hot", server_default="hot")
+    last_new_chapter_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     search_tsv: Mapped[str | None] = mapped_column(
         TSVECTOR,
         Computed(
@@ -106,6 +109,8 @@ class Chapter(Base):
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # ok | invalid (vazio ou placeholder; tenta de novo) | duplicate (mesmo texto de outro capitulo)
     status: Mapped[str] = mapped_column(String(16), default="ok", server_default="ok")
+    # Quando o capitulo apareceu pela primeira vez (reparo/recoleta nao muda).
+    first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     problem: Mapped[str | None] = mapped_column(String(32))
 
     __table_args__ = (Index("ix_chapter_novel_number", "novel_id", "number", unique=True),)
