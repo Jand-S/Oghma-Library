@@ -163,6 +163,7 @@ function SourcesPage({ app }: ViewProps) {
     onToggle: sources.toggleSourceEnabled,
     onSync: sources.syncSource,
     onAddSource: sources.addSource,
+    onPeekSources: sources.peekIndexSources,
     onNotify: sources.notify,
     onOpenSettings: () => app.navigate("settings", { section: "server" })
   });

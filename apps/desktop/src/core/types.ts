@@ -12,6 +12,10 @@ export type SourceSite = {
   mode: "static_html" | "javascript_required" | "api_available";
   lastSync: string;
   delayMs: number;
+  /** Catalog language from the index ("PT-BR", "EN"); absent on old indexes. */
+  language?: string;
+  /** Site icon published with the index; the bundled icons in `public/sources/` win. */
+  iconUrl?: string;
 };
 
 export type NovelStatus = "ongoing" | "complete" | "paused";
@@ -26,6 +30,8 @@ export type Novel = {
   tagKeys: string[];
   status: NovelStatus;
   chapters: number;
+  /** Chapters the site announces; above `chapters` while the server is still collecting the rest. */
+  sourceChapters?: number;
   language: string;
   updatedAt: string;
   description: string;

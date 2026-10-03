@@ -114,6 +114,37 @@ describe("staticBackend", () => {
     expect(boot.queue).toEqual([]);
   });
 
+  it("sources carry the catalog language and the icon published in the index", async () => {
+    const client = createStaticBackendClient(BASE);
+    const [source] = (await client.bootstrap()).sources;
+    expect(source.language).toBe("PT-BR");
+    expect(source.iconUrl).toBeUndefined();
+
+    indexJson.sites[0] = { ...indexJson.sites[0], language: "en", iconKey: "sources/central-novel-abc.png", baseUrl: "https://centralnovel.com/" } as typeof indexJson.sites[0];
+    try {
+      const [peek] = await client.listIndexSources!();
+      expect(peek).toMatchObject({ id: "central-novel", language: "EN", count: 1, baseUrl: "https://centralnovel.com/",
+        iconUrl: `${BASE}/sources/central-novel-abc.png` });
+    } finally {
+      const { language: _l, iconKey: _i, baseUrl: _b, ...plain } = indexJson.sites[0] as Record<string, unknown>;
+      indexJson.sites[0] = plain as typeof indexJson.sites[0];
+    }
+  });
+
+  it("a novel still being collected keeps the chapter count the site announces", async () => {
+    const novel = catalogJson.novels[0] as Record<string, unknown>;
+    novel.sourceChapterCount = 967;
+    try {
+      const [n] = (await createStaticBackendClient(BASE).bootstrap()).novels;
+      expect(n.chapters).toBe(2);
+      expect(n.sourceChapters).toBe(967);
+    } finally {
+      delete novel.sourceChapterCount;
+    }
+    const [complete] = (await createStaticBackendClient(BASE).bootstrap()).novels;
+    expect(complete.sourceChapters).toBeUndefined();
+  });
+
   it("searchNovels filters by query", async () => {
     const client = createStaticBackendClient(BASE);
     expect(await client.searchNovels(emptyFilters())).toHaveLength(1);

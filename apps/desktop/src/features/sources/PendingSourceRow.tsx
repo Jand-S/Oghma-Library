@@ -1,9 +1,11 @@
 import { X } from "lucide-react";
+import type { SourceSite } from "../../core/types";
 import type { SourceRequest } from "../../services/sourceRequests";
 import { sourcesStrings } from "../../strings/sources";
-import { Badge, Button, IconButton, ProgressBar, Switch } from "../../ui";
+import { Badge, IconButton, ProgressBar, Switch } from "../../ui";
 import { formatRelativeSync } from "./lastSync";
 import { SourceIcon } from "./SourceIcon";
+import { AddSourceCell } from "./AddSourceCell";
 
 const strings = sourcesStrings.request;
 
@@ -19,6 +21,8 @@ export function requestStageText(request: SourceRequest): string {
 
 export type PendingSourceRowProps = {
   request: SourceRequest;
+  /** A fonte como está no índice, quando o pedido já virou fonte publicada (idioma, contagem, ícone). */
+  site?: SourceSite;
   /** Fonte pronta mas que ainda não está na lista: traz do índice, ativa e sincroniza. */
   onAdd?: (sourceId: string) => void;
   adding?: boolean;
@@ -26,7 +30,7 @@ export type PendingSourceRowProps = {
 };
 
 /** Uma fonte pedida que ainda não existe: ocupa uma linha da tabela até virar fonte de verdade. */
-export function PendingSourceRow({ request, onAdd, adding = false, onDismiss }: PendingSourceRowProps) {
+export function PendingSourceRow({ request, site, onAdd, adding = false, onDismiss }: PendingSourceRowProps) {
   const ended = request.status === "failed" || request.status === "rejected";
   const ready = request.status === "live";
   const tone = ended ? "danger" : ready ? "success" : "accent";
@@ -37,7 +41,7 @@ export function PendingSourceRow({ request, onAdd, adding = false, onDismiss }: 
     <tr className={`sources-table__row sources-table__row--pending${ended ? " is-ended" : ""}`} data-testid="pending-source-row" data-status={request.status}>
       <th scope="row" className="sources-table__source">
         <div className="sources-table__identity">
-          <SourceIcon sourceId={request.sourceId ?? request.domain} baseUrl={baseUrl} name={request.domain} size="lg" muted={!ready} />
+          <SourceIcon sourceId={request.sourceId ?? request.domain} baseUrl={baseUrl} iconUrl={site?.iconUrl} name={site?.name ?? request.domain} size="lg" muted={!ready} />
           <div className="sources-table__names">
             <span className="sources-table__name">
               <span className="sources-table__name-text">{request.domain}</span>
@@ -58,20 +62,23 @@ export function PendingSourceRow({ request, onAdd, adding = false, onDismiss }: 
           </div>
         </div>
       </th>
-      <td className="sources-table__cell sources-table__cell--language">—</td>
-      <td className="sources-table__cell sources-table__cell--number">—</td>
+      <td className="sources-table__cell sources-table__cell--language" data-testid="pending-source-language">{site?.language ?? "—"}</td>
+      <td className="sources-table__cell sources-table__cell--number">{site ? site.count.toLocaleString("pt-BR") : "—"}</td>
       <td className="sources-table__cell sources-table__cell--sync" title={requested.title}>{strings.requested(requested.label.toLowerCase())}</td>
-      <td className="sources-table__cell sources-table__cell--switch">
-        <Switch className="sources-table__switch" label={<span className="sr-only">{sourcesStrings.include} ({request.domain})</span>} checked={false} disabled onChange={() => undefined} />
-      </td>
-      <td className="sources-table__cell sources-table__cell--actions">
-        <div className="sources-table__actions">
-          {ready && request.sourceId && onAdd ? (
-            <Button size="sm" variant="primary" loading={adding} onClick={() => onAdd(request.sourceId as string)}>{strings.addAndSync}</Button>
-          ) : null}
-          {ended ? <IconButton size="sm" icon={<X />} label={strings.dismiss} onClick={() => onDismiss(request.id)} /> : null}
-        </div>
-      </td>
+      {ready && request.sourceId && onAdd ? (
+        <AddSourceCell loading={adding} onAdd={() => onAdd(request.sourceId as string)} />
+      ) : (
+        <>
+          <td className="sources-table__cell sources-table__cell--switch">
+            <Switch className="sources-table__switch" label={<span className="sr-only">{sourcesStrings.include} ({request.domain})</span>} checked={false} disabled onChange={() => undefined} />
+          </td>
+          <td className="sources-table__cell sources-table__cell--actions">
+            <div className="sources-table__actions">
+              {ended ? <IconButton size="sm" icon={<X />} label={strings.dismiss} onClick={() => onDismiss(request.id)} /> : null}
+            </div>
+          </td>
+        </>
+      )}
     </tr>
   );
 }

@@ -151,7 +151,7 @@ function NovelCard({
         <span className="discover-card__meta">
           <span className="discover-card__source">{novel.sourceName}</span>
           <span aria-hidden="true">·</span>
-          <span>{discoverStrings.chaptersShort(novel.chapters)}</span>
+          <span>{novel.sourceChapters ? discoverStrings.chaptersShortOf(novel.chapters, novel.sourceChapters) : discoverStrings.chaptersShort(novel.chapters)}</span>
         </span>
       </div>
       <button

@@ -105,6 +105,12 @@ export function useSourcesController({ backend, sources, setSources, setAppConfi
     }
   };
 
+  /** Index-only view of the sources (no catalogs), for a requested source that is ready but not added yet. */
+  const peekIndexSources = useCallback(async (): Promise<SourceSite[]> => {
+    if (!backend.listIndexSources) return [];
+    return backend.listIndexSources();
+  }, [backend]);
+
   /** Probes the index server; the result is shown inline (no toast). */
   const verifyServer = useCallback((serverUrl: string, indexMode: IndexMode) => {
     const url = serverUrl.trim();
@@ -128,6 +134,7 @@ export function useSourcesController({ backend, sources, setSources, setAppConfi
     syncEnabledSources,
     toggleSourceEnabled,
     addSource,
+    peekIndexSources,
     notify,
     lastSyncedAt,
     serverCheck,

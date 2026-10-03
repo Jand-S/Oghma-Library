@@ -18,6 +18,8 @@ export const discoverStrings = {
   selectForQueue: (title: string) => `Selecionar ${title} para download`,
   removeFromQueue: (title: string) => `Desmarcar ${title}`,
   chaptersShort: (count: number) => `${count.toLocaleString("pt-BR")} cap.`,
+  /** Coleta ainda incompleta: "467/967 cap.". */
+  chaptersShortOf: (count: number, total: number) => `${count.toLocaleString("pt-BR")}/${total.toLocaleString("pt-BR")} cap.`,
   gridHint: "Use as setas para navegar e Enter para selecionar.",
 
   // Filter bar and popovers
@@ -87,6 +89,8 @@ export const discoverStrings = {
   closeDetails: "Fechar detalhes",
   previewBadge: "Pré-visualização",
   chaptersCount: (count: number) => `${count.toLocaleString("pt-BR")} ${count === 1 ? "capítulo" : "capítulos"}`,
+  chaptersCountOf: (count: number, total: number) => `${count.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} capítulos`,
+  chaptersIncompleteHint: (missing: number) => `O site tem ${missing.toLocaleString("pt-BR")} capítulos que o servidor ainda está coletando. Eles entram no download quando a coleta terminar.`,
   updated: (when: string) => `Atualizado: ${when}`,
   synopsis: "Sinopse",
   noSynopsis: "Sem sinopse cadastrada para este livro.",

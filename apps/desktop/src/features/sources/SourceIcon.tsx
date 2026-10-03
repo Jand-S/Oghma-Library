@@ -8,6 +8,8 @@ export type SourceIconProps = {
   sourceId?: string | null;
   /** Site URL or domain; used when the id has no icon. */
   baseUrl?: string | null;
+  /** Icon published with the index; used when there is no bundled file. */
+  iconUrl?: string | null;
   /** Source name; its first letter is the fallback monogram. */
   name: string;
   /** sm = 20px (selects, badges), md = 24px, lg = 32px (Fontes list). */
@@ -18,12 +20,12 @@ export type SourceIconProps = {
 };
 
 /**
- * A source's site icon, from the files bundled in `public/sources/`. Falls back to a
- * monogram tile (first letter on an accent tint) when there is no file or it fails to load.
+ * A source's site icon: the files bundled in `public/sources/` first, then the icon the
+ * server publishes in the index (new sources). Falls back to a monogram tile (first letter on an accent tint) when there is no file or it fails to load.
  * Decorative: the source name must be shown next to it.
  */
-export function SourceIcon({ sourceId, baseUrl, name, size = "md", muted = false, className }: SourceIconProps) {
-  const src = sourceIconFor({ id: sourceId, baseUrl });
+export function SourceIcon({ sourceId, baseUrl, iconUrl, name, size = "md", muted = false, className }: SourceIconProps) {
+  const src = sourceIconFor({ id: sourceId, baseUrl }) ?? (iconUrl || null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const showImage = src !== null && failedSrc !== src;
   return (

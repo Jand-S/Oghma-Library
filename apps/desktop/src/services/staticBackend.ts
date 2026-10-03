@@ -34,6 +34,7 @@ type CatalogNovel = {
   tags: string[];
   tagKeys?: string[];
   chapterCount: number;
+  sourceChapterCount?: number | null;
   updatedAt: string | null;
   bundleKey: string | null;
   bundleVersion: number | null;
@@ -53,6 +54,10 @@ type CatalogJson = {
 type IndexSite = {
   id: string;
   name: string;
+  /** Published since 2026-10: site URL, dominant catalog language and icon (B2 key). */
+  baseUrl?: string | null;
+  language?: string | null;
+  iconKey?: string | null;
   catalogKey: string;
   catalogSha256: string;
   catalogJsonKey?: string;
@@ -122,7 +127,18 @@ async function fetchGzipJson<T>(url: string): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-function siteToSource(site: IndexSite, baseUrl: string): SourceSite {
+/** Most common language among a catalog's novels ("pt-BR" → "PT-BR"). */
+function dominantLanguage(novels: Iterable<CatalogNovel>): string | undefined {
+  const counts = new Map<string, number>();
+  for (const novel of novels) {
+    if (novel.language) counts.set(novel.language, (counts.get(novel.language) ?? 0) + 1);
+  }
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  return top?.[0];
+}
+
+function siteToSource(base: string, site: IndexSite, baseUrl: string, novels?: Iterable<CatalogNovel>): SourceSite {
+  const language = site.language || (novels ? dominantLanguage(novels) : undefined);
   return {
     id: site.id,
     name: site.name,
@@ -132,7 +148,9 @@ function siteToSource(site: IndexSite, baseUrl: string): SourceSite {
     enabled: true,
     mode: "api_available",
     lastSync: formatUpdatedAt(site.updatedAt),
-    delayMs: 0
+    delayMs: 0,
+    ...(language ? { language: language.toUpperCase() } : {}),
+    ...(site.iconKey ? { iconUrl: `${base}/${site.iconKey}` } : {})
   };
 }
 
@@ -165,6 +183,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       tagKeys: cn.tagKeys || [],
       status: mapStatus(cn.status),
       chapters: cn.chapterCount,
+      ...(cn.sourceChapterCount && cn.sourceChapterCount > cn.chapterCount ? { sourceChapters: cn.sourceChapterCount } : {}),
       language: cn.language || "PT-BR",
       updatedAt: formatUpdatedAt(cn.updatedAt),
       description: cn.description || "",
@@ -219,7 +238,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
     async bootstrap(): Promise<BootstrapPayload> {
       await ensureLoaded();
       return {
-        sources: sites.map((sc) => siteToSource(sc.site, sc.source.baseUrl)),
+        sources: sites.map((sc) => siteToSource(base, sc.site, sc.source.baseUrl, sc.novels.values())),
         novels: sites[0] ? allNovels(sites[0].source.id) : [],
         queue: [],
         library: []
@@ -283,12 +302,17 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       }));
     },
 
+    async listIndexSources(): Promise<SourceSite[]> {
+      const index = await fetchJson<IndexJson>(`${base}/index.json`);
+      return index.sites.map((site) => siteToSource(base, site, site.baseUrl ?? ""));
+    },
+
     async syncSource(sourceId: string): Promise<SourceSite> {
       loaded = false;
       await ensureLoaded();
       const sc = sites.find((item) => item.site.id === sourceId);
       if (!sc) throw new Error("Fonte não encontrada no índice");
-      return siteToSource(sc.site, sc.source.baseUrl);
+      return siteToSource(base, sc.site, sc.source.baseUrl, sc.novels.values());
     },
 
     async createDownloads(selections: ChapterSelection[]): Promise<QueueItem[]> {

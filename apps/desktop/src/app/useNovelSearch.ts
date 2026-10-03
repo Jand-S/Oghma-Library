@@ -22,7 +22,6 @@ export function useNovelSearch({
   setToast
 }: NovelSearchArgs) {
   const [searching, setSearching] = useState(false);
-  const skippedInitialSearch = useRef(false);
   const focusedNovelIdRef = useRef(focusedNovelId);
 
   useEffect(() => {
@@ -30,11 +29,9 @@ export function useNovelSearch({
   }, [focusedNovelId]);
 
   useEffect(() => {
+    // Sempre busca, inclusive na primeira vez: o bootstrap só traz as novels da 1ª fonte do
+    // índice, e a fonte inicial do usuário pode ser outra (a grade abria vazia).
     if (loading || filters.sourceId === "all") return;
-    if (!skippedInitialSearch.current) {
-      skippedInitialSearch.current = true;
-      return;
-    }
     let cancelled = false;
     setSearching(true);
 

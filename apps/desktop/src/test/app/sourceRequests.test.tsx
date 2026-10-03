@@ -66,6 +66,30 @@ describe("Pedidos de fonte nova", () => {
     expect(onAddSource).toHaveBeenCalledWith("novos-livros");
   });
 
+  it("fonte pronta fora da lista mostra idioma, contagem e ícone lidos do índice, sem botão por cima do switch", async () => {
+    const onPeekSources = vi.fn(async () => [{ ...central, id: "novos-livros", name: "Novos Livros", count: 3, language: "EN",
+      iconUrl: "https://b2.example/sources/novos-livros-abc.png" } as SourceSite]);
+    view([request({ status: "live", stage: "live", stageLabel: "Pronta para adicionar", stageIndex: 7, sourceId: "novos-livros" })],
+      { onAddSource: vi.fn(), onPeekSources });
+    const row = screen.getByTestId("pending-source-row");
+    await waitFor(() => expect(within(row).getByTestId("pending-source-language")).toHaveTextContent("EN"));
+    expect(within(row).getByText("3")).toBeInTheDocument();
+    expect(row.querySelector("img")).toHaveAttribute("src", "https://b2.example/sources/novos-livros-abc.png");
+    // O botão ocupa as colunas do switch e das ações: não há switch embaixo dele.
+    expect(within(row).queryByRole("switch")).not.toBeInTheDocument();
+    expect(within(row).getByTestId("source-add").closest("td")).toHaveAttribute("colspan", "2");
+    expect(onPeekSources).toHaveBeenCalledTimes(1);
+  });
+
+  it("o idioma publicado com a fonte vence o palpite pelo domínio", () => {
+    render(
+      <SourcesView sources={[{ ...central, id: "lunar", name: "NovelLunar", baseUrl: "https://novellunar.com/", language: "EN" } as SourceSite]}
+        syncing={[]} onToggle={vi.fn()} onSync={vi.fn()} onOpenSettings={vi.fn()}
+        sourceRequests={{ requests: [], error: null, refresh: vi.fn(), submit: vi.fn(), dismiss: vi.fn() }} />
+    );
+    expect(within(screen.getByTestId("source-row")).getByText("EN")).toBeInTheDocument();
+  });
+
   it("fonte pronta que já chegou no índice vira linha normal com o destaque Nova", () => {
     const onAddSource = vi.fn();
     const fresh = { ...central, id: "novos-livros", name: "Novos Livros", baseUrl: "https://novos-livros.com/", enabled: false };

@@ -23,6 +23,8 @@ export type BackendClient = {
   getTags(sourceId?: string): Promise<TagCatalogItem[]>;
   getNovelChapters(novelId: string): Promise<Chapter[]>;
   syncSource(sourceId: string): Promise<SourceSite>;
+  /** Sources straight from the index (no catalogs): name, language, count and icon of a source not loaded yet. */
+  listIndexSources?(): Promise<SourceSite[]>;
   createDownloads(selections: ChapterSelection[]): Promise<QueueItem[]>;
   validateServer(serverUrl: string, indexMode: IndexMode): Promise<ServerProbe>;
   getKindleStatus(): Promise<KindleDeviceStatus>;

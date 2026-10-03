@@ -1,10 +1,11 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ExternalLink, Globe2, Plus, RefreshCcw, Search, Settings } from "lucide-react";
 import type { Novel, SourceSite } from "../../core/types";
 import { sourcesStrings } from "../../strings/sources";
 import { Badge, Button, cx, EmptyState, IconButton, Panel, Skeleton, Switch, TextField } from "../../ui";
 import { openExternal } from "../settings/appInfo";
 import { formatRelativeSync } from "./lastSync";
+import { AddSourceCell } from "./AddSourceCell";
 import { PendingSourceRow } from "./PendingSourceRow";
 import { RequestSourceDialog } from "./RequestSourceDialog";
 import { useSourceRequests } from "./useSourceRequests";
@@ -28,6 +29,8 @@ export type SourcesViewProps = {
   onOpenSite?: (url: string) => void;
   /** Fonte nova de um pedido: traz do índice, ativa e sincroniza. */
   onAddSource?: (sourceId: string) => Promise<void> | void;
+  /** Lê só o índice (sem catálogos): idioma, contagem e ícone de uma fonte pronta que ainda não foi adicionada. */
+  onPeekSources?: () => Promise<SourceSite[]>;
   /** Toast curto do app. */
   onNotify?: (message: string) => void;
   /** Pedidos de fonte; injetável nos testes. */
@@ -42,20 +45,9 @@ export const SOURCES_SEARCH_THRESHOLD = 8;
 
 const tldLanguages: Record<string, string> = { br: "PT-BR", pt: "PT", es: "ES", jp: "JA", kr: "KO", cn: "ZH", fr: "FR", de: "DE" };
 
-/** Catalog language of the known connectors (backend `scraper/connectors`). */
-const knownLanguages: Record<string, string> = {
-  "central-novel": "PT-BR",
-  "house-saikai": "PT-BR",
-  "mahou-reader": "PT-BR",
-  "novel-mania": "PT-BR",
-  "golden-novel": "EN",
-  "light-novel-pub": "EN",
-  "rolia-scan": "EN",
-  "sky-demon-order": "EN"
-};
-
-/** Most common language among the source's loaded novels, else the connector's, else a guess from the domain. */
+/** The language published with the source, else the most common among its loaded novels, else a guess from the domain. */
 export function sourceLanguage(source: SourceSite, novels: readonly Novel[] = []) {
+  if (source.language) return source.language.toUpperCase();
   const counts = new Map<string, number>();
   for (const novel of novels) {
     if (novel.sourceId !== source.id || !novel.language) continue;
@@ -64,7 +56,6 @@ export function sourceLanguage(source: SourceSite, novels: readonly Novel[] = []
   }
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
   if (top) return top[0];
-  if (knownLanguages[source.id]) return knownLanguages[source.id];
   const tld = sourceDomain(source.baseUrl).split(".").pop()?.toLowerCase() ?? "";
   return tldLanguages[tld] ?? sourcesStrings.unknownLanguage;
 }
@@ -94,7 +85,7 @@ function SourceRow({ source, syncing, language, onToggle, onSync, onOpenSite, is
     >
       <th scope="row" className="sources-table__source">
         <div className="sources-table__identity">
-          <SourceIcon sourceId={source.id} baseUrl={source.baseUrl} name={source.name} size="lg" muted={!source.enabled} />
+          <SourceIcon sourceId={source.id} baseUrl={source.baseUrl} iconUrl={source.iconUrl} name={source.name} size="lg" muted={!source.enabled} />
           <div className="sources-table__names">
             <span className="sources-table__name">
               <span className="sources-table__name-text">{source.name}</span>
@@ -112,23 +103,27 @@ function SourceRow({ source, syncing, language, onToggle, onSync, onOpenSite, is
       <td className="sources-table__cell sources-table__cell--language">{language}</td>
       <td className="sources-table__cell sources-table__cell--number">{source.count.toLocaleString("pt-BR")}</td>
       <td className="sources-table__cell sources-table__cell--sync" title={lastSync.title}>{lastSync.label}</td>
-      <td className="sources-table__cell sources-table__cell--switch">
-        <Switch
-          className="sources-table__switch"
-          label={<span className="sr-only">{sourcesStrings.include} ({source.name})</span>}
-          checked={source.enabled}
-          onChange={onToggle}
-        />
-      </td>
-      <td className="sources-table__cell sources-table__cell--actions">
-        <div className="sources-table__actions">
-          {isNew && !source.enabled && onAdd ? (
-            <Button size="sm" variant="primary" loading={syncing} onClick={onAdd}>{sourcesStrings.request.addAndSync}</Button>
-          ) : null}
-          <IconButton size="sm" icon={<RefreshCcw />} label={sourcesStrings.syncSource(source.name)} loading={syncing} onClick={onSync} />
-          <IconButton size="sm" icon={<ExternalLink />} label={sourcesStrings.openSiteOf(source.name)} onClick={onOpenSite} />
-        </div>
-      </td>
+      {isNew && !source.enabled && onAdd ? (
+        // Adicionar = ligar e sincronizar: o botão ocupa o lugar do switch, que aqui seria redundante.
+        <AddSourceCell loading={syncing} onAdd={onAdd} />
+      ) : (
+        <>
+          <td className="sources-table__cell sources-table__cell--switch">
+            <Switch
+              className="sources-table__switch"
+              label={<span className="sr-only">{sourcesStrings.include} ({source.name})</span>}
+              checked={source.enabled}
+              onChange={onToggle}
+            />
+          </td>
+          <td className="sources-table__cell sources-table__cell--actions">
+            <div className="sources-table__actions">
+              <IconButton size="sm" icon={<RefreshCcw />} label={sourcesStrings.syncSource(source.name)} loading={syncing} onClick={onSync} />
+              <IconButton size="sm" icon={<ExternalLink />} label={sourcesStrings.openSiteOf(source.name)} onClick={onOpenSite} />
+            </div>
+          </td>
+        </>
+      )}
     </tr>
   );
 }
@@ -171,6 +166,7 @@ export function SourcesView({
   onOpenSettings,
   onOpenSite = (url) => void openExternal(url),
   onAddSource,
+  onPeekSources,
   onNotify,
   sourceRequests
 }: SourcesViewProps) {
@@ -185,6 +181,20 @@ export function SourcesView({
     [requests.requests, knownIds]
   );
   const pending = requests.requests.filter((r) => !(r.status === "live" && r.sourceId && knownIds.has(r.sourceId)));
+  // Fonte pronta mas ainda fora da lista: lê só o índice para mostrar idioma, contagem e ícone na linha do pedido.
+  const [indexSources, setIndexSources] = useState<Record<string, SourceSite>>({});
+  const readyIds = pending.filter((r) => r.status === "live" && r.sourceId).map((r) => r.sourceId as string);
+  const missingKey = readyIds.filter((id) => !indexSources[id]).sort().join(",");
+  useEffect(() => {
+    if (!missingKey || !onPeekSources) return;
+    let alive = true;
+    onPeekSources()
+      .then((items) => {
+        if (alive) setIndexSources((current) => ({ ...current, ...Object.fromEntries(items.map((item) => [item.id, item])) }));
+      })
+      .catch(() => undefined); // sem índice a linha fica como está ("—")
+    return () => { alive = false; };
+  }, [missingKey, onPeekSources]);
   const addSource = (sourceId: string) => void onAddSource?.(sourceId);
   const showSearch = sources.length > SOURCES_SEARCH_THRESHOLD;
   const trimmed = showSearch ? query.trim() : "";
@@ -272,6 +282,7 @@ export function SourcesView({
           <PendingSourceRow
             key={request.id}
             request={request}
+            site={request.sourceId ? indexSources[request.sourceId] : undefined}
             onAdd={onAddSource ? addSource : undefined}
             adding={Boolean(request.sourceId && syncing.includes(request.sourceId))}
             onDismiss={requests.dismiss}

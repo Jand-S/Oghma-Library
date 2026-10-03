@@ -92,7 +92,13 @@ export function DiscoverDetailPanel({
           {novel.author ? <p className="discover-detail__author">{novel.author}</p> : null}
           <div className="discover-detail__badges">
             <Badge tone={statusTone[novel.status]}>{statusLabel[novel.status]}</Badge>
-            <Badge>{discoverStrings.chaptersCount(novel.chapters)}</Badge>
+            {novel.sourceChapters ? (
+              <Badge tone="warning" title={discoverStrings.chaptersIncompleteHint(novel.sourceChapters - novel.chapters)} data-testid="chapters-incomplete">
+                {discoverStrings.chaptersCountOf(novel.chapters, novel.sourceChapters)}
+              </Badge>
+            ) : (
+              <Badge>{discoverStrings.chaptersCount(novel.chapters)}</Badge>
+            )}
             {novel.language ? <Badge>{novel.language.toUpperCase()}</Badge> : null}
           </div>
         </div>
