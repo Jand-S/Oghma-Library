@@ -133,8 +133,37 @@ def agent_env(extra: dict | None = None, base: dict | None = None) -> dict:
     return env
 
 
+def agent_user() -> str:
+    """AUTOCONNECTOR_AGENT_USER: usuario Unix sem acesso aos segredos que roda os agentes e o
+    codigo gerado. Vazio = o proprio usuario do worker (comportamento antigo)."""
+    return os.environ.get("AUTOCONNECTOR_AGENT_USER", "").strip()
+
+
+def agent_home() -> str:
+    home = os.environ.get("AUTOCONNECTOR_AGENT_HOME", "").strip()
+    if home:
+        return home
+    user = agent_user()
+    return os.path.expanduser(f"~{user}" if user else "~")
+
+
+def as_agent(cmd: list[str], env: dict) -> tuple[list[str], dict | None]:
+    """Comando para rodar como o usuario dos agentes: `sudo -n -u <agente>` com o ambiente
+    exato (env -i) e umask 002, para o worker conseguir mexer nos arquivos que o agente cria
+    no worktree (grupo compartilhado). Sem usuario configurado, devolve o comando como veio."""
+    user = agent_user()
+    if not user:
+        return cmd, env
+    env = {**env, "HOME": agent_home(), "USER": user, "LOGNAME": user}
+    pairs = [f"{k}={v}" for k, v in sorted(env.items())]
+    wrapped = ["sudo", "-n", "-u", user, "--", "/usr/bin/env", "-i", *pairs,
+               "/bin/sh", "-c", 'umask 002 && exec "$@"', "sh", *cmd]
+    return wrapped, None
+
+
 def _run_lines(cmd: list[str], cwd: str, timeout: int, stdin: str | None = None) -> tuple[int, list[str], str]:
-    proc = subprocess.run(cmd, cwd=cwd, input=stdin, capture_output=True, text=True, timeout=timeout, env=agent_env())
+    cmd, env = as_agent(cmd, agent_env())
+    proc = subprocess.run(cmd, cwd=cwd, input=stdin, capture_output=True, text=True, timeout=timeout, env=env)
     return proc.returncode, proc.stdout.splitlines(), proc.stderr
 
 
@@ -150,8 +179,8 @@ class ClaudeCodeEngine(Engine):
         if not os.path.exists(CLAUDE_BIN):
             return False
         try:
-            out = subprocess.run([CLAUDE_BIN, "auth", "status"], capture_output=True, text=True, timeout=30,
-                                 env=agent_env()).stdout
+            cmd, env = as_agent([CLAUDE_BIN, "auth", "status"], agent_env())
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env).stdout
             return '"loggedIn": true' in out
         except (OSError, subprocess.TimeoutExpired):
             return False
@@ -253,7 +282,11 @@ ROLE_TOOLS_CLAUDE = {
 # ------------------------------------------------------------------ Codex
 
 CODEX_BIN = os.environ.get("CODEX_BIN", "codex")
-CODEX_SESSIONS = os.path.expanduser("~/.codex/sessions")
+
+
+def codex_sessions() -> str:
+    """Sessoes do Codex ficam na casa de quem roda o CLI (o usuario dos agentes, se houver)."""
+    return os.environ.get("CODEX_SESSIONS") or os.path.join(agent_home(), ".codex", "sessions")
 
 
 class CodexEngine(Engine):
@@ -261,15 +294,15 @@ class CodexEngine(Engine):
 
     def available(self) -> bool:
         try:
-            out = subprocess.run([CODEX_BIN, "login", "status"], capture_output=True, text=True, timeout=30,
-                                 env=agent_env())
+            cmd, env = as_agent([CODEX_BIN, "login", "status"], agent_env())
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
             return "Logged in" in (out.stdout + out.stderr)
         except (OSError, subprocess.TimeoutExpired):
             return False
 
     @staticmethod
     def _usage_from_sessions(since: float = 0.0) -> PlanUsage | None:
-        files = sorted(glob.glob(os.path.join(CODEX_SESSIONS, "**", "*.jsonl"), recursive=True), key=os.path.getmtime)
+        files = sorted(glob.glob(os.path.join(codex_sessions(), "**", "*.jsonl"), recursive=True), key=os.path.getmtime)
         for path in reversed(files[-5:]):
             if os.path.getmtime(path) < since:
                 break

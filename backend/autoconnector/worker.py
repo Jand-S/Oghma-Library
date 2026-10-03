@@ -43,7 +43,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from engines import ClaudeCodeEngine, CodexEngine, LimitHit, RunResult, agent_env, pick_engine, plan_back_at  # noqa: E402
+from engines import ClaudeCodeEngine, CodexEngine, LimitHit, RunResult, agent_env, agent_user, as_agent, pick_engine, plan_back_at  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ROLE_TIMEOUT = int(os.environ.get("AUTOCONNECTOR_ROLE_TIMEOUT", 45 * 60))
@@ -224,6 +224,11 @@ class Pipeline:
         """Comando do portao (retorno + saida juntas). Isolado para os testes trocarem."""
         p = subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env, capture_output=True, text=True, timeout=timeout)
         return p.returncode, (p.stdout or "") + (p.stderr or "")
+
+    def agent_proc(self, cmd: list[str], cwd: Path | None, env: dict, timeout: int = 1800) -> tuple[int, str]:
+        """Codigo gerado (testes, probe) roda como o usuario dos agentes, quando configurado."""
+        cmd, env = as_agent(cmd, env)
+        return self.proc(cmd, cwd=cwd, env=env, timeout=timeout)
 
     def gate_env(self, src: Path) -> dict:
         """Ambiente do portao (testes e probe do codigo gerado): sem o .env do Oghma.
@@ -411,10 +416,10 @@ class Pipeline:
             # Codigo do worktree na frente do pacote instalado: testa o conector novo sem instalar.
             env = self.gate_env(backend / "src")
             python = str(self.venv / "bin" / "python")
-            _, pytest_out = self.proc([python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests"],
-                                      cwd=backend, env=env)
-            _, probe_out = self.proc([python, "-m", "oghma.cli", "probe-connector", "--source", self.source_id, *novel_args],
-                                     cwd=backend, env=env)
+            _, pytest_out = self.agent_proc([python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests"],
+                                            cwd=backend, env=env)
+            _, probe_out = self.agent_proc([python, "-m", "oghma.cli", "probe-connector", "--source", self.source_id, *novel_args],
+                                           cwd=backend, env=env)
         else:
             _, pytest_out = self.proc(
                 ["docker", "run", "--rm", "-v", f"{backend}:/w", "-w", "/w", "--entrypoint", "sh", "oghma-crawler:latest", "-c",
@@ -502,8 +507,8 @@ class Pipeline:
             shutil.move(str(path), dest)
             moved.append((path, dest))
         backend = self.wt / "backend"
-        code, out = self.proc([str(self.venv / "bin" / "python"), "-m", "pytest", "-q", "-p", "no:cacheprovider",
-                               f"tests/test_{self.module}.py"], cwd=backend, env=self.gate_env(backend / "src"))
+        code, out = self.agent_proc([str(self.venv / "bin" / "python"), "-m", "pytest", "-q", "-p", "no:cacheprovider",
+                                     f"tests/test_{self.module}.py"], cwd=backend, env=self.gate_env(backend / "src"))
         if code != 0:
             for path, dest in moved:
                 shutil.move(str(dest), path)
@@ -803,6 +808,9 @@ def available_engines():
 
 def main() -> int:
     load_env_file()
+    if agent_user():
+        # Arquivos do worktree ficam graváveis pelo grupo compartilhado com o usuario dos agentes.
+        os.umask(0o002)
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("loop")

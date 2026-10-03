@@ -136,7 +136,7 @@ def test_codex_usage_read_from_session_file(tmp_path, monkeypatch):
     session.parent.mkdir(parents=True)
     session.write_text(json.dumps({"type": "event_msg", "payload": {"type": "token_count", "rate_limits": {
         "primary": {"used_percent": 7.0, "resets_at": 5}, "secondary": {"used_percent": 1.0}}}}) + "\n")
-    monkeypatch.setattr(engines, "CODEX_SESSIONS", str(tmp_path))
+    monkeypatch.setenv("CODEX_SESSIONS", str(tmp_path))
     usage = engines.CodexEngine._usage_from_sessions()
     assert (usage.five_hour, usage.weekly) == (7.0, 1.0)
 
@@ -480,3 +480,43 @@ def test_full_crawl_script_quotes_every_value(tmp_path, monkeypatch):
     script = started[0][-1]
     assert f"cd '{tmp_path}/dir with space'" in script
     assert "'Coleta completa de exemplo publicada'" in script
+
+
+def test_without_agent_user_commands_run_as_the_worker(monkeypatch):
+    monkeypatch.delenv("AUTOCONNECTOR_AGENT_USER", raising=False)
+    cmd, env = engines.as_agent(["codex", "exec"], {"HOME": "/opt/oghma"})
+    assert cmd == ["codex", "exec"] and env == {"HOME": "/opt/oghma"}
+
+
+def test_agent_user_runs_commands_through_sudo_with_an_exact_environment(monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_AGENT_USER", "oghma-agent")
+    monkeypatch.setenv("AUTOCONNECTOR_AGENT_HOME", "/var/lib/oghma-agent")
+    monkeypatch.delenv("CODEX_SESSIONS", raising=False)
+    monkeypatch.setenv("BRAIN_TOKEN", "segredo")
+    cmd, env = engines.as_agent(["codex", "exec", "-"], engines.agent_env({"PYTHONPATH": "/wt/src"}))
+    assert env is None  # sudo + env -i: nada do ambiente do worker passa
+    assert cmd[:5] == ["sudo", "-n", "-u", "oghma-agent", "--"]
+    assert cmd[5:7] == ["/usr/bin/env", "-i"]
+    assert "HOME=/var/lib/oghma-agent" in cmd and "PYTHONPATH=/wt/src" in cmd and "USER=oghma-agent" in cmd
+    assert not any(part.startswith("BRAIN_TOKEN") for part in cmd)
+    assert cmd[-3:] == ["codex", "exec", "-"] and 'umask 002 && exec "$@"' in cmd
+    assert engines.codex_sessions() == "/var/lib/oghma-agent/.codex/sessions"
+
+
+def test_gate_runs_generated_code_as_the_agent_user(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_RUNTIME", "venv")
+    monkeypatch.setenv("AUTOCONNECTOR_AGENT_USER", "oghma-agent")
+    request = {"id": "abc1234567", "url": "https://exemplo.com/novel/x", "domain": "exemplo.com", "novelUrl": None}
+    pipe = worker.Pipeline(request, worker.NullBrain(), [FakeEngine("codex")], deploy=False, runner=lambda *a, **k: "")
+    pipe.wt = tmp_path / "wt"
+    pipe.work = pipe.wt / "backend" / "autoconnector" / "work"
+    pipe.work.mkdir(parents=True)
+    seen = []
+
+    def fake_proc(cmd, cwd=None, env=None, timeout=1800):
+        seen.append(cmd)
+        return 0, "1 passed" if "pytest" in cmd else '{"ok": true, "novel": {}}'
+
+    pipe.proc = fake_proc
+    pipe.gate()
+    assert len(seen) == 2 and all(cmd[:4] == ["sudo", "-n", "-u", "oghma-agent"] for cmd in seen)
