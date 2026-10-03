@@ -331,6 +331,33 @@ def disk_check_cmd() -> None:
     _echo_json(disk_check())
 
 
+def _set_source_enabled(source: str, enabled: bool) -> None:
+    from .models import SourceSite
+
+    async def _run():
+        async with SessionLocal() as s:
+            src = await s.get(SourceSite, source)
+            if src is None:
+                raise typer.BadParameter(f"fonte desconhecida: {source}")
+            src.enabled = enabled
+            await s.commit()
+
+    asyncio.run(_run())
+    _echo_json({"source": source, "enabled": enabled})
+
+
+@app.command("source-enable")
+def source_enable_cmd(source: str = typer.Argument(..., help="id da fonte")) -> None:
+    """Devolve a fonte ao rodizio (depois de ela sair por falhas seguidas)."""
+    _set_source_enabled(source, True)
+
+
+@app.command("source-disable")
+def source_disable_cmd(source: str = typer.Argument(..., help="id da fonte")) -> None:
+    """Tira a fonte do rodizio (continua no app, so nao e mais coletada)."""
+    _set_source_enabled(source, False)
+
+
 @app.command("audit-content")
 def audit_content_cmd(source: str = typer.Option(None, help="so uma fonte")) -> None:
     """Relatorio somente leitura: status dos capitulos, sinopses e o que mark-chapters mudaria."""

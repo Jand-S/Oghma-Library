@@ -10,6 +10,10 @@ Reinicio educado (`<storage>/rodizio.restart`, criado pelo autoconnector depois 
 de um conector novo): nenhuma fonte nova comeca, as que estao rodando terminam, o
 processo apaga o arquivo e sai; o systemd (Restart=always) religa com o codigo novo.
 Fontes que nunca tiveram uma coleta completa vao para o comeco da fila.
+
+Fonte com MAX_FAILURES coletas seguidas com erro (padrao 3, `OGHMA_MAX_FAILURES`) sai do
+rodizio (`source_site.enabled = false`) com aviso no brain; volta com `oghma source-enable`.
+Continua no app: so para de ser coletada.
 """
 from __future__ import annotations
 
@@ -26,6 +30,29 @@ from typing import Awaitable, Callable
 STOP_REASON = "parado: rodizio encerrado (SIGTERM/SIGINT)"
 RESTART_FLAG = "rodizio.restart"
 RESTART_POLL_SECONDS = 30.0
+# Erros que nao sao culpa da fonte (parada do rodizio, queda da maquina) nao contam como falha.
+NOT_SOURCE_FAULT = ("parado:", "morreu no reboot", "interrompida: o servidor")
+
+
+def max_failures() -> int:
+    try:
+        return max(1, int(os.environ.get("OGHMA_MAX_FAILURES", "3")))
+    except ValueError:
+        return 3
+
+
+def failure_streak(runs: list[tuple[str, str | None]]) -> int:
+    """Coletas seguidas com erro, da mais nova para a mais antiga (status, erro)."""
+    n = 0
+    for status, error in runs:
+        if status == "running":
+            continue
+        if status != "error":
+            break
+        if (error or "").startswith(NOT_SOURCE_FAULT):
+            continue
+        n += 1
+    return n
 
 
 def restart_flag_path():
@@ -101,6 +128,8 @@ class Deps:
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
     restart_requested: Callable[[], bool] = _restart_requested
     clear_restart: Callable[[], None] = _clear_restart
+    failures: Callable[[str], Awaitable[int]] | None = None
+    disable: Callable[[str], Awaitable[None]] | None = None
 
 
 @dataclass
@@ -127,6 +156,9 @@ class Rodizio:
             try:
                 stats = await self.deps.crawl(source_id)
                 result["stats"] = stats
+                if (stats or {}).get("stage") == "crawl_error":
+                    # crawl_source nao levanta: marca o crawl_run como error e devolve o motivo
+                    raise RuntimeError(str(stats.get("last_event") or "coleta falhou"))
                 if self.publish_enabled:
                     result["publish"] = await self.deps.publish(source_id)
                 result["evict"] = await self.deps.evict(source_id)
@@ -139,11 +171,30 @@ class Rodizio:
             except Exception as exc:  # uma fonte com erro nao para o rodizio
                 result["error"] = f"{type(exc).__name__}: {exc}"
                 level, title, body = summarize(source_id, None, result["error"])
+                title, body = await self._count_failure(source_id, result, title, body)
             result["seconds"] = round(time.monotonic() - started, 1)
             if level != "info":
                 self.deps.notify(level, title, body)
             self.log.append(result)
             return result
+
+    async def _count_failure(self, source_id: str, result: dict, title: str, body: str) -> tuple[str, str]:
+        """Conta as falhas seguidas; na ultima, tira a fonte do rodizio."""
+        if self.deps.failures is None:
+            return title, body
+        try:
+            streak, limit = await self.deps.failures(source_id), max_failures()
+            result["failures"] = streak
+            if streak < limit:
+                return f"{title} (falha {streak} de {limit})", body
+            if self.deps.disable is not None:
+                await self.deps.disable(source_id)
+            result["disabled"] = True
+            return (f"{source_id} saiu do rodízio: {streak} coletas seguidas com erro",
+                    f"A fonte continua no app, mas não é mais coletada.\n\nÚltimo erro: {body}\n\n"
+                    f"Para voltar: oghma source-enable {source_id}")
+        except Exception as exc:  # contar falhas nunca derruba o rodizio
+            return title, f"{body}\n\n(nao consegui contar as falhas: {exc})"
 
     async def one_round(self, only: list[str] | None = None) -> list[dict]:
         sources = await self.deps.list_sources()
@@ -218,6 +269,19 @@ def default_deps() -> Deps:
         async with SessionLocal() as s:
             return await coldstore.evict(s, source_id=source_id)
 
+    async def failures(source_id: str) -> int:
+        async with SessionLocal() as s:
+            rows = (await s.execute(select(CrawlRun.status, CrawlRun.error).where(CrawlRun.source_id == source_id)
+                                    .order_by(CrawlRun.id.desc()).limit(20))).all()
+        return failure_streak([(r[0], r[1]) for r in rows])
+
+    async def disable(source_id: str) -> None:
+        async with SessionLocal() as s:
+            src = await s.get(SourceSite, source_id)
+            if src is not None:
+                src.enabled = False
+                await s.commit()
+
     async def mark_stopped(source_id: str) -> None:
         from datetime import datetime, timezone
 
@@ -228,7 +292,7 @@ def default_deps() -> Deps:
                 r.status, r.error, r.finished_at = "error", STOP_REASON, datetime.now(timezone.utc)
             await s.commit()
 
-    return Deps(list_sources, crawl, publish, evict, mark_stopped)
+    return Deps(list_sources, crawl, publish, evict, mark_stopped, failures=failures, disable=disable)
 
 
 async def main(*, parallel: int = 2, pause_minutes: float = 30.0, once: bool = False,

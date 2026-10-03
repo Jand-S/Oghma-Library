@@ -154,3 +154,37 @@ def test_new_sources_first():
     from oghma.rodizio import order_sources
 
     assert order_sources(["a", "b", "c", "d"], {"a", "c"}) == ["b", "d", "a", "c"]
+
+
+def test_failure_streak_ignores_stops_and_reboots():
+    from oghma.rodizio import failure_streak
+
+    runs = [("running", None), ("error", "403"), ("error", "parado: rodizio encerrado (SIGTERM/SIGINT)"),
+            ("error", "morreu no reboot do xeonserver"), ("error", "timeout"), ("done", None), ("error", "x")]
+    assert failure_streak(runs) == 2
+    assert failure_streak([("done", None), ("error", "x")]) == 0
+
+
+def test_crawl_error_stage_is_a_failure_and_third_disables():
+    """crawl_source devolve stage=crawl_error sem levantar: nao publica, conta a falha, a 3a tira do rodizio."""
+    deps, calls = make(["a", "b"], stats={"stage": "crawl_error", "last_event": "Client error '403 Forbidden'"})
+    streak = {"a": 2, "b": 0}
+    disabled = []
+
+    async def failures(sid):
+        streak[sid] += 1
+        return streak[sid]
+
+    async def disable(sid):
+        disabled.append(sid)
+
+    deps.failures, deps.disable = failures, disable
+    log = []
+    deps.notify = lambda lvl, title, body: log.append((lvl, title, body))
+    rod = Rodizio(deps)
+    asyncio.run(rod.run(once=True))
+    assert calls["publish"] == [] and calls["evict"] == []
+    assert disabled == ["a"]
+    titles = {t.split(" ")[0].rstrip(":"): (lvl, t, b) for lvl, t, b in log}
+    assert "saiu do rodízio" in titles["a"][1] and "source-enable a" in titles["a"][2]
+    assert titles["b"][1].endswith("(falha 1 de 3)") and titles["b"][0] == "error"
