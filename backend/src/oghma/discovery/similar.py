@@ -22,9 +22,22 @@ from html import unescape
 from pathlib import Path
 from typing import Iterable, Optional
 
-# mpnet (1 GB, ~1 GB de RAM por alguns minutos) separou melhor as historias no piloto das fichas
-# que o MiniLM (220 MB); OGHMA_DISCOVERY_MODEL troca sem mexer no codigo.
-MODEL = os.environ.get("OGHMA_DISCOVERY_MODEL", "sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+# mpnet separou melhor as historias no piloto das fichas que o MiniLM. A versao completa (fp32)
+# passa de 2 GB de RAM na VPS; a quantizada int8 que o Xenova publica fica perto de 1 GB e
+# concorda em 93% do top 6 com ela. OGHMA_DISCOVERY_MODEL troca sem mexer no codigo.
+MPNET_Q8 = "oghma/paraphrase-multilingual-mpnet-base-v2-q8"
+MODEL = os.environ.get("OGHMA_DISCOVERY_MODEL", MPNET_Q8)
+
+
+def _register_custom_models() -> None:
+    from fastembed import TextEmbedding
+    from fastembed.common.model_description import ModelSource, PoolingType
+
+    if any(m["model"] == MPNET_Q8 for m in TextEmbedding.list_supported_models()):
+        return
+    TextEmbedding.add_custom_model(
+        model=MPNET_Q8, pooling=PoolingType.MEAN, normalization=True, dim=768,
+        sources=ModelSource(hf="Xenova/paraphrase-multilingual-mpnet-base-v2"), model_file="onnx/model_quantized.onnx")
 TOP_K = 24
 # Peso do cosseno dos textos e das tags de historia (Jaccard) na nota do par.
 TEXT_WEIGHT = 0.65
@@ -126,6 +139,7 @@ def embed(texts: list[str], model: str = MODEL, cache: Optional[EmbeddingCache] 
         if embedder is None:
             from fastembed import TextEmbedding
 
+            _register_custom_models()
             # Fora de /tmp: o modelo (~220 MB) nao precisa ser baixado de novo apos um reboot.
             embedder = TextEmbedding(model_name=model, cache_dir=str(models_dir) if models_dir else None, threads=THREADS)
         for i, vec in zip(missing, embedder.embed([texts[i] for i in missing], batch_size=BATCH_SIZE)):
