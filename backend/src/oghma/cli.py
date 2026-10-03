@@ -182,13 +182,14 @@ def crawl(
     limit: int = typer.Option(None, help="max de novels (teste)"),
     chapter_limit: int = typer.Option(None, help="max de capitulos novos por novel (teste)"),
     refresh: bool = typer.Option(False, help="rebaixa capitulos ja existentes"),
+    novel_url: str = typer.Option(None, help="coleta so esta novel (URL da pagina dela no site)"),
 ) -> None:
     """Roda um crawl (e o que o cron chama)."""
 
     async def _run() -> None:
         async with SessionLocal() as s:
             stats = await crawl_source(
-                s, source, limit=limit, chapter_limit=chapter_limit, refresh=refresh
+                s, source, limit=limit, chapter_limit=chapter_limit, refresh=refresh, novel_url=novel_url
             )
         typer.echo(f"crawl {source}: {stats}")
 
@@ -199,6 +200,20 @@ def _echo_json(payload: dict) -> None:
     import json
 
     typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+
+
+@app.command("probe-connector")
+def probe_connector_cmd(
+    source: str = typer.Option(..., help="id do conector"),
+    novel_url: str = typer.Option(None, help="URL de uma novel especifica para testar"),
+) -> None:
+    """Portao: testa o conector contra o site real sem gravar nada. Sai com codigo 1 se reprovar."""
+    from .autoconnector.probe import probe_connector
+
+    report = asyncio.run(probe_connector(source, novel_url))
+    _echo_json(report.as_dict())
+    if not report.ok:
+        raise typer.Exit(code=1)
 
 
 @app.command("audit-content")

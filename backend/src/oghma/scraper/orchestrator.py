@@ -18,6 +18,7 @@ from .base import ChapterRef, NovelMeta, NovelRef
 from .chapter_assets import localize_chapter_images
 from .fetcher import HttpFetcher
 from .normalize import chapter_problem, clean_description
+from .novel_url import novel_ref_from_url
 
 PROGRESS_LOG_EVERY_CHAPTERS = 10
 COVER_REFRESH_AFTER = timedelta(days=180)
@@ -234,7 +235,9 @@ async def crawl_source(
     limit: int | None = None,
     chapter_limit: int | None = None,
     refresh: bool = False,
+    novel_url: str | None = None,
 ) -> dict:
+    """Coleta a fonte inteira, ou so a novel de `novel_url` (usada para priorizar um pedido)."""
     connector = registry.get(source_id)
     headers_provider = getattr(connector, "request_headers", None)
     headers = headers_provider() if callable(headers_provider) else getattr(connector, "headers", None)
@@ -280,7 +283,10 @@ async def crawl_source(
     await _save_run_progress(session, run_id, stats)
     _log_progress(f"crawl start source={source_id}")
     try:
-        refs: list[NovelRef] = list(await connector.discover_novels(fetcher, limit=limit))
+        if novel_url:
+            refs: list[NovelRef] = [novel_ref_from_url(connector, novel_url)]
+        else:
+            refs = list(await connector.discover_novels(fetcher, limit=limit))
         stats["stage"] = "discovered"
         stats["discovered_total"] = len(refs)
         stats["novels_total"] = len(refs)
