@@ -145,3 +145,19 @@ def test_normalize_chapter_reads_post_content_json():
     assert "<p>The first paragraph.</p>" in norm.html
     assert "<p><strong>The second</strong> paragraph.</p>" in norm.html
     assert norm.word_count == 9
+
+
+def test_fetch_novel_uses_the_page_summary_when_the_category_has_no_description():
+    connector = GoldenNovelConnector()
+    categories = json.loads(CATEGORIES) if isinstance(CATEGORIES, (str, bytes)) else CATEGORIES
+    page = (b'<html><head><meta name="description" content="Read Finest Servant, a historical novel by Yu Yan: '
+            b'a young sales manager lands in another world as a steward of the Xiao Mansion."></head><body></body></html>')
+    empty = [dict(c, description="") for c in categories]
+    fetcher = FakeFetcher({
+        connector._api_url("categories?per_page=100&page=1&_fields=id,name,slug,count,parent,link,description"): json.dumps(empty).encode(),
+        "https://goldennovel.com/index.php/category/xianxia/scattered-immortal-in-a-chaotic-world/": page,
+    })
+    ref = asyncio.run(connector.discover_novels(fetcher))[0]
+    meta = asyncio.run(connector.fetch_novel(fetcher, ref))
+    assert meta.description == ("a historical novel by Yu Yan: a young sales manager lands in another world "
+                                "as a steward of the Xiao Mansion.")

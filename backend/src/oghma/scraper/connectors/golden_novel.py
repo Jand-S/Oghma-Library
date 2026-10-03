@@ -170,6 +170,15 @@ class GoldenNovelConnector:
         name = parent.get("name") if isinstance(parent, dict) else None
         return _clean_html_text(name) if isinstance(name, str) and name else None
 
+    def _summary_from_html(self, html: bytes) -> str:
+        """Resumo da pagina (meta description), para novels cuja categoria no WordPress nao tem
+        descricao (72 das 411 em 2026-10). Tira o "Read <titulo>, " do comeco, que e texto de SEO."""
+        tree = HTMLParser(html)
+        text = _attr(tree.css_first("meta[name='description']"), "content") \
+            or _attr(tree.css_first("meta[property='og:description']"), "content") or ""
+        text = _clean_html_text(text)
+        return re.sub(r"^Read\s+[^,:]{1,160},\s*", "", text).strip()
+
     def _cover_from_html(self, html: bytes) -> str | None:
         tree = HTMLParser(html)
         cover = _attr(tree.css_first("#description .cover img, .cover img"), "src")
@@ -188,6 +197,7 @@ class GoldenNovelConnector:
         category = await self._category_for_ref(fetcher, ref)
         raw = await fetcher.get(ref.url)
         description = _clean_html_text(category.get("description") if isinstance(category.get("description"), str) else "")
+        description = description or self._summary_from_html(raw.html)
         author_match = _AUTHOR_RE.search(description)
         author = author_match.group("author").strip() if author_match else None
         genre = self._genre_for_category(category)
