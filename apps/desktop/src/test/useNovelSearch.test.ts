@@ -27,3 +27,16 @@ describe("useNovelSearch", () => {
     expect(setFocusedNovelId).toHaveBeenCalledWith("novellunar:unsheathed");
   });
 });
+
+describe("useKindleDetection", () => {
+  it("the boot value never overwrites the real Kindle detection", async () => {
+    const { useKindleDetection } = await import("../app/useKindleDetection");
+    const { act, renderHook } = await import("@testing-library/react");
+    const { result } = renderHook(() => useKindleDetection(true));
+    const real = { connected: true, deviceName: "Kindle" } as never;
+    const stub = { connected: false, deviceName: "Kindle" } as never;
+    act(() => result.current.setKindleStatus(real));
+    act(() => result.current.seedKindleStatus(stub));
+    expect(result.current.kindleStatus).toBe(real);
+  });
+});

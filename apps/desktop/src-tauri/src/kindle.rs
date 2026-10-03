@@ -520,7 +520,7 @@ fn convert_epub_to_azw3(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn convert_export_to_azw3(
     root: tauri::State<'_, ExportRoot>,
     title: String,
@@ -552,24 +552,21 @@ fn kindle_usb_present() -> bool {
     }
 }
 
-fn candidate_kindle_document_dirs() -> Vec<PathBuf> {
-    let mut candidates = Vec::new();
+/// Mounted volumes that could be a Kindle in USB mass-storage mode.
+fn candidate_volume_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
 
     #[cfg(target_os = "windows")]
     {
         for letter in b'D'..=b'Z' {
-            candidates.push(PathBuf::from(format!("{}:\\documents", letter as char)));
-            candidates.push(PathBuf::from(format!("{}:\\Documents", letter as char)));
+            roots.push(PathBuf::from(format!("{}:\\", letter as char)));
         }
     }
 
     #[cfg(target_os = "macos")]
     {
         if let Ok(entries) = fs::read_dir("/Volumes") {
-            for entry in entries.flatten() {
-                candidates.push(entry.path().join("documents"));
-                candidates.push(entry.path().join("Documents"));
-            }
+            roots.extend(entries.flatten().map(|entry| entry.path()));
         }
     }
 
@@ -578,24 +575,30 @@ fn candidate_kindle_document_dirs() -> Vec<PathBuf> {
         let user = std::env::var("USER").unwrap_or_default();
         for base in [format!("/media/{user}"), format!("/run/media/{user}"), "/mnt".to_string()] {
             if let Ok(entries) = fs::read_dir(base) {
-                for entry in entries.flatten() {
-                    candidates.push(entry.path().join("documents"));
-                    candidates.push(entry.path().join("Documents"));
-                }
+                roots.extend(entries.flatten().map(|entry| entry.path()));
             }
         }
     }
 
-    candidates
+    roots
+}
+
+/// `documents` folder of a volume that really is a Kindle: it also has the `system` folder
+/// every Kindle has. A backup drive with a "Documents" folder used to be taken for a Kindle
+/// (and get books copied into it).
+fn kindle_documents_dir(root: &Path) -> Option<PathBuf> {
+    let has_system = ["system", "System"].iter().any(|name| root.join(name).is_dir());
+    if !has_system {
+        return None;
+    }
+    ["documents", "Documents"].iter().map(|name| root.join(name)).find(|dir| dir.is_dir())
 }
 
 fn find_kindle_documents_dir() -> Option<PathBuf> {
-    candidate_kindle_document_dirs()
-        .into_iter()
-        .find(|path| path.is_dir())
+    candidate_volume_roots().iter().find_map(|root| kindle_documents_dir(root))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn detect_kindle() -> KindleStatus {
     let ms_dir = find_kindle_documents_dir();
     if let Some(path) = &ms_dir {
@@ -626,7 +629,27 @@ pub fn detect_kindle() -> KindleStatus {
 }
 
 /// Amazon's "Send to Kindle" app for Mac (free; sends EPUB to the Amazon account over Wi-Fi).
+/// Cached for a minute: detect_kindle runs every few seconds and the Spotlight fallback
+/// (`mdfind`) is a subprocess.
 pub fn send_to_kindle_app() -> Option<PathBuf> {
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+    static CACHE: Mutex<Option<(Instant, Option<PathBuf>)>> = Mutex::new(None);
+    if let Ok(cache) = CACHE.lock() {
+        if let Some((at, found)) = cache.as_ref() {
+            if at.elapsed() < Duration::from_secs(60) {
+                return found.clone();
+            }
+        }
+    }
+    let found = locate_send_to_kindle_app();
+    if let Ok(mut cache) = CACHE.lock() {
+        *cache = Some((Instant::now(), found.clone()));
+    }
+    found
+}
+
+fn locate_send_to_kindle_app() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         let home = std::env::var_os("HOME").map(PathBuf::from);
@@ -670,7 +693,7 @@ fn epub_for_item(item: &SendKindleItem) -> Result<PathBuf, String> {
 }
 
 /// Opens Amazon's "Send to Kindle" with the books' EPUBs; the user confirms the send in that app.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn kindle_send_wireless(
     root: tauri::State<'_, ExportRoot>,
     items: Vec<SendKindleItem>,
@@ -786,6 +809,19 @@ fn send_to_kindle_blocking(items: Vec<SendKindleItem>) -> Result<KindleSendResul
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn only_volumes_with_the_kindle_system_folder_count_as_a_kindle() {
+        let root = std::env::temp_dir().join(format!("oghma-kindle-vol-{}", std::process::id()));
+        let backup = root.join("Backup");
+        let kindle = root.join("Kindle");
+        std::fs::create_dir_all(backup.join("Documents")).unwrap();
+        std::fs::create_dir_all(kindle.join("documents")).unwrap();
+        std::fs::create_dir_all(kindle.join("system")).unwrap();
+        assert_eq!(super::kindle_documents_dir(&backup), None);
+        assert_eq!(super::kindle_documents_dir(&kindle), Some(kindle.join("documents")));
+        let _ = std::fs::remove_dir_all(&root);
+    }
     use std::fs::{self, File};
     use std::io::Write;
     use std::time::{SystemTime, UNIX_EPOCH};

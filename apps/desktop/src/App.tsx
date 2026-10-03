@@ -59,8 +59,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     toast({ message, tone });
   }, [toast]);
 
-  const { kindleStatus, setKindleStatus } = useKindleDetection(false);
-  const bootstrap = useBootstrapState({ backend, setKindleStatus });
+  const { kindleStatus, seedKindleStatus } = useKindleDetection(false);
+  const bootstrap = useBootstrapState({ backend, setKindleStatus: seedKindleStatus });
   const {
     appConfig,
     bootDone,

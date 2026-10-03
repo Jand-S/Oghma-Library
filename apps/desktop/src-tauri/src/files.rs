@@ -248,7 +248,7 @@ pub(crate) fn write_export_file(dir: &Path, file_name: &str, bytes: &[u8]) -> Re
     Ok(path)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_export_file(request: Request<'_>, root: tauri::State<'_, ExportRoot>) -> Result<String, String> {
     fn decode_header(value: &str) -> Result<String, String> {
         let source = value.as_bytes();
@@ -296,7 +296,7 @@ pub fn save_export_file(request: Request<'_>, root: tauri::State<'_, ExportRoot>
     Ok(path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn open_local_path(root: tauri::State<'_, ExportRoot>, path: String) -> Result<(), String> {
     // Only the output folder and what is inside it: `open` would also launch an .app bundle.
     let path = root.require_root_or_inside(Path::new(&path))?;
@@ -421,7 +421,7 @@ pub(crate) fn scan_export_library(root: &Path, include_cover_data: bool) -> Resu
 /// Lists the book folders in `output_dir`. Covers are returned as `coverPath`
 /// (served through the asset protocol, allowed here file by file); the legacy
 /// base64 `coverDataUrl` is only computed when `include_cover_data` is true.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_export_library(
     app: AppHandle,
     export_root: tauri::State<'_, ExportRoot>,
@@ -437,7 +437,7 @@ pub fn list_export_library(
     Ok(items)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_export_library_item(
     export_root: tauri::State<'_, ExportRoot>,
     output_dir: String,

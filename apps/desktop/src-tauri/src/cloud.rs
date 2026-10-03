@@ -125,7 +125,7 @@ pub async fn icloud_save(
 }
 
 /// Shows a saved file (or folder) in Finder.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn icloud_reveal(path: String) -> Result<(), String> {
     let root = icloud_drive_dir().ok_or("iCloud Drive indisponível")?;
     // Canonical paths: "root/../.." would pass a plain starts_with.

@@ -339,7 +339,7 @@ pub(crate) fn meta_keys_for(final_dir: &Path, raw_final_dir: &str, novel_id: &st
     keys
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn begin_export(
     root: tauri::State<'_, ExportRoot>,
     output_root: String,
@@ -349,7 +349,7 @@ pub fn begin_export(
     begin_export_at(&root.require_root(Path::new(&output_root))?, &novel_id, &title)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn commit_export(
     app: AppHandle,
     root: tauri::State<'_, ExportRoot>,
@@ -368,7 +368,7 @@ pub fn commit_export(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn abort_export(root: tauri::State<'_, ExportRoot>, staging_dir: String) -> Result<(), String> {
     abort_export_at(&root.require_inside(Path::new(&staging_dir))?)
 }
@@ -376,7 +376,7 @@ pub fn abort_export(root: tauri::State<'_, ExportRoot>, staging_dir: String) -> 
 /// Deletes leftover `.oghma-staging` / `.oghma-trash` entries under the output root.
 /// The output root lives in the TS config, so TS calls this once it knows the path
 /// (`prepareExportRoot` in `services/localFiles.ts`, used by `useLocalLibrary`).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cleanup_export_root(root: tauri::State<'_, ExportRoot>, output_root: String) -> Result<usize, String> {
     Ok(cleanup_export_root_at(&root.require_root(Path::new(&output_root))?))
 }

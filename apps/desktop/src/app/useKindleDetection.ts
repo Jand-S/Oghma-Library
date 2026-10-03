@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { KindleDeviceStatus } from "../core/types";
 import { detectKindleDevice } from "../services/localFiles";
 
@@ -21,5 +21,11 @@ export function useKindleDetection(loading: boolean) {
       window.clearInterval(timer);
     };
   }, [loading]);
-  return { kindleStatus, setKindleStatus };
+  /** Initial value from the backend at boot: never overwrites what the real detection found
+   *  (the static backend always answers "disconnected"). */
+  const seedKindleStatus = useCallback(
+    (status: KindleDeviceStatus) => setKindleStatus((current) => current ?? status),
+    []
+  );
+  return { kindleStatus, setKindleStatus, seedKindleStatus };
 }

@@ -42,7 +42,7 @@ fn open_db_at(db_path: &Path) -> Result<Connection, String> {
     Ok(conn)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_library_meta(app: AppHandle) -> Result<Vec<LibraryMeta>, String> {
     list_meta_in(&open_db(&app)?)
 }
@@ -75,7 +75,7 @@ fn list_meta_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
 /// Upserts `meta`. Library items with a novel id are keyed `novel:<id>`; when the
 /// row used to live under the folder path, pass it as `legacy_key` and it is
 /// removed in the same transaction (migration from path keys).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_library_meta(app: AppHandle, meta: LibraryMeta, legacy_key: Option<String>) -> Result<(), String> {
     let mut conn = open_db(&app)?;
     save_meta_in(&mut conn, &meta, legacy_key.as_deref())
@@ -133,7 +133,7 @@ fn reset_hidden_in(conn: &Connection, keys: &[String]) -> Result<usize, String> 
     Ok(changed)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_library_meta(app: AppHandle, key: String) -> Result<(), String> {
     let conn = open_db(&app)?;
     conn.execute("DELETE FROM library_meta WHERE key = ?1", params![key])
