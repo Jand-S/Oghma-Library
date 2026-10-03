@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import gzip
 import json
+import os
 import time
 from pathlib import Path
 from typing import Callable
@@ -13,7 +14,7 @@ from .catalog import build_catalog, build_catalog_json
 from .covers import plan_covers
 from .hashing import content_hash, file_sha256
 from .reader import read_source
-from .state import load_state, save_state
+from .state import load_state, publish_lock, save_state
 from .uploader import DryRunUploader, make_uploader
 
 
@@ -48,9 +49,39 @@ async def _upload_files(up, files: list[tuple[str, str, str]], concurrency: int 
     await asyncio.gather(*(upload(*item) for item in files))
 
 
+def _keep_local() -> bool:
+    """OGHMA_PUBLISH_KEEP_LOCAL=0: a VPS nao guarda bundles depois de subir (o B2 e a copia)."""
+    return os.environ.get("OGHMA_PUBLISH_KEEP_LOCAL", "1").strip() not in ("0", "false", "no")
+
+
+async def _ensure_hot(session, novel_id: str) -> bool:
+    """Traz de volta do B2 os capitulos de uma novel fria antes de remontar o bundle."""
+    try:
+        from .. import coldstore
+    except ImportError:  # armazenamento frio ainda nao instalado: tudo e local
+        return True
+    return await coldstore.ensure_hot(session, novel_id)
+
+
 async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = False,
               dry_run: bool = False, full: bool = False,
-              progress: Callable[[dict], None] | None = None) -> dict:
+              progress: Callable[[dict], None] | None = None,
+              lock_timeout: float | None = None, ensure_hot=None) -> dict:
+    """Publica uma fonte sob a trava unica de publicacao (API, script diario e rodizio)."""
+    from ..config import get_settings
+
+    settings = get_settings()
+    timeout = lock_timeout if lock_timeout is not None else float(os.environ.get("OGHMA_PUBLISH_LOCK_TIMEOUT", "3600"))
+    lock = publish_lock(str(Path(settings.storage_root) / "publish.lock"), timeout=timeout)
+    await asyncio.to_thread(lock.__enter__)
+    try:
+        return await _run_locked(source_id, out_dir=out_dir, no_upload=no_upload, dry_run=dry_run,
+                                 full=full, progress=progress, ensure_hot=ensure_hot or _ensure_hot)
+    finally:
+        lock.__exit__(None, None, None)
+
+
+async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, progress, ensure_hot) -> dict:
     from ..config import get_settings
     from ..db import SessionLocal
 
@@ -74,23 +105,27 @@ async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = F
 
     bundle_info: dict = {}
     changed: list = []
-    for n in novels:
-        h = content_hash(n.chapters)
-        prev = state["novels"].get(n.id, {})
-        if full or prev.get("content_hash") != h:
-            version = int(prev.get("version", 0)) + 1
-            key = bundle_key(n, version)
-            local = work / key
-            asset_dir = Path(settings.storage_root) / "assets" / n.source_id / n.slug
-            sha, size = await asyncio.to_thread(
-                build_bundle, str(local), n, version, asset_dir=str(asset_dir)
-            )
-            state["novels"][n.id] = {"content_hash": h, "version": version, "key": key,
-                                     "sha256": sha, "bytes": size}
-            changed.append((n, local))
-        info = state["novels"][n.id]
-        bundle_info[n.id] = {"key": info["key"], "version": info["version"],
-                             "sha256": info["sha256"], "bytes": info["bytes"]}
+    async with SessionLocal() as hot_session:
+        for n in novels:
+            h = content_hash(n.chapters)
+            prev = state["novels"].get(n.id, {})
+            if full or prev.get("content_hash") != h:
+                # Novel fria (capitulos so no B2): traz de volta antes de remontar o bundle.
+                if not await ensure_hot(hot_session, n.id):
+                    raise RuntimeError(f"nao foi possivel reidratar {n.id} do B2; publicacao abortada")
+                version = int(prev.get("version", 0)) + 1
+                key = bundle_key(n, version)
+                local = work / key
+                asset_dir = Path(settings.storage_root) / "assets" / n.source_id / n.slug
+                sha, size = await asyncio.to_thread(
+                    build_bundle, str(local), n, version, asset_dir=str(asset_dir)
+                )
+                state["novels"][n.id] = {"content_hash": h, "version": version, "key": key,
+                                         "sha256": sha, "bytes": size}
+                changed.append((n, local))
+            info = state["novels"][n.id]
+            bundle_info[n.id] = {"key": info["key"], "version": info["version"],
+                                 "sha256": info["sha256"], "bytes": info["bytes"]}
 
     ts = _ts()
     catalog_key = f"catalog/{source_id}-{ts}.sqlite.gz"
@@ -142,6 +177,16 @@ async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = F
         summary["uploaded"] = not dry_run
         if isinstance(up, DryRunUploader):
             summary["dry_run_ops"] = up.ops
+        elif not _keep_local():
+            # O B2 e a copia dos bundles; a VPS so guarda o estado e os catalogos atuais.
+            freed = 0
+            for _, local in changed:
+                try:
+                    freed += local.stat().st_size
+                    local.unlink()
+                except FileNotFoundError:
+                    pass
+            summary["local_bundles_removed_bytes"] = freed
 
     # so persiste o state se subiu de verdade
     if not no_upload and not dry_run:

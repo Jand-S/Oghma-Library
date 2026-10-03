@@ -255,6 +255,43 @@ def rehydrate_cmd(novel: str = typer.Option(..., help="id da novel (<fonte>:<slu
     _echo_json({"novel": novel, "rehydrated": asyncio.run(_run())})
 
 
+@app.command("publish-prune")
+def publish_prune_cmd(
+    source: str = typer.Option(None, help="so uma fonte"),
+    keep: int = typer.Option(2, help="versoes mantidas por novel/catalogo"),
+    dry_run: bool = typer.Option(False, help="so mostra o que apagaria"),
+    local_only: bool = typer.Option(False, help="nao mexe no B2"),
+) -> None:
+    """Apaga bundles e catalogos antigos do B2 e do disco, nunca o que o estado atual usa."""
+    from .config import get_settings
+    from .publish.prune import prune
+    from .publish.state import load_state, publish_lock
+    from .publish.uploader import S3Uploader
+
+    root = Path(get_settings().storage_root)
+    with publish_lock(str(root / "publish.lock")):
+        state = load_state(str(root / "publish_state.json"))
+        up = None if local_only else S3Uploader()
+        remote = None if up is None else up.list_keys()
+        report = prune(state, work_dir=root / "publish", remote=remote, uploader=up,
+                       keep=keep, source=source, dry_run=dry_run)
+    _echo_json(report)
+
+
+@app.command("rodizio")
+def rodizio_cmd(
+    parallel: int = typer.Option(2, help="fontes coletadas ao mesmo tempo"),
+    pause_minutes: float = typer.Option(30.0, help="pausa entre voltas"),
+    once: bool = typer.Option(False, help="faz uma volta so e sai"),
+    source: list[str] = typer.Option(None, help="restringe a estas fontes (repetivel)"),
+) -> None:
+    """Coleta continua em rodizio: crawl -> publica -> evict -> aviso no brain, fonte por fonte."""
+    from .rodizio import main as rodizio_main
+
+    raise typer.Exit(code=asyncio.run(rodizio_main(parallel=parallel, pause_minutes=pause_minutes,
+                                                   once=once, only=source or None)))
+
+
 @app.command("audit-content")
 def audit_content_cmd(source: str = typer.Option(None, help="so uma fonte")) -> None:
     """Relatorio somente leitura: status dos capitulos, sinopses e o que mark-chapters mudaria."""

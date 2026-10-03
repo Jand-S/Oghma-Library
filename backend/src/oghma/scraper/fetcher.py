@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 import tempfile
 import time
@@ -20,6 +21,17 @@ from ..config import get_settings
 from .base import RawPage
 
 _RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _find_curl(curl_bin: str) -> str | None:
+    """curl comum, ou o curl-impersonate (`curl_ff`): `OGHMA_CURL_IMPERSONATE` (caminho do
+    binario) tem prioridade, depois o PATH e /opt/curl-impersonate (imagem Docker antiga)."""
+    if curl_bin == "curl":
+        return shutil.which("curl") or shutil.which("curl.exe")
+    override = os.environ.get("OGHMA_CURL_IMPERSONATE", "").strip()
+    if override and os.path.isfile(override) and os.access(override, os.X_OK):
+        return override
+    return shutil.which(curl_bin) or shutil.which(curl_bin, path="/opt/curl-impersonate:/usr/local/bin")
 
 
 def _is_transient(exc: BaseException) -> bool:
@@ -91,9 +103,7 @@ class HttpFetcher:
         )
 
     async def _curl_get(self, url: str) -> RawPage:
-        curl = shutil.which(self.curl_bin)
-        if curl is None and self.curl_bin == "curl":
-            curl = shutil.which("curl.exe")
+        curl = _find_curl(self.curl_bin)
         if curl is None:
             raise RuntimeError(f"curl transport requested, but {self.curl_bin!r} was not found")
 
