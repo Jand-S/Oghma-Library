@@ -105,7 +105,8 @@ class EmbeddingCache:
         tmp.replace(self.dir / "embeddings.npz")
 
 
-def embed(texts: list[str], model: str = MODEL, cache: Optional[EmbeddingCache] = None, embedder=None):
+def embed(texts: list[str], model: str = MODEL, cache: Optional[EmbeddingCache] = None, embedder=None,
+          models_dir: Optional[Path] = None):
     """Matriz (n, d) normalizada e as chaves usadas. Com cache, so os textos novos passam pelo
     modelo (e o modelo nem e carregado quando nada mudou)."""
     import numpy as np
@@ -117,7 +118,8 @@ def embed(texts: list[str], model: str = MODEL, cache: Optional[EmbeddingCache] 
         if embedder is None:
             from fastembed import TextEmbedding
 
-            embedder = TextEmbedding(model_name=model)
+            # Fora de /tmp: o modelo (~220 MB) nao precisa ser baixado de novo apos um reboot.
+            embedder = TextEmbedding(model_name=model, cache_dir=str(models_dir) if models_dir else None)
         for i, vec in zip(missing, embedder.embed([texts[i] for i in missing], batch_size=32)):
             vec = np.asarray(vec, dtype=np.float32)
             store[keys[i]] = vec / (np.linalg.norm(vec) or 1.0)

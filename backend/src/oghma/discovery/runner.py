@@ -56,9 +56,11 @@ async def run(*, dry_run: bool = False, no_upload: bool = False) -> dict:
     started = time.time()
     cache = EmbeddingCache(work)
     cache.load()
+    models = work / "models"
     story_vecs, story_keys = await asyncio.to_thread(
-        embed, [novel_text(n, fichas.get(n.id)) for n in novels], MODEL, cache)
-    synopsis_vecs, synopsis_keys = await asyncio.to_thread(embed, [synopsis_text(n) for n in novels], MODEL, cache)
+        embed, [novel_text(n, fichas.get(n.id)) for n in novels], MODEL, cache, None, models)
+    synopsis_vecs, synopsis_keys = await asyncio.to_thread(
+        embed, [synopsis_text(n) for n in novels], MODEL, cache, None, models)
     data = await asyncio.to_thread(build_discovery, novels, story_vecs, synopsis_vecs)
     cache.save(story_keys | synopsis_keys)
 
