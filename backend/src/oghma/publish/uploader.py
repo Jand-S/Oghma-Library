@@ -15,6 +15,10 @@ class DryRunUploader:
     def put_bytes(self, data: bytes, key: str, content_type: str) -> None:
         self.ops.append(f"PUT {key}  <- {len(data)} bytes ({content_type})")
 
+    def delete_keys(self, keys: list[str]) -> int:
+        self.ops.extend(f"DELETE {k}" for k in keys)
+        return len(keys)
+
 
 class S3Uploader:
     def __init__(self) -> None:
@@ -35,6 +39,27 @@ class S3Uploader:
 
     def put_bytes(self, data: bytes, key: str, content_type: str) -> None:
         self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+
+    def list_keys(self, prefixes=("content/", "catalog/")) -> dict[str, int]:
+        out: dict[str, int] = {}
+        paginator = self.client.get_paginator("list_objects_v2")
+        for prefix in prefixes:
+            for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+                for obj in page.get("Contents", []) or []:
+                    out[obj["Key"]] = int(obj.get("Size", 0))
+        return out
+
+    def delete_keys(self, keys: list[str]) -> int:
+        """Apaga em lotes de 1000 (limite do S3). Devolve quantas chaves foram aceitas."""
+        done = 0
+        for i in range(0, len(keys), 1000):
+            batch = [{"Key": k} for k in keys[i:i + 1000]]
+            resp = self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": batch, "Quiet": True})
+            errors = resp.get("Errors") or []
+            if errors:
+                raise RuntimeError(f"B2 recusou {len(errors)} delecoes, ex.: {errors[0]}")
+            done += len(batch)
+        return done
 
 
 def make_uploader(dry_run: bool):
