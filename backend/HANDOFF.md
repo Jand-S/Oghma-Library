@@ -200,5 +200,5 @@ docker-compose.yml, Dockerfile, .env.example, pyproject.toml
 
 ## 9. Ao terminar cada etapa
 
-Atualize `../docs/PROJECT_STATE.md` e `../docs/references/technical/scraper-sites.md` com o que foi
+Atualize `../docs/ROADMAP.md` e `../docs/references/technical/scraper-sites.md` com o que foi
 confirmado/ajustado (seletores reais, se a API JSON serve, numeros do primeiro crawl).

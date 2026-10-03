@@ -2,7 +2,7 @@
 
 Indexa sites de novel, guarda **tudo (metadados + capitulos) no servidor local** e expoe uma API rapida para o app desktop. O cron atualiza; o app consome do banco/FS, sem tocar no site.
 
-Stack: Python 3.11 + FastAPI + PostgreSQL 16 + SQLAlchemy async + httpx/selectolax. Decisao detalhada em `../docs/BACKEND_STACK.md`. Contrato do conector em `../docs/CONNECTOR_SPEC.md`.
+Stack: Python 3.11 + FastAPI + PostgreSQL 16 + SQLAlchemy async + httpx/selectolax. Hoje roda num venv na VPS, sob systemd (`deploy/RUNTIME.md`); o Docker abaixo e o runtime antigo. Conectores novos: `autoconnector/CONTEXT.md`. Historico das decisoes em `../docs/archive/`.
 
 ## Deploy (no servidor codex, com Docker)
 

@@ -43,11 +43,11 @@ Ele deve virar a referencia operacional principal quando comecarmos backend, scr
 
 ### Documentacao e contratos
 
-- [ARCHITECTURE.md](</C:/Users/Jandson/Documents/Oghma Library/docs/ARCHITECTURE.md>)
-- [API_CONTRACTS.md](</C:/Users/Jandson/Documents/Oghma Library/docs/API_CONTRACTS.md>)
-- [PROJECT_STATE.md](</C:/Users/Jandson/Documents/Oghma Library/docs/PROJECT_STATE.md>)
-- [ROADMAP.md](</C:/Users/Jandson/Documents/Oghma Library/docs/ROADMAP.md>)
-- [scraper-sites.md](</C:/Users/Jandson/Documents/Oghma Library/docs/references/technical/scraper-sites.md>) com os sites iniciais listados.
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [API_CONTRACTS.md](API_CONTRACTS.md)
+- [PROJECT_STATE.md](PROJECT_STATE.md)
+- [ROADMAP.md](ROADMAP.md)
+- [scraper-sites.md](../references/technical/scraper-sites.md) com os sites iniciais listados.
 
 ### O que ainda nao existe de verdade
 
@@ -131,7 +131,7 @@ Ele deve virar a referencia operacional principal quando comecarmos backend, scr
   - log persistido por fonte;
   - script `crawl-status.sh` com contagens, run atual, etapa, obra atual, capitulo atual e alerta `STALE?`;
   - cron mensal com `flock`.
-- Como usar: ver [OPERATIONS.md](</C:/Users/Jandson/Documents/Oghma Library/docs/OPERATIONS.md>).
+- Como usar: ver [OPERATIONS.md](OPERATIONS.md).
 - Proximo passo de UX: levar a mesma informacao para uma tela interna do desktop consumindo `/api/crawls` e exibindo uma barra por `source_id`, preparado para crawls paralelos por site.
 
 ### Entregavel

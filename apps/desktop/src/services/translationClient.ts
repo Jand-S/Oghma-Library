@@ -1,7 +1,7 @@
 import { isTauriRuntime } from "../core/windowControls";
 
 /*
- * TS side of the translation contract (`TRANSLATION_CONTRACT.md`, as amended by the 2026-10-02
+ * TS side of the translation contract (`docs/TRANSLATION_CONTRACT.md`, as amended by the 2026-10-02
  * "Sign in with ChatGPT" change and the owner's final decision: no usage %): types, commands and events of the Rust engine in
  * `src-tauri/src/translation/`. The UI never talks to OpenAI directly.
  */

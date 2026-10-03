@@ -1,6 +1,6 @@
 //! Translation engine: EN -> pt-BR through the user's ChatGPT plan, using the
 //! official Sign in with ChatGPT token-sharing flow (`/v1/responses`). See
-//! `~/Documents/Oghma-wt/TRANSLATION_CONTRACT.md` for the binding contract.
+//! `docs/TRANSLATION_CONTRACT.md` for the binding contract.
 //!
 //! Layout:
 //! - `provider`: `trait ChatProvider` (+ `FakeProvider`), usage, credits.

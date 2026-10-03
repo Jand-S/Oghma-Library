@@ -117,7 +117,7 @@ Ela faz polling a cada 2 segundos em:
 
 Uso atual: abrir `http://192.168.0.42:8010/monitor`.
 
-Detalhes operacionais, comandos de apoio e interpretacao dos campos ficam em [OPERATIONS.md](</C:/Users/Jandson/Documents/Oghma Library/docs/OPERATIONS.md>).
+Detalhes operacionais, comandos de apoio e interpretacao dos campos ficam em [OPERATIONS.md](OPERATIONS.md).
 
 ### `POST /api/publish/run`
 Dispara um publish real para o B2/Cloudflare usando o `oghma.publish.runner.run()` dentro do processo da API.

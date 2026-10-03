@@ -206,7 +206,7 @@ Criado o backend em `backend/` (Python 3.11). Decisao de stack em `docs/BACKEND_
 - Log persistido do crawl mensal: `/srv/oghma/logs/crawl-central-novel.log`.
 - Pagina operacional criada no backend: `GET /monitor`. Ela mostra runs recentes, progresso por novels/capitulos, etapa atual, heartbeat, evento recente e resumo de contagens.
 - Endpoint auxiliar de dashboard: `GET /api/stats`, com total de fontes, novels, capitulos, capas e crawls ativos.
-- Runbook de uso: [OPERATIONS.md](</C:/Users/Jandson/Documents/Oghma Library/docs/OPERATIONS.md>).
+- Runbook de uso: [OPERATIONS.md](OPERATIONS.md).
 - O cron mensal esta instalado no servidor:
   - `0 3 1 * * /home/codex/oghma/deploy/crawl-monthly.sh`
 - A estrutura foi pensada para multiplos sites: cada execucao tem `source_id`, e a futura UI pode renderizar uma linha de progresso por site/run.
