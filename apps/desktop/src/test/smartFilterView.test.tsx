@@ -34,7 +34,7 @@ function renderView(patch: Partial<DiscoverViewProps>) {
     searchError: null, detailFromPreview: false, sortDirection: "asc", adding: false, selectedInLibrary: false,
     selectedQueued: false, onFiltersChange: vi.fn(), onSelectNovel: vi.fn(), onClearSelection: vi.fn(),
     onPreviewNovel: vi.fn(), onClearPreview: vi.fn(), onSelectionChange: vi.fn(), onAddSelected: vi.fn(),
-    onRetrySearch: vi.fn(), onOpenSources: vi.fn(), onOpenSettings: vi.fn(), onAskSmart: vi.fn(), onClearSmart: vi.fn(),
+    onRetrySearch: vi.fn(), onOpenSources: vi.fn(), onOpenSettings: vi.fn(), onSuggestSimilar: vi.fn(), onClearSmart: vi.fn(),
     aiAvailable: true, ...patch
   };
   return render(<DiscoverView {...props} />);
@@ -66,6 +66,12 @@ describe("Filtro inteligente: curated grid", () => {
   it("shows the picks even when the grid search found none of them", () => {
     renderView({ smart: smart(["C"]), results: [] });
     expect(titles()).toEqual(["C"]);
+  });
+
+  it("shows nothing above the grid when no suggestion is active", () => {
+    renderView({});
+    expect(screen.queryByTestId("smart-filter")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: discoverStrings.smartTitle })).not.toBeInTheDocument();
   });
 
   it("tells what it is doing while the model reads the synopses", () => {

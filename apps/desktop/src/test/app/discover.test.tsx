@@ -263,24 +263,17 @@ describe("Discover", () => {
   });
 });
 
-describe("Filtro inteligente", () => {
-  it("turns a request into filters and shows what it understood (local interpreter outside the app)", async () => {
+describe("Sugerir parecidos", () => {
+  it("is a button in the details panel; without the ChatGPT login it is off and says why", async () => {
     const user = setupUser();
     await renderReadyApp();
+    // No request field above the grid any more.
+    expect(screen.queryByTestId("smart-filter")).not.toBeInTheDocument();
 
-    const panel = screen.getByTestId("smart-filter");
-    expect(within(panel).getByText(discoverStrings.smartHintLocal)).toBeInTheDocument();
-    await user.type(within(panel).getByRole("textbox"), "fantasia completa, sem romance");
-    await user.click(within(panel).getByRole("button", { name: discoverStrings.smartAsk }));
-
-    const result = await screen.findByTestId("smart-filter-result");
-    expect(result).toHaveTextContent(discoverStrings.smartLocal);
-    expect(result).toHaveTextContent(/completa/);
-    // The normal filter bar now shows the interpreted filters (editable as usual).
-    expect(filterTrigger(discoverStrings.status)).toHaveAccessibleName("Status: Completa");
-
-    await user.click(within(result).getByRole("button", { name: discoverStrings.smartClear }));
-    expect(screen.queryByTestId("smart-filter-result")).not.toBeInTheDocument();
-    expect(filterTrigger(discoverStrings.status)).toHaveAccessibleName(discoverStrings.status);
+    await user.click((await screen.findAllByTestId("book-card"))[0]);
+    const button = await screen.findByTestId("suggest-similar");
+    expect(button).toHaveTextContent(discoverStrings.suggestSimilar);
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", discoverStrings.suggestSimilarTitle(false));
   });
 });

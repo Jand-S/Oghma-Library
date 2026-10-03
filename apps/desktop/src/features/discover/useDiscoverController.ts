@@ -7,7 +7,7 @@ import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, 
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { editionsOf, similarNovels, type CatalogIndex } from "../../services/catalogIndex";
 import { chatGptAsker, chatGptLoggedIn, runSmartFilter, type SmartResult } from "../../services/smartFilter";
-import type { SmartStageInfo } from "./SmartFilterPanel";
+import type { SmartStageInfo } from "./SmartFilterStatus";
 import { discoverStrings } from "../../strings/discover";
 import { readUiPreferences } from "../settings/preferences";
 import type { SortDirection } from "./DiscoverHeader";
@@ -238,7 +238,7 @@ export function useDiscoverController({
           ask: aiAvailable ? chatGptAsker() : null,
           onStage: (stage, candidates) => setSmartStage({ stage, candidates })
         });
-        setSmart(result);
+        setSmart({ ...result, request });
         setFilters({ ...result.filters, sourceId: "all" });
         if (result.fallbackReason && result.fallbackReason !== "not_logged_in") {
           notify(discoverStrings.smartFallback, "info");
@@ -251,6 +251,9 @@ export function useDiscoverController({
       }
     })();
   };
+
+  /** "Sugerir parecidos" in the details panel: the curation with this novel as the reference. */
+  const suggestSimilar = (novel: Novel) => askSmart(discoverStrings.similarRequest(novel.title));
 
   const clearSmart = () => {
     setSmart(null);
@@ -270,6 +273,7 @@ export function useDiscoverController({
     smartStage,
     aiAvailable,
     askSmart,
+    suggestSimilar,
     clearSmart,
     /** Other editions and similar novels of the novel in the details panel. */
     related,

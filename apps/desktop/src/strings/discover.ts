@@ -22,15 +22,18 @@ export const discoverStrings = {
   searching: "Buscando…",
   allSources: "Todas as fontes",
   alsoIn: "Também em",
-  smartTitle: "Filtro inteligente",
-  smartPlaceholder: "Descreva o que quer ler. Ex.: parecido com Shadow Slave, completa, até 800 capítulos, sem harém",
-  smartAsk: "Perguntar",
+  smartTitle: "Sugestões parecidas",
+  suggestSimilar: "Sugerir parecidos",
+  suggestSimilarTitle: (ai: boolean) =>
+    ai
+      ? "O ChatGPT (a sua conta da Tradução) lê esta história e as sinopses do catálogo e mostra só as que têm pontos em comum."
+      : "Entre em Tradução com a sua conta do ChatGPT para sugestões pela história, não só pelas tags.",
+  similarRequest: (title: string) => `novels parecidas com ${title}`,
   smartFallback: "O ChatGPT não respondeu como esperado; usei a interpretação local.",
   smartFailed: "Não foi possível aplicar o filtro inteligente.",
   smartClear: "Limpar filtro inteligente",
   smartByAi: "ChatGPT",
   smartLocal: "Interpretação local",
-  smartHintAi: "Usa a sua conta do ChatGPT (a mesma da Tradução). Pedidos sobre a história (\"parecido com X\", \"protagonista que…\") passam por uma curadoria: o modelo lê as sinopses e fica só com o que tem pontos em comum.",
   smartUnderstanding: "Entendendo o pedido…",
   smartReading: (count: number) => `Lendo as sinopses de ${count} candidatas para ficar só com as que têm a ver…`,
   smartPicked: (picks: number, read: number) =>
@@ -42,7 +45,6 @@ export const discoverStrings = {
   smartNoPicksTitle: "Nada no catálogo chega perto o bastante",
   smartNoPicksDescription: (read: number) =>
     `O ChatGPT leu ${read} sinopses e nenhuma tem pontos de história realmente em comum. Você pode ver as parecidas só por tags ou descrever o que quer de outro jeito.`,
-  smartHintLocal: "Sem conta do ChatGPT o app entende o básico (gênero, \"parecido com\", completa, capítulos, \"sem X\"). Entre em Tradução para respostas melhores.",
   completeShort: "Completa",
   similar: "Parecidos",
 

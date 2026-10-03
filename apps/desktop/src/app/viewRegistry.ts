@@ -116,7 +116,7 @@ function DiscoverPage({ app }: ViewProps) {
     smartBusy: discover.smartBusy,
     smartStage: discover.smartStage,
     aiAvailable: discover.aiAvailable,
-    onAskSmart: discover.askSmart,
+    onSuggestSimilar: discover.suggestSimilar,
     onClearSmart: discover.clearSmart,
     onClearPreview: discover.clearPreviewNovel,
     onSelectionChange: discover.updateSelection,

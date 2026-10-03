@@ -41,6 +41,8 @@ export type SmartIntent = {
 };
 
 export type SmartResult = {
+  /** What the user typed (shown in the status line). */
+  request?: string;
   intent: SmartIntent;
   /** Discover filters to apply (the normal filter bar shows and edits them). */
   filters: Filters;

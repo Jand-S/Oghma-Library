@@ -1001,35 +1001,17 @@
   }
 
 
-  /* Filtro inteligente: request field, then what was understood. */
+  /* "Sugerir parecidos": one status line above the grid while it runs and after it. */
   .smart-filter {
-    display: grid;
-    gap: var(--space-1);
     padding: var(--space-2) var(--space-3) 0;
   }
 
-  .smart-filter__form {
+  .smart-filter__line {
     display: flex;
     gap: var(--space-1);
     align-items: center;
-  }
-
-  .smart-filter__field {
-    flex: 1;
     min-width: 0;
-  }
-
-  .smart-filter__hint {
     margin: 0;
-    color: var(--text-muted);
-    font-size: var(--fs-xs);
-  }
-
-  .smart-filter__result {
-    display: flex;
-    gap: var(--space-1);
-    align-items: center;
-    min-width: 0;
     font-size: var(--fs-sm);
   }
 
@@ -1046,6 +1028,13 @@
     color: var(--text-muted);
     font-size: var(--fs-xs);
     white-space: nowrap;
+  }
+
+  .discover-detail__section-head {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+    justify-content: space-between;
   }
 
   .discover-card__reason {

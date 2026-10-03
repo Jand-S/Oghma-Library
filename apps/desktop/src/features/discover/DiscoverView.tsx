@@ -9,8 +9,7 @@ import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./Discov
 import type { SortDirection } from "./DiscoverHeader";
 import { sortNovels } from "../../services/catalogIndex";
 import type { SmartResult } from "../../services/smartFilter";
-import type { SmartStageInfo } from "./SmartFilterPanel";
-import { SmartFilterPanel } from "./SmartFilterPanel";
+import { SmartFilterStatus, type SmartStageInfo } from "./SmartFilterStatus";
 import { activeFilters, clearedFilters } from "./filterModel";
 import "./discover.css";
 
@@ -45,7 +44,8 @@ export type DiscoverViewProps = {
   /** What the smart filter is doing while busy (shown under the field). */
   smartStage?: SmartStageInfo | null;
   aiAvailable?: boolean;
-  onAskSmart?: (request: string) => void;
+  /** "Sugerir parecidos" in the details panel: curated suggestions with the novel as reference. */
+  onSuggestSimilar?: (novel: Novel) => void;
   onClearSmart?: () => void;
   onPreviewNovel: (novel: Novel) => void;
   onClearPreview: () => void;
@@ -85,7 +85,7 @@ export function DiscoverView({
   smartBusy = false,
   smartStage = null,
   aiAvailable = false,
-  onAskSmart,
+  onSuggestSimilar,
   onClearSmart,
   onClearPreview,
   onSelectionChange,
@@ -239,16 +239,14 @@ export function DiscoverView({
   return (
     <div className={cx("discover", detailNovel && "discover--with-detail")}>
       <div className="discover__main" onClick={onBackgroundClick}>
-        {onAskSmart && onClearSmart ? (
-          <SmartFilterPanel
+        {onClearSmart ? (
+          <SmartFilterStatus
             result={smart}
             busy={smartBusy}
             stage={smartStage}
-            aiAvailable={aiAvailable}
             broad={smartBroad}
             broadCount={allResults.length}
             onToggleBroad={() => setSmartBroad((value) => !value)}
-            onAsk={onAskSmart}
             onClear={onClearSmart}
           />
         ) : null}
@@ -289,6 +287,9 @@ export function DiscoverView({
           editions={related?.editions}
           similar={related?.similar}
           onOpenNovel={onPreviewNovel}
+          onSuggestSimilar={onSuggestSimilar}
+          suggestAvailable={aiAvailable}
+          suggesting={smartBusy}
         />
       ) : null}
     </div>

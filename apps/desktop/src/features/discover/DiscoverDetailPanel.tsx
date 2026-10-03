@@ -1,4 +1,4 @@
-import { Check, Clock, Download, RotateCcw, X } from "lucide-react";
+import { Check, Clock, Download, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { statusLabel } from "../../constants/ui";
 import { estimateChapters } from "../../core/defaults";
@@ -35,6 +35,10 @@ type DiscoverDetailPanelProps = {
   similar?: Novel[];
   /** Opens another novel in this panel (preview). */
   onOpenNovel?: (novel: Novel) => void;
+  /** "Sugerir parecidos": the model reads this story and the catalog synopses (ChatGPT login). */
+  onSuggestSimilar?: (novel: Novel) => void;
+  suggestAvailable?: boolean;
+  suggesting?: boolean;
 };
 
 /** Detail tags beyond this many rows collapse behind a "+N" chip. */
@@ -94,7 +98,10 @@ export function DiscoverDetailPanel({
   onAdd,
   editions = [],
   similar = [],
-  onOpenNovel
+  onOpenNovel,
+  onSuggestSimilar,
+  suggestAvailable = false,
+  suggesting = false
 }: DiscoverDetailPanelProps) {
   const [synopsisOpen, setSynopsisOpen] = useState(false);
   useEffect(() => setSynopsisOpen(false), [novel.id]);
@@ -191,10 +198,26 @@ export function DiscoverDetailPanel({
               </ul>
             </section>
           ) : null}
-          {similar.length > 0 ? (
+          {similar.length > 0 || onSuggestSimilar ? (
             <section className="discover-detail__section" data-testid="discover-similar">
-              <h3 className="discover-detail__section-title">{discoverStrings.similar}</h3>
-              <ul className="discover-similar">
+              <div className="discover-detail__section-head">
+                <h3 className="discover-detail__section-title">{discoverStrings.similar}</h3>
+                {onSuggestSimilar ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={<Sparkles />}
+                    loading={suggesting}
+                    disabled={!suggestAvailable}
+                    title={discoverStrings.suggestSimilarTitle(suggestAvailable)}
+                    onClick={() => onSuggestSimilar(novel)}
+                    data-testid="suggest-similar"
+                  >
+                    {discoverStrings.suggestSimilar}
+                  </Button>
+                ) : null}
+              </div>
+              {similar.length > 0 ? <ul className="discover-similar">
                 {similar.map((other) => (
                   <li key={other.id}>
                     <button type="button" className="discover-similar__item" onClick={() => onOpenNovel?.(other)} title={other.title}>
@@ -203,7 +226,7 @@ export function DiscoverDetailPanel({
                     </button>
                   </li>
                 ))}
-              </ul>
+              </ul> : null}
             </section>
           ) : null}
           {novel.updatedAt ? <p className="discover-detail__updated">{discoverStrings.updated(novel.updatedAt)}</p> : null}

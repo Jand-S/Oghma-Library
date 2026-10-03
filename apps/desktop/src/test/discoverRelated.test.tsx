@@ -32,6 +32,18 @@ describe("Discover details: other editions and similar novels", () => {
     expect(onOpenNovel).toHaveBeenLastCalledWith(similar);
   });
 
+  it("'Sugerir parecidos' asks for curated suggestions with this novel as the reference", () => {
+    const onSuggestSimilar = vi.fn();
+    render(
+      <DiscoverDetailPanel novel={base} isSelected={false} preview selection={null} adding={false} inLibrary={false} queued={false}
+        onClose={vi.fn()} onSelect={vi.fn()} onSelectionChange={vi.fn()} onAdd={vi.fn()}
+        onSuggestSimilar={onSuggestSimilar} suggestAvailable />
+    );
+    // The section shows the button even when no novel shares enough tags.
+    fireEvent.click(within(screen.getByTestId("discover-similar")).getByRole("button", { name: discoverStrings.suggestSimilar }));
+    expect(onSuggestSimilar).toHaveBeenCalledWith(base);
+  });
+
   it("hides the sections when there is nothing to show", () => {
     render(
       <DiscoverDetailPanel novel={base} isSelected={false} preview selection={null} adding={false} inLibrary={false} queued={false}
