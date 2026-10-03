@@ -27,7 +27,7 @@ class FakeEngine(Engine):
     def plan(self, fresh=False):
         return self.usage
 
-    def run(self, role, system_prompt, task, cwd, *, timeout, network):
+    def run(self, role, system_prompt, task, cwd, *, timeout, network, effort=None):
         if role in self.limit_on:
             self.limit_on.discard(role)
             raise LimitHit(f"{self.name} sem plano")
@@ -174,7 +174,7 @@ def test_without_plan_request_goes_back_to_queue_with_return_time(tmp_path, monk
     pipe.run()
     final = brain.updates[-1]
     assert final["status"] == "queued" and final["stage"] == "waiting_plan"
-    assert final["message"] == f"Aguardando plano, volta às {worker.back_label(back)}"
+    assert final["message"] == f"Na fila: a construção retoma às {worker.back_label(back)}"
     assert abs(worker.datetime.fromisoformat(final["retry_at"]).timestamp() - back) < 1
     assert worker.interrupted_request() is None  # espera não é pedido interrompido
 
@@ -283,3 +283,119 @@ def test_plan_exhaustion_and_return_time():
     assert not PlanUsage(five_hour=100.0, resets_at=int(now - 5)).exhausted(now)  # janela já reabriu
     week = PlanUsage(five_hour=10.0, weekly=100.0, weekly_resets_at=int(now + 9000))
     assert week.exhausted(now) and week.available_at(now) == int(now + 9000)
+
+
+def test_failed_role_is_retried_once_with_more_reasoning(tmp_path):
+    calls, efforts = [], []
+
+    class Flaky(FakeEngine):
+        def run(self, role, system_prompt, task, cwd, *, timeout, network, effort=None):
+            if role == "connector-builder":
+                efforts.append(effort)
+                if effort is None:
+                    return RunResult(self.name, role, ok=False, error="travou no meio")
+            return super().run(role, system_prompt, task, cwd, timeout=timeout, network=network, effort=effort)
+
+    pipe = _pipeline(tmp_path, [Flaky("codex", calls=calls)], [{"ok": True, "pytest": {"output": ""}, "files_outside_scope": []}])
+    pipe.build()
+    assert efforts == [None, worker.RETRY_EFFORT]
+    assert [r for _, r in calls] == ["site-analyst", "connector-builder", "test-writer", "qa-reviewer"]
+
+
+def test_role_failing_twice_stops_the_build(tmp_path):
+    class Broken(FakeEngine):
+        def run(self, role, system_prompt, task, cwd, *, timeout, network, effort=None):
+            if role == "test-writer":
+                return RunResult(self.name, role, ok=False, error="erro")
+            return super().run(role, system_prompt, task, cwd, timeout=timeout, network=network, effort=effort)
+
+    pipe = _pipeline(tmp_path, [Broken("codex")], [])
+    with pytest.raises(worker.StepFailed) as err:
+        pipe.build()
+    assert err.value.stage == "test-writer"
+
+
+class RecordingBrain2(worker.NullBrain):
+    def __init__(self):
+        super().__init__()
+        self.updates = []
+
+    def update(self, request_id, **fields):
+        self.updates.append(fields)
+
+
+def test_failure_is_explained_with_retry_button_and_plain_app_message(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_WORK", str(tmp_path / "ac"))
+
+    class Explainer(FakeEngine):
+        def run(self, role, system_prompt, task, cwd, *, timeout, network, effort=None):
+            if role == "failure-explainer":
+                (Path(cwd) / "backend/autoconnector/work/DIAGNOSIS.json").write_text(json.dumps({
+                    "categoria": "infraestrutura", "resumo": "O git do servidor está sem identidade.",
+                    "causas": ["user.name não configurado"], "o_que_fazer": "Configurar o git e tentar de novo.",
+                    "vale_tentar_de_novo": True, "mensagem_usuario": "Tivemos um problema no servidor; já estamos vendo."}))
+                return RunResult(self.name, role, ok=True)
+            return super().run(role, system_prompt, task, cwd, timeout=timeout, network=network, effort=effort)
+
+    brain = RecordingBrain2()
+    request = {"id": "abc1234567", "url": "https://exemplo.com/", "domain": "exemplo.com", "novelUrl": None}
+    pipe = worker.Pipeline(request, brain, [Explainer("codex")], deploy=True, runner=lambda *a, **k: "")
+    pipe.wt = tmp_path / "wt"
+    pipe.work = pipe.wt / "backend" / "autoconnector" / "work"
+    pipe.existing_source = lambda: None
+    pipe.prepare_worktree = lambda: pipe.work.mkdir(parents=True, exist_ok=True)
+    pipe.gate = lambda: {"ok": True, "pytest": {"output": ""}, "files_outside_scope": [], "probe": {}}
+
+    def broken_deploy(gate):
+        raise RuntimeError("git commit -q -m... saiu com 128: Author identity unknown")
+
+    pipe.deploy = broken_deploy
+    pipe.run()
+    final = brain.updates[-1]
+    assert final["status"] == "failed"
+    assert final["message"] == "Tivemos um problema no servidor; já estamos vendo."
+    assert "Author identity" not in final["message"] and "Author identity" in final["body"]
+    assert "Configurar o git" in final["body"]
+    assert [a["id"] for a in final["actions"]] == ["retry", "dismiss"]
+
+
+def test_unviable_site_without_diagnosis_has_no_retry_button(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_WORK", str(tmp_path / "ac"))
+    brain = RecordingBrain2()
+    request = {"id": "abc1234567", "url": "https://exemplo.com/", "domain": "exemplo.com", "novelUrl": None}
+    pipe = worker.Pipeline(request, brain, [FakeEngine("codex")], deploy=False, runner=lambda *a, **k: "")
+    pipe.wt = tmp_path / "wt"
+    pipe.work = pipe.wt / "backend" / "autoconnector" / "work"
+    pipe.existing_source = lambda: None
+    pipe.prepare_worktree = lambda: pipe.work.mkdir(parents=True, exist_ok=True)
+
+    def unviable():
+        raise worker.StepFailed("analyzing", "site inviável segundo a análise: login obrigatório", kind="site")
+
+    pipe.build = unviable
+    pipe.diagnose = lambda *a: None
+    pipe.run()
+    final = brain.updates[-1]
+    assert final["message"] == worker.USER_MSG_SITE
+    assert [a["id"] for a in final["actions"]] == ["dismiss"]
+
+
+def test_unused_fixtures_are_pruned_and_restored_if_tests_need_them(tmp_path, monkeypatch):
+    request = {"id": "abc1234567", "url": "https://exemplo.com/", "domain": "exemplo.com", "novelUrl": None}
+    pipe = worker.Pipeline(request, worker.NullBrain(), [], deploy=False, runner=lambda *a, **k: "")
+    pipe.runtime = "venv"
+    pipe.wt = tmp_path / "wt"
+    pipe.work = pipe.wt / "backend" / "autoconnector" / "work"
+    fixtures = pipe.wt / "backend" / "tests" / "fixtures" / pipe.source_id
+    fixtures.mkdir(parents=True)
+    (fixtures / "novel.html").write_text("usada")
+    (fixtures / "home.html").write_text("crua")
+    (fixtures / "bundle.js").write_text("crua")
+    (pipe.wt / "backend" / "tests" / f"test_{pipe.module}.py").write_text('FIX = "novel.html"')
+    pipe.proc = lambda *a, **k: (0, "1 passed")
+    assert pipe.prune_fixtures() == 2
+    assert sorted(p.name for p in fixtures.iterdir()) == ["novel.html"]
+    (fixtures / "home.html").write_text("crua")
+    pipe.proc = lambda *a, **k: (1, "1 failed")
+    assert pipe.prune_fixtures() == 0
+    assert sorted(p.name for p in fixtures.iterdir()) == ["home.html", "novel.html"]

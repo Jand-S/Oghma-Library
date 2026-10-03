@@ -9,10 +9,11 @@ const strings = sourcesStrings.request;
 
 /** Texto da etapa: a fila mostra a posição; falha e recusa mostram o motivo. */
 export function requestStageText(request: SourceRequest): string {
-  // Sem plano de IA livre: a mensagem já traz quando volta ("Aguardando plano, volta às 14:30").
+  // Esperando a vez da construção: a mensagem já traz quando volta ("Na fila: a construção retoma às 14:30").
   if (request.stage === "waiting_plan") return request.message || request.stageLabel;
   if (request.status === "queued" && request.queuePosition) return strings.queue(request.queuePosition);
-  if ((request.status === "failed" || request.status === "rejected") && request.message) return `${request.stageLabel}: ${request.message}`;
+  // Falha e recusa: a frase já vem pronta para quem pediu (os detalhes técnicos ficam no brain).
+  if ((request.status === "failed" || request.status === "rejected") && request.message) return request.message;
   return request.stageLabel;
 }
 

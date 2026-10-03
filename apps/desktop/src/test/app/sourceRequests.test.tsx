@@ -53,9 +53,9 @@ describe("Pedidos de fonte nova", () => {
   });
 
   it("sem plano de IA livre mostra quando volta, não a posição na fila", () => {
-    view([request({ status: "queued", stage: "waiting_plan", stageLabel: "Aguardando plano", stageIndex: 2, queuePosition: 1,
-      message: "Aguardando plano, volta às 14:30" })]);
-    expect(screen.getByTestId("pending-source-stage")).toHaveTextContent("Aguardando plano, volta às 14:30");
+    view([request({ status: "queued", stage: "waiting_plan", stageLabel: "Aguardando a vez", stageIndex: 2, queuePosition: 1,
+      message: "Na fila: a construção retoma às 14:30" })]);
+    expect(screen.getByTestId("pending-source-stage")).toHaveTextContent("Na fila: a construção retoma às 14:30");
     expect(screen.getByTestId("pending-source-badge")).toHaveTextContent(strings.building);
   });
 
@@ -82,7 +82,7 @@ describe("Pedidos de fonte nova", () => {
 
   it("pedido que falhou mostra o motivo e pode ser removido", () => {
     const requests = view([request({ status: "failed", stage: "failed", stageLabel: "Não foi possível criar", stageIndex: null, message: "site só tem imagens" })]);
-    expect(screen.getByTestId("pending-source-stage")).toHaveTextContent("site só tem imagens");
+    expect(screen.getByTestId("pending-source-stage")).toHaveTextContent(/^site só tem imagens$/);
     fireEvent.click(screen.getByRole("button", { name: strings.dismiss }));
     expect(requests.dismiss).toHaveBeenCalledWith("a1b2c3d4e5");
   });

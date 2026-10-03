@@ -105,7 +105,9 @@ class Engine:
     def _probe_plan(self) -> PlanUsage:
         raise NotImplementedError
 
-    def run(self, role: str, system_prompt: str, task: str, cwd: str, *, timeout: int, network: bool) -> RunResult:
+    def run(self, role: str, system_prompt: str, task: str, cwd: str, *, timeout: int, network: bool,
+            effort: str | None = None) -> RunResult:
+        """`effort` (low|medium|high|xhigh): mais raciocinio na retentativa de um papel que falhou."""
         raise NotImplementedError
 
 
@@ -163,12 +165,14 @@ class ClaudeCodeEngine(Engine):
                     return usage
         return PlanUsage()
 
-    def run(self, role, system_prompt, task, cwd, *, timeout, network):
+    def run(self, role, system_prompt, task, cwd, *, timeout, network, effort=None):
         before = self.plan()
         tools = ROLE_TOOLS_CLAUDE.get(role, "Read Glob Grep")
         cmd = [CLAUDE_BIN, "-p", task, "--output-format", "stream-json", "--verbose",
                "--permission-mode", "acceptEdits", "--allowedTools", tools,
                "--append-system-prompt", system_prompt, "--max-turns", "120"]
+        if effort:
+            cmd += ["--effort", effort]
         started = time.monotonic()
         result = RunResult(self.name, role, ok=False, plan_before=asdict(before))
         try:
@@ -219,6 +223,7 @@ ROLE_TOOLS_CLAUDE = {
     "qa-reviewer": "Read Glob Grep Write",
     "connector-fixer": "Read Write Edit Glob Grep Bash(curl:*) Bash(python3:*) Bash(sleep:*)",
     "connector-maintainer": "Read Write Edit Glob Grep Bash(curl:*) Bash(python3:*) Bash(sleep:*)",
+    "failure-explainer": "Read Glob Grep Write",
 }
 
 
@@ -271,13 +276,15 @@ class CodexEngine(Engine):
             return PlanUsage()
         return self._usage_from_sessions() or PlanUsage()
 
-    def run(self, role, system_prompt, task, cwd, *, timeout, network):
+    def run(self, role, system_prompt, task, cwd, *, timeout, network, effort=None):
         before = self.plan()
         prompt = f"{system_prompt}\n\n---\n\n{task}"
         # O prompt vai pela entrada padrao ("-"): texto comecando com "-" nao vira opcao do CLI.
         cmd = [CODEX_BIN, "exec", "--json", "--skip-git-repo-check", "-C", cwd,
-               "--sandbox", "workspace-write", "-c", f"sandbox_workspace_write.network_access={'true' if network else 'false'}",
-               "-"]
+               "--sandbox", "workspace-write", "-c", f"sandbox_workspace_write.network_access={'true' if network else 'false'}"]
+        if effort:
+            cmd += ["-c", f'model_reasoning_effort="{effort}"']
+        cmd.append("-")
         started = time.time()
         result = RunResult(self.name, role, ok=False, plan_before=asdict(before))
         try:

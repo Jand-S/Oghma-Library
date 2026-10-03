@@ -46,6 +46,10 @@ from engines import ClaudeCodeEngine, CodexEngine, LimitHit, RunResult, pick_eng
 HERE = Path(__file__).resolve().parent
 ROLE_TIMEOUT = int(os.environ.get("AUTOCONNECTOR_ROLE_TIMEOUT", 45 * 60))
 FIX_ROUNDS = 2
+RETRY_EFFORT = os.environ.get("AUTOCONNECTOR_RETRY_EFFORT", "high")  # raciocinio da 2a tentativa de um papel
+EXPLAIN_TIMEOUT = 10 * 60
+USER_MSG_DEFAULT = "Não deu para criar esta fonte agora. O responsável já foi avisado e pode tentar de novo."
+USER_MSG_SITE = "Este site não pode ser adicionado por enquanto."
 POLL_SECONDS = 120
 BUILD_ROLES = ["site-analyst", "connector-builder", "test-writer"]
 NETWORK_ROLES = {"site-analyst", "connector-fixer", "connector-maintainer"}
@@ -171,9 +175,9 @@ class WaitPlan(RuntimeError):
 
 
 class StepFailed(RuntimeError):
-    def __init__(self, stage: str, message: str):
+    def __init__(self, stage: str, message: str, kind: str = "conector"):
         super().__init__(message)
-        self.stage = stage
+        self.stage, self.kind = stage, kind
 
 
 class Pipeline:
@@ -319,7 +323,7 @@ class Pipeline:
         text = (HERE / "agents" / f"{role}.md").read_text(encoding="utf-8")
         return re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.S).strip()
 
-    def run_role(self, role: str, task: str) -> RunResult:
+    def run_role(self, role: str, task: str, effort: str | None = None) -> RunResult:
         """Roda um papel no motor com mais plano livre; se o plano acabar no meio, tenta o outro.
         Sem plano em nenhum, levanta WaitPlan (o pedido volta para a fila)."""
         for _ in range(len(self.engines) + 1):
@@ -327,10 +331,11 @@ class Pipeline:
                 engine = pick_engine(self.engines, exclude=self.limited, force=self.force)
             except LimitHit:
                 raise WaitPlan(plan_back_at(self.engines), role)
-            self.report(title=f"{role}: começou ({engine.name})")
+            self.report(title=f"{role}: começou ({engine.name}{', raciocínio ' + effort if effort else ''})")
+            extra = {"effort": effort} if effort else {}
             try:
                 result = engine.run(role, self.role_prompt(role), task, str(self.wt),
-                                    timeout=ROLE_TIMEOUT, network=role in NETWORK_ROLES)
+                                    timeout=ROLE_TIMEOUT, network=role in NETWORK_ROLES, **extra)
             except LimitHit as exc:
                 self.limited.add(engine.name)
                 self.report(title=f"{role}: {engine.name} sem plano, trocando de motor", log=str(exc))
@@ -345,6 +350,23 @@ class Pipeline:
                 raise StepFailed(role, result.error or f"{role} terminou com erro")
             return result
         raise WaitPlan(plan_back_at(self.engines), role)
+
+    def run_step(self, role: str, task: str, deliverable: Path | None = None) -> None:
+        """Roda o papel; se falhar (ou nao entregar o arquivo), tenta de novo uma vez com mais raciocinio."""
+        error = ""
+        try:
+            self.run_role(role, task)
+            if deliverable is None or deliverable.exists():
+                return
+            error = f"não entregou {deliverable.name}"
+        except StepFailed as exc:
+            error = str(exc)
+        self.report(title=f"{role}: falhou ({error[:200]}); tentando de novo com mais raciocínio")
+        retry = (f"{task}\n\nSEGUNDA TENTATIVA: a anterior falhou ({error[:500]}). Releia o seu papel com calma, "
+                 f"confira o que já está no worktree e entregue o que o papel pede.")
+        self.run_role(role, retry, effort=RETRY_EFFORT)
+        if deliverable is not None and not deliverable.exists():
+            raise StepFailed(role, f"{role} não entregou {deliverable.name} nem na segunda tentativa")
 
     def task_text(self, role: str, round_no: int = 0) -> str:
         base = (f"Fonte: {self.domain} (source_id `{self.source_id}`, modulo `{self.module}`). "
@@ -410,18 +432,18 @@ class Pipeline:
             self.report(title=f"Retomando de onde parou (já feito: {', '.join(self.progress)})")
         if not self.done("site-analyst"):
             self.report("analyzing", "Analisando o site")
-            self.run_role("site-analyst", self.task_text("site-analyst"))
+            self.run_step("site-analyst", self.task_text("site-analyst"), self.work / "SITE_REPORT.md")
             self.mark_done("site-analyst")
         report = self.work / "SITE_REPORT.md"
         if not report.exists():
             raise StepFailed("analyzing", "o site-analyst não entregou SITE_REPORT.md")
         if "INVIAVEL" in report.read_text(encoding="utf-8")[:4000]:
             summary = report.read_text(encoding="utf-8")[:600]
-            raise StepFailed("analyzing", f"site inviável segundo a análise: {summary}")
+            raise StepFailed("analyzing", f"site inviável segundo a análise: {summary}", kind="site")
         self.report("building", "Construindo o conector")
         for role in ("connector-builder", "test-writer"):
             if not self.done(role):
-                self.run_role(role, self.task_text(role))
+                self.run_step(role, self.task_text(role))
                 self.mark_done(role)
         self.report("testing", "Testando")
         for round_no in range(FIX_ROUNDS + 1):
@@ -434,17 +456,48 @@ class Pipeline:
                         + "\n" + gate["pytest"]["output"][-1500:])
             reviewed = f"qa-reviewer:{round_no}"
             if not self.done(reviewed):
-                self.run_role("qa-reviewer", self.task_text("qa-reviewer"))
+                self.run_step("qa-reviewer", self.task_text("qa-reviewer"), self.work / "REVIEW.md")
                 self.mark_done(reviewed)
             if gate["ok"] and self.review_verdict() == "approve":
                 return gate
             if round_no == FIX_ROUNDS:
                 break
-            self.run_role("connector-fixer", self.task_text("connector-fixer", round_no + 1))
+            self.run_step("connector-fixer", self.task_text("connector-fixer", round_no + 1))
             self.mark_done(fixed)
         raise StepFailed("testing", "o conector não passou no portão depois das rodadas de correção")
 
+    def prune_fixtures(self) -> int:
+        """Tira as fixtures que nenhum teste cita (paginas cruas do site-analyst) antes do commit.
+        Se o teste da fonte deixar de passar sem elas, devolve tudo."""
+        fixtures = self.wt / "backend" / "tests" / "fixtures" / self.source_id
+        test = self.wt / "backend" / "tests" / f"test_{self.module}.py"
+        if self.runtime != "venv" or not fixtures.is_dir() or not test.exists():
+            return 0
+        text = test.read_text(encoding="utf-8")
+        unused = [p for p in fixtures.rglob("*") if p.is_file() and p.name not in text]
+        if not unused:
+            return 0
+        backup = self.work / "pruned-fixtures"
+        moved = []
+        for path in unused:
+            dest = backup / path.relative_to(fixtures)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(path), dest)
+            moved.append((path, dest))
+        backend = self.wt / "backend"
+        code, out = self.proc([str(self.venv / "bin" / "python"), "-m", "pytest", "-q", "-p", "no:cacheprovider",
+                               f"tests/test_{self.module}.py"], cwd=backend, env=self.venv_env(src=backend / "src"))
+        if code != 0:
+            for path, dest in moved:
+                shutil.move(str(dest), path)
+            self.report(title="Fixtures mantidas: o teste da fonte depende delas", log=out[-1500:])
+            return 0
+        size = sum(dest.stat().st_size for _, dest in moved)
+        self.report(title=f"Fixtures sem uso removidas: {len(moved)} arquivos ({size / 1e6:.1f} MB)")
+        return len(moved)
+
     def deploy(self, gate: dict) -> None:
+        self.prune_fixtures()
         msg = (f"Add {self.source_id} connector (autoconnector request {self.req.get('id')})\n\n"
                f"Created by the autoconnector subagents. Gate: pytest + live probe passed.\n\n"
                f"Co-Authored-By: autoconnector <noreply@jandson.me>")
@@ -553,19 +606,56 @@ class Pipeline:
             clear_current(self.req)
         except WaitPlan as exc:
             label = back_label(exc.at)
-            self.report(status="queued", stage="waiting_plan", message=f"Aguardando plano, volta às {label}",
+            self.report(status="queued", stage="waiting_plan", message=f"Na fila: a construção retoma às {label}",
                         retry_at=datetime.fromtimestamp(exc.at, timezone.utc).isoformat(),
                         title=f"Sem plano nos motores: {exc.role} retoma às {label}")
             clear_current(self.req)
             return
         except StepFailed as exc:
             clear_current(self.req)
-            self.report(status="failed", stage="failed", level="error", title=f"Não foi possível criar a fonte ({exc.stage})",
-                        body=str(exc)[:1500], message=str(exc)[:300], log=str(exc))
-        except Exception as exc:  # qualquer falha vira aviso, o worktree fica para analise
+            self.fail(exc.stage, str(exc), exc.kind, str(exc))
+        except Exception as exc:  # qualquer falha vira aviso, o worktree fica para analise e nova tentativa
             clear_current(self.req)
-            self.report(status="failed", stage="failed", level="error", title="Erro inesperado no autoconnector",
-                        body=str(exc)[:1500], message=str(exc)[:300], log=traceback.format_exc()[-4000:])
+            self.fail("deploy" if self.progress else "preparo", f"{type(exc).__name__}: {exc}", "infraestrutura",
+                      traceback.format_exc()[-4000:])
+
+    # -- falha: explicacao + botoes no brain, frase simples no app
+    def diagnose(self, stage: str, error: str, kind: str, log: str) -> dict | None:
+        """failure-explainer le os registros e escreve DIAGNOSIS.json. None se nao der (sem motor, sem worktree)."""
+        if not self.wt.exists():
+            return None
+        try:
+            self.work.mkdir(parents=True, exist_ok=True)
+            (self.work / "FAILURE.json").write_text(json.dumps({
+                "etapa": stage, "categoria_provavel": kind, "erro": error[:3000], "registro": log[-6000:],
+                "feito": self.progress}, ensure_ascii=False, indent=2), encoding="utf-8")
+            target = self.work / "DIAGNOSIS.json"
+            target.unlink(missing_ok=True)
+            engine = pick_engine(self.engines, exclude=self.limited, force=self.force)
+            result = engine.run("failure-explainer", self.role_prompt("failure-explainer"),
+                                f"O pedido de {self.domain} falhou na etapa `{stage}`. Explique a falha.",
+                                str(self.wt), timeout=EXPLAIN_TIMEOUT, network=False)
+            self.costs.append(result.as_dict())
+            data = json.loads(target.read_text(encoding="utf-8")) if target.exists() else None
+            return data if isinstance(data, dict) and data.get("resumo") else None
+        except Exception:  # explicar nunca pode piorar a falha
+            return None
+
+    def fail(self, stage: str, error: str, kind: str, log: str) -> None:
+        diag = self.diagnose(stage, error, kind, log) or {}
+        kind = diag.get("categoria") or kind
+        retry = bool(diag["vale_tentar_de_novo"]) if "vale_tentar_de_novo" in diag else kind != "site"
+        lines = [diag.get("resumo") or f"Falhou na etapa {stage}."]
+        if diag.get("causas"):
+            lines.append("Causas prováveis:\n" + "\n".join(f"- {c}" for c in diag["causas"][:5]))
+        if diag.get("o_que_fazer"):
+            lines.append(f"O que fazer: {diag['o_que_fazer']}")
+        lines.append(f"Detalhe técnico ({stage}): {error[:700]}")
+        user = str(diag.get("mensagem_usuario") or (USER_MSG_SITE if kind == "site" else USER_MSG_DEFAULT))[:300]
+        actions = ([{"id": "retry", "label": "Tentar de novo"}] if retry else []) + [{"id": "dismiss", "label": "Deixar assim"}]
+        self.report(status="failed", stage="failed", level="error", kind="source_request",
+                    title=f"{self.domain}: não foi possível criar a fonte ({kind})",
+                    body="\n\n".join(lines)[:3000], message=user, log=log, actions=actions)
 
 
 # ------------------------------------------------------------------ pedido em andamento (retomada)
