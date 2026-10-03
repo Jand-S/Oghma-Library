@@ -13,15 +13,12 @@ import type { AppConfig, IndexMode, KindleDeviceStatus, SourceSite } from "../..
 import { settingsStrings } from "../../strings/settings";
 import { cx, useToast } from "../../ui";
 import type { ServerCheck } from "../sources/useSourcesController";
-import {
-  AboutSection,
-  AudioSection,
-  DownloadsSection,
-  GeneralSection,
-  KindleSection,
-  ServerSection
-} from "./SettingsSections";
-import type { TranslationSettingsProps } from "./SettingsSections";
+import { AboutSection } from "./AboutSection";
+import { DownloadsSection } from "./DownloadsSection";
+import { GeneralSection } from "./GeneralSection";
+import { KindleSection } from "./KindleSection";
+import { ServerSection } from "./ServerSection";
+import { TranslationSection, type TranslationSettingsProps } from "./TranslationSection";
 import "./settings.css";
 
 import { settingsCategories, type SettingsCategory } from "./categories";
@@ -137,7 +134,7 @@ export function SettingsView(props: SettingsViewProps) {
       );
       break;
     case "audio":
-      body = <AudioSection config={props.config} save={save} saved={saved} onNavigate={props.onNavigate} translation={props.translation} />;
+      body = <TranslationSection saved={saved} onNavigate={props.onNavigate} translation={props.translation} />;
       break;
     case "about":
       body = <AboutSection onOpenOnboarding={props.onOpenOnboarding} />;

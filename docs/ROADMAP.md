@@ -5,8 +5,8 @@ design e produto. O relatório completo, com as capturas de tela, foi publicado 
 e tem o link na nota `oghma-library` do docs.jandson.me. O roteiro antigo, de junho de 2026,
 está em `archive/ROADMAP_2026-06.md`.
 
-Estado em 2026-10-03: as Fases 0 a 4 estão no ar (VPS e app instalado). A Fase 5 está quase
-no fim.
+Estado em 2026-10-03: as Fases 0 a 5 estão no ar (VPS e app instalado). Da Fase 5 ficaram
+adiados, de propósito, o gerador único de EPUB e a remoção da API FastAPI.
 
 ## Fase 0 — Segurança e integridade ✅
 
@@ -71,7 +71,7 @@ no fim.
   `get_my_library`), caso o modo `chatgpt.tokens.use.direct` aceite `tools`. Também
   similaridade por embedding da sinopse, calculada no servidor (`discovery.json.gz`).
 
-## Fase 5 — Dívida técnica (quase no fim)
+## Fase 5 — Dívida técnica ✅ (dois itens adiados de propósito)
 
 - ✅ **Removidos:** a tradução antiga do backend (~10,7 mil linhas, `ebooklib` incluso) e o
   catálogo SQLite que ninguém lia.
@@ -80,7 +80,7 @@ no fim.
   exige tags e a listagem completa de capítulos.
 - ✅ **Docs atualizadas:** `STRUCTURE`, `ARCHITECTURE`, `KINDLE`, este roteiro; os planos
   encerrados foram para `archive/`.
-- ⏳ **Dividir `SettingsSections.tsx`** (~800 linhas).
+- ✅ **`SettingsSections.tsx` (734 linhas) dividido** num arquivo por seção, mais `settingsLayout.tsx`.
 - ⏸ **Um só gerador de EPUB** — junto com o download no Rust (retomada por `Range` e `.part`).
   Ver "Decisões em aberto" em `ARCHITECTURE.md`.
 - ⏸ **Remover a API FastAPI** — depois de uma semana estável só com a VPS: mover `raw` para
