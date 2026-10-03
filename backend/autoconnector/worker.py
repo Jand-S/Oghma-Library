@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+"""Worker do autoconnector: pedido de fonte aprovado no brain -> conector no ar.
+
+Roda no servidor local como o usuario `codex` (dono do repo, grupo docker), so com a
+biblioteca padrao. A sequencia dos subagentes, o portao e o deploy ficam aqui, em
+codigo fixo; os agentes de IA so escrevem codigo no worktree.
+
+  worker.py loop            # busca pedidos aprovados no brain a cada 2 min
+  worker.py once            # processa no maximo um pedido
+  worker.py run --url URL [--engine codex|claude] [--no-deploy]   # ensaio sem o brain
+
+Configuracao (env ou ~/.config/oghma-autoconnector.env): BRAIN_URL, BRAIN_TOKEN,
+OGHMA_REPO, AUTOCONNECTOR_WORK, OGHMA_COMPOSE_DIR, AUTOCONNECTOR_ENGINE (forca um motor).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import traceback
+import urllib.error
+import urllib.request
+from pathlib import Path
+from urllib.parse import urlsplit
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from engines import ClaudeCodeEngine, CodexEngine, LimitHit, RunResult, pick_engine  # noqa: E402
+
+HERE = Path(__file__).resolve().parent
+ROLE_TIMEOUT = int(os.environ.get("AUTOCONNECTOR_ROLE_TIMEOUT", 45 * 60))
+FIX_ROUNDS = 2
+POLL_SECONDS = 120
+BUILD_ROLES = ["site-analyst", "connector-builder", "test-writer"]
+NETWORK_ROLES = {"site-analyst", "connector-fixer", "connector-maintainer"}
+
+
+def load_env_file() -> None:
+    path = Path(os.path.expanduser("~/.config/oghma-autoconnector.env"))
+    if path.exists():
+        for line in path.read_text().splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
+
+
+def num(value: float) -> str:
+    """Inteiro com ponto de milhar (12.345)."""
+    return f"{int(value):,}".replace(",", ".")
+
+
+def cfg(name: str, default: str = "") -> str:
+    return os.environ.get(name, default)
+
+
+def source_id_for(domain: str) -> str:
+    base = domain.split(":")[0].removeprefix("www.")
+    parts = base.split(".")
+    core = parts[0] if len(parts) <= 2 else "-".join(parts[:-1])
+    return re.sub(r"[^a-z0-9]+", "-", core.lower()).strip("-")[:40] or "fonte"
+
+
+# ------------------------------------------------------------------ brain
+
+class Brain:
+    def __init__(self, url: str, token: str):
+        self.url, self.token = url.rstrip("/"), token
+
+    def _call(self, method: str, route: str, body: dict | None = None) -> dict:
+        data = json.dumps(body, ensure_ascii=False).encode() if body is not None else None
+        req = urllib.request.Request(self.url + route, data=data, method=method)
+        req.add_header("Authorization", f"Bearer {self.token}")
+        if data is not None:
+            req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode() or "{}")
+
+    def next_request(self) -> dict | None:
+        return self._call("GET", "/api/oghma/source-requests/next").get("request")
+
+    def update(self, request_id: str, **fields) -> None:
+        if not request_id:
+            print("[brain]", json.dumps(fields, ensure_ascii=False)[:400], flush=True)
+            return
+        try:
+            self._call("POST", f"/api/oghma/source-requests/{request_id}/status", fields)
+        except (urllib.error.URLError, OSError) as exc:  # o pedido segue mesmo sem o brain
+            print(f"[brain] falha ao reportar: {exc}", flush=True)
+
+    def notify(self, **fields) -> None:
+        try:
+            self._call("POST", "/api/notify", {"app": "oghma", **fields})
+        except (urllib.error.URLError, OSError) as exc:
+            print(f"[brain] falha ao avisar: {exc}", flush=True)
+
+
+class NullBrain(Brain):
+    def __init__(self):
+        super().__init__("", "")
+
+    def update(self, request_id, **fields):
+        print("[status]", json.dumps({k: v for k, v in fields.items() if k != "log"}, ensure_ascii=False)[:400], flush=True)
+
+    def notify(self, **fields):
+        print("[aviso]", fields.get("level"), fields.get("title"), flush=True)
+
+
+class _LocalRunBrain(NullBrain):
+    """Ensaio sem pedido no brain: cada etapa vira um aviso numa thread propria."""
+
+    def __init__(self, brain: Brain, request: dict):
+        super().__init__()
+        self.brain, self.thread = brain, f"oghma-ensaio-{request['id']}"
+
+    def update(self, request_id, **fields):
+        super().update(request_id, **fields)
+        if fields.get("title"):
+            self.brain.notify(level=fields.get("level", "info"), thread=self.thread, title=fields["title"],
+                              body=fields.get("body") or fields.get("log", "")[:1500])
+
+
+# ------------------------------------------------------------------ pipeline
+
+class StepFailed(RuntimeError):
+    def __init__(self, stage: str, message: str):
+        super().__init__(message)
+        self.stage = stage
+
+
+class Pipeline:
+    def __init__(self, request: dict, brain: Brain, engines, *, force_engine: str | None = None,
+                 deploy: bool = True, runner=None, rebuild: bool = False):
+        self.req = request
+        self.brain = brain
+        self.engines = engines
+        self.force = force_engine
+        self.deploy_enabled = deploy
+        self.repo = Path(cfg("OGHMA_REPO", "/home/codex/oghma-library"))
+        self.compose_dir = Path(cfg("OGHMA_COMPOSE_DIR", "/home/codex/oghma"))
+        self.domain = request["domain"]
+        self.source_id = request.get("sourceId") or source_id_for(self.domain)
+        self.module = self.source_id.replace("-", "_")
+        self.wt = Path(cfg("AUTOCONNECTOR_WORK", "/home/codex/oghma-autoconnector")) / f"{request['id']}-{self.source_id}"
+        self.work = self.wt / "backend" / "autoconnector" / "work"
+        self.costs: list[dict] = []
+        self.sh = runner or self._sh
+        self.limited: set[str] = set()
+        self.rebuild = rebuild  # ensaio: recria o conector mesmo se o dominio ja for uma fonte
+
+    # -- utilitarios
+    def _sh(self, cmd: list[str], cwd: Path | None = None, timeout: int = 1800, check: bool = True) -> str:
+        proc = subprocess.run(cmd, cwd=str(cwd) if cwd else None, capture_output=True, text=True, timeout=timeout)
+        if check and proc.returncode != 0:
+            raise RuntimeError(f"{' '.join(cmd[:4])}... saiu com {proc.returncode}: {(proc.stderr or proc.stdout)[-1500:]}")
+        return proc.stdout
+
+    def report(self, stage: str | None = None, title: str | None = None, **extra) -> None:
+        fields = {"cost": self.cost_summary(), **extra}
+        if stage:
+            fields["stage"] = stage
+        if title:
+            fields["title"] = title
+        self.brain.update(self.req.get("id", ""), **fields)
+
+    def cost_summary(self) -> dict:
+        total = {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "seconds": 0.0}
+        plan_used: dict[str, float] = {}
+        for c in self.costs:
+            for key in ("input_tokens", "cached_input_tokens", "output_tokens", "seconds"):
+                total[key] += c.get(key) or 0
+            total["cost_usd"] += c.get("cost_usd") or 0.0
+            before, after = c.get("plan_before") or {}, c.get("plan_after") or {}
+            if before.get("five_hour") is not None and after.get("five_hour") is not None:
+                plan_used[c["engine"]] = round(plan_used.get(c["engine"], 0) + max(0.0, after["five_hour"] - before["five_hour"]), 1)
+        total["cost_usd"] = round(total["cost_usd"], 4)
+        return {"total": total, "plan_5h_points_used": plan_used, "runs": self.costs}
+
+    # -- etapas
+    def existing_source(self) -> str | None:
+        cli = (self.repo / "backend" / "src" / "oghma" / "cli.py").read_text(encoding="utf-8")
+        for match in re.finditer(r'id="([^"]+)",\s*name="[^"]*",\s*base_url="([^"]+)"', cli):
+            host = (urlsplit(match.group(2)).hostname or "").removeprefix("www.")
+            if host == self.domain:
+                return match.group(1)
+        return None
+
+    def prepare_worktree(self) -> None:
+        branch = f"autoconnector/{self.req['id']}"
+        if not self.wt.exists():
+            self.wt.parent.mkdir(parents=True, exist_ok=True)
+            self.sh(["git", "-C", str(self.repo), "worktree", "add", "-B", branch, str(self.wt), "HEAD"])
+        self.work.mkdir(parents=True, exist_ok=True)
+        (self.wt / "backend" / "tests" / "fixtures" / self.source_id).mkdir(parents=True, exist_ok=True)
+        (self.work / "REQUEST.json").write_text(json.dumps({
+            "request_id": self.req.get("id"), "site_url": self.req.get("url"), "novel_url": self.req.get("novelUrl"),
+            "domain": self.domain, "source_id": self.source_id, "module": self.module,
+            "note": self.req.get("note") or "",
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def role_prompt(self, role: str) -> str:
+        return (HERE / "agents" / f"{role}.md").read_text(encoding="utf-8")
+
+    def run_role(self, role: str, task: str) -> RunResult:
+        """Roda um papel no motor com mais plano livre; se o plano acabar no meio, tenta o outro."""
+        for _ in range(len(self.engines)):
+            engine = pick_engine(self.engines, exclude=self.limited, force=self.force)
+            self.report(title=f"{role}: começou ({engine.name})")
+            try:
+                result = engine.run(role, self.role_prompt(role), task, str(self.wt),
+                                    timeout=ROLE_TIMEOUT, network=role in NETWORK_ROLES)
+            except LimitHit as exc:
+                self.limited.add(engine.name)
+                self.report(title=f"{role}: {engine.name} sem plano, trocando de motor", log=str(exc))
+                continue
+            self.costs.append(result.as_dict())
+            (self.work / "COSTS.json").write_text(json.dumps(self.cost_summary(), indent=2), encoding="utf-8")
+            tokens = result.input_tokens + result.output_tokens
+            cost = f", US$ {result.cost_usd:.2f}" if result.cost_usd else ""
+            self.report(title=f"{role}: {'ok' if result.ok else 'falhou'} ({engine.name}, {int(result.seconds)} s, {num(tokens)} tokens{cost})",
+                        log=f"{role} {engine.name}: {result.error or 'ok'}\n{result.log_tail[-1500:]}")
+            if not result.ok:
+                raise StepFailed(role, result.error or f"{role} terminou com erro")
+            return result
+        raise StepFailed(role, "nenhum motor com plano disponível")
+
+    def task_text(self, role: str, round_no: int = 0) -> str:
+        base = (f"Fonte: {self.domain} (source_id `{self.source_id}`, modulo `{self.module}`). "
+                f"Pedido em `backend/autoconnector/work/REQUEST.json`. Siga o seu papel ({role}) e o contexto em "
+                f"`backend/autoconnector/CONTEXT.md`. Trabalhe só dentro deste repositório.")
+        if role == "connector-fixer":
+            base += f" Esta é a rodada {round_no} de correção."
+        return base
+
+    def gate(self) -> dict:
+        """Portao deterministico: pytest + teste ao vivo + diff restrito. Grava GATE.json e DIFF.patch."""
+        backend = self.wt / "backend"
+        self.sh(["git", "add", "-A"], cwd=self.wt)
+        diff = self.sh(["git", "diff", "--cached", "HEAD"], cwd=self.wt)
+        (self.work / "DIFF.patch").write_text(diff, encoding="utf-8")
+        changed = [l for l in self.sh(["git", "diff", "--cached", "--name-only", "HEAD"], cwd=self.wt).splitlines() if l]
+        allowed = (f"backend/src/oghma/scraper/connectors/{self.module}.py",
+                   "backend/src/oghma/scraper/connectors/__init__.py",
+                   "backend/src/oghma/cli.py",
+                   f"backend/tests/test_{self.module}.py",
+                   f"backend/tests/fixtures/{self.source_id}/",
+                   "backend/autoconnector/work/")
+        outside = [p for p in changed if not p.startswith(allowed)]
+        pytest = subprocess.run(
+            ["docker", "run", "--rm", "-v", f"{backend}:/w", "-w", "/w", "--entrypoint", "sh", "oghma-crawler:latest", "-c",
+             "pip install -q --root-user-action=ignore pytest pytest-asyncio >/dev/null 2>&1; "
+             "pip install -q --root-user-action=ignore --no-deps -e . >/dev/null 2>&1; "
+             "python -m pytest -q -p no:cacheprovider tests 2>&1 | tail -40"],
+            capture_output=True, text=True, timeout=1800)
+        pytest_out = pytest.stdout + pytest.stderr
+        pytest_ok = bool(re.search(r"\b\d+ passed\b", pytest_out)) and not re.search(r"\b\d+ (failed|error)", pytest_out)
+        probe_cmd = ["docker", "run", "--rm", "--network", "oghma_default", "--env-file", str(self.compose_dir / ".env"),
+                     "-v", f"{backend / 'src' / 'oghma'}:/usr/local/lib/python3.11/site-packages/oghma",
+                     "--entrypoint", "oghma", "oghma-crawler:latest", "probe-connector", "--source", self.source_id]
+        if self.req.get("novelUrl"):
+            probe_cmd += ["--novel-url", self.req["novelUrl"]]
+        probe = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=1800)
+        try:
+            probe_report = json.loads(probe.stdout[probe.stdout.index("{"):])
+        except ValueError:
+            probe_report = {"ok": False, "error": (probe.stdout + probe.stderr)[-3000:]}
+        result = {"ok": pytest_ok and bool(probe_report.get("ok")) and not outside,
+                  "pytest": {"ok": pytest_ok, "output": pytest_out[-6000:]},
+                  "probe": probe_report, "files_outside_scope": outside}
+        (self.work / "GATE.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        return result
+
+    def review_verdict(self) -> str:
+        path = self.work / "REVIEW.md"
+        text = path.read_text(encoding="utf-8").lower() if path.exists() else ""
+        return "approve" if re.search(r"veredito:\s*approve", text) else "changes"
+
+    def build(self) -> dict:
+        self.report("analyzing", "Analisando o site")
+        self.run_role("site-analyst", self.task_text("site-analyst"))
+        report = self.work / "SITE_REPORT.md"
+        if not report.exists():
+            raise StepFailed("analyzing", "o site-analyst não entregou SITE_REPORT.md")
+        if "INVIAVEL" in report.read_text(encoding="utf-8")[:4000]:
+            summary = report.read_text(encoding="utf-8")[:600]
+            raise StepFailed("analyzing", f"site inviável segundo a análise: {summary}")
+        self.report("building", "Construindo o conector")
+        self.run_role("connector-builder", self.task_text("connector-builder"))
+        self.run_role("test-writer", self.task_text("test-writer"))
+        self.report("testing", "Testando")
+        for round_no in range(FIX_ROUNDS + 1):
+            gate = self.gate()
+            self.report(title=f"Portão (rodada {round_no}): {'passou' if gate['ok'] else 'reprovou'}",
+                        log=json.dumps({k: gate[k] for k in ('ok', 'files_outside_scope')}, ensure_ascii=False)
+                        + "\n" + gate["pytest"]["output"][-1500:])
+            self.run_role("qa-reviewer", self.task_text("qa-reviewer"))
+            if gate["ok"] and self.review_verdict() == "approve":
+                return gate
+            if round_no == FIX_ROUNDS:
+                break
+            self.run_role("connector-fixer", self.task_text("connector-fixer", round_no + 1))
+        raise StepFailed("testing", "o conector não passou no portão depois das rodadas de correção")
+
+    def deploy(self, gate: dict) -> None:
+        msg = (f"Add {self.source_id} connector (autoconnector request {self.req.get('id')})\n\n"
+               f"Created by the autoconnector subagents. Gate: pytest + live probe passed.\n\n"
+               f"Co-Authored-By: autoconnector <noreply@jandson.me>")
+        self.sh(["git", "add", "-A"], cwd=self.wt)
+        self.sh(["git", "reset", "-q", "HEAD", "backend/autoconnector/work"], cwd=self.wt, check=False)
+        self.sh(["git", "commit", "-q", "-m", msg], cwd=self.wt)
+        self.sh(["git", "-C", str(self.repo), "merge", "--no-ff", "-q", "-m",
+                 f"Merge autoconnector/{self.req.get('id')} ({self.source_id})", f"autoconnector/{self.req.get('id')}"])
+        pushed = subprocess.run(["git", "-C", str(self.repo), "push", "-q"], capture_output=True, text=True, timeout=120)
+        if pushed.returncode != 0:
+            self.report(title="Aviso: o commit ficou só no servidor (git push sem credencial)", log=pushed.stderr[-500:])
+        self.sh(["docker", "compose", "build", "-q", "api", "crawler"], cwd=self.compose_dir, timeout=1800)
+        self.sh(["docker", "compose", "up", "-d", "api"], cwd=self.compose_dir)
+        self.sh(["docker", "compose", "run", "--rm", "--no-deps", "crawler", "oghma", "upgrade-db"], cwd=self.compose_dir)
+        self.sh(["docker", "compose", "run", "--rm", "--no-deps", "crawler", "oghma", "seed-sources"], cwd=self.compose_dir)
+
+    def crawl_requested_and_publish(self) -> None:
+        self.report("downloading", "Baixando a novel pedida")
+        lock = f"/srv/oghma/locks/crawl-{self.source_id}.lock"
+        if self.req.get("novelUrl"):
+            self.sh(["flock", lock, "docker", "compose", "run", "--rm", "--no-deps", "crawler", "oghma", "crawl",
+                     "--source", self.source_id, "--novel-url", self.req["novelUrl"]], cwd=self.compose_dir, timeout=6 * 3600)
+        else:
+            self.sh(["flock", lock, "docker", "compose", "run", "--rm", "--no-deps", "crawler", "oghma", "crawl",
+                     "--source", self.source_id, "--limit", "3"], cwd=self.compose_dir, timeout=6 * 3600)
+        self.sh(["flock", "/srv/oghma/locks/publish.lock", "docker", "compose", "run", "--rm", "--no-deps", "crawler",
+                 "python", "-m", "oghma.publish", "--source", self.source_id], cwd=self.compose_dir, timeout=3 * 3600)
+
+    def start_full_crawl(self) -> None:
+        """Coleta completa em segundo plano; ao terminar publica e avisa no brain."""
+        log = f"/srv/oghma/logs/crawl-{self.source_id}-first.log"
+        script = (
+            f"cd {self.compose_dir} && "
+            f"flock /srv/oghma/locks/crawl-{self.source_id}.lock docker compose run --rm --no-deps crawler oghma crawl --source {self.source_id} && "
+            f"flock /srv/oghma/locks/publish.lock docker compose run --rm --no-deps crawler python -m oghma.publish --source {self.source_id} && "
+            f"brain notify 'Coleta completa de {self.source_id} publicada' --level success --app oghma --thread oghma-src-{self.req.get('id')} "
+            f"|| brain notify 'Coleta completa de {self.source_id} falhou' --level error --app oghma --thread oghma-src-{self.req.get('id')} --body 'Log: {log}'"
+        )
+        subprocess.Popen(["nohup", "sh", "-c", script], stdout=open(log, "a"), stderr=subprocess.STDOUT,
+                         start_new_session=True)
+        env_file = Path("/srv/oghma/.env.daily-crawl")
+        if env_file.exists():
+            text = env_file.read_text()
+            match = re.search(r"^OGHMA_DAILY_SOURCES=\"?([^\"\n]*)\"?", text, re.M)
+            if match and self.source_id not in match.group(1).split():
+                new = f'OGHMA_DAILY_SOURCES="{(match.group(1) + " " + self.source_id).strip()}"'
+                env_file.write_text(text.replace(match.group(0), new))
+        monitor = Path(cfg("AUTOCONNECTOR_WORK", "/home/codex/oghma-autoconnector")) / "monitor.json"
+        data = json.loads(monitor.read_text()) if monitor.exists() else {}
+        data[self.source_id] = {"request_id": self.req.get("id"), "remaining": 3, "since": time.time()}
+        monitor.write_text(json.dumps(data, indent=2))
+
+    def run(self) -> None:
+        started = time.time()
+        try:
+            existing = None if self.rebuild else self.existing_source()
+            if existing:
+                self.source_id = existing
+                self.report("downloading", f"{self.domain} já é uma fonte ({existing}): só baixando a novel pedida")
+                if self.deploy_enabled:
+                    self.crawl_requested_and_publish()
+                self.report(status="live", stage="live", source_id=existing, title=f"Pronta: {existing}", level="success")
+                return
+            self.prepare_worktree()
+            gate = self.build()
+            novel_title = (gate.get("probe") or {}).get("novel", {}).get("title")
+            if not self.deploy_enabled:
+                self.report(title="Ensaio concluído sem deploy (--no-deploy)", level="success", novel_title=novel_title)
+                return
+            self.report("downloading", "Portão aprovado: fazendo deploy")
+            self.deploy(gate)
+            self.crawl_requested_and_publish()
+            self.start_full_crawl()
+            total = self.cost_summary()["total"]
+            minutes = round((time.time() - started) / 60)
+            self.report(status="live", stage="live", source_id=self.source_id, novel_title=novel_title, level="success",
+                        title=f"{self.domain} no ar" + (f": {novel_title} já disponível" if novel_title else ""),
+                        body=(f"Fonte `{self.source_id}` criada em {minutes} min. Tokens: {num(total['input_tokens'] + total['output_tokens'])}"
+                              f" (mais {num(total['cached_input_tokens'])} em cache). Custo equivalente Claude: US$ {total['cost_usd']:.2f}. "
+                              f"Uso do plano (pontos da janela de 5 h): {self.cost_summary()['plan_5h_points_used']}. "
+                              "A coleta completa continua em segundo plano."))
+        except StepFailed as exc:
+            self.report(status="failed", stage="failed", level="error", title=f"Não foi possível criar a fonte ({exc.stage})",
+                        body=str(exc)[:1500], message=str(exc)[:300], log=str(exc))
+        except Exception as exc:  # qualquer falha vira aviso, o worktree fica para analise
+            self.report(status="failed", stage="failed", level="error", title="Erro inesperado no autoconnector",
+                        body=str(exc)[:1500], message=str(exc)[:300], log=traceback.format_exc()[-4000:])
+
+
+# ------------------------------------------------------------------ monitoramento
+
+def monitor_new_sources(brain: Brain) -> None:
+    """Nas primeiras coletas de uma fonte nova, avisa se falhou ou veio com muitos capitulos invalidos."""
+    path = Path(cfg("AUTOCONNECTOR_WORK", "/home/codex/oghma-autoconnector")) / "monitor.json"
+    if not path.exists():
+        return
+    data = json.loads(path.read_text())
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8010/api/crawls?limit=50", timeout=20) as resp:
+            runs = json.loads(resp.read().decode())
+    except (urllib.error.URLError, OSError, ValueError):
+        return
+    changed = False
+    for source, info in list(data.items()):
+        seen = set(info.get("seen", []))
+        for run in runs:
+            if run.get("sourceId") != source or run["id"] in seen or run.get("status") == "running":
+                continue
+            seen.add(run["id"])
+            stats = run.get("stats") or {}
+            new, invalid = int(stats.get("chapters_new") or 0), int(stats.get("chapters_invalid") or 0)
+            ratio = invalid / max(1, new + invalid)
+            if run.get("status") == "error" or ratio > 0.05:
+                brain.notify(level="error", thread=f"oghma-src-{info.get('request_id')}",
+                             title=f"Alerta na coleta de {source}",
+                             body=f"Execução {run['id']}: status {run.get('status')}, {invalid} capítulos inválidos de {new + invalid}. "
+                                  f"{(run.get('error') or '')[:300]}")
+            info["remaining"] = int(info.get("remaining", 3)) - 1
+        info["seen"] = sorted(seen)
+        if info["remaining"] <= 0:
+            data.pop(source)
+        changed = True
+    if changed:
+        path.write_text(json.dumps(data, indent=2))
+
+
+# ------------------------------------------------------------------ entrada
+
+def available_engines():
+    return [e for e in (CodexEngine(), ClaudeCodeEngine()) if e.available()]
+
+
+def main() -> int:
+    load_env_file()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("loop")
+    sub.add_parser("once")
+    run_p = sub.add_parser("run")
+    run_p.add_argument("--url", required=True)
+    run_p.add_argument("--engine", choices=["codex", "claude"])
+    run_p.add_argument("--source-id")
+    run_p.add_argument("--no-deploy", action="store_true")
+    run_p.add_argument("--rebuild", action="store_true", help="recria mesmo se o dominio ja for uma fonte (ensaio)")
+    args = parser.parse_args()
+
+    engines = available_engines()
+    if not engines:
+        print("nenhum motor logado (codex ou claude)", file=sys.stderr)
+        return 1
+    force = getattr(args, "engine", None) or cfg("AUTOCONNECTOR_ENGINE") or None
+
+    if args.cmd == "run":
+        u = urlsplit(args.url)
+        domain = (u.hostname or "").removeprefix("www.")
+        request = {"id": f"local{int(time.time()) % 100000:05d}", "url": args.url, "domain": domain,
+                   "novelUrl": args.url if u.path.strip("/") else None, "sourceId": args.source_id}
+        brain = Brain(cfg("BRAIN_URL", "https://brain.jandson.me"), cfg("BRAIN_TOKEN")) if cfg("BRAIN_TOKEN") else NullBrain()
+        if isinstance(brain, Brain) and not isinstance(brain, NullBrain):
+            brain = _LocalRunBrain(brain, request)
+        Pipeline(request, brain, engines, force_engine=force, deploy=not args.no_deploy and not args.rebuild,
+                 rebuild=args.rebuild).run()
+        return 0
+
+    brain = Brain(cfg("BRAIN_URL", "https://brain.jandson.me"), cfg("BRAIN_TOKEN"))
+    while True:
+        monitor_new_sources(brain)
+        try:
+            request = brain.next_request()
+        except (urllib.error.URLError, OSError) as exc:
+            print(f"[brain] sem conexão: {exc}", flush=True)
+            request = None
+        if request:
+            Pipeline(request, brain, engines, force_engine=force).run()
+        if args.cmd == "once":
+            return 0
+        time.sleep(POLL_SECONDS)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
