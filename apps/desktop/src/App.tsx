@@ -52,11 +52,11 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   const { view, params, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
 
-  /** String notifications from hooks and views (the old `setToast`). Errors get the danger tone. */
-  const notify = useCallback((message: string) => {
+  /** String notifications from hooks and views (the old `setToast`). Callers that report an
+   *  error pass "danger"; without a tone, messages starting with "Não foi possível" are errors. */
+  const notify = useCallback((message: string, tone?: ToastTone) => {
     if (!message) return;
-    const tone: ToastTone = ERROR_MESSAGE.test(message) ? "danger" : "info";
-    toast({ message, tone });
+    toast({ message, tone: tone ?? (ERROR_MESSAGE.test(message) ? "danger" : "info") });
   }, [toast]);
 
   const { kindleStatus, seedKindleStatus } = useKindleDetection(false);

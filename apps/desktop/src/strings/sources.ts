@@ -13,7 +13,7 @@ export const sourcesStrings = {
     source: "Fonte",
     language: "Idioma",
     books: "Novels",
-    lastSync: "Última sincronização",
+    lastSync: "Catálogo atualizado",
     include: "Na busca",
     actions: "Ações"
   },

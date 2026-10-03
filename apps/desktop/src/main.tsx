@@ -53,7 +53,9 @@ function resolveBackend(): BackendClient {
 }
 
 watchFullscreen(applyPlatform());
-installInteractionGuards();
+// The app should not feel like a web page (no text selection, view-source...), but in
+// development the guards would also block DevTools.
+if (import.meta.env.PROD) installInteractionGuards();
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 

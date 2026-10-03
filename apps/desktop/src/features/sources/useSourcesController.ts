@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import type { ToastTone } from "../../ui";
 import type { AppConfig, IndexMode, ServerProbe, SourceSite } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { sourcesStrings } from "../../strings/sources";
@@ -9,7 +10,7 @@ type SourcesControllerArgs = {
   sources: SourceSite[];
   setSources: Dispatch<SetStateAction<SourceSite[]>>;
   setAppConfig: Dispatch<SetStateAction<AppConfig>>;
-  notify: (message: string) => void;
+  notify: (message: string, tone?: ToastTone) => void;
 };
 
 /** Result of the last "Verificar servidor" run from Ajustes. */
@@ -43,7 +44,7 @@ export function useSourcesController({ backend, sources, setSources, setAppConfi
       return updated;
     } catch (error: unknown) {
       if (!options?.silentError) {
-        notify(getErrorMessage(error, sourcesStrings.syncFailed));
+        notify(getErrorMessage(error, sourcesStrings.syncFailed), "danger");
       }
       throw error;
     } finally {
@@ -98,7 +99,7 @@ export function useSourcesController({ backend, sources, setSources, setAppConfi
         : { ...current, enabledSourceIds: [...current.enabledSourceIds, sourceId] });
       markSourcesSynced();
     } catch (error: unknown) {
-      notify(getErrorMessage(error, sourcesStrings.syncFailed));
+      notify(getErrorMessage(error, sourcesStrings.syncFailed), "danger");
     } finally {
       syncingRef.current = syncingRef.current.filter((id) => id !== sourceId);
       setSyncing((items) => items.filter((id) => id !== sourceId));

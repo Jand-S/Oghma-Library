@@ -66,7 +66,7 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
             </div>
             <div className="library-hero__info">
               <span className="library-hero__eyebrow">{item.sourceName ?? libraryStrings.localSource}</span>
-              <h2 className="library-hero__title">{item.title}</h2>
+              <h2 className="library-hero__title is-selectable">{item.title}</h2>
               <p className="library-hero__author">{item.author || libraryStrings.unknownAuthor}</p>
               <div className="library-hero__badges">
                 <TranslationBadge item={item} />
@@ -147,11 +147,11 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
       <div className="library-details__body">
         <section className="library-details__main" aria-labelledby="library-synopsis-title">
           <h3 id="library-synopsis-title" className="library-details__heading">{libraryStrings.synopsis}</h3>
-          <p className="library-details__synopsis">{item.description?.trim() || libraryStrings.noSynopsis}</p>
+          <p className="library-details__synopsis is-selectable">{item.description?.trim() || libraryStrings.noSynopsis}</p>
           {item.outputDir ? (
             <div className="library-details__folder">
               <span className="library-details__label">{libraryStrings.factFolder}</span>
-              <code className="library-details__path">{item.outputDir}</code>
+              <code className="library-details__path is-selectable">{item.outputDir}</code>
             </div>
           ) : null}
         </section>

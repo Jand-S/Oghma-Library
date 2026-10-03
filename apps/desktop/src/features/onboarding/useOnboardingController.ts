@@ -1,4 +1,5 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import type { ToastTone } from "../../ui";
 import { hasCompletedSetup, markSetupComplete } from "../../core/appConfig";
 import type { AppConfig, ServerProbe, SourceSite } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
@@ -13,7 +14,7 @@ type OnboardingControllerArgs = {
   setShowOnboarding: Dispatch<SetStateAction<boolean>>;
   setSources: Dispatch<SetStateAction<SourceSite[]>>;
   setSyncing: Dispatch<SetStateAction<string[]>>;
-  notify: (message: string) => void;
+  notify: (message: string, tone?: ToastTone) => void;
   /** After the setup is saved (App restarts if the server URL changed during onboarding). */
   onCompleted?: () => void;
 };

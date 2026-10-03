@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import type { ToastTone } from "../../ui";
 import { useConversionManager } from "../../app/useConversionManager";
 import type { AppConfig, EnqueueResult, KindleDeviceStatus, LibraryItem, LibraryMeta, QueueItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
@@ -54,7 +55,7 @@ type LibraryControllerArgs = {
   /** Full device status (name, mount path) when App passes it; `kindleConnected` stays the source of truth. */
   kindleStatus?: KindleDeviceStatus | null;
   refreshLocalLibrary: () => void;
-  notify: (message: string) => void;
+  notify: (message: string, tone?: ToastTone) => void;
   /** Rich toasts (with an action button) for the Mac integrations; falls back to `notify`. */
   toast?: (options: ToastOptions) => void;
 };
@@ -252,7 +253,7 @@ export function useLibraryController({
       setSelectedLibraryIds((ids) => ids.filter((id) => id !== item.id));
     }
     void saveLibraryMetadata(nextMeta).catch((error: unknown) => {
-      notify(getErrorMessage(error, libraryStrings.metaSaveFailed));
+      notify(getErrorMessage(error, libraryStrings.metaSaveFailed), "danger");
     });
   };
 
@@ -266,7 +267,7 @@ export function useLibraryController({
       setLibrary((current) => current.map((entry) => keys.has(libraryMetaKey(entry)) ? { ...entry, hidden: true } : entry));
       setSelectedLibraryIds((current) => current.filter((id) => !ids.has(id)));
       void Promise.all(hiddenRows.map((meta) => saveLibraryMetadata(meta))).catch((error: unknown) => {
-        notify(getErrorMessage(error, libraryStrings.metaSaveFailed));
+        notify(getErrorMessage(error, libraryStrings.metaSaveFailed), "danger");
       });
       notify(libraryStrings.hiddenToast(items.length));
       return;
@@ -298,7 +299,7 @@ export function useLibraryController({
         refreshLocalLibrary();
       })
       .catch((error: unknown) => {
-        notify(getErrorMessage(error, libraryStrings.deleteFailed));
+        notify(getErrorMessage(error, libraryStrings.deleteFailed), "danger");
       });
   };
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import type { ToastTone } from "../../ui";
 import type { AppView } from "../../app/NavigationContext";
 import { useNovelSearch } from "../../app/useNovelSearch";
 import { defaultFilters, defaultSelection } from "../../core/defaults";
@@ -24,7 +25,7 @@ type DiscoverControllerArgs = {
   isQueued: (novelId: string) => boolean;
   /** Enqueues the shaped download and shows the added/duplicate/full feedback. */
   enqueueDownload: (item: QueueItem) => EnqueueResult;
-  notify: (message: string) => void;
+  notify: (message: string, tone?: ToastTone) => void;
 };
 
 /**
@@ -111,7 +112,7 @@ export function useDiscoverController({
       .catch((error: unknown) => {
         if (!cancelled) {
           setTagCatalog([]);
-          notify(getErrorMessage(error, "Não foi possível carregar as tags."));
+          notify(getErrorMessage(error, "Não foi possível carregar as tags."), "danger");
         }
       });
     return () => {
@@ -178,7 +179,7 @@ export function useDiscoverController({
         }
       })
       .catch((error: unknown) => {
-        notify(getErrorMessage(error, "Não foi possível adicionar o livro à fila."));
+        notify(getErrorMessage(error, "Não foi possível adicionar o livro à fila."), "danger");
       })
       .finally(() => setAdding(false));
   };

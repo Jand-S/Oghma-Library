@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import type { ToastTone } from "../../ui";
 import { useDownloadQueue } from "../../app/useDownloadQueue";
 import type { AppConfig, DownloadJob, EnqueueResult, QueueItem } from "../../core/types";
 import { getErrorMessage } from "../../services/backendClient";
@@ -9,20 +10,20 @@ import { downloadsStrings } from "../../strings/downloads";
 import type { ToastOptions } from "../../ui";
 
 /** Opens a folder in the OS file manager, or explains where it is when running in a browser. */
-export function openOutputFolder(path: string, label: string, notify: (message: string) => void) {
+export function openOutputFolder(path: string, label: string, notify: (message: string, tone?: ToastTone) => void) {
   void openLocalPath(path)
     .then((opened) => {
       notify(opened ? downloadsStrings.openingFolder(label) : downloadsStrings.folderInBrowser(path));
     })
     .catch((error: unknown) => {
-      notify(getErrorMessage(error, downloadsStrings.folderOpenFailed(label)));
+      notify(getErrorMessage(error, downloadsStrings.folderOpenFailed(label)), "danger");
     });
 }
 
 type DownloadsControllerArgs = {
   appConfig: AppConfig;
   queue: DownloadQueue;
-  notify: (message: string) => void;
+  notify: (message: string, tone?: ToastTone) => void;
   toast: (options: ToastOptions) => void;
 };
 
