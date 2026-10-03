@@ -171,4 +171,25 @@ describe("Discover single selection and enqueue", () => {
     expect(within(panel).getByLabelText(discoverStrings.rangeStart)).toHaveValue(1);
     expect(within(panel).getByLabelText(discoverStrings.rangeEnd)).toHaveValue(142);
   });
+
+  it("lets the user erase and retype the range end; it is corrected only on blur", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+    const panel = await queueFirstBook(user);
+    await user.click(within(panel).getByRole("radio", { name: discoverStrings.presetRange }));
+    const end = within(panel).getByLabelText(discoverStrings.rangeEnd);
+
+    await user.clear(end);
+    expect(end).toHaveValue(null); // empty while typing (it used to jump back to "start")
+    await user.type(end, "50");
+    expect(end).toHaveValue(50);
+    await user.tab();
+    expect(end).toHaveValue(50);
+    expect(within(panel).getByText(discoverStrings.selectionSummary(50))).toBeInTheDocument();
+
+    // Out of range is fixed on blur: never past the last chapter.
+    await user.clear(end);
+    await user.type(end, "9999{Enter}");
+    expect(end).toHaveValue(142);
+  });
 });

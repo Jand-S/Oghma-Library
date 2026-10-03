@@ -38,6 +38,42 @@ const TAG_ROWS = 2;
  * Right-hand details: a header row (source, preview badge, close), the hero (cover, title,
  * author, key badges), then the synopsis and the tags, plus the sticky download actions.
  */
+/**
+ * Chapter number typed freely (it can be empty or out of range while editing); the value is
+ * corrected only on blur or Enter. Clamping on every keystroke made it impossible to erase
+ * the "end" field and type a new number: it jumped back to "start" at once.
+ */
+function ChapterNumberField({ label, value, min, max, onCommit }: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (raw: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const commit = () => {
+    const raw = Number.parseInt(draft, 10);
+    onCommit(Number.isFinite(raw) ? raw : value);
+    setDraft(String(value));
+  };
+  return (
+    <TextField
+      label={label}
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") commit();
+      }}
+    />
+  );
+}
+
 export function DiscoverDetailPanel({
   novel,
   isSelected,
@@ -324,23 +360,19 @@ function DownloadConfigurator({
         </div>
         {selection.preset === "range" ? (
           <div className="discover-config__range">
-            <TextField
+            <ChapterNumberField
               label={discoverStrings.rangeStart}
-              type="number"
-              inputMode="numeric"
               min={1}
               max={selection.end}
               value={selection.start}
-              onChange={(event) => update({ start: clampStart(Number(event.target.value)) })}
+              onCommit={(raw) => update({ start: clampStart(raw) })}
             />
-            <TextField
+            <ChapterNumberField
               label={discoverStrings.rangeEnd}
-              type="number"
-              inputMode="numeric"
               min={selection.start}
               max={novel.chapters}
               value={selection.end}
-              onChange={(event) => update({ end: clampEnd(Number(event.target.value)) })}
+              onCommit={(raw) => update({ end: clampEnd(raw) })}
             />
           </div>
         ) : null}
