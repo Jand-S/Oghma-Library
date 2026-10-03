@@ -270,3 +270,40 @@ pub async fn translation_log(
 ) -> Result<Vec<LogEvent>, String> {
     state.store.events(&project_id, limit.unwrap_or(200).clamp(1, 2000))
 }
+
+// -- smart filter (Buscar) ---------------------------------------------------------
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SmartAnswer {
+    text: String,
+    input_tokens: i64,
+    output_tokens: i64,
+    credits: f64,
+}
+
+/// "Filtro inteligente" in Buscar: one short question to the user's own ChatGPT plan (the
+/// translation login), Luna without reasoning. The app sends the instructions and the user's
+/// request and gets JSON filters back; ranking and reasons are computed locally. The usage
+/// goes to the same counters as the translation.
+#[tauri::command]
+pub async fn smart_filter_ask(state: EngineState<'_>, instructions: String, text: String) -> Result<SmartAnswer, String> {
+    let engine = engine(&state);
+    if !engine.provider.account().logged_in {
+        return Err("not_logged_in".to_string());
+    }
+    let model = super::DEFAULT_MODEL;
+    let out = engine
+        .provider
+        .translate(model, "none", &instructions, &text)
+        .await
+        .map_err(|err| err.to_string())?;
+    let credits = engine.store.log_usage(None, model, 0, &out.usage).unwrap_or(0.0);
+    engine.emit_usage();
+    Ok(SmartAnswer {
+        text: out.text,
+        input_tokens: out.usage.input_tokens,
+        output_tokens: out.usage.output_tokens,
+        credits,
+    })
+}

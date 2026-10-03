@@ -6,6 +6,8 @@ import { defaultFilters, defaultSelection } from "../../core/defaults";
 import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, Novel, QueueItem, SourceSite, TagCatalogItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { editionsOf, similarNovels, type CatalogIndex } from "../../services/catalogIndex";
+import { chatGptAsker, chatGptLoggedIn, runSmartFilter, type SmartResult } from "../../services/smartFilter";
+import { discoverStrings } from "../../strings/discover";
 import { readUiPreferences } from "../settings/preferences";
 import type { SortDirection } from "./DiscoverHeader";
 
@@ -128,6 +130,20 @@ export function useDiscoverController({
 
   const detailNovel = previewNovel ?? selectedNovel ?? undefined;
 
+  // "Filtro inteligente": the request becomes the normal filters plus an order by similarity.
+  const [smart, setSmart] = useState<SmartResult | null>(null);
+  const [smartBusy, setSmartBusy] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void chatGptLoggedIn().then((value) => {
+      if (!cancelled) setAiAvailable(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [view]);
+
   // Catalog index for "Também em" (same work in other sources) and "Parecidos".
   const [catalogIndex, setCatalogIndex] = useState<CatalogIndex | null>(null);
   useEffect(() => {
@@ -206,6 +222,33 @@ export function useDiscoverController({
       .finally(() => setAdding(false));
   };
 
+  const askSmart = (request: string) => {
+    if (smartBusy) return;
+    setSmartBusy(true);
+    void (async () => {
+      try {
+        const index = catalogIndex ?? (backend.getCatalogIndex ? await backend.getCatalogIndex() : null);
+        if (!index) return;
+        const tags = await backend.getTags("all");
+        const result = await runSmartFilter(request, { index, tags, ask: aiAvailable ? chatGptAsker() : null });
+        setSmart(result);
+        setFilters({ ...result.filters, sourceId: "all" });
+        if (result.fallbackReason && result.fallbackReason !== "not_logged_in") {
+          notify(discoverStrings.smartFallback, "info");
+        }
+      } catch (error: unknown) {
+        notify(getErrorMessage(error, discoverStrings.smartFailed), "danger");
+      } finally {
+        setSmartBusy(false);
+      }
+    })();
+  };
+
+  const clearSmart = () => {
+    setSmart(null);
+    setFilters(defaultFilters("all"));
+  };
+
   const updateSelection = (next: ChapterSelection) =>
     setSelections((current) => ({ ...current, [next.novelId]: next }));
 
@@ -214,6 +257,11 @@ export function useDiscoverController({
 
   return {
     results,
+    smart,
+    smartBusy,
+    aiAvailable,
+    askSmart,
+    clearSmart,
     /** Other editions and similar novels of the novel in the details panel. */
     related,
     /** Catalog index (Início uses it for suggestions); null until loaded. */

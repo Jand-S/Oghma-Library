@@ -16,6 +16,8 @@ type DiscoverGridProps = {
   onShowMore: () => void;
   onSelect: (novel: Novel) => void;
   onPreview: (novel: Novel) => void;
+  /** Filtro inteligente: why each novel is here ("Em comum com X: ..."). */
+  reasons?: Record<string, string>;
 };
 
 /** Number of cards on the first row, i.e. the current column count. */
@@ -34,7 +36,8 @@ export function DiscoverGrid({
   scrollRoot,
   onShowMore,
   onSelect,
-  onPreview
+  onPreview,
+  reasons
 }: DiscoverGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -90,6 +93,7 @@ export function DiscoverGrid({
           <NovelCard
             key={novel.id}
             novel={novel}
+            reason={reasons?.[novel.id]}
             selected={novel.id === selectedId}
             focused={novel.id === detailId}
             tabbable={index === activeIndex}
@@ -116,8 +120,10 @@ function NovelCard({
   tabbable,
   onFocus,
   onSelect,
-  onPreview
+  onPreview,
+  reason
 }: {
+  reason?: string;
   novel: Novel;
   selected: boolean;
   focused: boolean;
@@ -153,6 +159,7 @@ function NovelCard({
           <span aria-hidden="true">·</span>
           <span>{novel.sourceChapters ? discoverStrings.chaptersShortOf(novel.chapters, novel.sourceChapters) : discoverStrings.chaptersShort(novel.chapters)}</span>
         </span>
+        {reason ? <span className="discover-card__reason" title={reason}>{reason}</span> : null}
         {novel.status === "complete" || novel.rating ? (
           <span className="discover-card__facts">
             {novel.status === "complete" ? <span className="discover-card__complete">{discoverStrings.completeShort}</span> : null}

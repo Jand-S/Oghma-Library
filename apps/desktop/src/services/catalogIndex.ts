@@ -182,3 +182,31 @@ export function sortNovels(novels: readonly Novel[], sort: NovelSort, direction:
   const get = value[sort];
   return list.sort((a, b) => get(b) - get(a) || byTitle(a, b));
 }
+
+/** Story tags (genres and themes) of a novel in the index; empty if unknown. */
+export function storyTagsOf(index: CatalogIndex, novelId: string): Set<string> {
+  const entry = index.entries.find((item) => item.novel.id === novelId);
+  return entry ? storyTags(entry.tagKeys) : new Set();
+}
+
+/** Best Jaccard similarity of every indexed novel to the seeds, and the story tags it shares. */
+export function similarityToSeeds(index: CatalogIndex, seeds: Novel[]): Map<string, { score: number; shared: string[] }> {
+  const seedTags = seeds.map((seed) => storyTagsOf(index, seed.id)).filter((tags) => tags.size > 0);
+  const out = new Map<string, { score: number; shared: string[] }>();
+  if (!seedTags.length) return out;
+  for (const entry of index.entries) {
+    const tags = storyTags(entry.tagKeys);
+    let best = 0;
+    let bestShared: string[] = [];
+    for (const seed of seedTags) {
+      const shared = [...tags].filter((tag) => seed.has(tag));
+      const score = shared.length / (seed.size + tags.size - shared.length || 1);
+      if (score > best) {
+        best = score;
+        bestShared = shared;
+      }
+    }
+    if (best > 0) out.set(entry.novel.id, { score: best, shared: bestShared });
+  }
+  return out;
+}

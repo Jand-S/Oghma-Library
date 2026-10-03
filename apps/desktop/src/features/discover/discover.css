@@ -1000,4 +1000,56 @@
     font-weight: var(--fw-medium);
   }
 
+
+  /* Filtro inteligente: request field, then what was understood. */
+  .smart-filter {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3) 0;
+  }
+
+  .smart-filter__form {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+  }
+
+  .smart-filter__field {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .smart-filter__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .smart-filter__result {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+    min-width: 0;
+    font-size: var(--fs-sm);
+  }
+
+  .smart-filter__summary {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .discover-card__reason {
+    display: -webkit-box;
+    overflow: hidden;
+    max-height: calc(var(--fs-xs) * 2.7);
+    color: var(--accent-text);
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
 }

@@ -262,3 +262,25 @@ describe("Discover", () => {
     expect(screen.getByTestId("queue-panel")).toBeInTheDocument();
   });
 });
+
+describe("Filtro inteligente", () => {
+  it("turns a request into filters and shows what it understood (local interpreter outside the app)", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+
+    const panel = screen.getByTestId("smart-filter");
+    expect(within(panel).getByText(discoverStrings.smartHintLocal)).toBeInTheDocument();
+    await user.type(within(panel).getByRole("textbox"), "fantasia completa, sem romance");
+    await user.click(within(panel).getByRole("button", { name: discoverStrings.smartAsk }));
+
+    const result = await screen.findByTestId("smart-filter-result");
+    expect(result).toHaveTextContent(discoverStrings.smartLocal);
+    expect(result).toHaveTextContent(/completa/);
+    // The normal filter bar now shows the interpreted filters (editable as usual).
+    expect(filterTrigger(discoverStrings.status)).toHaveAccessibleName("Status: Completa");
+
+    await user.click(within(result).getByRole("button", { name: discoverStrings.smartClear }));
+    expect(screen.queryByTestId("smart-filter-result")).not.toBeInTheDocument();
+    expect(filterTrigger(discoverStrings.status)).toHaveAccessibleName(discoverStrings.status);
+  });
+});

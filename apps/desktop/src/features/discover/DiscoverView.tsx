@@ -8,6 +8,8 @@ import { DiscoverFilterBar } from "./DiscoverFilters";
 import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
 import type { SortDirection } from "./DiscoverHeader";
 import { sortNovels } from "../../services/catalogIndex";
+import type { SmartResult } from "../../services/smartFilter";
+import { SmartFilterPanel } from "./SmartFilterPanel";
 import { activeFilters, clearedFilters } from "./filterModel";
 import "./discover.css";
 
@@ -36,6 +38,12 @@ export type DiscoverViewProps = {
   onClearSelection: () => void;
   /** Other editions and similar novels of the novel in the details panel. */
   related?: { editions: Novel[]; similar: Novel[] };
+  /** Filtro inteligente: last result (order and reasons), busy flag and actions. */
+  smart?: SmartResult | null;
+  smartBusy?: boolean;
+  aiAvailable?: boolean;
+  onAskSmart?: (request: string) => void;
+  onClearSmart?: () => void;
   onPreviewNovel: (novel: Novel) => void;
   onClearPreview: () => void;
   onSelectionChange: (selection: ChapterSelection) => void;
@@ -70,6 +78,11 @@ export function DiscoverView({
   onClearSelection,
   onPreviewNovel,
   related,
+  smart = null,
+  smartBusy = false,
+  aiAvailable = false,
+  onAskSmart,
+  onClearSmart,
   onClearPreview,
   onSelectionChange,
   onAddSelected,
@@ -89,9 +102,13 @@ export function DiscoverView({
   const sortedResults = useMemo(() => {
     // With a query the backend ranks by relevance (title > tag > author > synopsis).
     if (ranked) return results;
+    if (smart) {
+      // Filtro inteligente: closest to the reference (and best rated) first.
+      return [...results].sort((a, b) => (smart.scores[b.id] ?? 0) - (smart.scores[a.id] ?? 0));
+    }
     if (sortDirection === "asc" || sortDirection === "desc") return sortNovels(results, "title", sortDirection);
     return sortNovels(results, sortDirection);
-  }, [results, sortDirection, ranked]);
+  }, [results, sortDirection, ranked, smart]);
   const visibleResults = sortedResults.slice(0, visibleCount);
   const showMore = useCallback(
     () => setVisibleCount((count) => Math.min(count + DISCOVER_PAGE_SIZE, results.length)),
@@ -187,6 +204,7 @@ export function DiscoverView({
         onShowMore={showMore}
         onSelect={onSelectNovel}
         onPreview={onPreviewNovel}
+        reasons={smart?.reasons}
       />
     );
   }
@@ -194,6 +212,9 @@ export function DiscoverView({
   return (
     <div className={cx("discover", detailNovel && "discover--with-detail")}>
       <div className="discover__main" onClick={onBackgroundClick}>
+        {onAskSmart && onClearSmart ? (
+          <SmartFilterPanel result={smart} busy={smartBusy} aiAvailable={aiAvailable} onAsk={onAskSmart} onClear={onClearSmart} />
+        ) : null}
         {showFilterBar ? (
           <DiscoverFilterBar
             filters={filters}

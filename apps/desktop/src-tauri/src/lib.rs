@@ -74,7 +74,8 @@ pub fn run() {
             translation::commands::translation_mark_reviewed,
             translation::commands::translation_verify,
             translation::commands::translation_export,
-            translation::commands::translation_log
+            translation::commands::translation_log,
+            translation::commands::smart_filter_ask
         ])
         .run(tauri::generate_context!())
         .expect("error while running Oghma Library");
