@@ -1,0 +1,9 @@
+[Unit]
+Description=Oghma: aviso de disco no brain
+
+[Service]
+Type=oneshot
+User=oghma
+WorkingDirectory=/opt/oghma/app/backend
+EnvironmentFile=/opt/oghma/.env
+ExecStart=/opt/oghma/venv/bin/oghma disk-check

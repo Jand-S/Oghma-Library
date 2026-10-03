@@ -1,0 +1,20 @@
+[Unit]
+Description=Oghma: coleta continua em rodizio (crawl -> publica -> evict -> brain)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=oghma
+WorkingDirectory=/opt/oghma/app/backend
+EnvironmentFile=/opt/oghma/.env
+ExecStart=/opt/oghma/venv/bin/oghma rodizio --parallel 2 --pause-minutes 30
+Nice=10
+CPUQuota=60%
+MemoryMax=600M
+Restart=always
+RestartSec=30
+KillSignal=SIGTERM
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

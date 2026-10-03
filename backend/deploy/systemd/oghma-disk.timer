@@ -1,0 +1,9 @@
+[Unit]
+Description=Oghma: confere o disco a cada hora
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

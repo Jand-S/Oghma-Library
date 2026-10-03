@@ -1,0 +1,2 @@
+# /etc/sudoers.d/oghma: o autoconnector reinicia o rodizio depois do deploy de um conector.
+oghma ALL=(root) NOPASSWD: /usr/bin/systemctl restart oghma-rodizio

@@ -31,20 +31,29 @@ MIN_WINDOW_DAYS = 30
 class BundleStore:
     """Leitura de bundles no B2 (S3). Injetavel nos testes."""
 
-    def __init__(self, client=None, bucket: str | None = None):
-        self._client, self._bucket = client, bucket
+    def __init__(self, client=None, bucket: str | None = None, private: bool = False):
+        self._client, self._bucket, self._private = client, bucket, private
 
     def _ensure(self):
         if self._client is None:
             import boto3  # import tardio, como no uploader
 
-            self._bucket = os.environ["OGHMA_S3_BUCKET"]
+            env = os.environ
+            if self._private:
+                # Bucket privado (raw, backups): o bucket publico serve b2.jandson.me para qualquer um.
+                # Chaves proprias opcionais, para uma application key restrita a esse bucket.
+                self._bucket = env["OGHMA_S3_PRIVATE_BUCKET"]
+                key_id = env.get("OGHMA_S3_PRIVATE_ACCESS_KEY_ID") or env["OGHMA_S3_ACCESS_KEY_ID"]
+                secret = env.get("OGHMA_S3_PRIVATE_SECRET_ACCESS_KEY") or env["OGHMA_S3_SECRET_ACCESS_KEY"]
+            else:
+                self._bucket = env["OGHMA_S3_BUCKET"]
+                key_id, secret = env["OGHMA_S3_ACCESS_KEY_ID"], env["OGHMA_S3_SECRET_ACCESS_KEY"]
             self._client = boto3.client(
                 "s3",
-                endpoint_url=os.environ["OGHMA_S3_ENDPOINT"],
-                region_name=os.environ.get("OGHMA_S3_REGION"),
-                aws_access_key_id=os.environ["OGHMA_S3_ACCESS_KEY_ID"],
-                aws_secret_access_key=os.environ["OGHMA_S3_SECRET_ACCESS_KEY"],
+                endpoint_url=env["OGHMA_S3_ENDPOINT"],
+                region_name=env.get("OGHMA_S3_REGION"),
+                aws_access_key_id=key_id,
+                aws_secret_access_key=secret,
             )
         return self._client
 
@@ -55,6 +64,18 @@ class BundleStore:
     def put(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
         client = self._ensure()
         client.put_object(Bucket=self._bucket, Key=key, Body=data, ContentType=content_type)
+
+    def list(self, prefix: str) -> list[str]:
+        client = self._ensure()
+        keys: list[str] = []
+        for page in client.get_paginator("list_objects_v2").paginate(Bucket=self._bucket, Prefix=prefix):
+            keys.extend(obj["Key"] for obj in page.get("Contents", []))
+        return keys
+
+    def delete(self, keys: list[str]) -> None:
+        client = self._ensure()
+        for i in range(0, len(keys), 1000):
+            client.delete_objects(Bucket=self._bucket, Delete={"Objects": [{"Key": k} for k in keys[i:i + 1000]]})
 
 
 _store: BundleStore | None = None
@@ -71,6 +92,23 @@ def set_store(store: BundleStore | None) -> None:
     """Troca o acesso ao B2 (testes)."""
     global _store
     _store = store
+
+
+_private_store: BundleStore | None = None
+
+
+def get_private_store() -> BundleStore | None:
+    """Bucket privado (raw, backups) ou None se `OGHMA_S3_PRIVATE_BUCKET` nao estiver configurado."""
+    global _private_store
+    if _private_store is None and os.environ.get("OGHMA_S3_PRIVATE_BUCKET"):
+        _private_store = BundleStore(private=True)
+    return _private_store
+
+
+def set_private_store(store: BundleStore | None) -> None:
+    """Troca o acesso ao bucket privado (testes)."""
+    global _private_store
+    _private_store = store
 
 
 # ------------------------------------------------------------------ estado da publicacao
@@ -308,7 +346,8 @@ async def evict(session, *, source_id: str | None = None, dry_run: bool = False,
 def archive_raw(local_path: str) -> str | None:
     """Destino do HTML original depois de normalizado (`OGHMA_RAW_ARCHIVE`).
 
-    keep (padrao): fica no disco. b2: sobe para `raw/...` (privado) e apaga local.
+    keep (padrao): fica no disco. b2: sobe para `raw/...` do bucket privado e apaga local
+    (sem `OGHMA_S3_PRIVATE_BUCKET`, fica no disco: nunca vai para o bucket publico).
     none: apaga local. Devolve o caminho/chave que fica registrado, ou None.
     """
     mode = os.environ.get("OGHMA_RAW_ARCHIVE", "keep").lower()
@@ -316,9 +355,12 @@ def archive_raw(local_path: str) -> str | None:
     if mode == "keep" or not path.exists():
         return local_path
     if mode == "b2":
+        store = get_private_store()
+        if store is None:
+            return local_path
         rel = path.relative_to(_storage_root()) if path.is_relative_to(_storage_root()) else Path("raw") / path.name
         key = str(rel) if str(rel).startswith("raw/") else f"raw/{rel}"
-        get_store().put(key, path.read_bytes(), "application/gzip")
+        store.put(key, path.read_bytes(), "application/gzip")
         path.unlink()
         return f"b2://{key}"
     path.unlink()

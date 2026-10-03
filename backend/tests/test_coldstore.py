@@ -122,8 +122,10 @@ def test_first_seen_set_only_on_create(monkeypatch):
 
 def test_raw_archive_modes(tmp_path, monkeypatch):
     monkeypatch.setattr(coldstore, "_storage_root", lambda: tmp_path)
-    store = FakeStore()
-    coldstore.set_store(store)
+    public, store = FakeStore(), FakeStore()
+    coldstore.set_store(public)
+    coldstore.set_private_store(None)
+    monkeypatch.delenv("OGHMA_S3_PRIVATE_BUCKET", raising=False)
     try:
         raw = tmp_path / "raw" / "src" / "n" / "1.0.html.gz"
         raw.parent.mkdir(parents=True)
@@ -131,13 +133,17 @@ def test_raw_archive_modes(tmp_path, monkeypatch):
         monkeypatch.setenv("OGHMA_RAW_ARCHIVE", "keep")
         assert coldstore.archive_raw(str(raw)) == str(raw) and raw.exists()
         monkeypatch.setenv("OGHMA_RAW_ARCHIVE", "b2")
+        # sem bucket privado: fica no disco, nunca no bucket publico
+        assert coldstore.archive_raw(str(raw)) == str(raw) and raw.exists() and not public.objects
+        coldstore.set_private_store(store)
         assert coldstore.archive_raw(str(raw)) == "b2://raw/src/n/1.0.html.gz"
-        assert not raw.exists() and store.objects["raw/src/n/1.0.html.gz"] == b"gz"
+        assert not raw.exists() and store.objects["raw/src/n/1.0.html.gz"] == b"gz" and not public.objects
         raw.write_bytes(b"gz")
         monkeypatch.setenv("OGHMA_RAW_ARCHIVE", "none")
         assert coldstore.archive_raw(str(raw)) is None and not raw.exists()
     finally:
         coldstore.set_store(None)
+        coldstore.set_private_store(None)
 
 
 def test_ensure_hot_rehydrates_from_store(tmp_path, monkeypatch):

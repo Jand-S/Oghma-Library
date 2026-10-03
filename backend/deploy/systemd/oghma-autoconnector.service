@@ -1,0 +1,25 @@
+[Unit]
+Description=Oghma: autoconnector (pedido de fonte aprovado no brain -> conector no ar)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=oghma
+WorkingDirectory=/opt/oghma/app/backend
+EnvironmentFile=/opt/oghma/.env
+Environment=AUTOCONNECTOR_RUNTIME=venv
+Environment=OGHMA_REPO=/opt/oghma/app
+Environment=OGHMA_VENV=/opt/oghma/venv
+Environment=OGHMA_ENV_FILE=/opt/oghma/.env
+Environment=AUTOCONNECTOR_WORK=/srv/oghma-data/autoconnector
+Environment=OGHMA_LOCK_DIR=/srv/oghma-data/locks
+Environment=PATH=/opt/oghma/.local/bin:/opt/oghma/venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/python3 /opt/oghma/app/backend/autoconnector/worker.py loop
+Nice=15
+CPUQuota=80%
+MemoryMax=1500M
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

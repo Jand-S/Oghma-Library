@@ -315,6 +315,22 @@ def crawl_runs_cmd(
     _echo_json(asyncio.run(_run()))
 
 
+@app.command("backup-db")
+def backup_db_cmd(keep: int = typer.Option(14, help="copias mantidas no bucket privado")) -> None:
+    """pg_dump do banco para o bucket privado do B2."""
+    from .ops import backup_db
+
+    _echo_json(backup_db(keep=keep))
+
+
+@app.command("disk-check")
+def disk_check_cmd() -> None:
+    """Aviso no brain se o disco ou o acervo quente estiverem perto do limite."""
+    from .ops import disk_check
+
+    _echo_json(disk_check())
+
+
 @app.command("audit-content")
 def audit_content_cmd(source: str = typer.Option(None, help="so uma fonte")) -> None:
     """Relatorio somente leitura: status dos capitulos, sinopses e o que mark-chapters mudaria."""

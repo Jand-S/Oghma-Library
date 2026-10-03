@@ -1,0 +1,11 @@
+[Unit]
+Description=Oghma: pg_dump do banco para o bucket privado do B2
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=oghma
+WorkingDirectory=/opt/oghma/app/backend
+EnvironmentFile=/opt/oghma/.env
+ExecStart=/opt/oghma/venv/bin/oghma backup-db --keep 14
+Nice=15
