@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://novellunar.com/sitemaps/main-page.xml</loc>
+    <lastmod>2026-01-16T00:00:00.000000Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://novellunar.com/sitemaps/genres.xml</loc>
+    <lastmod>2026-01-16T00:00:00.000000Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://novellunar.com/sitemaps/novels/1.xml</loc>
+    <lastmod>2026-01-16T00:30:00.699020Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://novellunar.com/sitemaps/novels/2.xml</loc>
+    <lastmod>2026-01-16T00:30:00.699020Z</lastmod>
+  </sitemap>
+</sitemapindex>
