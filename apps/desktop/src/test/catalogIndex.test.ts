@@ -90,7 +90,7 @@ describe("discovery helpers", () => {
       ...buildCatalogIndex([...books, novel("lotm-pt", { title: "O Senhor dos Mistérios", sourceId: "novel-mania", chapters: 1400 })]),
       discovery: {
         similar: new Map<string, Array<[string, number]>>([
-          ["ss-cn", [["romance", 0.9], ["lotm", 0.8], ["ss-gn", 0.7], ["solo", 0.5]]],
+          ["ss-cn", [["romance", 0.9], ["lotm", 0.8], ["ss-gn", 0.7], ["lotm-pt", 0.6], ["solo", 0.5]]],
           ["lotm", [["romance", 0.6]]]
         ]),
         editions: new Map([["lotm", ["lotm-pt"]], ["lotm-pt", ["lotm"]]])

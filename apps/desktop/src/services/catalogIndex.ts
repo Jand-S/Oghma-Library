@@ -156,7 +156,9 @@ function similarFromDiscovery(
     if (!shown) continue;
     const key = workKey(shown.title);
     if (seedWorks.has(key) || seen.has(key) || seen.has(workKey(novel.title))) continue;
-    seen.add(key).add(workKey(novel.title));
+    // A translation under another name is the same work: "True Martial World" hides
+    // "Mundo Marcial Verdadeiro" further down the list.
+    for (const same of [novel, shown, ...editionsOf(index, novel)]) seen.add(workKey(same.title));
     out.push(shown);
     if (out.length >= limit) break;
   }
