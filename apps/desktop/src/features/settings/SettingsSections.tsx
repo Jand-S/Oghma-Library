@@ -356,26 +356,9 @@ export function ServerSection({
         <SettingsRow label={settingsStrings.serverStatus} description={probe ? settingsStrings.serverDetails(probe.serverName, probe.version, probe.sourceCount) : undefined} testId="server-status">
           <ServerStatusBadge state={state} probe={probe} />
         </SettingsRow>
-        <SettingsRow label={settingsStrings.indexMode} labelId={`${modeId}-label`} htmlFor={modeId} description={settingsStrings.indexModeHint}>
-          <SelectField<IndexMode>
-            id={modeId}
-            label={settingsStrings.indexMode}
-            hideLabel
-            aria-labelledby={`${modeId}-label`}
-            value={config.indexMode}
-            options={(Object.keys(settingsStrings.indexModes) as IndexMode[]).map((value) => ({ value, label: settingsStrings.indexModes[value] }))}
-            onChange={(event) => save({ indexMode: event.target.value as IndexMode })}
-          />
-        </SettingsRow>
       </SettingsGroup>
 
       <SettingsGroup {...settingsStrings.groups.sync}>
-        <SwitchRow
-          label={settingsStrings.syncOnLaunch}
-          description={settingsStrings.syncOnLaunchHint}
-          checked={config.syncOnLaunch}
-          onChange={(syncOnLaunch) => save({ syncOnLaunch })}
-        />
         <SettingsRow
           label={settingsStrings.lastSync}
           description={enabled.length > 0 ? settingsStrings.enabledSources(enabled.length, sources.length) : settingsStrings.noEnabledSources}
@@ -569,63 +552,9 @@ export function AudioSection({
   onNavigate: Navigate;
   translation: TranslationSettingsProps;
 }) {
-  const voiceId = useId();
-  const speedId = useId();
-  const formatId = useId();
-  const voices: { value: string; label: string }[] = [...settingsStrings.ttsVoices];
-  if (!voices.some((voice) => voice.value === config.ttsVoice)) voices.push({ value: config.ttsVoice, label: config.ttsVoice });
-  const formats: { value: string; label: string }[] = [...settingsStrings.audioFormats];
-  if (!formats.some((format) => format.value === config.audioFormat)) formats.push({ value: config.audioFormat, label: config.audioFormat });
 
   return (
     <>
-      <SettingsGroup {...settingsStrings.groups.audiobook}>
-        <SwitchRow
-          label={settingsStrings.audiobookDefault}
-          description={settingsStrings.audiobookDefaultHint}
-          checked={config.audiobookDefault}
-          onChange={(audiobookDefault) => save({ audiobookDefault })}
-        />
-        <SettingsRow label={settingsStrings.ttsVoice} labelId={`${voiceId}-label`} htmlFor={voiceId}>
-          <SelectField
-            id={voiceId}
-            label={settingsStrings.ttsVoice}
-            hideLabel
-            aria-labelledby={`${voiceId}-label`}
-            options={voices}
-            value={config.ttsVoice}
-            onChange={(event) => save({ ttsVoice: event.target.value })}
-          />
-        </SettingsRow>
-        <SettingsRow label={settingsStrings.ttsSpeed} htmlFor={speedId}>
-          <div className="settings-range">
-            <input
-              id={speedId}
-              className="settings-range__input"
-              type="range"
-              min={0.5}
-              max={2}
-              step={0.1}
-              value={config.ttsSpeed}
-              aria-valuetext={settingsStrings.ttsSpeedValue(config.ttsSpeed)}
-              onChange={(event) => save({ ttsSpeed: Number(event.target.value) })}
-            />
-            <output className="settings-range__value" htmlFor={speedId}>{settingsStrings.ttsSpeedValue(config.ttsSpeed)}</output>
-          </div>
-        </SettingsRow>
-        <SettingsRow label={settingsStrings.audioFormat} labelId={`${formatId}-label`} htmlFor={formatId}>
-          <SelectField
-            id={formatId}
-            label={settingsStrings.audioFormat}
-            hideLabel
-            aria-labelledby={`${formatId}-label`}
-            options={formats}
-            value={config.audioFormat}
-            onChange={(event) => save({ audioFormat: event.target.value })}
-          />
-        </SettingsRow>
-      </SettingsGroup>
-
       <TranslationGroup {...translation} onNavigate={onNavigate} saved={saved} />
     </>
   );

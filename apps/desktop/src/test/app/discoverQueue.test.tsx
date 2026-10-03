@@ -122,7 +122,7 @@ describe("Discover single selection and enqueue", () => {
     expect(within(await screen.findByTestId("download-active")).getByText("The Enchanted Forest")).toBeInTheDocument();
   });
 
-  it("shows format chips and audiobook options for the selected book", async () => {
+  it("shows only formats that really work, and no audiobook switch", async () => {
     const user = setupUser();
     await renderReadyApp();
 
@@ -132,10 +132,10 @@ describe("Discover single selection and enqueue", () => {
     expect(within(panel).getByRole("button", { name: "EPUB" })).toBeInTheDocument();
     // Translation is not offered per download.
     expect(within(panel).queryByRole("button", { name: /Traduzir/i })).not.toBeInTheDocument();
-    const audiobook = within(panel).getByRole("switch", { name: discoverStrings.audiobook });
-    expect(audiobook).toHaveAttribute("aria-checked", "false");
-    await user.click(audiobook);
-    expect(audiobook).toHaveAttribute("aria-checked", "true");
+    // Audiobook was never implemented, and "PDF" produced an HTML file: neither is offered.
+    expect(within(panel).queryByRole("switch", { name: discoverStrings.audiobook })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: "PDF" })).not.toBeInTheDocument();
+    expect(within(panel).getAllByRole("button", { name: /^(EPUB|TXT|AZW3)$/ })).toHaveLength(3);
   });
 
   it("supports selecting multiple download formats", async () => {
@@ -144,14 +144,14 @@ describe("Discover single selection and enqueue", () => {
 
     const panel = await queueFirstBook(user);
     const epub = within(panel).getByRole("button", { name: "EPUB" });
-    const pdf = within(panel).getByRole("button", { name: "PDF" });
+    const txt = within(panel).getByRole("button", { name: "TXT" });
 
     expect(epub).toHaveAttribute("aria-pressed", "true");
-    expect(pdf).toHaveAttribute("aria-pressed", "false");
+    expect(txt).toHaveAttribute("aria-pressed", "false");
 
-    await user.click(pdf);
+    await user.click(txt);
 
-    expect(pdf).toHaveAttribute("aria-pressed", "true");
+    expect(txt).toHaveAttribute("aria-pressed", "true");
     expect(epub).toHaveAttribute("aria-pressed", "true");
   });
 

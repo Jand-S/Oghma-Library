@@ -118,7 +118,8 @@ describe("Settings", () => {
     const user = setupUser();
     await renderReadyApp();
     await openSettings(user, "audio");
-    expect(screen.getByLabelText(settingsStrings.ttsVoice)).toHaveValue("pt-BR-Antonio");
+    // The audiobook settings were removed (there is no audiobook generator).
+    expect(screen.queryByLabelText(settingsStrings.ttsVoice)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: settingsStrings.openTranslation }));
     expect(await screen.findByRole("heading", { level: 1, name: pageTitleStrings.translation })).toBeInTheDocument();
   });

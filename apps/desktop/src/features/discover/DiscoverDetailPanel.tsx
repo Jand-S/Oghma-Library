@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { statusLabel } from "../../constants/ui";
 import { estimateChapters } from "../../core/defaults";
 import type { ChapterPreset, ChapterSelection, DownloadFormat, Novel, NovelStatus } from "../../core/types";
-import { downloadFormats } from "../../core/types";
+import { offeredFormats } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
 import { Badge, Button, Chip, Cover, IconButton, SegmentedControl, Switch, TextField, cx, type BadgeTone } from "../../ui";
 
@@ -278,7 +278,7 @@ function DownloadConfigurator({
     update({
       formats: has
         ? selection.formats.filter((item) => item !== format)
-        : downloadFormats.filter((item) => selection.formats.includes(item) || item === format)
+        : offeredFormats.filter((item) => selection.formats.includes(item) || item === format)
     });
   };
   const setPreset = (preset: ChapterPreset) =>
@@ -302,7 +302,7 @@ function DownloadConfigurator({
         <div className="discover-config__row">
           <span className="discover-config__label" id="discover-config-formats">{discoverStrings.formats}</span>
           <div className="discover-config__chips" role="group" aria-labelledby="discover-config-formats">
-            {downloadFormats.map((format) => (
+            {offeredFormats.map((format) => (
               <Chip key={format} selected={selection.formats.includes(format)} onToggle={() => toggleFormat(format)}>
                 {format}
               </Chip>
@@ -344,12 +344,6 @@ function DownloadConfigurator({
             />
           </div>
         ) : null}
-        <Switch
-          className="discover-config__switch"
-          label={discoverStrings.audiobook}
-          checked={selection.audiobook}
-          onChange={(audiobook) => update({ audiobook })}
-        />
       </div>
       {hint ? <p className="discover-config__hint" data-testid="selection-hint">{hint}</p> : null}
       <Button

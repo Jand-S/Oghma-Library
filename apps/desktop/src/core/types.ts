@@ -64,6 +64,9 @@ export type ChapterPreset = "all" | "range";
 export type DownloadFormat = "EPUB" | "PDF" | "TXT" | "AZW3";
 
 export const downloadFormats: DownloadFormat[] = ["EPUB", "PDF", "TXT", "AZW3"];
+/** Formats offered in the UI. "PDF" stays readable in old configs but is not offered: it
+ *  produced an HTML file, not a PDF. */
+export const offeredFormats: DownloadFormat[] = ["EPUB", "TXT", "AZW3"];
 
 export type IndexMode = "catalog_only" | "incremental_recent" | "guarded_refresh";
 

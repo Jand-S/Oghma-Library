@@ -10,7 +10,7 @@ export const settingsStrings = {
     downloads: "Downloads",
     server: "Fontes e servidor",
     kindle: "Kindle e iCloud",
-    audio: "Áudio e tradução",
+    audio: "Tradução",
     about: "Sobre"
   },
   descriptions: {

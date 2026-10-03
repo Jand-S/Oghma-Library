@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import type { DownloadFormat } from "../../core/types";
-import { downloadFormats } from "../../core/types";
+import { offeredFormats } from "../../core/types";
 import { Chip, cx } from "../../ui";
 import "./settings.css";
 
@@ -17,7 +17,7 @@ export function toggleFormat(current: readonly DownloadFormat[], format: Downloa
   if (has && current.length === 1) return [...current];
   return has
     ? current.filter((item) => item !== format)
-    : downloadFormats.filter((item) => current.includes(item) || item === format);
+    : offeredFormats.filter((item) => current.includes(item) || item === format);
 }
 
 /**
@@ -44,7 +44,7 @@ export function FormatPicker({
     <fieldset className={cx("settings-formats", className)} aria-describedby={hint ? hintId : undefined} data-testid="format-picker">
       <legend className={cx("settings-formats__legend", hideLabel && "sr-only")}>{label}</legend>
       <div className="settings-formats__chips">
-        {downloadFormats.map((format) => (
+        {offeredFormats.map((format) => (
           <Chip
             key={format}
             selected={value.includes(format)}
