@@ -591,16 +591,29 @@ def interrupted_request() -> dict | None:
 
 # ------------------------------------------------------------------ monitoramento
 
+def recent_runs() -> list | None:
+    """Ultimas coletas: pela CLI do venv (VPS, sem API) ou pela API do compose."""
+    try:
+        if cfg("AUTOCONNECTOR_RUNTIME", "docker") == "venv":
+            venv = Path(cfg("OGHMA_VENV", "/opt/oghma/venv"))
+            env = {**os.environ, **read_env_file(cfg("OGHMA_ENV_FILE", "/opt/oghma/.env"))}
+            proc = subprocess.run([str(venv / "bin" / "oghma"), "crawl-runs", "--limit", "50"],
+                                  capture_output=True, text=True, timeout=120, env=env)
+            return json.loads(proc.stdout) if proc.returncode == 0 else None
+        with urllib.request.urlopen(cfg("OGHMA_CRAWLS_URL", "http://127.0.0.1:8010/api/crawls?limit=50"), timeout=20) as resp:
+            return json.loads(resp.read().decode())
+    except (urllib.error.URLError, OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
 def monitor_new_sources(brain: Brain) -> None:
     """Nas primeiras coletas de uma fonte nova, avisa se falhou ou veio com muitos capitulos invalidos."""
     path = Path(cfg("AUTOCONNECTOR_WORK", "/home/codex/oghma-autoconnector")) / "monitor.json"
     if not path.exists():
         return
     data = json.loads(path.read_text())
-    try:
-        with urllib.request.urlopen(cfg("OGHMA_CRAWLS_URL", "http://127.0.0.1:8010/api/crawls?limit=50"), timeout=20) as resp:
-            runs = json.loads(resp.read().decode())
-    except (urllib.error.URLError, OSError, ValueError):
+    runs = recent_runs()
+    if runs is None:
         return
     changed = False
     for source, info in list(data.items()):

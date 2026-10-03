@@ -292,6 +292,29 @@ def rodizio_cmd(
                                                    once=once, only=source or None)))
 
 
+@app.command("crawl-runs")
+def crawl_runs_cmd(
+    source: str = typer.Option(None, help="so uma fonte"),
+    limit: int = typer.Option(50, help="execucoes mais recentes"),
+) -> None:
+    """Execucoes recentes de coleta, no mesmo formato de /api/crawls (para quem roda sem API)."""
+    from sqlalchemy import select
+
+    from .models import CrawlRun
+
+    async def _run():
+        async with SessionLocal() as s:
+            stmt = select(CrawlRun)
+            if source:
+                stmt = stmt.where(CrawlRun.source_id == source)
+            rows = (await s.scalars(stmt.order_by(CrawlRun.started_at.desc()).limit(limit))).all()
+            return [{"id": int(r.id), "sourceId": r.source_id, "status": r.status, "stats": dict(r.stats or {}),
+                     "error": r.error or "", "startedAt": r.started_at.isoformat() if r.started_at else "",
+                     "finishedAt": r.finished_at.isoformat() if r.finished_at else ""} for r in rows]
+
+    _echo_json(asyncio.run(_run()))
+
+
 @app.command("audit-content")
 def audit_content_cmd(source: str = typer.Option(None, help="so uma fonte")) -> None:
     """Relatorio somente leitura: status dos capitulos, sinopses e o que mark-chapters mudaria."""
