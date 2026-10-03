@@ -1,11 +1,12 @@
-import { ArrowDownAZ, ArrowUpAZ, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import type { Filters } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
 import { Badge, IconButton, SelectField, TextField } from "../../ui";
 
-export type SortDirection = "asc" | "desc";
+/** Discover order: title A–Z/Z–A, or by recent chapter, arrival, size, views or rating. */
+export type SortDirection = "asc" | "desc" | "updated" | "new" | "chapters" | "popular" | "rating";
 
 /** Delay between the last keystroke and the search request. */
 export const SEARCH_DEBOUNCE_MS = 120;
@@ -72,7 +73,6 @@ export function discoverHeader({ discover, sources, loading }: AppControllers): 
   const { filters, setFilters, sortDirection, setSortDirection } = discover;
   const enabledSources = sources.sources.filter((source) => source.enabled);
   const busy = loading || discover.searching;
-  const sortLabel = sortDirection === "asc" ? discoverStrings.sortAsc : discoverStrings.sortDesc;
 
   return {
     badge: (
@@ -92,12 +92,15 @@ export function discoverHeader({ discover, sources, loading }: AppControllers): 
           options={[{ value: "all", label: discoverStrings.allSources }, ...enabledSources.map((source) => ({ value: source.id, label: source.name }))]}
           onChange={(event) => setFilters({ ...filters, sourceId: event.target.value, language: "all" })}
         />
-        <IconButton
-          label={sortLabel}
-          icon={sortDirection === "asc" ? <ArrowDownAZ /> : <ArrowUpAZ />}
-          variant="ghost"
-          size="sm"
-          onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")}
+        <SelectField<SortDirection>
+          label={discoverStrings.sortLabel}
+          hideLabel
+          fieldClassName="o-field--sm discover-header__sort"
+          value={sortDirection}
+          disabled={filters.query.trim().length > 0}
+          title={filters.query.trim() ? discoverStrings.sortByRelevance : undefined}
+          options={discoverStrings.sortOptions}
+          onChange={(event) => setSortDirection(event.target.value as SortDirection)}
         />
       </>
     ),

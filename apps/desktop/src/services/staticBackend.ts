@@ -338,6 +338,11 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       }));
     },
 
+    async getCatalogIndex(): Promise<CatalogIndex> {
+      await ensureLoaded();
+      return index;
+    },
+
     async listIndexSources(): Promise<SourceSite[]> {
       const index = await fetchJson<IndexJson>(`${base}/index.json`);
       return index.sites.map((site) => siteToSource(base, site, site.baseUrl ?? ""));

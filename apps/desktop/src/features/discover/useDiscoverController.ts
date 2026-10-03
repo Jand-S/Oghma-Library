@@ -5,6 +5,7 @@ import { useNovelSearch } from "../../app/useNovelSearch";
 import { defaultFilters, defaultSelection } from "../../core/defaults";
 import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, Novel, QueueItem, SourceSite, TagCatalogItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
+import { editionsOf, similarNovels, type CatalogIndex } from "../../services/catalogIndex";
 import { readUiPreferences } from "../settings/preferences";
 import type { SortDirection } from "./DiscoverHeader";
 
@@ -127,6 +128,27 @@ export function useDiscoverController({
 
   const detailNovel = previewNovel ?? selectedNovel ?? undefined;
 
+  // Catalog index for "Também em" (same work in other sources) and "Parecidos".
+  const [catalogIndex, setCatalogIndex] = useState<CatalogIndex | null>(null);
+  useEffect(() => {
+    if (loading || bootError || !backend.getCatalogIndex) return;
+    let cancelled = false;
+    void backend.getCatalogIndex().then((index) => {
+      if (!cancelled) setCatalogIndex(index);
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [backend, bootError, loading, sources]);
+  const related = useMemo(() => {
+    if (!detailNovel || !catalogIndex) return { editions: [] as Novel[], similar: [] as Novel[] };
+    const enabled = sources.filter((source) => source.enabled).map((source) => source.id);
+    return {
+      editions: editionsOf(catalogIndex, detailNovel).filter((novel) => enabled.includes(novel.sourceId)),
+      similar: similarNovels(catalogIndex, [detailNovel], { limit: 6, sourceIds: enabled })
+    };
+  }, [catalogIndex, detailNovel, sources]);
+
   const buildDefaultSelection = (novel: Novel): ChapterSelection => ({
     ...defaultSelection(novel),
     preset: readUiPreferences().chapterPreset,
@@ -192,6 +214,10 @@ export function useDiscoverController({
 
   return {
     results,
+    /** Other editions and similar novels of the novel in the details panel. */
+    related,
+    /** Catalog index (Início uses it for suggestions); null until loaded. */
+    catalogIndex,
     filters,
     setFilters,
     sortDirection,

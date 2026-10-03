@@ -7,6 +7,7 @@ import { DiscoverDetailPanel } from "./DiscoverDetailPanel";
 import { DiscoverFilterBar } from "./DiscoverFilters";
 import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
 import type { SortDirection } from "./DiscoverHeader";
+import { sortNovels } from "../../services/catalogIndex";
 import { activeFilters, clearedFilters } from "./filterModel";
 import "./discover.css";
 
@@ -33,6 +34,8 @@ export type DiscoverViewProps = {
   /** Selects the book, or clears the selection when it is already selected. */
   onSelectNovel: (novel: Novel) => void;
   onClearSelection: () => void;
+  /** Other editions and similar novels of the novel in the details panel. */
+  related?: { editions: Novel[]; similar: Novel[] };
   onPreviewNovel: (novel: Novel) => void;
   onClearPreview: () => void;
   onSelectionChange: (selection: ChapterSelection) => void;
@@ -66,6 +69,7 @@ export function DiscoverView({
   onSelectNovel,
   onClearSelection,
   onPreviewNovel,
+  related,
   onClearPreview,
   onSelectionChange,
   onAddSelected,
@@ -85,8 +89,8 @@ export function DiscoverView({
   const sortedResults = useMemo(() => {
     // With a query the backend ranks by relevance (title > tag > author > synopsis).
     if (ranked) return results;
-    const sorted = [...results].sort((a, b) => a.title.localeCompare(b.title, "pt-BR", { numeric: true, sensitivity: "base" }));
-    return sortDirection === "asc" ? sorted : sorted.reverse();
+    if (sortDirection === "asc" || sortDirection === "desc") return sortNovels(results, "title", sortDirection);
+    return sortNovels(results, sortDirection);
   }, [results, sortDirection, ranked]);
   const visibleResults = sortedResults.slice(0, visibleCount);
   const showMore = useCallback(
@@ -224,6 +228,9 @@ export function DiscoverView({
           onSelect={onSelectNovel}
           onSelectionChange={onSelectionChange}
           onAdd={onAddSelected}
+          editions={related?.editions}
+          similar={related?.similar}
+          onOpenNovel={onPreviewNovel}
         />
       ) : null}
     </div>

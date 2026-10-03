@@ -908,4 +908,96 @@
     }
   }
 
+
+  /* "Também em": the same work in other sources. */
+  .discover-editions {
+    display: grid;
+    gap: var(--space-0-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .discover-editions__item {
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-1-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+    color: var(--text);
+    font-size: var(--fs-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .discover-editions__item:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-2);
+  }
+
+  .discover-editions__meta {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+
+  /* "Parecidos": three small covers per row. */
+  .discover-similar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-1-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .discover-similar__item {
+    display: grid;
+    width: 100%;
+    gap: var(--space-0-5);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-2);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .discover-similar__cover {
+    aspect-ratio: 2 / 3;
+    border-radius: var(--radius-sm);
+  }
+
+  .discover-similar__item:hover .discover-similar__title {
+    color: var(--text);
+  }
+
+  .discover-similar__title {
+    display: -webkit-box;
+    overflow: hidden;
+    max-height: calc(var(--fs-xs) * 2.6);
+    font-size: var(--fs-xs);
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+
+  .discover-card__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .discover-card__complete {
+    color: var(--accent-text);
+    font-weight: var(--fw-medium);
+  }
+
 }

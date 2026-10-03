@@ -108,6 +108,7 @@ function DiscoverPage({ app }: ViewProps) {
     onSelectNovel: discover.selectNovel,
     onClearSelection: discover.clearSelection,
     onPreviewNovel: discover.openPreviewNovel,
+    related: discover.related,
     onClearPreview: discover.clearPreviewNovel,
     onSelectionChange: discover.updateSelection,
     onAddSelected: discover.addSelectedToQueue,

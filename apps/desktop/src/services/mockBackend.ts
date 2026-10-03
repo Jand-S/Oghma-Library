@@ -1,3 +1,4 @@
+import { buildCatalogIndex } from "./catalogIndex";
 import type {
   BootstrapPayload,
   Chapter,
@@ -389,6 +390,10 @@ export const mockBackendClient: BackendClient = {
       queue: structuredClone(queue),
       library: structuredClone(library)
     };
+  },
+
+  async getCatalogIndex() {
+    return buildCatalogIndex(novels);
   },
 
   async searchNovels(filters: Filters): Promise<Novel[]> {

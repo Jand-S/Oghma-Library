@@ -85,3 +85,100 @@ export function searchCatalog(index: CatalogIndex, filters: Filters, sourceIds?:
   if (tokens.length) ranked.sort((a, b) => b.score - a.score);
   return ranked.map((item) => item.novel);
 }
+
+// ---------------------------------------------------------------- discovery helpers
+
+/** Same work, any source: title without accents, case, and edition suffixes like "(Novel)" or "[WN]". */
+export function workKey(title: string): string {
+  return normalizeSearchText(title.replace(/[([][^)\]]*[)\]]/g, " "));
+}
+
+/** Tags that describe the story (genres and themes), not the format or the origin. */
+function storyTags(keys: Iterable<string>): Set<string> {
+  return new Set([...keys].filter((key) => !key.startsWith("format.")));
+}
+
+/**
+ * The same work published by other sources ("Também em: Central Novel, RoliaScan"),
+ * matched by title. Sorted by chapter count (the most complete edition first).
+ */
+export function editionsOf(index: CatalogIndex, novel: Novel): Novel[] {
+  const key = workKey(novel.title);
+  if (!key) return [];
+  return index.entries
+    .filter((entry) => entry.novel.id !== novel.id && entry.novel.sourceId !== novel.sourceId && workKey(entry.novel.title) === key)
+    .map((entry) => entry.novel)
+    .sort((a, b) => b.chapters - a.chapters);
+}
+
+/**
+ * Novels that share the most story tags with `seeds` (Jaccard similarity), skipping the
+ * seeds, their other editions and anything in `exclude`. Same language as the seeds counts a
+ * little extra, so a Portuguese reader gets Portuguese suggestions first.
+ */
+export function similarNovels(
+  index: CatalogIndex,
+  seeds: Novel[],
+  options: { limit?: number; exclude?: ReadonlySet<string>; sourceIds?: readonly string[] } = {}
+): Novel[] {
+  const limit = options.limit ?? 8;
+  if (!seeds.length) return [];
+  const seedEntries = seeds.map((seed) => index.entries.find((entry) => entry.novel.id === seed.id)).filter(Boolean) as Entry[];
+  const seedTags = seedEntries.map((entry) => storyTags(entry.tagKeys));
+  const seedWorks = new Set(seeds.map((seed) => workKey(seed.title)));
+  const languages = new Set(seeds.map((seed) => seed.language.toLowerCase()));
+  const allowed = options.sourceIds ? new Set(options.sourceIds) : null;
+  const scored: Array<{ novel: Novel; score: number }> = [];
+  for (const entry of index.entries) {
+    const { novel } = entry;
+    if (options.exclude?.has(novel.id) || seedWorks.has(workKey(novel.title))) continue;
+    if (allowed && !allowed.has(novel.sourceId)) continue;
+    const tags = storyTags(entry.tagKeys);
+    if (tags.size === 0) continue;
+    let best = 0;
+    for (const seed of seedTags) {
+      let shared = 0;
+      for (const tag of tags) if (seed.has(tag)) shared += 1;
+      if (shared < 2) continue;
+      best = Math.max(best, shared / (seed.size + tags.size - shared));
+    }
+    if (best === 0) continue;
+    const score = best + (languages.has(novel.language.toLowerCase()) ? 0.05 : 0) + Math.min(novel.chapters, 2000) / 200000;
+    scored.push({ novel, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  // One edition per work in the suggestions.
+  const seen = new Set<string>();
+  const out: Novel[] = [];
+  for (const { novel } of scored) {
+    const key = workKey(novel.title);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(novel);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+export type NovelSort = "title" | "updated" | "new" | "chapters" | "popular" | "rating";
+
+const time = (iso?: string) => (iso ? Date.parse(iso) || 0 : 0);
+
+/** Sorted copy. Novels without the data (no date, no rating) go last, in title order. */
+export function sortNovels(novels: readonly Novel[], sort: NovelSort, direction: "asc" | "desc" = "asc"): Novel[] {
+  const byTitle = (a: Novel, b: Novel) => a.title.localeCompare(b.title, "pt-BR", { numeric: true, sensitivity: "base" });
+  const value: Record<Exclude<NovelSort, "title">, (n: Novel) => number> = {
+    updated: (n) => time(n.lastChapterAt),
+    new: (n) => time(n.firstSeenAt),
+    chapters: (n) => n.chapters,
+    popular: (n) => n.views ?? 0,
+    rating: (n) => (n.rating ?? 0) * 1e6 + (n.ratingVotes ?? 0)
+  };
+  const list = [...novels];
+  if (sort === "title") {
+    list.sort(byTitle);
+    return direction === "asc" ? list : list.reverse();
+  }
+  const get = value[sort];
+  return list.sort((a, b) => get(b) - get(a) || byTitle(a, b));
+}

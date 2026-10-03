@@ -153,6 +153,12 @@ function NovelCard({
           <span aria-hidden="true">·</span>
           <span>{novel.sourceChapters ? discoverStrings.chaptersShortOf(novel.chapters, novel.sourceChapters) : discoverStrings.chaptersShort(novel.chapters)}</span>
         </span>
+        {novel.status === "complete" || novel.rating ? (
+          <span className="discover-card__facts">
+            {novel.status === "complete" ? <span className="discover-card__complete">{discoverStrings.completeShort}</span> : null}
+            {novel.rating ? <span aria-label={discoverStrings.ratingLabel(novel.rating, novel.ratingVotes)}>{discoverStrings.rating(novel.rating)}</span> : null}
+          </span>
+        ) : null}
       </div>
       <button
         type="button"

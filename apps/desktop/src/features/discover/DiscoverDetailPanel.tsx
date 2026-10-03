@@ -29,15 +29,17 @@ type DiscoverDetailPanelProps = {
   onSelect: (novel: Novel) => void;
   onSelectionChange: (selection: ChapterSelection) => void;
   onAdd: () => void;
+  /** The same work in other enabled sources (most complete first). */
+  editions?: Novel[];
+  /** Novels sharing the most story tags. */
+  similar?: Novel[];
+  /** Opens another novel in this panel (preview). */
+  onOpenNovel?: (novel: Novel) => void;
 };
 
 /** Detail tags beyond this many rows collapse behind a "+N" chip. */
 const TAG_ROWS = 2;
 
-/**
- * Right-hand details: a header row (source, preview badge, close), the hero (cover, title,
- * author, key badges), then the synopsis and the tags, plus the sticky download actions.
- */
 /**
  * Chapter number typed freely (it can be empty or out of range while editing); the value is
  * corrected only on blur or Enter. Clamping on every keystroke made it impossible to erase
@@ -74,6 +76,10 @@ function ChapterNumberField({ label, value, min, max, onCommit }: {
   );
 }
 
+/**
+ * Right-hand details: a header row (source, preview badge, close), the hero (cover, title,
+ * author, key badges), then the synopsis, the tags, other editions and similar novels, plus the sticky download actions.
+ */
 export function DiscoverDetailPanel({
   novel,
   isSelected,
@@ -85,7 +91,10 @@ export function DiscoverDetailPanel({
   onClose,
   onSelect,
   onSelectionChange,
-  onAdd
+  onAdd,
+  editions = [],
+  similar = [],
+  onOpenNovel
 }: DiscoverDetailPanelProps) {
   const [synopsisOpen, setSynopsisOpen] = useState(false);
   useEffect(() => setSynopsisOpen(false), [novel.id]);
@@ -163,6 +172,38 @@ export function DiscoverDetailPanel({
             <section className="discover-detail__section">
               <h3 className="discover-detail__section-title">{discoverStrings.tags}</h3>
               <DetailTags tags={novel.tags} />
+            </section>
+          ) : null}
+          {editions.length > 0 ? (
+            <section className="discover-detail__section" data-testid="discover-editions">
+              <h3 className="discover-detail__section-title">{discoverStrings.alsoIn}</h3>
+              <ul className="discover-editions">
+                {editions.map((edition) => (
+                  <li key={edition.id}>
+                    <button type="button" className="discover-editions__item" onClick={() => onOpenNovel?.(edition)}>
+                      <span className="discover-editions__source">{edition.sourceName}</span>
+                      <span className="discover-editions__meta">
+                        {edition.language.toUpperCase()} · {discoverStrings.chaptersShort(edition.chapters)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {similar.length > 0 ? (
+            <section className="discover-detail__section" data-testid="discover-similar">
+              <h3 className="discover-detail__section-title">{discoverStrings.similar}</h3>
+              <ul className="discover-similar">
+                {similar.map((other) => (
+                  <li key={other.id}>
+                    <button type="button" className="discover-similar__item" onClick={() => onOpenNovel?.(other)} title={other.title}>
+                      <Cover src={other.coverUrl} title={other.title} size="fill" className="discover-similar__cover" />
+                      <span className="discover-similar__title">{other.title}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
           {novel.updatedAt ? <p className="discover-detail__updated">{discoverStrings.updated(novel.updatedAt)}</p> : null}

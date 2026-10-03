@@ -7,9 +7,23 @@ export const discoverStrings = {
   clearSearch: "Limpar busca",
   sortAsc: "Ordem alfabética: A–Z",
   sortDesc: "Ordem alfabética: Z–A",
+  sortLabel: "Ordenar",
+  sortByRelevance: "Com texto na busca, os resultados vêm por relevância",
+  sortOptions: [
+    { value: "asc", label: "Título (A–Z)" },
+    { value: "desc", label: "Título (Z–A)" },
+    { value: "updated", label: "Capítulo mais recente" },
+    { value: "new", label: "Recém-chegados" },
+    { value: "chapters", label: "Mais capítulos" },
+    { value: "popular", label: "Mais lidos" },
+    { value: "rating", label: "Melhor nota" }
+  ] as Array<{ value: "asc" | "desc" | "updated" | "new" | "chapters" | "popular" | "rating"; label: string }>,
   resultsTotal: (total: number) => `${total.toLocaleString("pt-BR")} ${total === 1 ? "livro" : "livros"}`,
   searching: "Buscando…",
   allSources: "Todas as fontes",
+  alsoIn: "Também em",
+  completeShort: "Completa",
+  similar: "Parecidos",
 
   // Results
   results: "Resultados",

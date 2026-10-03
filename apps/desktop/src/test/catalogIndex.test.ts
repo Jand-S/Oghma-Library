@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultFilters } from "../core/defaults";
 import { tagKeysForNovel } from "../core/tagFilters";
 import type { Novel } from "../core/types";
-import { buildCatalogIndex, searchCatalog } from "../services/catalogIndex";
+import { buildCatalogIndex, editionsOf, searchCatalog, similarNovels, sortNovels } from "../services/catalogIndex";
 
 function novel(id: string, patch: Partial<Novel>): Novel {
   return {
@@ -61,5 +61,39 @@ describe("catalog search", () => {
     const keys = tagKeysForNovel({ tags: ["Ação", "Action", "Foo"], tagKeys: ["genre.action", "raw.foo"] });
     expect(keys).toContain("raw.foo");
     expect(keys.filter((key) => key === "genre.action")).toHaveLength(1);
+  });
+});
+
+describe("discovery helpers", () => {
+  const books = [
+    novel("ss-cn", { title: "Shadow Slave", tagKeys: ["genre.action", "genre.fantasy", "theme.level_system", "format.webnovel"], chapters: 2000 }),
+    novel("ss-gn", { title: "Shadow Slave (Novel)", sourceId: "golden-novel", language: "en", tagKeys: ["genre.action"], chapters: 2300 }),
+    novel("lotm", { title: "Lord of the Mysteries", tagKeys: ["genre.action", "genre.fantasy", "genre.mystery"], chapters: 1400 }),
+    novel("solo", { title: "Solo Leveling", tagKeys: ["genre.action", "theme.level_system", "genre.fantasy"], chapters: 270 }),
+    novel("romance", { title: "Amor de Verão", tagKeys: ["genre.romance", "genre.slice_of_life"] })
+  ];
+  const idx = buildCatalogIndex(books);
+
+  it("finds the same work in other sources, most complete first", () => {
+    expect(editionsOf(idx, books[0]).map((n) => n.id)).toEqual(["ss-gn"]);
+    expect(editionsOf(idx, books[2])).toEqual([]);
+  });
+
+  it("suggests novels sharing story tags, never the seed or its other editions", () => {
+    expect(similarNovels(idx, [books[0]]).map((n) => n.id)).toEqual(["solo", "lotm"]);
+    expect(similarNovels(idx, [books[0]], { exclude: new Set(["solo"]) }).map((n) => n.id)).toEqual(["lotm"]);
+    expect(similarNovels(idx, [books[4]])).toEqual([]);
+  });
+
+  it("sorts by updates, arrivals, size, popularity and rating; missing data goes last", () => {
+    const dated = [
+      novel("old", { title: "B", lastChapterAt: "2026-01-01T00:00:00Z", views: 10, rating: 4.9, ratingVotes: 2 }),
+      novel("fresh", { title: "C", lastChapterAt: "2026-10-01T00:00:00Z", views: 500, rating: 4.9, ratingVotes: 90 }),
+      novel("none", { title: "A" })
+    ];
+    expect(sortNovels(dated, "updated").map((n) => n.id)).toEqual(["fresh", "old", "none"]);
+    expect(sortNovels(dated, "popular").map((n) => n.id)).toEqual(["fresh", "old", "none"]);
+    expect(sortNovels(dated, "rating").map((n) => n.id)).toEqual(["fresh", "old", "none"]);
+    expect(sortNovels(dated, "title", "desc").map((n) => n.id)).toEqual(["fresh", "old", "none"]);
   });
 });

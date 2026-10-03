@@ -1,3 +1,4 @@
+import type { CatalogIndex } from "./catalogIndex";
 import type {
   BootstrapPayload,
   Chapter,
@@ -23,6 +24,8 @@ export type BackendClient = {
   getTags(sourceId?: string): Promise<TagCatalogItem[]>;
   getNovelChapters(novelId: string): Promise<Chapter[]>;
   syncSource(sourceId: string): Promise<SourceSite>;
+  /** The in-memory catalog index (every source): similar novels, other editions, sorting. */
+  getCatalogIndex?(): Promise<CatalogIndex>;
   /** Sources straight from the index (no catalogs): name, language, count and icon of a source not loaded yet. */
   listIndexSources?(): Promise<SourceSite[]>;
   createDownloads(selections: ChapterSelection[]): Promise<QueueItem[]>;
