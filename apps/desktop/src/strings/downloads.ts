@@ -75,6 +75,7 @@ export const downloadsStrings = {
   duplicate: "Este livro já está na fila",
   full: "A fila está cheia (máx. 10)",
   committed: (title: string) => `${title} salvo na biblioteca`,
+  committedWithWarning: (title: string, warning: string) => `${title} salvo na biblioteca. ${warning}`,
   failedToast: (title: string, error?: string) => `Não foi possível baixar ${title}${error ? `: ${error}` : "."}`,
   canceledToast: (title: string) => `Download de ${title} cancelado.`,
   clearedToast: (count: number) => (count === 1 ? "1 item removido da lista." : `${count} itens removidos da lista.`),

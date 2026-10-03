@@ -98,8 +98,8 @@ function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
       if (type === "committed") {
         const finalDir = job.finalDir;
         toast({
-          message: downloadsStrings.committed(job.title),
-          tone: "success",
+          message: job.warning ? downloadsStrings.committedWithWarning(job.title, job.warning) : downloadsStrings.committed(job.title),
+          tone: job.warning ? "warning" : "success",
           action: finalDir && isTauriRuntime()
             ? { label: downloadsStrings.openFolder, onClick: () => void openLocalPath(finalDir).catch(() => undefined) }
             : undefined

@@ -14,6 +14,8 @@ export type BundleMeta = {
   bundle_version?: number;
   generated_at?: string;
   chapters?: Array<{ number: number; title?: string; file?: string; words?: number }>;
+  /** Chapters the server knows about but could not publish (empty, removed, gap). */
+  missingChapters?: Array<{ number: number; title?: string; reason?: string }>;
 };
 
 export type ExtractedBundle = { meta: BundleMeta | null; chapters: BundleChapter[]; assets: BundleAsset[] };

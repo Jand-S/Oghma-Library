@@ -10,6 +10,8 @@ import type { ExtractedBundle } from "../services/bundle";
 import {
   buildLocalBookManifest,
   buildOutputs,
+  unavailableWarning,
+  withUnavailableChapters,
   createSpeedMeter,
   isAbortError,
   runDownload,
@@ -119,13 +121,24 @@ describe("downloadManager", () => {
     }
   });
 
-  it("rejects empty published chapters but allows a valid selected range", async () => {
+  it("empty and missing chapters become an 'indisponível na fonte' page instead of stopping the book", async () => {
     const bundle: ExtractedBundle = {
       ...sampleBundle,
-      chapters: [...sampleBundle.chapters, { number: 50, html: '<p> </p><hr>' }]
+      meta: { ...(sampleBundle.meta ?? {}), missingChapters: [{ number: 3, title: "O Terceiro", reason: "http_404" }] },
+      chapters: [...sampleBundle.chapters, { number: 50, html: "<p> </p><hr>" }]
     };
-    await expect(buildOutputs(bundle, "Teste", ["EPUB"])).rejects.toThrow(/sem conteúdo: 50/);
-    await expect(buildOutputs(bundle, "Teste", ["TXT"], { start: 1, end: 2 })).resolves.toHaveLength(1);
+    const { bundle: filled, unavailable } = withUnavailableChapters(bundle);
+    expect(unavailable).toEqual([3, 50]);
+    expect(filled.chapters.map((c) => c.number)).toEqual([...sampleBundle.chapters.map((c) => c.number), 3, 50].sort((a, b) => a - b));
+    expect(filled.chapters.find((c) => c.number === 3)?.title).toBe("O Terceiro");
+    expect(filled.chapters.find((c) => c.number === 50)?.html).toContain("indisponível na fonte");
+    expect(unavailableWarning(unavailable)).toBe("2 capítulos indisponíveis na fonte (3, 50); o livro tem uma página no lugar de cada um.");
+
+    const outputs = await buildOutputs(bundle, "Teste", ["TXT"]);
+    expect(outputs[0].data).toContain("Capítulo indisponível na fonte.");
+    // Fora da faixa escolhida nada muda.
+    expect(withUnavailableChapters(bundle, { start: 1, end: 2 }).unavailable).toEqual([]);
+    expect(unavailableWarning([])).toBeNull();
   });
 
   it("uses the novel id as the EPUB identifier, falling back to the title", async () => {

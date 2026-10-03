@@ -58,6 +58,8 @@ export type RunDownloadOptions = {
   saveCover?: boolean;
   /** Clock for speed/ETA (ms). Defaults to performance.now/Date.now. */
   now?: () => number;
+  /** Non-fatal notice for the user (e.g. chapters unavailable at the source). */
+  onWarning?: (message: string) => void;
 };
 
 export const LOCAL_BOOK_MANIFEST = ".oghma-book.json";
@@ -349,6 +351,57 @@ async function buildEpub(
   ], onProgress, signal);
 }
 
+/** Page that stands in for a chapter the source did not deliver. */
+export function unavailableChapterHtml(): string {
+  return '<div class="oghma-unavailable"><p><em>Capítulo indisponível na fonte.</em></p>'
+    + "<p>O site de origem publicou este capítulo vazio ou ele não existe mais. "
+    + "Se a fonte corrigir, ele entra quando você baixar o livro de novo.</p></div>";
+}
+
+function isEmptyChapter(html: string): boolean {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script, style").forEach((node) => node.remove());
+  return !doc.body.textContent?.trim() && !doc.body.querySelector("img[src]");
+}
+
+/**
+ * Keeps the book complete and in order: empty chapters and the ones the server lists in
+ * `meta.missingChapters` become an "indisponível na fonte" page instead of stopping the
+ * download. Returns the chapter numbers that were replaced (inside the selected range).
+ */
+export function withUnavailableChapters(
+  bundle: ExtractedBundle,
+  range?: { start: number; end: number }
+): { bundle: ExtractedBundle; unavailable: number[] } {
+  const inRange = (n: number) => !range || (n >= range.start && n <= range.end);
+  const unavailable: number[] = [];
+  const chapters = bundle.chapters.map((chapter) => {
+    if (!inRange(chapter.number) || !isEmptyChapter(chapter.html)) return chapter;
+    unavailable.push(chapter.number);
+    return { ...chapter, html: unavailableChapterHtml() };
+  });
+  const present = new Set(chapters.map((chapter) => chapter.number));
+  for (const missing of bundle.meta?.missingChapters ?? []) {
+    if (!inRange(missing.number) || present.has(missing.number)) continue;
+    present.add(missing.number);
+    unavailable.push(missing.number);
+    chapters.push({ number: missing.number, title: missing.title || `Capítulo ${missing.number}`, html: unavailableChapterHtml() });
+  }
+  if (!unavailable.length) return { bundle, unavailable };
+  chapters.sort((a, b) => a.number - b.number);
+  unavailable.sort((a, b) => a - b);
+  return { bundle: { ...bundle, chapters }, unavailable };
+}
+
+/** "3 capítulos indisponíveis na fonte: 50, 51, 52" (null when none). */
+export function unavailableWarning(numbers: number[]): string | null {
+  if (!numbers.length) return null;
+  const list = numbers.slice(0, 12).join(", ") + (numbers.length > 12 ? ", …" : "");
+  return numbers.length === 1
+    ? `1 capítulo indisponível na fonte (${list}); o livro tem uma página no lugar dele.`
+    : `${numbers.length} capítulos indisponíveis na fonte (${list}); o livro tem uma página no lugar de cada um.`;
+}
+
 export async function buildOutputs(
   bundle: ExtractedBundle,
   title: string,
@@ -361,16 +414,8 @@ export async function buildOutputs(
   novelId?: string
 ): Promise<Array<{ fileName: string; data: FileData }>> {
   throwIfAborted(signal);
-  const empty = bundle.chapters.filter((chapter) => {
-    if (range && (chapter.number < range.start || chapter.number > range.end)) return false;
-    const doc = new DOMParser().parseFromString(chapter.html, "text/html");
-    doc.querySelectorAll("script, style").forEach((node) => node.remove());
-    return !doc.body.textContent?.trim() && !doc.body.querySelector("img[src]");
-  });
-  if (empty.length) {
-    const numbers = empty.slice(0, 12).map((chapter) => chapter.number).join(", ");
-    throw new Error(`O acervo publicado possui ${empty.length} capítulo(s) sem conteúdo: ${numbers}${empty.length > 12 ? ", ..." : ""}. O download foi interrompido para evitar um livro incompleto.`);
-  }
+  // Empty or missing chapters become an "indisponível na fonte" page (the book stays in order).
+  bundle = withUnavailableChapters(bundle, range).bundle;
   const base = sanitizeFileName(title);
   const outputs: Array<{ fileName: string; data: FileData }> = [];
   if (formats.includes("EPUB")) {
@@ -479,6 +524,10 @@ export async function runDownload(req: DownloadRequest, opts: RunDownloadOptions
   const needsAzw3 = req.formats.includes("AZW3");
   const buildFormats = req.formats.filter((format) => format !== "AZW3");
   if (needsAzw3 && !buildFormats.includes("EPUB")) buildFormats.push("EPUB");
+  const filled = withUnavailableChapters(bundle, req.range);
+  bundle = filled.bundle;
+  const warning = unavailableWarning(filled.unavailable);
+  if (warning) opts.onWarning?.(warning);
   const manifest = await buildLocalBookManifest(bundle, req.novel, req.range, signal);
   let outputs: Array<{ fileName: string; data: FileData } | null> = await buildOutputs(
     bundle,

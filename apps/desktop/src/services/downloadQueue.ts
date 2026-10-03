@@ -295,6 +295,7 @@ export function createDownloadQueue(deps: DownloadQueueDeps): DownloadQueue {
             progress: { ...finishedProgress, stage: "done", percent: 100 },
             finalDir: result.finalDir,
             outputFiles: result.outputFiles,
+            ...(result.warning ? { warning: result.warning } : {}),
             finishedAt: now()
           };
           setState({ ...state, active: null, completed: withCompleted(done) });

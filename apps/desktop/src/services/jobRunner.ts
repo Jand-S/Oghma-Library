@@ -14,6 +14,8 @@ export type JobRunContext = {
 export type JobResult = {
   finalDir: string;
   outputFiles: string[];
+  /** Saved, but with something the user should know (chapters unavailable at the source). */
+  warning?: string;
 };
 
 export type RunJob = (job: DownloadJob, ctx: JobRunContext) => Promise<JobResult>;
@@ -50,6 +52,7 @@ export function createJobRunner(overrides: Partial<JobRunnerDeps> = {}): RunJob 
     ctx.onProgress({ stage: "preparing", percent: 0 });
     throwIfAborted(signal);
     const stage = await deps.staging.beginExport(job.request.outputRoot, job.novelId, job.title);
+    let warning: string | undefined;
     try {
       throwIfAborted(signal);
       const outputFiles = await deps.runDownload(
@@ -64,6 +67,9 @@ export function createJobRunner(overrides: Partial<JobRunnerDeps> = {}): RunJob 
           signal,
           outputDir: stage.stagingDir,
           saveCover: true,
+          onWarning: (message) => {
+            warning = message;
+          },
           onProgress: (_percent, detail) => {
             // Keep the last percent for the commit step.
             if (detail.stage === "done") return;
@@ -75,7 +81,7 @@ export function createJobRunner(overrides: Partial<JobRunnerDeps> = {}): RunJob 
       throwIfAborted(signal);
       ctx.onProgress({ stage: "committing", percent: 99 });
       await deps.staging.commitExport({ ...stage, novelId: job.novelId });
-      return { finalDir: stage.finalDir, outputFiles };
+      return { finalDir: stage.finalDir, outputFiles, ...(warning ? { warning } : {}) };
     } catch (error) {
       await deps.staging.abortExport(stage.stagingDir, stage.finalDir).catch(() => undefined);
       throw error;

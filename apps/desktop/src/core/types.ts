@@ -290,6 +290,8 @@ export type DownloadJob = {
   error?: string;
   outputFiles?: string[];
   finalDir?: string;
+  /** Saved with a notice (e.g. chapters unavailable at the source). */
+  warning?: string;
   createdAt: number;
   startedAt?: number;
   finishedAt?: number;
