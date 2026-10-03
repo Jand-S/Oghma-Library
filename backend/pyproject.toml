@@ -24,6 +24,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+# Parecidos pre-calculados (oghma discovery-build): modelo de embeddings ONNX na CPU.
+discovery = ["fastembed>=0.4", "numpy>=1.26"]
 
 [project.scripts]
 oghma = "oghma.cli:app"

@@ -2,7 +2,7 @@
 // (index.json -> catalog.json.gz por site -> bundles tar.gz sob demanda).
 // Implementa a mesma interface BackendClient usada pela UI, sem SQLite no cliente.
 import { sha256Hex } from "./sha256";
-import { buildCatalogIndex, searchCatalog, type CatalogIndex } from "./catalogIndex";
+import { buildCatalogIndex, searchCatalog, type CatalogIndex, type Discovery } from "./catalogIndex";
 import type {
   BootstrapPayload,
   Chapter,
@@ -74,7 +74,29 @@ type IndexSite = {
   updatedAt: string;
 };
 
-type IndexJson = { schema: number; builtAt: string; sites: IndexSite[] };
+type IndexJson = {
+  schema: number;
+  builtAt: string;
+  sites: IndexSite[];
+  /** Similar novels computed on the server (`oghma discovery-build`), since 2026-10. */
+  discovery?: { similarKey: string; similarSha256?: string };
+};
+
+type DiscoveryJson = { similar: Record<string, Array<[string, number]>>; editions?: Record<string, string[]> };
+
+/** The server's similar list; any failure only means the app falls back to tags. */
+async function loadDiscovery(base: string, indexJson: IndexJson): Promise<Discovery | undefined> {
+  if (!indexJson.discovery?.similarKey) return undefined;
+  try {
+    const data = await fetchGzipJson<DiscoveryJson>(`${base}/${indexJson.discovery.similarKey}`, indexJson.discovery.similarSha256);
+    return {
+      similar: new Map(Object.entries(data.similar ?? {})),
+      editions: new Map(Object.entries(data.editions ?? {}))
+    };
+  } catch {
+    return undefined;
+  }
+}
 
 type SiteCache = {
   /** The catalog could not be loaded (network, sha mismatch): the source shows as offline. */
@@ -250,6 +272,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
     loading ??= (async () => {
       const indexJson = await fetchJson<IndexJson>(`${base}/index.json`);
       const listed = indexJson.sites.filter((site) => site.catalogJsonKey); // catalogo antigo (so sqlite) -> ignora
+      const discovery = loadDiscovery(base, indexJson);
       const settled = await Promise.allSettled(listed.map(loadSite));
       sites = settled.map((result, i): SiteCache => result.status === "fulfilled"
         ? result.value
@@ -263,7 +286,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       if (listed.length && settled.every((result) => result.status === "rejected")) {
         throw (settled[0] as PromiseRejectedResult).reason;
       }
-      index = buildCatalogIndex(allNovels());
+      index = { ...buildCatalogIndex(allNovels()), discovery: await discovery };
       loaded = true;
     })().finally(() => {
       loading = null;

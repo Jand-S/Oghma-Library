@@ -85,6 +85,30 @@ describe("discovery helpers", () => {
     expect(similarNovels(idx, [books[4]])).toEqual([]);
   });
 
+  it("uses the server's story list when there is one, and the tags only as a fallback", () => {
+    const withList = {
+      ...buildCatalogIndex([...books, novel("lotm-pt", { title: "O Senhor dos Mistérios", sourceId: "novel-mania", chapters: 1400 })]),
+      discovery: {
+        similar: new Map<string, Array<[string, number]>>([
+          ["ss-cn", [["romance", 0.9], ["lotm", 0.8], ["ss-gn", 0.7], ["solo", 0.5]]],
+          ["lotm", [["romance", 0.6]]]
+        ]),
+        editions: new Map([["lotm", ["lotm-pt"]], ["lotm-pt", ["lotm"]]])
+      }
+    };
+    // Server order (even against the tags), never the seed's other editions.
+    expect(similarNovels(withList, [withList.byId.get("ss-cn")!]).map((n) => n.id)).toEqual(["romance", "lotm", "solo"]);
+    // A suggestion from a disabled source shows its edition in an enabled one.
+    expect(similarNovels(withList, [withList.byId.get("ss-cn")!], { sourceIds: ["novel-mania", "central-novel"] }).map((n) => n.id))
+      .toEqual(["romance", "lotm", "solo"]);
+    expect(similarNovels(withList, [withList.byId.get("ss-cn")!], { sourceIds: ["novel-mania"] }).map((n) => n.id)).toEqual(["lotm-pt"]);
+    // Several seeds add up; a seed without a list falls back to the tags for everyone.
+    expect(similarNovels(withList, [withList.byId.get("ss-cn")!, withList.byId.get("lotm")!]).map((n) => n.id)[0]).toBe("romance");
+    expect(similarNovels(withList, [withList.byId.get("solo")!]).map((n) => n.id)).toEqual(["ss-cn", "lotm"]);
+    // Translations the title cannot match come from the server.
+    expect(editionsOf(withList, withList.byId.get("lotm")!).map((n) => n.id)).toEqual(["lotm-pt"]);
+  });
+
   it("sorts by updates, arrivals, size, popularity and rating; missing data goes last", () => {
     const dated = [
       novel("old", { title: "B", lastChapterAt: "2026-01-01T00:00:00Z", views: 10, rating: 4.9, ratingVotes: 2 }),

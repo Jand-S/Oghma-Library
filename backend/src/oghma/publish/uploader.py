@@ -11,12 +11,12 @@ def cache_control_for(key: str) -> str | None:
     """Cache-Control de cada objeto publicado.
 
     index.json muda a cada publicacao (o app precisa ver a versao nova na hora); catalogos,
-    bundles e icones tem chave versionada (timestamp, .vN, sha) e nunca mudam; capas mantem
+    bundles, icones e parecidos tem chave versionada (timestamp, .vN, sha) e nunca mudam; capas mantem
     o nome quando sao trocadas, entao ficam no cache so por um dia.
     """
     if key == "index.json":
         return "no-cache"
-    if key.startswith(("catalog/", "content/", "sources/")):
+    if key.startswith(("catalog/", "content/", "sources/", "discovery/")):
         return IMMUTABLE
     if key.startswith("covers/"):
         return "public, max-age=86400"

@@ -371,6 +371,17 @@ def mark_chapters_cmd(
     _echo_json(asyncio.run(mark_chapters(source, apply=apply)))
 
 
+@app.command("discovery-build")
+def discovery_build_cmd(
+    dry_run: bool = typer.Option(False, help="simula o upload"),
+    no_upload: bool = typer.Option(False, help="so calcula e grava em <storage>/discovery"),
+) -> None:
+    """Calcula os parecidos de todo o catalogo (embeddings locais + tags) e publica no B2."""
+    from .discovery.runner import run
+
+    _echo_json(asyncio.run(run(dry_run=dry_run, no_upload=no_upload)))
+
+
 @app.command("clean-descriptions")
 def clean_descriptions_cmd(
     source: str = typer.Option(None, help="so uma fonte"),

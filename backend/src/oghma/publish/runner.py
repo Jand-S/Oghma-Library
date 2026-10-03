@@ -24,11 +24,15 @@ def _ts() -> str:
 
 
 def _index_from_state(state: dict) -> dict:
-    return {
+    index = {
         "schema": 1,
         "builtAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "sites": list(state.get("sites", {}).values()),
     }
+    # Parecidos pre-calculados (oghma discovery-build): global, nao de uma fonte.
+    if state.get("discovery"):
+        index["discovery"] = state["discovery"]
+    return index
 
 
 

@@ -16,9 +16,18 @@ type Entry = {
   description: string;
 };
 
+/** Published by the server (`oghma discovery-build`): similar novels by story (embeddings of
+ *  the story card or synopsis + shared tags) and editions of the same work the title misses
+ *  (a translation with another name). */
+export type Discovery = {
+  similar: Map<string, Array<[string, number]>>;
+  editions: Map<string, string[]>;
+};
+
 export type CatalogIndex = {
   entries: Entry[];
   byId: Map<string, Novel>;
+  discovery?: Discovery;
 };
 
 export function buildCatalogIndex(novels: Iterable<Novel>): CatalogIndex {
@@ -104,11 +113,54 @@ function storyTags(keys: Iterable<string>): Set<string> {
  */
 export function editionsOf(index: CatalogIndex, novel: Novel): Novel[] {
   const key = workKey(novel.title);
-  if (!key) return [];
-  return index.entries
-    .filter((entry) => entry.novel.id !== novel.id && entry.novel.sourceId !== novel.sourceId && workKey(entry.novel.title) === key)
-    .map((entry) => entry.novel)
-    .sort((a, b) => b.chapters - a.chapters);
+  const byTitle = key
+    ? index.entries
+      .filter((entry) => entry.novel.id !== novel.id && entry.novel.sourceId !== novel.sourceId && workKey(entry.novel.title) === key)
+      .map((entry) => entry.novel)
+    : [];
+  // Plus the translations under another name that the server recognized by the synopsis.
+  const byStory = (index.discovery?.editions.get(novel.id) ?? [])
+    .map((id) => index.byId.get(id))
+    .filter((other): other is Novel => Boolean(other) && other!.sourceId !== novel.sourceId);
+  const unique = new Map([...byTitle, ...byStory].map((other) => [other.id, other]));
+  return [...unique.values()].sort((a, b) => b.chapters - a.chapters);
+}
+
+/**
+ * Similar novels from the server's list, when every seed has one: the scores of all seeds are
+ * summed, so "Para você" with several favorites favors what is close to many of them. Null
+ * (caller falls back to tags) without the list.
+ */
+function similarFromDiscovery(
+  index: CatalogIndex,
+  seeds: Novel[],
+  limit: number,
+  options: { exclude?: ReadonlySet<string>; sourceIds?: readonly string[] }
+): Novel[] | null {
+  const lists = seeds.map((seed) => index.discovery?.similar.get(seed.id));
+  if (!lists.length || lists.some((list) => !list)) return null;
+  const seedWorks = new Set(seeds.flatMap((seed) => [seed, ...editionsOf(index, seed)]).map((novel) => workKey(novel.title)));
+  const allowed = options.sourceIds ? new Set(options.sourceIds) : null;
+  const total = new Map<string, number>();
+  for (const list of lists) for (const [id, score] of list!) total.set(id, (total.get(id) ?? 0) + score);
+  const out: Novel[] = [];
+  const seen = new Set<string>();
+  for (const [id] of [...total.entries()].sort((a, b) => b[1] - a[1])) {
+    const novel = index.byId.get(id);
+    if (!novel || options.exclude?.has(id)) continue;
+    // The list was built over every source: an edition in an enabled source stands in for a
+    // disabled one.
+    const shown = allowed && !allowed.has(novel.sourceId)
+      ? editionsOf(index, novel).find((edition) => allowed.has(edition.sourceId))
+      : novel;
+    if (!shown) continue;
+    const key = workKey(shown.title);
+    if (seedWorks.has(key) || seen.has(key) || seen.has(workKey(novel.title))) continue;
+    seen.add(key).add(workKey(novel.title));
+    out.push(shown);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 /**
@@ -123,6 +175,8 @@ export function similarNovels(
 ): Novel[] {
   const limit = options.limit ?? 8;
   if (!seeds.length) return [];
+  const precomputed = similarFromDiscovery(index, seeds, limit, options);
+  if (precomputed) return precomputed;
   const seedEntries = seeds.map((seed) => index.entries.find((entry) => entry.novel.id === seed.id)).filter(Boolean) as Entry[];
   const seedTags = seedEntries.map((entry) => storyTags(entry.tagKeys));
   const seedWorks = new Set(seeds.map((seed) => workKey(seed.title)));
