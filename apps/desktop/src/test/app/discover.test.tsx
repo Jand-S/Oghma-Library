@@ -38,8 +38,9 @@ describe("Discover", () => {
     expect(screen.getByText(kindleStrings.connected)).toBeInTheDocument();
     const source = screen.getByLabelText(discoverStrings.source) as HTMLSelectElement;
     expect(source.required).toBe(true);
-    // A source is mandatory: there is no "all sites" option.
-    expect(Array.from(source.options).map((option) => option.value)).not.toContain("all");
+    // Discover opens on every enabled source; a single source can still be picked.
+    expect(Array.from(source.options).map((option) => option.value)[0]).toBe("all");
+    expect(source.value).toBe("all");
   });
 
   it("renders large sources in batches of 60 cards", async () => {

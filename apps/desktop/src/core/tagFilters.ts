@@ -158,10 +158,17 @@ export function canonicalizeTagKey(key: string, label?: string): string {
 }
 
 export function tagKeysForNovel(novel: Pick<Novel, "tags" | "tagKeys">): string[] {
-  if (novel.tagKeys?.length) {
-    return novel.tagKeys.map((key, index) => canonicalizeTagKey(key, novel.tags[index]));
-  }
-  return novel.tags.map(rawTagKey);
+  // Keys and labels are canonicalized on their own: the backend drops duplicates and empty
+  // tags from tagKeys, so pairing tagKeys[i] with tags[i] gave a label to the wrong key.
+  const keys = (novel.tagKeys ?? []).map((key) => canonicalizeTagKey(key));
+  const fromLabels = novel.tags.map(rawTagKey);
+  return [...new Set([...keys, ...(keys.length ? fromLabels.filter((key) => !key.startsWith("raw.")) : fromLabels)])];
+}
+
+/** Display label and aliases of a canonical tag key (for full-text search); empty for raw keys. */
+export function canonicalTagText(key: string): string[] {
+  const tag = canonicalForKey(key);
+  return tag ? [tag.label, ...tag.aliases] : [];
 }
 
 export function matchesTagFilters(novel: Novel, includeTags: string[], excludeTags: string[]) {

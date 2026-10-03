@@ -157,6 +157,25 @@ describe("staticBackend", () => {
     expect(complete.sourceChapters).toBeUndefined();
   });
 
+  it("one catalog that fails to load marks only that source offline", async () => {
+    const broken = { ...indexJson.sites[0], id: "broken-source", name: "Fonte Quebrada", catalogJsonKey: "catalog/missing.json.gz" };
+    indexJson.sites.push(broken);
+    try {
+      const boot = await createStaticBackendClient(BASE).bootstrap();
+      expect(boot.sources.map((s) => [s.id, s.status])).toEqual([["central-novel", "online"], ["broken-source", "offline"]]);
+      expect(boot.novels.map((n) => n.id)).toEqual(["central-novel:lord"]);
+    } finally {
+      indexJson.sites.pop();
+    }
+  });
+
+  it("concurrent calls share one load", async () => {
+    const client = createStaticBackendClient(BASE);
+    await Promise.all([client.bootstrap(), client.searchNovels(emptyFilters()), client.getTags()]);
+    const urls = (fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(([url]) => String(url));
+    expect(urls.filter((url) => url.endsWith("/index.json"))).toHaveLength(1);
+  });
+
   it("a catalog that does not match the index sha256 is refused", async () => {
     tamperCatalog = true;
     await expect(createStaticBackendClient(BASE).bootstrap()).rejects.toThrow("não confere com o índice");

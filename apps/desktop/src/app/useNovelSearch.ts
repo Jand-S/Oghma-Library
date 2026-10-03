@@ -23,6 +23,8 @@ export function useNovelSearch({
 }: NovelSearchArgs) {
   const [searching, setSearching] = useState(false);
   const focusedNovelIdRef = useRef(focusedNovelId);
+  /** Ids of the results last applied: an identical answer does not replace the grid. */
+  const lastIdsRef = useRef<string | null>(null);
 
   useEffect(() => {
     focusedNovelIdRef.current = focusedNovelId;
@@ -31,14 +33,18 @@ export function useNovelSearch({
   useEffect(() => {
     // Sempre busca, inclusive na primeira vez: o bootstrap só traz as novels da 1ª fonte do
     // índice, e a fonte inicial do usuário pode ser outra (a grade abria vazia).
-    if (loading || filters.sourceId === "all") return;
+    if (loading) return;
     let cancelled = false;
     setSearching(true);
 
     void backend.searchNovels(filters)
       .then((items) => {
         if (cancelled) return;
-        setResults(items);
+        const ids = items.map((item) => item.id).join("\n");
+        if (ids !== lastIdsRef.current) {
+          lastIdsRef.current = ids;
+          setResults(items);
+        }
         if (items.length > 0 && !items.some((item) => item.id === focusedNovelIdRef.current)) {
           setFocusedNovelId(items[0].id);
         }

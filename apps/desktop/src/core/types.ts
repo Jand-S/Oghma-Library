@@ -205,6 +205,8 @@ export type Filters = {
   updatedOnly: boolean;
   minChapters: number;
   maxChapters: number;
+  /** With sourceId "all": the enabled sources to search (set by the Discover controller). */
+  sourceIds?: string[];
 };
 
 export type BootstrapPayload = {

@@ -9,6 +9,7 @@ export const discoverStrings = {
   sortDesc: "Ordem alfabética: Z–A",
   resultsTotal: (total: number) => `${total.toLocaleString("pt-BR")} ${total === 1 ? "livro" : "livros"}`,
   searching: "Buscando…",
+  allSources: "Todas as fontes",
 
   // Results
   results: "Resultados",

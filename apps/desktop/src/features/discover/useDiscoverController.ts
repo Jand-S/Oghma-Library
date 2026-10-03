@@ -74,9 +74,16 @@ export function useDiscoverController({
       )
   }), [backend]);
 
+  // "Todas as fontes" searches only the enabled ones.
+  const enabledKey = sources.filter((source) => source.enabled).map((source) => source.id).join(",");
+  const searchFilters = useMemo<Filters>(
+    () => ({ ...filters, sourceIds: enabledKey ? enabledKey.split(",") : [] }),
+    [filters, enabledKey]
+  );
+
   const searching = useNovelSearch({
     backend: searchBackend,
-    filters,
+    filters: searchFilters,
     focusedNovelId,
     loading,
     setFocusedNovelId,
@@ -86,11 +93,11 @@ export function useDiscoverController({
 
   useEffect(() => {
     if (sources.length === 0) return;
-    const available = sources.filter((source) => source.enabled);
-    const fallback = available[0] ?? sources[0];
-    const selectedExists = available.some((source) => source.id === filters.sourceId);
-    if (!selectedExists && fallback) {
-      setFilters((current) => ({ ...current, sourceId: fallback.id, language: "all" }));
+    if (filters.sourceId === "all") return;
+    // A source that was turned off falls back to "Todas as fontes".
+    const selectedExists = sources.some((source) => source.enabled && source.id === filters.sourceId);
+    if (!selectedExists) {
+      setFilters((current) => ({ ...current, sourceId: "all", language: "all" }));
     }
   }, [filters.sourceId, sources]);
 

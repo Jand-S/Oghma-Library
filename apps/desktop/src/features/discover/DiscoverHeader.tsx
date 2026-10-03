@@ -71,7 +71,7 @@ function DiscoverSearchField({ filters, onFiltersChange }: SearchFieldProps) {
 export function discoverHeader({ discover, sources, loading }: AppControllers): ViewHeader {
   const { filters, setFilters, sortDirection, setSortDirection } = discover;
   const enabledSources = sources.sources.filter((source) => source.enabled);
-  const busy = loading || discover.searching || filters.sourceId === "all";
+  const busy = loading || discover.searching;
   const sortLabel = sortDirection === "asc" ? discoverStrings.sortAsc : discoverStrings.sortDesc;
 
   return {
@@ -89,7 +89,7 @@ export function discoverHeader({ discover, sources, loading }: AppControllers): 
           fieldClassName="o-field--sm discover-header__source"
           value={filters.sourceId}
           required
-          options={enabledSources.map((source) => ({ value: source.id, label: source.name }))}
+          options={[{ value: "all", label: discoverStrings.allSources }, ...enabledSources.map((source) => ({ value: source.id, label: source.name }))]}
           onChange={(event) => setFilters({ ...filters, sourceId: event.target.value, language: "all" })}
         />
         <IconButton

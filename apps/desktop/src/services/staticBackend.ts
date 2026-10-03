@@ -2,6 +2,7 @@
 // (index.json -> catalog.json.gz por site -> bundles tar.gz sob demanda).
 // Implementa a mesma interface BackendClient usada pela UI, sem SQLite no cliente.
 import { sha256Hex } from "./sha256";
+import { buildCatalogIndex, searchCatalog, type CatalogIndex } from "./catalogIndex";
 import type {
   BootstrapPayload,
   Chapter,
@@ -71,6 +72,8 @@ type IndexSite = {
 type IndexJson = { schema: number; builtAt: string; sites: IndexSite[] };
 
 type SiteCache = {
+  /** The catalog could not be loaded (network, sha mismatch): the source shows as offline. */
+  failed?: boolean;
   site: IndexSite;
   source: { id: string; name: string; baseUrl: string };
   novels: Map<string, CatalogNovel>;
@@ -119,7 +122,9 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 async function fetchGzipJson<T>(url: string, sha256?: string | null): Promise<T> {
-  const res = await fetch(url, { cache: "no-store" });
+  // Catalog keys are versioned (timestamp in the name) and published as immutable, so the
+  // HTTP cache can keep them between launches; index.json (fetchJson) is never cached.
+  const res = await fetch(url, { cache: "default" });
   if (!res.ok) throw new Error(`HTTP ${res.status} ao buscar ${url}`);
   const buf = await res.arrayBuffer();
   // index.json publishes the sha256 of each catalog: a truncated or tampered file is refused.
@@ -142,14 +147,14 @@ function dominantLanguage(novels: Iterable<CatalogNovel>): string | undefined {
   return top?.[0];
 }
 
-function siteToSource(base: string, site: IndexSite, baseUrl: string, novels?: Iterable<CatalogNovel>): SourceSite {
+function siteToSource(base: string, site: IndexSite, baseUrl: string, novels?: Iterable<CatalogNovel>, failed = false): SourceSite {
   const language = site.language || (novels ? dominantLanguage(novels) : undefined);
   return {
     id: site.id,
     name: site.name,
     baseUrl,
     count: site.novelCount,
-    status: "online",
+    status: failed ? "offline" : "online",
     enabled: true,
     mode: "api_available",
     lastSync: formatUpdatedAt(site.updatedAt),
@@ -176,6 +181,8 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
   const base = trimBase(serverUrl);
   let sites: SiteCache[] = [];
   let loaded = false;
+  let loading: Promise<void> | null = null;
+  let index: CatalogIndex = buildCatalogIndex([]);
 
   function novelToUi(cn: CatalogNovel, source: { id: string; name: string }): Novel {
     return {
@@ -208,27 +215,50 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
     return null;
   }
 
-  async function ensureLoaded(): Promise<void> {
-    if (loaded) return;
-    const index = await fetchJson<IndexJson>(`${base}/index.json`);
-    const next: SiteCache[] = [];
-    for (const site of index.sites) {
-      if (!site.catalogJsonKey) continue; // catalogo antigo (so sqlite) -> ignora no modo estatico
-      const catalog = await fetchGzipJson<CatalogJson>(`${base}/${site.catalogJsonKey}`, site.catalogJsonSha256);
-      const novels = new Map<string, CatalogNovel>();
-      for (const n of catalog.novels) novels.set(n.id, n);
-      const uiNovels = [...novels.values()].map((novel) => novelToUi(novel, catalog.source));
-      next.push({
-        site,
-        source: catalog.source,
-        novels,
-        taxonomy: catalog.taxonomy?.length
-          ? normalizeTagCatalog(catalog.taxonomy)
-          : buildFallbackTagCatalog(uiNovels)
-      });
-    }
-    sites = next;
-    loaded = true;
+  async function loadSite(site: IndexSite): Promise<SiteCache> {
+    const catalog = await fetchGzipJson<CatalogJson>(`${base}/${site.catalogJsonKey}`, site.catalogJsonSha256);
+    const novels = new Map<string, CatalogNovel>();
+    for (const n of catalog.novels) novels.set(n.id, n);
+    const uiNovels = [...novels.values()].map((novel) => novelToUi(novel, catalog.source));
+    return {
+      site,
+      source: catalog.source,
+      novels,
+      taxonomy: catalog.taxonomy?.length
+        ? normalizeTagCatalog(catalog.taxonomy)
+        : buildFallbackTagCatalog(uiNovels)
+    };
+  }
+
+  /**
+   * Loads index.json and every catalog in parallel. One failing catalog (network, sha256)
+   * only marks that source offline; the others still load. Concurrent callers share the
+   * same load. The search index is rebuilt once per load.
+   */
+  function ensureLoaded(): Promise<void> {
+    if (loaded) return Promise.resolve();
+    loading ??= (async () => {
+      const indexJson = await fetchJson<IndexJson>(`${base}/index.json`);
+      const listed = indexJson.sites.filter((site) => site.catalogJsonKey); // catalogo antigo (so sqlite) -> ignora
+      const settled = await Promise.allSettled(listed.map(loadSite));
+      sites = settled.map((result, i): SiteCache => result.status === "fulfilled"
+        ? result.value
+        : {
+            failed: true,
+            site: listed[i],
+            source: { id: listed[i].id, name: listed[i].name, baseUrl: listed[i].baseUrl ?? "" },
+            novels: new Map(),
+            taxonomy: []
+          });
+      if (listed.length && settled.every((result) => result.status === "rejected")) {
+        throw (settled[0] as PromiseRejectedResult).reason;
+      }
+      index = buildCatalogIndex(allNovels());
+      loaded = true;
+    })().finally(() => {
+      loading = null;
+    });
+    return loading;
   }
 
   function allNovels(sourceId?: string): Novel[] {
@@ -244,8 +274,9 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
     async bootstrap(): Promise<BootstrapPayload> {
       await ensureLoaded();
       return {
-        sources: sites.map((sc) => siteToSource(base, sc.site, sc.source.baseUrl, sc.novels.values())),
-        novels: sites[0] ? allNovels(sites[0].source.id) : [],
+        sources: sites.map((sc) => siteToSource(base, sc.site, sc.source.baseUrl, sc.novels.values(), sc.failed)),
+        // Every loaded novel: the Library enriches its books from the whole catalog.
+        novels: index.entries.map((entry) => entry.novel),
         queue: [],
         library: []
       };
@@ -253,18 +284,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
 
     async searchNovels(filters: Filters): Promise<Novel[]> {
       await ensureLoaded();
-      const query = filters.query.trim().toLowerCase();
-      const sourceId = filters.sourceId === "all" ? undefined : filters.sourceId;
-      return allNovels(sourceId).filter((novel) => {
-        const matchesQuery = !query || `${novel.title} ${novel.author}`.toLowerCase().includes(query);
-        const matchesSource = filters.sourceId === "all" || novel.sourceId === filters.sourceId;
-        const matchesStatus = filters.status === "any" || novel.status === filters.status;
-        const matchesLanguage = filters.language === "all" || novel.language.toLowerCase() === filters.language;
-        const matchesContent = matchesContentRating(novel, filters.contentRating);
-        const matchesTags = matchesTagFilters(novel, filters.includeTags, filters.excludeTags);
-        const matchesChapters = novel.chapters >= filters.minChapters && novel.chapters <= filters.maxChapters;
-        return matchesQuery && matchesSource && matchesStatus && matchesLanguage && matchesContent && matchesTags && matchesChapters;
-      });
+      return searchCatalog(index, filters, filters.sourceIds);
     },
 
     async getTags(sourceId?: string): Promise<TagCatalogItem[]> {
@@ -318,7 +338,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       await ensureLoaded();
       const sc = sites.find((item) => item.site.id === sourceId);
       if (!sc) throw new Error("Fonte não encontrada no índice");
-      return siteToSource(base, sc.site, sc.source.baseUrl, sc.novels.values());
+      return siteToSource(base, sc.site, sc.source.baseUrl, sc.novels.values(), sc.failed);
     },
 
     async createDownloads(selections: ChapterSelection[]): Promise<QueueItem[]> {

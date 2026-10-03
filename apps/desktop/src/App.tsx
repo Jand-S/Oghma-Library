@@ -63,6 +63,7 @@ function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
     appConfig,
     bootDone,
     bootError,
+    catalog,
     focusedNovelId,
     library,
     loading,
@@ -79,7 +80,7 @@ function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
   } = bootstrap;
   const kindleConnected = kindleStatus?.connected ?? false;
 
-  const { refresh: refreshLocalLibrary } = useLocalLibrary({ appConfig, loading, results, setLibrary });
+  const { refresh: refreshLocalLibrary } = useLocalLibrary({ appConfig, loading, results: catalog, setLibrary });
 
   const [queue] = useState(() => downloadQueue ?? getDownloadQueue());
   const downloads = useDownloadsController({ appConfig, queue, notify, toast });

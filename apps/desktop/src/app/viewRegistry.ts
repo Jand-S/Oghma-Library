@@ -95,7 +95,8 @@ function DiscoverPage({ app }: ViewProps) {
     results: discover.results,
     selectedNovel: discover.selectedNovel ?? undefined,
     selection: discover.selection,
-    loading: app.loading || discover.searching || discover.filters.sourceId === "all",
+    // Results already on screen stay while a new search runs (no skeleton flash on each keystroke).
+    loading: app.loading || (discover.searching && discover.results.length === 0),
     searchError: discover.searchError,
     detailNovel: discover.detailNovel,
     detailFromPreview: Boolean(discover.previewNovel),

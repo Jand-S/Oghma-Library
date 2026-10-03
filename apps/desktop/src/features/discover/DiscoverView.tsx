@@ -77,12 +77,17 @@ export function DiscoverView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
-  useEffect(() => setVisibleCount(DISCOVER_PAGE_SIZE), [results, sortDirection]);
+  // Back to the first batch only when the set of novels (or the order) really changes.
+  const resultsKey = useMemo(() => results.map((novel) => novel.id).join("\n"), [results]);
+  useEffect(() => setVisibleCount(DISCOVER_PAGE_SIZE), [resultsKey, sortDirection]);
 
+  const ranked = filters.query.trim().length > 0;
   const sortedResults = useMemo(() => {
+    // With a query the backend ranks by relevance (title > tag > author > synopsis).
+    if (ranked) return results;
     const sorted = [...results].sort((a, b) => a.title.localeCompare(b.title, "pt-BR", { numeric: true, sensitivity: "base" }));
     return sortDirection === "asc" ? sorted : sorted.reverse();
-  }, [results, sortDirection]);
+  }, [results, sortDirection, ranked]);
   const visibleResults = sortedResults.slice(0, visibleCount);
   const showMore = useCallback(
     () => setVisibleCount((count) => Math.min(count + DISCOVER_PAGE_SIZE, results.length)),

@@ -33,6 +33,8 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
   const [appConfig, setAppConfig] = useState<AppConfig>(() => resolveAppConfig(storedConfig));
   const [sources, setSources] = useState<SourceSite[]>([]);
   const [results, setResults] = useState<Novel[]>([]);
+  /** Whole catalog (every source), for enriching Library books; `results` is the filtered search. */
+  const [catalog, setCatalog] = useState<Novel[]>([]);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [focusedNovelId, setFocusedNovelId] = useState("");
@@ -51,15 +53,13 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
         const fallbackSourceIds = payload.sources.filter((source) => source.enabled).map((source) => source.id);
         const effectiveConfig = resolveAppConfig(storedConfig, fallbackSourceIds);
 
-        const initialSourceId = effectiveConfig.enabledSourceIds.find((id) =>
-          payload.sources.some((source) => source.id === id)
-        ) ?? payload.sources[0]?.id;
-        const initialNovels = initialSourceId
-          ? payload.novels.filter((novel) => novel.sourceId === initialSourceId)
-          : [];
+        // Discover opens on "Todas as fontes": every enabled source.
+        const enabled = new Set(effectiveConfig.enabledSourceIds);
+        const initialNovels = payload.novels.filter((novel) => enabled.has(novel.sourceId));
         setAppConfig(effectiveConfig);
         setSources(payload.sources.map((source) => ({ ...source, enabled: effectiveConfig.enabledSourceIds.includes(source.id) })));
         setResults(initialNovels);
+        setCatalog(payload.novels);
         setLibrary(payload.library);
         setKindleStatus(deviceStatus);
         setFocusedNovelId(initialNovels[0]?.id ?? "");
@@ -91,6 +91,7 @@ export function useBootstrapState({ backend, setKindleStatus }: BootstrapStateAr
     appConfig,
     bootDone,
     bootError,
+    catalog,
     focusedNovelId,
     library,
     loading,
