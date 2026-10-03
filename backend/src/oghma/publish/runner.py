@@ -60,7 +60,10 @@ async def _ensure_hot(session, novel_id: str) -> bool:
         from .. import coldstore
     except ImportError:  # armazenamento frio ainda nao instalado: tudo e local
         return True
-    return await coldstore.ensure_hot(session, novel_id)
+    # coldstore.ensure_hot devolve False quando a novel ja estava quente (nada a fazer)
+    # e levanta excecao quando a reidratacao falha.
+    await coldstore.ensure_hot(session, novel_id)
+    return True
 
 
 async def run(source_id: str, *, out_dir: str | None = None, no_upload: bool = False,

@@ -103,3 +103,17 @@ def test_prune_filters_source_and_reports_bytes(tmp_path):
     assert sorted(up.deleted) == ["content/cn/a/a.v1.tar.gz", "content/cn/a/a.v2.tar.gz"]
     assert not (tmp_path / "content/cn/a/a.v1.tar.gz").exists()
     assert (tmp_path / "content/gn/x/x.v1.tar.gz").exists()  # outra fonte intacta
+
+
+def test_ensure_hot_adapter_accepts_already_hot(monkeypatch):
+    """Novel ja quente: coldstore.ensure_hot devolve False, e isso nao e falha."""
+    import asyncio
+
+    from oghma import coldstore
+    from oghma.publish import runner
+
+    async def already_hot(session, novel_id):
+        return False
+
+    monkeypatch.setattr(coldstore, "ensure_hot", already_hot)
+    assert asyncio.run(runner._ensure_hot(None, "x:y")) is True
