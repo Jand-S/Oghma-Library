@@ -8,7 +8,7 @@ import type { TranslationEffort, TranslationModelId } from "../../services/trans
  * flows): start page and default chapter preset. Stored under their own key so the
  * config schema stays unchanged.
  */
-export type StartPage = Extract<AppView, "discover" | "library" | "downloads" | "kindle">;
+export type StartPage = Extract<AppView, "home" | "discover" | "library" | "downloads" | "kindle">;
 
 export type UiPreferences = {
   startPage: StartPage;
@@ -16,10 +16,10 @@ export type UiPreferences = {
 };
 
 export const uiPreferencesKey = "oghma.prefs.v1";
-export const startPages: StartPage[] = ["discover", "library", "downloads", "kindle"];
+export const startPages: StartPage[] = ["home", "discover", "library", "downloads", "kindle"];
 const chapterPresets: ChapterPreset[] = ["all", "range"];
 
-export const defaultUiPreferences: UiPreferences = { startPage: "discover", chapterPreset: "all" };
+export const defaultUiPreferences: UiPreferences = { startPage: "home", chapterPreset: "all" };
 
 export function readUiPreferences(): UiPreferences {
   try {

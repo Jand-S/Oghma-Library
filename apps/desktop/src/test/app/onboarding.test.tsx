@@ -50,7 +50,8 @@ describe("Onboarding", () => {
     }, { timeout: 8000 });
     await user.click(screen.getByRole("button", { name: onboardingStrings.enterApp }));
 
-    expect(await screen.findByText(discoverStrings.results)).toBeInTheDocument();
+    // A new user lands on Início (the default start page).
+    expect(await screen.findByTestId("home-page")).toBeInTheDocument();
     expect(window.localStorage.getItem(setupCompleteKey)).toBe("1");
   }, 15000);
 

@@ -1,4 +1,4 @@
-import { BookOpenText, Download, Globe2, Languages, Search, Settings, Tablet } from "lucide-react";
+import { BookOpenText, Download, Globe2, House, Languages, Search, Settings, Tablet } from "lucide-react";
 import type { AppView } from "../app/NavigationContext";
 import { navStrings } from "../strings/common";
 
@@ -10,6 +10,7 @@ export type NavItem = {
 
 /** Sidebar entries, top to bottom. "settings" is pinned to the bottom of the sidebar. */
 export const navItems: NavItem[] = [
+  { id: "home", label: navStrings.home, icon: House },
   { id: "discover", label: navStrings.discover, icon: Search },
   { id: "downloads", label: navStrings.downloads, icon: Download },
   { id: "library", label: navStrings.library, icon: BookOpenText },

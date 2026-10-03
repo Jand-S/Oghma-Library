@@ -1,0 +1,111 @@
+@import "../../styles/layers.css";
+
+@layer features {
+  .home-page {
+    --home-tile: calc(var(--space-8) * 2 + var(--space-4));
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .home-welcome {
+    padding: var(--space-4) 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-1);
+  }
+
+  .home-shelf {
+    display: grid;
+    gap: var(--space-1-5);
+    min-width: 0;
+  }
+
+  .home-shelf__head {
+    display: grid;
+    gap: var(--space-0-5);
+  }
+
+  .home-shelf__title {
+    margin: 0;
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-semibold);
+  }
+
+  .home-shelf__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .home-shelf__row {
+    display: grid;
+    grid-auto-columns: var(--home-tile);
+    grid-auto-flow: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0 0 var(--space-1);
+    overflow-x: auto;
+    list-style: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .home-shelf__row > li {
+    scroll-snap-align: start;
+  }
+
+  .home-tile {
+    display: grid;
+    width: 100%;
+    gap: var(--space-0-5);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .home-tile__cover {
+    aspect-ratio: 2 / 3;
+    border-radius: var(--radius-md);
+    transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .home-tile:hover .home-tile__cover,
+  .home-tile:focus-visible .home-tile__cover {
+    box-shadow: var(--shadow-md);
+    transform: scale(1.02);
+  }
+
+  .home-tile:focus-visible {
+    outline: none;
+  }
+
+  .home-tile:focus-visible .home-tile__cover {
+    box-shadow: var(--focus-ring);
+  }
+
+  .home-tile__title {
+    display: -webkit-box;
+    overflow: hidden;
+    max-height: calc(var(--fs-sm) * 2.7);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-medium);
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .home-tile__meta {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .home-tile__meta--accent {
+    color: var(--accent-text);
+    font-weight: var(--fw-medium);
+  }
+}

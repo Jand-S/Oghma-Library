@@ -1,4 +1,4 @@
-export type ViewId = "discover" | "sources" | "downloads" | "library" | "translation" | "settings";
+export type ViewId = "home" | "discover" | "sources" | "downloads" | "library" | "translation" | "settings";
 
 export type SourceStatus = "online" | "syncing" | "offline";
 

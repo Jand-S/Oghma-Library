@@ -13,6 +13,7 @@ export const windowControlStrings = {
 } as const;
 
 export const navStrings = {
+  home: "Início",
   discover: "Buscar",
   sources: "Fontes",
   downloads: "Downloads",
@@ -24,6 +25,7 @@ export const navStrings = {
 
 /** Page titles shown in the page header, per view. */
 export const pageTitleStrings = {
+  home: "Início",
   discover: "Buscar novels",
   sources: "Fontes",
   downloads: "Downloads",

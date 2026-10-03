@@ -1,3 +1,4 @@
+import { uiPreferencesKey } from "../features/settings/preferences";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect } from "vitest";
@@ -26,9 +27,13 @@ export function resetAppState() {
   window.localStorage.clear();
 }
 
-export function seedSetup(config: AppConfig = defaultAppConfig(["central-novel", "novel-mania"])) {
+export function seedSetup(config: AppConfig = defaultAppConfig(["central-novel", "novel-mania"]), startPage = "discover") {
   window.localStorage.setItem(setupStorageKey, JSON.stringify(config));
   window.localStorage.setItem(setupCompleteKey, "1");
+  // The app opens on Início by default; most app tests start from Buscar (home.test covers Início).
+  if (window.localStorage.getItem(uiPreferencesKey) === null) {
+    window.localStorage.setItem(uiPreferencesKey, JSON.stringify({ startPage, chapterPreset: "all" }));
+  }
 }
 
 /**

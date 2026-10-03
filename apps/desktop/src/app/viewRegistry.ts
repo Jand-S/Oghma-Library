@@ -1,5 +1,6 @@
 import { createElement as h, lazy, type ComponentType, type ReactNode } from "react";
 import { BookOpenText } from "lucide-react";
+import type { LibraryItem, Novel } from "../core/types";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
 import { DiscoverView } from "../features/discover/DiscoverView";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
@@ -31,6 +32,7 @@ function lazyView<P extends object>(load: () => Promise<ComponentType<P>>) {
   return { View: LazyView, preload };
 }
 
+const homeView = lazyView(() => import("../features/home/HomeView").then((m) => m.HomeView));
 const downloadsView = lazyView(() => import("../features/downloads/DownloadsView").then((m) => m.DownloadsView));
 const kindleView = lazyView(() => import("../features/kindle/KindleView").then((m) => m.KindleView));
 const libraryView = lazyView(() => import("../features/library/LibraryView").then((m) => m.LibraryView));
@@ -38,6 +40,7 @@ const translationView = lazyView(() => import("../features/translation/Translati
 const settingsView = lazyView(() => import("../features/settings/SettingsView").then((m) => m.SettingsView));
 const sourcesView = lazyView(() => import("../features/sources/SourcesView").then((m) => m.SourcesView));
 
+const HomeView = homeView.View;
 const DownloadsView = downloadsView.View;
 const KindleView = kindleView.View;
 const LibraryView = libraryView.View;
@@ -47,7 +50,7 @@ const SourcesView = sourcesView.View;
 
 /** Warms every lazy view chunk so later navigation never waits on disk or suspends. */
 export function preloadViews() {
-  return Promise.all([downloadsView, kindleView, libraryView, translationView, settingsView, sourcesView].map((view) => view.preload()));
+  return Promise.all([homeView, downloadsView, kindleView, libraryView, translationView, settingsView, sourcesView].map((view) => view.preload()));
 }
 
 /** Everything a view needs, assembled by App from the feature controllers. */
@@ -115,6 +118,22 @@ function DiscoverPage({ app }: ViewProps) {
     onRetrySearch: discover.retrySearch,
     onOpenSources: () => app.navigate("sources"),
     onOpenSettings: () => app.navigate("settings")
+  });
+}
+
+function HomePage({ app }: ViewProps) {
+  const { discover, library, sources, navigate } = app;
+  return h(HomeView, {
+    catalogIndex: discover.catalogIndex,
+    library: library.library,
+    sourceIds: sources.sources.filter((source) => source.enabled).map((source) => source.id),
+    loading: app.loading,
+    onOpenNovel: (novel: Novel) => {
+      navigate("discover");
+      discover.openPreviewNovel(novel);
+    },
+    onOpenBook: (item: LibraryItem) => navigate("library", { book: item.id }),
+    onExplore: () => navigate("discover")
   });
 }
 
@@ -204,6 +223,13 @@ function SettingsPage({ app }: ViewProps) {
 const iconFor = (id: AppView) => [...navItems, settingsNavItem].find((item) => item.id === id)?.icon ?? BookOpenText;
 
 export const viewRegistry: Record<AppView, ViewDefinition> = {
+  home: {
+    id: "home",
+    title: pageTitleStrings.home,
+    icon: iconFor("home"),
+    component: HomePage,
+    layout: "scroll"
+  },
   discover: {
     id: "discover",
     title: pageTitleStrings.discover,
