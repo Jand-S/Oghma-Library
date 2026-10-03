@@ -258,13 +258,14 @@ class CodexEngine(Engine):
     def run(self, role, system_prompt, task, cwd, *, timeout, network):
         before = self.plan()
         prompt = f"{system_prompt}\n\n---\n\n{task}"
+        # O prompt vai pela entrada padrao ("-"): texto comecando com "-" nao vira opcao do CLI.
         cmd = [CODEX_BIN, "exec", "--json", "--skip-git-repo-check", "-C", cwd,
                "--sandbox", "workspace-write", "-c", f"sandbox_workspace_write.network_access={'true' if network else 'false'}",
-               prompt]
+               "-"]
         started = time.time()
         result = RunResult(self.name, role, ok=False, plan_before=asdict(before))
         try:
-            code, lines, stderr = _run_lines(cmd, cwd=cwd, timeout=timeout, stdin="")
+            code, lines, stderr = _run_lines(cmd, cwd=cwd, timeout=timeout, stdin=prompt)
         except subprocess.TimeoutExpired:
             result.error = f"tempo esgotado ({timeout} s)"
             return result

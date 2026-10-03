@@ -103,7 +103,10 @@ class NullBrain(Brain):
         super().__init__("", "")
 
     def update(self, request_id, **fields):
-        print("[status]", json.dumps({k: v for k, v in fields.items() if k != "log"}, ensure_ascii=False)[:400], flush=True)
+        line = {k: v for k, v in fields.items() if k not in ("log", "cost")}
+        print("[status]", json.dumps(line, ensure_ascii=False), flush=True)
+        if fields.get("log") and (fields.get("level") == "error" or "falhou" in str(fields.get("title", ""))):
+            print("[log]", str(fields["log"])[-3000:], flush=True)
 
     def notify(self, **fields):
         print("[aviso]", fields.get("level"), fields.get("title"), flush=True)
@@ -202,7 +205,9 @@ class Pipeline:
         }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def role_prompt(self, role: str) -> str:
-        return (HERE / "agents" / f"{role}.md").read_text(encoding="utf-8")
+        """Corpo do prompt do papel, sem o cabecalho YAML (que so serve a definicao de subagente)."""
+        text = (HERE / "agents" / f"{role}.md").read_text(encoding="utf-8")
+        return re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.S).strip()
 
     def run_role(self, role: str, task: str) -> RunResult:
         """Roda um papel no motor com mais plano livre; se o plano acabar no meio, tenta o outro."""
