@@ -49,8 +49,15 @@ export function findCatalogNovel(entry: LocalLibraryEntry, catalog: Novel[]): No
   );
 }
 
+/** How many chapters the catalog has beyond a whole-novel download (0 for ranges and translations). */
+export function newChaptersFor(entry: LocalLibraryEntry, known: Novel | undefined): number {
+  if (!known || entry.partialRange || entry.language || entry.chapterCount === undefined) return 0;
+  return Math.max(0, known.chapters - entry.chapterCount);
+}
+
 function catalogFields(entry: LocalLibraryEntry, known: Novel | undefined) {
   return {
+    newChapters: newChaptersFor(entry, known),
     novelId: entry.novelId ?? known?.id,
     author: known?.author ?? "",
     coverClass: known?.coverClass ?? "cover-c",
@@ -119,7 +126,7 @@ export function enrichLibraryItems(items: LibraryItem[], entries: LocalLibraryEn
     const same = item.novelId === fields.novelId && item.author === fields.author
       && item.coverClass === fields.coverClass && item.bundleKey === fields.bundleKey
       && item.description === fields.description && item.sourceName === fields.sourceName
-      && item.chapters === chapters;
+      && item.chapters === chapters && item.newChapters === fields.newChapters;
     if (same) return item;
     changed = true;
     return { ...item, ...fields, chapters };

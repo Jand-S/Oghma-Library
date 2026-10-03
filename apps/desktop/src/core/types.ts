@@ -179,6 +179,8 @@ export type LibraryItem = {
   readingStatus?: LibraryReadingStatus;
   personalTags?: string[];
   hidden?: boolean;
+  /** Chapters the catalog has beyond this download (whole-novel downloads only). */
+  newChapters?: number;
 };
 
 export type LibraryReadingStatus = "unread" | "reading" | "paused" | "completed" | "dropped";

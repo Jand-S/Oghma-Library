@@ -107,14 +107,14 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                   {libraryStrings.openFolder}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant={item.newChapters ? "primary" : "outline"}
                   icon={<Download />}
                   data-testid="library-redownload"
                   onClick={() => library.redownloadItem(item)}
                   disabled={Boolean(redownloadReason)}
-                  title={redownloadReason ?? libraryStrings.redownloadHint}
+                  title={redownloadReason ?? (item.newChapters ? libraryStrings.newChaptersHint(item.newChapters) : libraryStrings.redownloadHint)}
                 >
-                  {libraryStrings.downloadAgain}
+                  {item.newChapters ? libraryStrings.updateWithNew(item.newChapters) : libraryStrings.downloadAgain}
                 </Button>
                 <Button variant="outline" icon={<FileCog />} onClick={() => actions.openConvert(item)} disabled={running || busy}>
                   {libraryStrings.convert}

@@ -99,10 +99,15 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                     <Cover src={item.coverUrl} title={item.title} size="fill" sheen className="library-tile__cover" />
                     <div className="library-tile__overlay" aria-hidden="true" />
                     <span className="library-tile__formats" title={formatsOf(item).join(", ")}>{formatSummary(item)}</span>
-                    {state || isTranslated(item) ? (
+                    {state || isTranslated(item) || item.newChapters ? (
                       <div className="library-tile__flags">
                         {state ? <JobBadge state={state} /> : null}
                         <TranslationBadge item={item} />
+                        {!state && item.newChapters ? (
+                          <Badge tone="accent" data-testid="library-new-chapters" title={libraryStrings.newChaptersHint(item.newChapters)}>
+                            {libraryStrings.newChaptersShort(item.newChapters)}
+                          </Badge>
+                        ) : null}
                       </div>
                     ) : null}
                     {item.favorite ? (

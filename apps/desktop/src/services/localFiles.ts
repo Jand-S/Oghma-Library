@@ -26,6 +26,8 @@ export type LocalLibraryEntry = {
   sourceNovelId?: string;
   /** 0–99 while the translated book is a preview (only finished chapters). */
   translationProgress?: number;
+  /** Downloaded as a chapter range (new chapters do not apply). */
+  partialRange?: boolean;
 };
 
 /** Raw `ExportLibraryItem` returned by the Rust `list_export_library` command. */
@@ -47,6 +49,7 @@ export type ExportLibraryRow = {
   language?: string | null;
   sourceNovelId?: string | null;
   translationProgress?: number | null;
+  partialRange?: boolean | null;
 };
 
 type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array;
@@ -187,7 +190,8 @@ export function mapLibraryRow(row: ExportLibraryRow, convertFileSrc: ConvertFile
     analysisFormat: row.analysisFormat ?? undefined,
     language: row.language ?? undefined,
     sourceNovelId: row.sourceNovelId ?? undefined,
-    translationProgress: row.translationProgress ?? undefined
+    translationProgress: row.translationProgress ?? undefined,
+    partialRange: row.partialRange ?? undefined
   };
 }
 

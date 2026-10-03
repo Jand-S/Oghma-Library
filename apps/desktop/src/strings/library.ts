@@ -88,6 +88,10 @@ export const libraryStrings = {
   newTag: "Novo marcador",
   dangerZone: "Zona de perigo",
   removeFromLibraryHint: "Some da biblioteca, mas a pasta e os arquivos continuam no disco.",
+  newChaptersShort: (count: number) => `+${count.toLocaleString("pt-BR")} cap.`,
+  newChaptersHint: (count: number) =>
+    `A fonte publicou ${count.toLocaleString("pt-BR")} ${count === 1 ? "capítulo novo" : "capítulos novos"} desde este download.`,
+  updateWithNew: (count: number) => `Atualizar (+${count.toLocaleString("pt-BR")})`,
   hiddenFilter: (count: number) => `Ocultos (${count.toLocaleString("pt-BR")})`,
   showInLibrary: "Mostrar na biblioteca",
   showInLibraryHint: "Este livro foi removido da biblioteca; os arquivos continuam no disco.",

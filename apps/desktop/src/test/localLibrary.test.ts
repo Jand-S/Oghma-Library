@@ -261,3 +261,16 @@ describe("useLocalLibrary", () => {
     expect(invokeMock.mock.calls.filter(([command]) => command === "cleanup_export_root")).toHaveLength(1);
   });
 });
+
+describe("new chapters", () => {
+  it("counts chapters published after a whole-novel download, never for ranges or translations", async () => {
+    const { newChaptersFor } = await import("../app/useLocalLibrary");
+    const known = novel({ id: "cn:42", title: "Solo", chapters: 120 });
+    const whole = entry({ title: "Solo", outputDir: "/o/a", chapterCount: 100 });
+    expect(newChaptersFor(whole, known)).toBe(20);
+    expect(newChaptersFor({ ...whole, partialRange: true }, known)).toBe(0);
+    expect(newChaptersFor({ ...whole, language: "pt-BR" }, known)).toBe(0);
+    expect(newChaptersFor({ ...whole, chapterCount: 130 }, known)).toBe(0);
+    expect(newChaptersFor(whole, undefined)).toBe(0);
+  });
+});
