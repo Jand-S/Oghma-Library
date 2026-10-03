@@ -207,3 +207,22 @@ def test_catalog_publishes_normalized_fields_instead_of_raw_extra():
     assert public_fields(n)["rating"] == 4.3
     n.extra = {"rating": 0, "views": 0}
     assert public_fields(n)["rating"] is None and public_fields(n)["views"] is None
+
+
+def test_python_taxonomy_is_the_single_source_and_matches_the_app_labels():
+    """O catalogo publica os rotulos do Python; o app tem uma lista de reserva. As duas nao podem divergir."""
+    import re
+    import unicodedata
+    from oghma.taxonomy.tags import TAGS
+
+    ts_file = Path(__file__).resolve().parents[2] / "apps" / "desktop" / "src" / "core" / "tagFilters.ts"
+    if not ts_file.exists():  # backend copiado sozinho (ex.: VPS sem o app)
+        return
+    app_labels = dict(re.findall(r'key: "([^"]+)", label: "([^"]+)"', ts_file.read_text(encoding="utf-8")))
+    py_labels = {tag.key: tag.label for tag in TAGS}
+    assert set(app_labels) <= set(py_labels), "tag do app sem definicao no Python"
+    assert {k: v for k, v in app_labels.items() if py_labels[k] != v} == {}
+    # Rotulos em portugues com acento: nenhum "cao"/"coes" sem til sobrou.
+    unaccented = [label for label in py_labels.values() if re.search(r"(cao|coes)\b", label)]
+    assert unaccented == []
+    assert all(unicodedata.is_normalized("NFC", label) for label in py_labels.values())
