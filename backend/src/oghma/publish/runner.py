@@ -11,7 +11,7 @@ from typing import Callable
 
 from .bundles import build_bundle, bundle_key
 from .catalog import build_catalog, build_catalog_json
-from .covers import plan_covers
+from .covers import plan_changed_covers
 from .hashing import content_hash, file_sha256
 from .reader import read_source
 from .source_meta import dominant_language, plan_source_icon
@@ -125,7 +125,8 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
                     build_bundle, str(local), n, version, asset_dir=str(asset_dir)
                 )
                 state["novels"][n.id] = {"content_hash": h, "version": version, "key": key,
-                                         "sha256": sha, "bytes": size}
+                                         "sha256": sha, "bytes": size,
+                                         **({"cover_sha256": prev["cover_sha256"]} if prev.get("cover_sha256") else {})}
                 changed.append((n, local))
             info = state["novels"][n.id]
             bundle_info[n.id] = {"key": info["key"], "version": info["version"],
@@ -166,7 +167,7 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
     index_bytes = json.dumps(index, ensure_ascii=False, indent=2).encode("utf-8")
     (work / "index.json").write_bytes(index_bytes)
 
-    cover_plan = [c for c in plan_covers([n for n, _ in changed])]
+    cover_plan = await asyncio.to_thread(plan_changed_covers, novels, state["novels"])
     summary = {"novels": len(novels), "bundles_changed": len(changed), "covers": len(cover_plan),
                "icon": state["sites"][source_id].get("iconKey"),
                "missing_covers": missing_covers, "catalog_key": catalog_key,
@@ -190,6 +191,9 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
         await asyncio.to_thread(up.put_file, str(catalog_json_gz), catalog_json_key, "application/gzip")
         await asyncio.to_thread(up.put_bytes, index_bytes, "index.json", "application/json")
         summary["uploaded"] = not dry_run
+        # Capa no B2: guarda o sha para so reenviar quando o arquivo mudar.
+        for cover in cover_plan:
+            state["novels"].setdefault(cover["novel_id"], {})["cover_sha256"] = cover["sha256"]
         if isinstance(up, DryRunUploader):
             summary["dry_run_ops"] = up.ops
         elif not _keep_local():

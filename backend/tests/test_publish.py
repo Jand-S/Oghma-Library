@@ -157,3 +157,29 @@ if __name__ == "__main__":
         fn()
         print("ok:", fn.__name__)
     print(f"\n{len(fns)} passed")
+
+
+def test_changed_or_late_covers_are_uploaded_once(tmp_path):
+    from oghma.publish.covers import plan_changed_covers
+
+    cover = tmp_path / "supreme-magus.jpg"
+    cover.write_bytes(b"capa-1")
+    n = _novel()
+    n.cover_path = str(cover)
+    state: dict = {}
+    first = plan_changed_covers([n, _novel(with_cover=False)], state)
+    assert [c["key"] for c in first] == ["covers/central-novel/supreme-magus.jpg"]
+    state[n.id] = {"cover_sha256": first[0]["sha256"]}
+    assert plan_changed_covers([n], state) == []  # nada mudou: nao reenvia
+    cover.write_bytes(b"capa-2")  # o crawler trocou a capa: reenvia mesmo sem capitulo novo
+    assert len(plan_changed_covers([n], state)) == 1
+
+
+def test_cache_control_by_key():
+    from oghma.publish.uploader import IMMUTABLE, cache_control_for
+
+    assert cache_control_for("index.json") == "no-cache"
+    assert cache_control_for("catalog/x-20261003.json.gz") == IMMUTABLE
+    assert cache_control_for("content/x/y/y.v2.tar.gz") == IMMUTABLE
+    assert cache_control_for("sources/novellunar-abc.png") == IMMUTABLE
+    assert cache_control_for("covers/x/y.jpg") == "public, max-age=86400"

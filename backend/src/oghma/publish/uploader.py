@@ -4,16 +4,34 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+IMMUTABLE = "public, max-age=31536000, immutable"
+
+
+def cache_control_for(key: str) -> str | None:
+    """Cache-Control de cada objeto publicado.
+
+    index.json muda a cada publicacao (o app precisa ver a versao nova na hora); catalogos,
+    bundles e icones tem chave versionada (timestamp, .vN, sha) e nunca mudam; capas mantem
+    o nome quando sao trocadas, entao ficam no cache so por um dia.
+    """
+    if key == "index.json":
+        return "no-cache"
+    if key.startswith(("catalog/", "content/", "sources/")):
+        return IMMUTABLE
+    if key.startswith("covers/"):
+        return "public, max-age=86400"
+    return None
+
 
 class DryRunUploader:
     def __init__(self) -> None:
         self.ops: list[str] = []
 
     def put_file(self, local: str, key: str, content_type: str) -> None:
-        self.ops.append(f"PUT {key}  <- {local} ({content_type})")
+        self.ops.append(f"PUT {key}  <- {local} ({content_type}; {cache_control_for(key) or 'sem cache-control'})")
 
     def put_bytes(self, data: bytes, key: str, content_type: str) -> None:
-        self.ops.append(f"PUT {key}  <- {len(data)} bytes ({content_type})")
+        self.ops.append(f"PUT {key}  <- {len(data)} bytes ({content_type}; {cache_control_for(key) or 'sem cache-control'})")
 
     def delete_keys(self, keys: list[str]) -> int:
         self.ops.extend(f"DELETE {k}" for k in keys)
@@ -33,12 +51,20 @@ class S3Uploader:
             aws_secret_access_key=os.environ["OGHMA_S3_SECRET_ACCESS_KEY"],
         )
 
+    @staticmethod
+    def _headers(key: str, content_type: str) -> dict:
+        headers = {"ContentType": content_type}
+        cache = cache_control_for(key)
+        if cache:
+            headers["CacheControl"] = cache
+        return headers
+
     def put_file(self, local: str, key: str, content_type: str) -> None:
         with open(local, "rb") as fh:
-            self.client.put_object(Bucket=self.bucket, Key=key, Body=fh, ContentType=content_type)
+            self.client.put_object(Bucket=self.bucket, Key=key, Body=fh, **self._headers(key, content_type))
 
     def put_bytes(self, data: bytes, key: str, content_type: str) -> None:
-        self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+        self.client.put_object(Bucket=self.bucket, Key=key, Body=data, **self._headers(key, content_type))
 
     def list_keys(self, prefixes=("content/", "catalog/")) -> dict[str, int]:
         out: dict[str, int] = {}
