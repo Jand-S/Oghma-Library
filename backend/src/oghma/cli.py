@@ -130,6 +130,13 @@ def seed_sources() -> None:
             rate_limit_seconds=1.0,
         ),
         dict(
+            id="novellunar",
+            name="NovelLunar",
+            base_url="https://novellunar.com/",
+            mode="api_available",
+            rate_limit_seconds=1.5,
+        ),
+        dict(
             id="rolia-scan",
             name="RoliaScan",
             base_url="https://roliascan.com/",
