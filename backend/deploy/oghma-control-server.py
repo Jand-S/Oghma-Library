@@ -6,8 +6,10 @@ deve controlar Docker nem desligar o host.
 """
 from __future__ import annotations
 
+import hmac
 import json
 import os
+import sys
 import subprocess
 import threading
 import time
@@ -35,11 +37,12 @@ def now() -> str:
 
 
 def authorized(handler: BaseHTTPRequestHandler, query: dict[str, list[str]]) -> bool:
+    """So o cabecalho X-Oghma-Control-Token (o ESP32 ja usa): token na URL vai parar em logs.
+    Sem token configurado nada passa (o servidor nem sobe, ver main)."""
     if not TOKEN:
-        return True
+        return False
     header = handler.headers.get("X-Oghma-Control-Token", "")
-    qtoken = query.get("token", [""])[0]
-    return header == TOKEN or qtoken == TOKEN
+    return hmac.compare_digest(header.encode(), TOKEN.encode())
 
 
 def run_script(shutdown_when_done: bool) -> None:
@@ -126,6 +129,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
+    if len(TOKEN) < 16:
+        # Este servidor dispara a coleta e pode desligar o host: sem token forte ele nao sobe.
+        print("OGHMA_CONTROL_TOKEN ausente ou curto (minimo 16 caracteres); recusando iniciar.", file=sys.stderr)
+        return 2
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"oghma-control-server listening on {HOST}:{PORT}", flush=True)
     httpd.serve_forever()
