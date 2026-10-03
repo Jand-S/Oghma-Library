@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::export_root::ExportRoot;
 use crate::paths::{expand_home, sanitize_file_name};
 
 pub const DEFAULT_FOLDER: &str = "Livros";
@@ -106,7 +107,16 @@ pub fn icloud_status() -> CloudStatus {
 }
 
 #[tauri::command]
-pub async fn icloud_save(items: Vec<CloudItem>, folder: Option<String>) -> Result<CloudSaveResult, String> {
+pub async fn icloud_save(
+    export_root: tauri::State<'_, ExportRoot>,
+    items: Vec<CloudItem>,
+    folder: Option<String>,
+) -> Result<CloudSaveResult, String> {
+    for item in &items {
+        if let Some(dir) = &item.output_dir {
+            export_root.require_inside(Path::new(dir))?;
+        }
+    }
     let root = icloud_drive_dir().ok_or("O iCloud Drive não está ativado neste Mac (Ajustes do Sistema → Apple ID → iCloud).")?;
     let folder = folder.unwrap_or_else(|| DEFAULT_FOLDER.to_string());
     tauri::async_runtime::spawn_blocking(move || save_items(&root, &folder, &items))
@@ -118,7 +128,9 @@ pub async fn icloud_save(items: Vec<CloudItem>, folder: Option<String>) -> Resul
 #[tauri::command]
 pub fn icloud_reveal(path: String) -> Result<(), String> {
     let root = icloud_drive_dir().ok_or("iCloud Drive indisponível")?;
-    let path = PathBuf::from(path);
+    // Canonical paths: "root/../.." would pass a plain starts_with.
+    let root = root.canonicalize().map_err(|err| err.to_string())?;
+    let path = PathBuf::from(path).canonicalize().map_err(|_| "Arquivo não encontrado no iCloud Drive".to_string())?;
     if !path.starts_with(&root) {
         return Err("Caminho fora do iCloud Drive".into());
     }

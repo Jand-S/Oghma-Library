@@ -1,4 +1,5 @@
 mod cloud;
+mod export_root;
 mod files;
 mod kindle;
 mod library_meta;
@@ -16,6 +17,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Output folder lives on the Rust side; file commands only accept paths inside it.
+            tauri::Manager::manage(app, export_root::ExportRoot::load(export_root::store_path(app.handle())));
             // Opens translation.db, registers the engine as managed state and pauses
             // projects left `running`. A failure only disables the translation screen.
             if let Err(err) = translation::init(app.handle()) {
@@ -24,6 +27,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            export_root::export_root_set,
+            export_root::export_root_pick,
             files::save_export_file,
             files::open_local_path,
             files::list_export_library,

@@ -7,7 +7,7 @@
 // <outputRoot>/<sanitized title>, commit and abort are no-ops.
 import { isTauriRuntime } from "../core/windowControls";
 import { sanitizeFileName } from "./downloadManager";
-import { joinPath } from "./localFiles";
+import { ensureExportRoot, joinPath } from "./localFiles";
 
 export type ExportStage = {
   stagingDir: string;
@@ -32,6 +32,7 @@ export async function beginExport(outputRoot: string, novelId: string, title: st
     const dir = joinPath(outputRoot, sanitizeFileName(title));
     return { stagingDir: dir, finalDir: dir };
   }
+  await ensureExportRoot(outputRoot);
   return invoke<ExportStage>("begin_export", { outputRoot, novelId, title });
 }
 

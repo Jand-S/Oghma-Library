@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Manager};
 
-use crate::paths::{expand_home, is_hidden_name, safe_relative_path};
+use crate::export_root::ExportRoot;
+use crate::paths::{is_hidden_name, safe_relative_path};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -248,7 +249,7 @@ pub(crate) fn write_export_file(dir: &Path, file_name: &str, bytes: &[u8]) -> Re
 }
 
 #[tauri::command]
-pub fn save_export_file(request: Request<'_>) -> Result<String, String> {
+pub fn save_export_file(request: Request<'_>, root: tauri::State<'_, ExportRoot>) -> Result<String, String> {
     fn decode_header(value: &str) -> Result<String, String> {
         let source = value.as_bytes();
         let mut decoded = Vec::with_capacity(source.len());
@@ -290,13 +291,15 @@ pub fn save_export_file(request: Request<'_>) -> Result<String, String> {
         .ok_or_else(|| "Nome de arquivo ausente".to_string())
         .and_then(decode_header)?;
 
-    let path = write_export_file(&expand_home(&output_dir), &file_name, payload)?;
+    let dir = root.require_inside(Path::new(&output_dir))?;
+    let path = write_export_file(&dir, &file_name, payload)?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-pub fn open_local_path(path: String) -> Result<(), String> {
-    let path = expand_home(&path);
+pub fn open_local_path(root: tauri::State<'_, ExportRoot>, path: String) -> Result<(), String> {
+    // Only the output folder and what is inside it: `open` would also launch an .app bundle.
+    let path = root.require_root_or_inside(Path::new(&path))?;
     fs::create_dir_all(&path)
         .map_err(|err| format!("Não foi possível abrir/criar a pasta: {err}"))?;
     let path = path
@@ -421,10 +424,11 @@ pub(crate) fn scan_export_library(root: &Path, include_cover_data: bool) -> Resu
 #[tauri::command]
 pub fn list_export_library(
     app: AppHandle,
+    export_root: tauri::State<'_, ExportRoot>,
     output_dir: String,
     include_cover_data: Option<bool>,
 ) -> Result<Vec<ExportLibraryItem>, String> {
-    let root = expand_home(&output_dir);
+    let root = export_root.require_root(Path::new(&output_dir))?;
     let items = scan_export_library(&root, include_cover_data.unwrap_or(false))?;
     let scope = app.asset_protocol_scope();
     for cover in items.iter().filter_map(|item| item.cover_path.as_ref()) {
@@ -434,17 +438,14 @@ pub fn list_export_library(
 }
 
 #[tauri::command]
-pub fn delete_export_library_item(output_dir: String, item_dir: String) -> Result<(), String> {
-    let root = expand_home(&output_dir)
-        .canonicalize()
-        .map_err(|err| format!("Não foi possível resolver a pasta de saída: {err}"))?;
-    let target = expand_home(&item_dir)
-        .canonicalize()
-        .map_err(|err| format!("Não foi possível resolver a pasta do livro: {err}"))?;
-
-    if target == root || !target.starts_with(&root) {
-        return Err("Recusa de segurança: item fora da pasta de saída".to_string());
-    }
+pub fn delete_export_library_item(
+    export_root: tauri::State<'_, ExportRoot>,
+    output_dir: String,
+    item_dir: String,
+) -> Result<(), String> {
+    export_root.require_root(Path::new(&output_dir))?;
+    // Direct child of the output folder holding `.oghma-book.json`: never any other folder.
+    let target = export_root.require_book_dir(Path::new(&item_dir))?;
     if !target.is_dir() {
         return Err("A pasta do livro não existe".to_string());
     }

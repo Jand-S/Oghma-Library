@@ -56,6 +56,8 @@ export const settingsStrings = {
   pickUnavailable: "Disponível no app desktop.",
   openFolder: "Abrir pasta",
   openFolderFailed: "Não foi possível abrir a pasta.",
+  pickFolderFailed: "Não foi possível usar essa pasta.",
+  outputPathRefused: "Essa pasta não pode ser a pasta de saída.",
   defaultFormats: "Formatos padrão",
   defaultFormatsHint: "Pré-selecionados ao baixar um livro. Pelo menos um formato fica marcado.",
   chapterPreset: "Capítulos por padrão",

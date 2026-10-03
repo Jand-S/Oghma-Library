@@ -122,23 +122,34 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     }
-    let temp = path.with_extension("tmp");
+    // Fresh temp file every time (create_new + unique name): a leftover `.tmp` with looser
+    // permissions, or a symlink planted at that name, is never reused for the tokens.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let temp = path.with_extension(format!("{}-{nanos}.tmp", std::process::id()));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
     #[cfg(unix)]
     {
-        use std::io::Write;
         use std::os::unix::fs::OpenOptionsExt;
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&temp)
-            .map_err(|err| err.to_string())?;
-        file.write_all(bytes).map_err(|err| err.to_string())?;
+        options.mode(0o600);
     }
-    #[cfg(not(unix))]
-    std::fs::write(&temp, bytes).map_err(|err| err.to_string())?;
-    std::fs::rename(&temp, path).map_err(|err| err.to_string())
+    let written = (|| {
+        use std::io::Write;
+        let mut file = options.open(&temp)?;
+        file.write_all(bytes)?;
+        file.sync_all()
+    })();
+    if let Err(err) = written {
+        let _ = std::fs::remove_file(&temp);
+        return Err(err.to_string());
+    }
+    std::fs::rename(&temp, path).map_err(|err| {
+        let _ = std::fs::remove_file(&temp);
+        err.to_string()
+    })
 }
 
 #[cfg(test)]

@@ -78,6 +78,35 @@ async function loadInvoke(): Promise<Invoke | null> {
   }
 }
 
+// ---- Output root (pasta de saída) on the Rust side: src-tauri/src/export_root.rs ----
+// File commands only accept paths inside the root Rust keeps. The webview can set it the first
+// time and later only to a missing, empty or Oghma folder; "Escolher…" uses a dialog opened by
+// Rust, which may point anywhere the user picks.
+let confirmedExportRoot: string | null = null;
+
+/** Tells Rust that `path` is the output root. Throws with Rust's message when it refuses. */
+export async function setExportRoot(path: string): Promise<void> {
+  const invoke = await loadInvoke();
+  if (!invoke) return;
+  await invoke<string>("export_root_set", { path });
+  confirmedExportRoot = path;
+}
+
+/** Calls `setExportRoot` once per path (before listing, cleaning or exporting into it). */
+export async function ensureExportRoot(path: string): Promise<void> {
+  if (confirmedExportRoot === path || !path.trim()) return;
+  await setExportRoot(path);
+}
+
+/** Native folder dialog opened by Rust; the chosen folder becomes the root. Null when canceled. */
+export async function pickExportRoot(options: { defaultPath?: string; title?: string } = {}): Promise<string | null> {
+  const invoke = await loadInvoke();
+  if (!invoke) return null;
+  const picked = await invoke<string | null>("export_root_pick", { title: options.title ?? null, defaultPath: options.defaultPath ?? null });
+  if (picked) confirmedExportRoot = picked;
+  return picked;
+}
+
 export function joinPath(...parts: string[]): string {
   const filtered = parts
     .map((part) => part.trim())
@@ -179,6 +208,7 @@ export async function listLocalLibrary(
 ): Promise<LocalLibraryEntry[] | null> {
   const invoke = await loadInvoke();
   if (!invoke) return null;
+  await ensureExportRoot(outputDir);
   const rows = await invoke<ExportLibraryRow[]>("list_export_library", {
     outputDir,
     includeCoverData: options.includeCoverData ?? false
@@ -195,6 +225,7 @@ export async function listLocalLibrary(
 export async function prepareExportRoot(outputRoot: string): Promise<number | null> {
   const invoke = await loadInvoke();
   if (!invoke || !outputRoot.trim()) return null;
+  await ensureExportRoot(outputRoot);
   return invoke<number>("cleanup_export_root", { outputRoot });
 }
 
@@ -244,6 +275,7 @@ export async function deleteLibraryMetadata(key: string): Promise<boolean> {
 export async function deleteLocalLibraryFiles(outputDir: string, itemDir: string): Promise<boolean> {
   const invoke = await loadInvoke();
   if (!invoke) return false;
+  await ensureExportRoot(outputDir);
   await invoke("delete_export_library_item", { outputDir, itemDir });
   return true;
 }

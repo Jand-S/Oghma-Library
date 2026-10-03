@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 use tauri::AppHandle;
 
+use crate::export_root::ExportRoot;
 use crate::files::read_manifest;
 use crate::library_meta;
 use crate::paths::{expand_home, is_hidden_name, sanitize_file_name};
@@ -339,18 +340,26 @@ pub(crate) fn meta_keys_for(final_dir: &Path, raw_final_dir: &str, novel_id: &st
 }
 
 #[tauri::command]
-pub fn begin_export(output_root: String, novel_id: String, title: String) -> Result<BeginExportResult, String> {
-    begin_export_at(&expand_home(&output_root), &novel_id, &title)
+pub fn begin_export(
+    root: tauri::State<'_, ExportRoot>,
+    output_root: String,
+    novel_id: String,
+    title: String,
+) -> Result<BeginExportResult, String> {
+    begin_export_at(&root.require_root(Path::new(&output_root))?, &novel_id, &title)
 }
 
 #[tauri::command]
 pub fn commit_export(
     app: AppHandle,
+    root: tauri::State<'_, ExportRoot>,
     staging_dir: String,
     final_dir: String,
     novel_id: String,
 ) -> Result<(), String> {
-    let committed = commit_export_at(&expand_home(&staging_dir), &expand_home(&final_dir))?;
+    let staging = root.require_inside(Path::new(&staging_dir))?;
+    let target = root.require_inside(Path::new(&final_dir))?;
+    let committed = commit_export_at(&staging, &target)?;
     let keys = meta_keys_for(&committed, &final_dir, novel_id.trim());
     // The files are already in place; a metadata failure must not fail the export.
     if let Err(err) = library_meta::reset_hidden(&app, &keys) {
@@ -360,16 +369,16 @@ pub fn commit_export(
 }
 
 #[tauri::command]
-pub fn abort_export(staging_dir: String) -> Result<(), String> {
-    abort_export_at(&expand_home(&staging_dir))
+pub fn abort_export(root: tauri::State<'_, ExportRoot>, staging_dir: String) -> Result<(), String> {
+    abort_export_at(&root.require_inside(Path::new(&staging_dir))?)
 }
 
 /// Deletes leftover `.oghma-staging` / `.oghma-trash` entries under the output root.
 /// The output root lives in the TS config, so TS calls this once it knows the path
 /// (`prepareExportRoot` in `services/localFiles.ts`, used by `useLocalLibrary`).
 #[tauri::command]
-pub fn cleanup_export_root(output_root: String) -> Result<usize, String> {
-    Ok(cleanup_export_root_at(&expand_home(&output_root)))
+pub fn cleanup_export_root(root: tauri::State<'_, ExportRoot>, output_root: String) -> Result<usize, String> {
+    Ok(cleanup_export_root_at(&root.require_root(Path::new(&output_root))?))
 }
 
 #[cfg(test)]

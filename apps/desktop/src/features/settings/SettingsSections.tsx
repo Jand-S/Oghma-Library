@@ -2,7 +2,8 @@ import { ArrowRight, Cloud, Download, ExternalLink, Github, Globe2, Languages, L
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type { AppView } from "../../app/NavigationContext";
 import type { AppConfig, ChapterPreset, IndexMode, KindleDeviceStatus, KindleSendMethod, SourceSite } from "../../core/types";
-import { getICloudStatus } from "../../services/localFiles";
+import { getErrorMessage } from "../../services/backendClient";
+import { getICloudStatus, setExportRoot } from "../../services/localFiles";
 import { navStrings } from "../../strings/common";
 import { onboardingStrings } from "../../strings/onboarding";
 import { settingsLinks, settingsStrings } from "../../strings/settings";
@@ -18,7 +19,8 @@ import {
   Spinner,
   Switch,
   TextField,
-  cx
+  cx,
+  useToast
 } from "../../ui";
 import { formatSyncTime } from "../sources/lastSync";
 import type { ServerCheck } from "../sources/useSourcesController";
@@ -212,7 +214,13 @@ export function GeneralSection({ saved }: { saved: () => void }) {
 export function DownloadsSection({ config, save, saved, onNavigate }: { config: AppConfig; save: Save; saved: () => void; onNavigate: Navigate }) {
   const [preferences, updatePreferences] = useUiPreferences();
   const folderId = useId();
-  const folder = useDraft(config.outputPath, validateFolder, (outputPath) => save({ outputPath }));
+  const { toast } = useToast();
+  // A typed folder only becomes the output root if Rust accepts it (missing, empty or an Oghma library).
+  const folder = useDraft(config.outputPath, validateFolder, (outputPath) => {
+    void setExportRoot(outputPath)
+      .then(() => save({ outputPath }))
+      .catch((err: unknown) => toast({ message: getErrorMessage(err, settingsStrings.outputPathRefused), tone: "danger" }));
+  });
 
   return (
     <>

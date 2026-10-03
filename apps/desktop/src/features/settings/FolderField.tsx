@@ -1,7 +1,8 @@
 import { ExternalLink, FolderOpen } from "lucide-react";
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { isTauriRuntime } from "../../core/windowControls";
-import { openLocalPath, pickDirectory } from "../../services/localFiles";
+import { getErrorMessage } from "../../services/backendClient";
+import { openLocalPath, pickExportRoot } from "../../services/localFiles";
 import { settingsStrings } from "../../strings/settings";
 import { Button, cx, TextField, useToast } from "../../ui";
 import "./settings.css";
@@ -45,10 +46,12 @@ export function FolderField({
 
   const pick = () => {
     setPicking(true);
-    void pickDirectory({ defaultPath: value || undefined, title: settingsStrings.pickOutputFolderTitle })
+    // Dialog opened by Rust: the folder becomes the output root there too (export_root.rs).
+    void pickExportRoot({ defaultPath: value || undefined, title: settingsStrings.pickOutputFolderTitle })
       .then((path) => {
         if (path) onPick(path);
       })
+      .catch((err: unknown) => toast({ message: getErrorMessage(err, settingsStrings.pickFolderFailed), tone: "danger" }))
       .finally(() => setPicking(false));
   };
 

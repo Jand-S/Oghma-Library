@@ -16,6 +16,7 @@ import {
   listLocalLibrary,
   mapLibraryRow,
   pickDirectory,
+  pickExportRoot,
   saveLibraryMetadata,
   type ExportLibraryRow,
   type LocalLibraryEntry
@@ -152,6 +153,35 @@ describe("catalog enrichment", () => {
 });
 
 describe("Tauri calls", () => {
+  it("tells Rust the output root once before using it, and the Rust dialog sets it directly", async () => {
+    setTauri(true);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "list_export_library") return [];
+      if (command === "export_root_pick") return "/Users/me/Livros";
+      return undefined;
+    });
+    await listLocalLibrary("/root/a");
+    await listLocalLibrary("/root/a");
+    const commands = invokeMock.mock.calls.map(([command]) => command);
+    expect(commands).toEqual(["export_root_set", "list_export_library", "list_export_library"]);
+    expect(invokeMock).toHaveBeenCalledWith("export_root_set", { path: "/root/a" });
+
+    invokeMock.mockClear();
+    expect(await pickExportRoot({ title: "Pasta" })).toBe("/Users/me/Livros");
+    await listLocalLibrary("/Users/me/Livros");
+    expect(invokeMock.mock.calls.map(([command]) => command)).toEqual(["export_root_pick", "list_export_library"]);
+  });
+
+  it("a folder Rust refuses is not used", async () => {
+    setTauri(true);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "export_root_set") throw new Error("Essa pasta já tem outros arquivos.");
+      return [];
+    });
+    await expect(listLocalLibrary("/Users/me/Documents")).rejects.toThrow("outros arquivos");
+    expect(invokeMock.mock.calls.map(([command]) => command)).toEqual(["export_root_set"]);
+  });
+
   it("lists without base64 covers and translates metadata keys to novel ids", async () => {
     setTauri(true);
     invokeMock.mockImplementation(async (command: string) => (command === "list_export_library" ? [row] : undefined));

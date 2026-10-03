@@ -10,6 +10,7 @@ use kindling::mobi_rewrite::{rewrite_mobi_metadata, MetadataUpdates};
 use serde::Serialize;
 
 use crate::files::{pick_cover, read_manifest, unique_suffix};
+use crate::export_root::ExportRoot;
 use crate::paths::{expand_home, is_hidden_name, safe_export_stem, safe_relative_path};
 
 #[derive(Serialize)]
@@ -521,11 +522,12 @@ fn convert_epub_to_azw3(
 
 #[tauri::command]
 pub fn convert_export_to_azw3(
+    root: tauri::State<'_, ExportRoot>,
     title: String,
     output_dir: String,
     output_files: Vec<String>,
 ) -> Result<Azw3ConversionResult, String> {
-    let output_dir = expand_home(&output_dir);
+    let output_dir = root.require_inside(Path::new(&output_dir))?;
     fs::create_dir_all(&output_dir)
         .map_err(|err| format!("Não foi possível acessar a pasta de saída: {err}"))?;
     let azw3 = ensure_fresh_azw3(&title, &output_dir, &output_files)?;
@@ -669,7 +671,11 @@ fn epub_for_item(item: &SendKindleItem) -> Result<PathBuf, String> {
 
 /// Opens Amazon's "Send to Kindle" with the books' EPUBs; the user confirms the send in that app.
 #[tauri::command]
-pub fn kindle_send_wireless(items: Vec<SendKindleItem>) -> Result<KindleWirelessResult, String> {
+pub fn kindle_send_wireless(
+    root: tauri::State<'_, ExportRoot>,
+    items: Vec<SendKindleItem>,
+) -> Result<KindleWirelessResult, String> {
+    check_items_inside(&root, &items)?;
     let app = send_to_kindle_app()
         .ok_or("O app Send to Kindle da Amazon não está instalado. Instale em amazon.com/sendtokindle/mac.")?;
     let mut files = Vec::new();
@@ -695,10 +701,24 @@ pub fn kindle_send_wireless(items: Vec<SendKindleItem>) -> Result<KindleWireless
 
 /// Runs off the main thread: an MTP transfer can take a few seconds.
 #[tauri::command]
-pub async fn send_to_kindle(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {
+pub async fn send_to_kindle(
+    root: tauri::State<'_, ExportRoot>,
+    items: Vec<SendKindleItem>,
+) -> Result<KindleSendResult, String> {
+    check_items_inside(&root, &items)?;
     tauri::async_runtime::spawn_blocking(move || send_to_kindle_blocking(items))
         .await
         .map_err(|err| err.to_string())?
+}
+
+/// Books sent or opened elsewhere must come from the output folder (no arbitrary file reads).
+fn check_items_inside(root: &ExportRoot, items: &[SendKindleItem]) -> Result<(), String> {
+    for item in items {
+        if let Some(dir) = &item.output_dir {
+            root.require_inside(Path::new(dir))?;
+        }
+    }
+    Ok(())
 }
 
 fn send_to_kindle_blocking(items: Vec<SendKindleItem>) -> Result<KindleSendResult, String> {

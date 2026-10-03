@@ -77,11 +77,17 @@ pub async fn translation_list_projects(state: EngineState<'_>) -> Result<Vec<Pro
 #[tauri::command]
 pub async fn translation_create_project(
     state: EngineState<'_>,
+    root: tauri::State<'_, crate::export_root::ExportRoot>,
     source_dir: String,
     source_novel_id: Option<String>,
     title: String,
     cover_path: Option<String>,
 ) -> Result<ProjectSummary, String> {
+    // The source book and its cover come from the output folder.
+    root.require_inside(std::path::Path::new(&source_dir))?;
+    if let Some(cover) = &cover_path {
+        root.require_inside(std::path::Path::new(cover))?;
+    }
     blocking(engine(&state), move |engine| {
         engine.create_project(&source_dir, source_novel_id, &title, cover_path)
     })
