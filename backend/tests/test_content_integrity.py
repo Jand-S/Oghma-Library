@@ -194,3 +194,14 @@ def test_catalog_publishes_the_chapter_count_the_site_announces():
     payload = json.loads(build_catalog_json(source, [novel], {}))
     assert payload["novels"][0]["sourceChapterCount"] == 967
     assert payload["novels"][0]["chapterCount"] == 0
+
+
+def test_cold_novels_are_not_marked_missing_file():
+    """Capitulos de novel fria ficam so no B2; o audit/mark-chapters nao pode marca-los invalidos."""
+    from sqlalchemy.dialects import postgresql
+    from oghma.maintenance import short_chapters_query
+
+    sql = str(short_chapters_query("central-novel").compile(dialect=postgresql.dialect()))
+    assert "storage_state" in sql and "cold" in str(
+        short_chapters_query().compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+    assert "source_id" in sql

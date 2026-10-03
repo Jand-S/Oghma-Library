@@ -56,6 +56,24 @@ def description_issues(text: str | None) -> list[str]:
     return issues
 
 
+def short_chapters_query(source: str | None = None):
+    """Capitulos curtos (candidatos a placeholder) de novels quentes.
+
+    Novel fria (`storage_state='cold'`) guarda os capitulos so no B2: o arquivo nao estar no
+    disco e o normal, e nao pode virar `invalid:missing_file` (a reidratacao confere o bundle).
+    """
+    q = (
+        select(Chapter.id, Chapter.novel_id, Chapter.number, Chapter.title, Chapter.content_path,
+               Chapter.word_count, Chapter.status, Novel.source_id)
+        .join(Novel, Novel.id == Chapter.novel_id)
+        .where(Chapter.status != "invalid", Chapter.word_count <= _PLACEHOLDER_MAX_WORDS)
+        .where(func.coalesce(Novel.storage_state, "hot") != "cold")
+    )
+    if source:
+        q = q.where(Novel.source_id == source)
+    return q
+
+
 async def classify_chapters(source: str | None = None) -> list[dict]:
     """Capitulos ja salvos que devem mudar de status.
 
@@ -65,14 +83,7 @@ async def classify_chapters(source: str | None = None) -> list[dict]:
     """
     changes: list[dict] = []
     async with SessionLocal() as session:
-        short_q = (
-            select(Chapter.id, Chapter.novel_id, Chapter.number, Chapter.title, Chapter.content_path,
-                   Chapter.word_count, Chapter.status, Novel.source_id)
-            .join(Novel, Novel.id == Chapter.novel_id)
-            .where(Chapter.status != "invalid", Chapter.word_count <= _PLACEHOLDER_MAX_WORDS)
-        )
-        if source:
-            short_q = short_q.where(Novel.source_id == source)
+        short_q = short_chapters_query(source)
         for row in (await session.execute(short_q)).all():
             html = _read_content(row.content_path)
             problem = "missing_file" if html is None else chapter_problem(html)
