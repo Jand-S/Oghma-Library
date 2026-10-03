@@ -1,16 +1,14 @@
 """Testes do publish que rodam so com stdlib (sqlite3/tarfile/gzip/json)."""
-import gzip
 import json
-import sqlite3
 import tarfile
 import tempfile
 from pathlib import Path
 
 from oghma.publish.bundles import build_bundle, bundle_key
-from oghma.publish.catalog import build_catalog, cover_key
+from oghma.publish.catalog import cover_key
 from oghma.publish.covers import plan_covers
 from oghma.publish.hashing import content_hash
-from oghma.publish.records import ChapterRecord, NovelRecord, SourceRecord
+from oghma.publish.records import ChapterRecord, NovelRecord
 from oghma.publish.runner import _index_from_state
 
 
@@ -84,38 +82,6 @@ def test_build_bundle_embeds_localized_chapter_assets():
             assert "assets/abc123.webp" in tar.getnames()
             assert tar.extractfile("assets/abc123.webp").read() == b"RIFFxxxxWEBPimage"
 
-
-def test_build_catalog_readback():
-    n = _novel()
-    src = SourceRecord(id="central-novel", name="Central Novel", base_url="https://centralnovel.com/",
-                       novel_count=1, last_sync="2026-06-16T00:00:00Z")
-    binfo = {n.id: {"key": "content/x", "version": 1, "sha256": "abc", "bytes": 123}}
-    with tempfile.TemporaryDirectory() as d:
-        out = Path(d) / "catalog.sqlite"
-        build_catalog(str(out), src, [n], binfo)
-        conn = sqlite3.connect(str(out))
-        try:
-            row = conn.execute(
-                "SELECT title, cover_url, tags, tag_keys, chapter_count, bundle_key, bundle_version FROM novel WHERE id=?",
-                (n.id,),
-            ).fetchone()
-            assert row[0] == "Supreme Magus"
-            assert row[1] == "covers/central-novel/supreme-magus.jpg"
-            assert json.loads(row[2]) == ["Fantasia", "Aventura"]
-            assert json.loads(row[3]) == ["genre.fantasy", "genre.adventure"]
-            assert row[4] == 2 and row[5] == "content/x" and row[6] == 1
-            assert conn.execute("SELECT COUNT(*) FROM chapter WHERE novel_id=?", (n.id,)).fetchone()[0] == 2
-            assert conn.execute("SELECT novel_count FROM source").fetchone()[0] == 1
-            # FTS (se disponivel)
-            try:
-                hit = conn.execute("SELECT novel_id FROM novel_fts WHERE novel_fts MATCH 'supreme'").fetchall()
-                assert (n.id,) in hit
-                fts = "ok"
-            except sqlite3.OperationalError:
-                fts = "indisponivel"
-            print("FTS5:", fts)
-        finally:
-            conn.close()
 
 
 def test_plan_covers():

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable
 
 from .bundles import build_bundle, bundle_key
-from .catalog import build_catalog, build_catalog_json
+from .catalog import build_catalog_json
 from .covers import plan_changed_covers
 from .hashing import content_hash, file_sha256
 from .reader import read_source
@@ -30,10 +30,6 @@ def _index_from_state(state: dict) -> dict:
         "sites": list(state.get("sites", {}).values()),
     }
 
-
-def _gzip_file(source: Path, destination: Path) -> None:
-    with open(source, "rb") as fi, gzip.open(destination, "wb") as fo:
-        fo.writelines(fi)
 
 
 def _write_gzip_bytes(destination: Path, data: bytes) -> None:
@@ -133,14 +129,7 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
                                  "sha256": info["sha256"], "bytes": info["bytes"]}
 
     ts = _ts()
-    catalog_key = f"catalog/{source_id}-{ts}.sqlite.gz"
-    catalog_sqlite = work / f"catalog/{source_id}-{ts}.sqlite"
-    await asyncio.to_thread(build_catalog, str(catalog_sqlite), source, novels, bundle_info)
-    catalog_gz = work / catalog_key
-    await asyncio.to_thread(_gzip_file, catalog_sqlite, catalog_gz)
-    catalog_sha, _ = await asyncio.to_thread(file_sha256, catalog_gz)
-
-    # Catalogo JSON leve (consumido pelo desktop sem SQLite).
+    # Catalogo JSON (o unico que o app le, desde a v1.0; o catalogo SQLite deixou de ser gerado).
     catalog_json_key = f"catalog/{source_id}-{ts}.json.gz"
     catalog_json_gz = work / catalog_json_key
     catalog_json = await asyncio.to_thread(build_catalog_json, source, novels, bundle_info)
@@ -156,8 +145,9 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
     state["sites"][source_id] = {
         "id": source_id, "name": source.name, "baseUrl": source.base_url or None,
         "language": dominant_language(novels),
-        "catalogKey": catalog_key,
-        "catalogSha256": catalog_sha,
+        # catalogKey/catalogSha256 ficam por compatibilidade com quem le o indice; apontam para o JSON.
+        "catalogKey": catalog_json_key,
+        "catalogSha256": catalog_json_sha,
         "catalogJsonKey": catalog_json_key, "catalogJsonSha256": catalog_json_sha,
         "catalogVersion": int(prev_site.get("catalogVersion", 0)) + 1,
         "novelCount": len(novels), "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -170,7 +160,7 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
     cover_plan = await asyncio.to_thread(plan_changed_covers, novels, state["novels"])
     summary = {"novels": len(novels), "bundles_changed": len(changed), "covers": len(cover_plan),
                "icon": state["sites"][source_id].get("iconKey"),
-               "missing_covers": missing_covers, "catalog_key": catalog_key,
+               "missing_covers": missing_covers, "catalog_key": catalog_json_key,
                "catalog_json_key": catalog_json_key, "uploaded": False}
 
     if not no_upload:
@@ -184,10 +174,9 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
         if icon["upload"]:
             files.append(icon["upload"])
         if progress:
-            progress({"phase": "uploading", "uploadItems": len(files) + 3})
+            progress({"phase": "uploading", "uploadItems": len(files) + 2})
         concurrency = max(1, min(settings.publish_upload_concurrency, 16))
         await _upload_files(up, files, concurrency=concurrency)
-        await asyncio.to_thread(up.put_file, str(catalog_gz), catalog_key, "application/gzip")
         await asyncio.to_thread(up.put_file, str(catalog_json_gz), catalog_json_key, "application/gzip")
         await asyncio.to_thread(up.put_bytes, index_bytes, "index.json", "application/json")
         summary["uploaded"] = not dry_run
