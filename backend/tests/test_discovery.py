@@ -53,7 +53,7 @@ def test_ficha_wins_over_the_synopsis():
     assert novel_text(novel) == "Sunny é escolhido pelo Feitiço do Pesadelo."
     ficha = {"protagonista": "Sunny", "premissa": "Feitiço do Pesadelo", "tracos": ["sombra", "não mente"]}
     assert novel_text(novel, ficha) == ficha_text(ficha)
-    assert "Traços: sombra; não mente" in ficha_text(ficha)
+    assert ficha_text(ficha) == "Feitiço do Pesadelo Sunny sombra não mente"
 
 
 def test_embed_only_runs_the_model_for_new_texts(tmp_path):

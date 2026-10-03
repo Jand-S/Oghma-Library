@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -21,7 +22,9 @@ from html import unescape
 from pathlib import Path
 from typing import Iterable, Optional
 
-MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# mpnet (1 GB, ~1 GB de RAM por alguns minutos) separou melhor as historias no piloto das fichas
+# que o MiniLM (220 MB); OGHMA_DISCOVERY_MODEL troca sem mexer no codigo.
+MODEL = os.environ.get("OGHMA_DISCOVERY_MODEL", "sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
 TOP_K = 24
 # Peso do cosseno dos textos e das tags de historia (Jaccard) na nota do par.
 TEXT_WEIGHT = 0.65
@@ -55,10 +58,11 @@ def _plain(text: Optional[str]) -> str:
 
 
 def ficha_text(ficha: dict) -> str:
-    traits = "; ".join(t for t in ficha.get("tracos") or [] if isinstance(t, str))
-    return (f"Protagonista: {ficha.get('protagonista', '')} Premissa: {ficha.get('premissa', '')} "
-            f"Mundo: {ficha.get('mundo', '')} Tom: {ficha.get('tom', '')} Estrutura: {ficha.get('estrutura', '')} "
-            f"Traços: {traits}").strip()
+    """So o conteudo da ficha: rotulos fixos ("Protagonista:", "Premissa:") se repetem em toda
+    ficha e aproximavam obras que nao tem nada a ver."""
+    parts = [ficha.get(k) for k in ("premissa", "protagonista", "mundo", "tom", "estrutura")]
+    parts += [t for t in ficha.get("tracos") or [] if isinstance(t, str)]
+    return " ".join(p.strip() for p in parts if isinstance(p, str) and p.strip())
 
 
 def novel_text(novel: DiscoveryNovel, ficha: Optional[dict] = None) -> str:
