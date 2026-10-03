@@ -9,6 +9,7 @@ import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./Discov
 import type { SortDirection } from "./DiscoverHeader";
 import { sortNovels } from "../../services/catalogIndex";
 import type { SmartResult } from "../../services/smartFilter";
+import type { SmartStageInfo } from "./SmartFilterPanel";
 import { SmartFilterPanel } from "./SmartFilterPanel";
 import { activeFilters, clearedFilters } from "./filterModel";
 import "./discover.css";
@@ -41,6 +42,8 @@ export type DiscoverViewProps = {
   /** Filtro inteligente: last result (order and reasons), busy flag and actions. */
   smart?: SmartResult | null;
   smartBusy?: boolean;
+  /** What the smart filter is doing while busy (shown under the field). */
+  smartStage?: SmartStageInfo | null;
   aiAvailable?: boolean;
   onAskSmart?: (request: string) => void;
   onClearSmart?: () => void;
@@ -62,7 +65,7 @@ export function DiscoverView({
   sources,
   filters,
   tagCatalog,
-  results,
+  results: allResults,
   selectedNovel,
   selection,
   loading,
@@ -80,6 +83,7 @@ export function DiscoverView({
   related,
   smart = null,
   smartBusy = false,
+  smartStage = null,
   aiAvailable = false,
   onAskSmart,
   onClearSmart,
@@ -92,6 +96,17 @@ export function DiscoverView({
 }: DiscoverViewProps) {
   const [visibleCount, setVisibleCount] = useState(DISCOVER_PAGE_SIZE);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Curated smart filter: only the novels the model kept after reading the synopses, unless
+  // the user asks to also see the ones that only share tags.
+  const [smartBroad, setSmartBroad] = useState(false);
+  useEffect(() => setSmartBroad(false), [smart]);
+  const curated = Boolean(smart?.picks) && !smartBroad;
+  const results = useMemo(() => {
+    if (!curated || !smart?.picks) return allResults;
+    const picked = new Set(smart.picks);
+    return allResults.filter((novel) => picked.has(novel.id));
+  }, [allResults, curated, smart]);
   const [scrolled, setScrolled] = useState(false);
 
   // Back to the first batch only when the set of novels (or the order) really changes.
@@ -183,6 +198,15 @@ export function DiscoverView({
         action={<Button variant="primary" onClick={onOpenSources}>{discoverStrings.openSources}</Button>}
       />
     );
+  } else if (curated && results.length === 0) {
+    content = (
+      <EmptyState
+        icon={<SearchX />}
+        title={discoverStrings.smartNoPicksTitle}
+        description={discoverStrings.smartNoPicksDescription(smart?.candidatesRead ?? 0)}
+        action={<Button variant="primary" onClick={() => setSmartBroad(true)}>{discoverStrings.smartShowBroad}</Button>}
+      />
+    );
   } else if (results.length === 0) {
     content = (
       <EmptyState
@@ -213,7 +237,17 @@ export function DiscoverView({
     <div className={cx("discover", detailNovel && "discover--with-detail")}>
       <div className="discover__main" onClick={onBackgroundClick}>
         {onAskSmart && onClearSmart ? (
-          <SmartFilterPanel result={smart} busy={smartBusy} aiAvailable={aiAvailable} onAsk={onAskSmart} onClear={onClearSmart} />
+          <SmartFilterPanel
+            result={smart}
+            busy={smartBusy}
+            stage={smartStage}
+            aiAvailable={aiAvailable}
+            broad={smartBroad}
+            broadCount={allResults.length}
+            onToggleBroad={() => setSmartBroad((value) => !value)}
+            onAsk={onAskSmart}
+            onClear={onClearSmart}
+          />
         ) : null}
         {showFilterBar ? (
           <DiscoverFilterBar

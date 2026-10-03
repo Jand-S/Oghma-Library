@@ -210,3 +210,19 @@ export function similarityToSeeds(index: CatalogIndex, seeds: Novel[]): Map<stri
   }
   return out;
 }
+
+/**
+ * Story keywords (already normalized) found in each novel's title, tags or synopsis, by word
+ * start. Feeds the candidate pre-selection of the smart filter: "sombra", "pesadelo",
+ * "nightmare" find the synopses that talk about it even when the tags do not.
+ */
+export function keywordHits(index: CatalogIndex, keywords: readonly string[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  if (!keywords.length) return out;
+  for (const entry of index.entries) {
+    const found = keywords.filter((word) =>
+      hasWord(entry.description, word) || hasWord(entry.title, word) || hasWord(entry.tags, word));
+    if (found.length) out.set(entry.novel.id, found);
+  }
+  return out;
+}

@@ -7,6 +7,7 @@ import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, 
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { editionsOf, similarNovels, type CatalogIndex } from "../../services/catalogIndex";
 import { chatGptAsker, chatGptLoggedIn, runSmartFilter, type SmartResult } from "../../services/smartFilter";
+import type { SmartStageInfo } from "./SmartFilterPanel";
 import { discoverStrings } from "../../strings/discover";
 import { readUiPreferences } from "../settings/preferences";
 import type { SortDirection } from "./DiscoverHeader";
@@ -133,6 +134,7 @@ export function useDiscoverController({
   // "Filtro inteligente": the request becomes the normal filters plus an order by similarity.
   const [smart, setSmart] = useState<SmartResult | null>(null);
   const [smartBusy, setSmartBusy] = useState(false);
+  const [smartStage, setSmartStage] = useState<SmartStageInfo | null>(null);
   const [aiAvailable, setAiAvailable] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -230,7 +232,12 @@ export function useDiscoverController({
         const index = catalogIndex ?? (backend.getCatalogIndex ? await backend.getCatalogIndex() : null);
         if (!index) return;
         const tags = await backend.getTags("all");
-        const result = await runSmartFilter(request, { index, tags, ask: aiAvailable ? chatGptAsker() : null });
+        const result = await runSmartFilter(request, {
+          index,
+          tags,
+          ask: aiAvailable ? chatGptAsker() : null,
+          onStage: (stage, candidates) => setSmartStage({ stage, candidates })
+        });
         setSmart(result);
         setFilters({ ...result.filters, sourceId: "all" });
         if (result.fallbackReason && result.fallbackReason !== "not_logged_in") {
@@ -240,6 +247,7 @@ export function useDiscoverController({
         notify(getErrorMessage(error, discoverStrings.smartFailed), "danger");
       } finally {
         setSmartBusy(false);
+        setSmartStage(null);
       }
     })();
   };
@@ -259,6 +267,7 @@ export function useDiscoverController({
     results,
     smart,
     smartBusy,
+    smartStage,
     aiAvailable,
     askSmart,
     clearSmart,

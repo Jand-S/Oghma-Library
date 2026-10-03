@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Novel, TagCatalogItem } from "../core/types";
 import { buildCatalogIndex } from "../services/catalogIndex";
-import { applyIntent, buildInstructions, localIntent, parseIntent, runSmartFilter } from "../services/smartFilter";
+import {
+  applyIntent,
+  buildInstructions,
+  localIntent,
+  parseIntent,
+  parsePicks,
+  runSmartFilter,
+  selectCandidates
+} from "../services/smartFilter";
 
 const tag = (key: string, label: string, aliases: string[] = []): TagCatalogItem =>
   ({ key, label, category: key.startsWith("genre") ? "genre" : "theme", aliases, count: 5 });
@@ -61,8 +69,8 @@ describe("smart filter: ChatGPT answer", () => {
   });
 
   it("sends the tag list to the model and uses its answer", async () => {
-    const ask = vi.fn(async (_instructions: string, _text: string) => ({ text: '{"summary":"Fantasia de ação","includeTags":["genre.fantasy"],"like":["Shadow Slave"]}', credits: 0.01 }));
-    const result = await runSmartFilter("algo tipo shadow slave", { index, tags, ask });
+    const ask = vi.fn(async (_instructions: string, _text: string) => ({ text: '{"summary":"Fantasia de ação","includeTags":["genre.fantasy"]}', credits: 0.01 }));
+    const result = await runSmartFilter("fantasia de ação", { index, tags, ask });
     expect(ask.mock.calls[0][0]).toContain("theme.level_system=Sistema de Nível");
     expect(result.source).toBe("ai");
     expect(result.filters.includeTags).toEqual(["genre.fantasy"]);
@@ -81,5 +89,103 @@ describe("smart filter: ChatGPT answer", () => {
     const instructions = buildInstructions([...tags, tag("raw.lixo", "Lixo")]);
     expect(instructions).not.toContain("raw.lixo");
     expect(instructions.length).toBeLessThan(3000);
+  });
+});
+
+describe("smart filter: curation by reading the synopses", () => {
+  const storyIndex = buildCatalogIndex([
+    novel("Shadow Slave", {
+      tagKeys: ["genre.action", "genre.fantasy"], chapters: 2000,
+      description: "Sunny, um órfão, é arrastado para o Feitiço do Pesadelo e ganha poderes de sombra."
+    }),
+    novel("Escravo das Sombras", { sourceId: "outra", tagKeys: ["genre.action", "genre.fantasy"] }),
+    novel("Lorde das Sombras", {
+      tagKeys: ["genre.action", "genre.fantasy"], status: "complete",
+      description: "Um jovem amaldiçoado sobrevive em um mundo de pesadelos controlando sombras."
+    }),
+    novel("Herói Sorridente", {
+      tagKeys: ["genre.action", "genre.fantasy"], status: "complete",
+      description: "Um herói alegre salva a vila e conquista o coração da princesa."
+    }),
+    novel("Lorde das Sombras (EN)", {
+      sourceId: "en-source", language: "en", tagKeys: ["genre.action", "genre.fantasy"],
+      description: "A cursed youth survives a nightmare world by commanding shadows."
+    }),
+    novel("Amor de Verão", { tagKeys: ["genre.romance"], status: "complete", description: "Romance na praia." })
+  ]);
+  const intentAnswer = JSON.stringify({
+    summary: "Parecido com Shadow Slave", like: ["Shadow Slave"],
+    profile: "Protagonista órfão e cínico preso num mundo de pesadelos, com poder de sombra.",
+    keywords: ["sombra", "pesadelo", "shadow", "nightmare"]
+  });
+
+  it("pre-selects by shared story tags and synopsis keywords, one edition per work, without the reference", () => {
+    const intent = parseIntent(intentAnswer, new Set(tags.map((t) => t.key)))!;
+    const { seeds, filters } = applyIntent(storyIndex, intent, tags);
+    const ids = selectCandidates(storyIndex, intent, seeds, filters).map((n) => n.id);
+    expect(ids).not.toContain("Shadow Slave");
+    // The work with the most story keywords comes first, as its Portuguese edition only.
+    expect(ids[0]).toBe("Lorde das Sombras");
+    expect(ids).not.toContain("Lorde das Sombras (EN)");
+    expect(ids.at(-1)).toBe("Amor de Verão");
+    expect(selectCandidates(storyIndex, intent, seeds, filters, 2).map((n) => n.id)).toEqual(["Lorde das Sombras", "Escravo das Sombras"]);
+    // Works the model named itself go first, matched by exact title.
+    const named = { ...intent, alsoLike: ["Herói Sorridente", "Obra Que Não Existe"] };
+    expect(selectCandidates(storyIndex, named, seeds, filters, 2).map((n) => n.id)).toEqual(["Herói Sorridente", "Lorde das Sombras"]);
+  });
+
+  it("asks the model to read the candidates and shows only its picks, with its reasons", async () => {
+    const ask = vi.fn(async (_instructions: string, text: string, effort?: string) => {
+      if (effort !== "low") return { text: intentAnswer, credits: 0.01 };
+      const id = text.match(/\[(c\d+)\] Lorde das Sombras \|/)![1];
+      return { text: JSON.stringify({ picks: [{ id, score: 9, reason: "Protagonista amaldiçoado num mundo de pesadelos" }] }), credits: 0.05 };
+    });
+    const stages: string[] = [];
+    const result = await runSmartFilter("algo parecido com Shadow Slave", {
+      index: storyIndex, tags, ask, onStage: (stage) => stages.push(stage)
+    });
+    expect(ask).toHaveBeenCalledTimes(2);
+    const curationText = ask.mock.calls[1][1];
+    expect(curationText).toContain("Perfil da história: Protagonista órfão");
+    expect(curationText).toContain("Referência: Shadow Slave");
+    expect(curationText).toContain("mundo de pesadelos controlando sombras");
+    expect(stages).toEqual(["understanding", "reading"]);
+    expect(result.picks).toEqual(["Lorde das Sombras"]);
+    expect(result.reasons["Lorde das Sombras"]).toBe("Protagonista amaldiçoado num mundo de pesadelos");
+    expect(result.scores["Lorde das Sombras"]).toBeGreaterThan(result.scores["Herói Sorridente"]);
+    expect(result.credits).toBeCloseTo(0.06);
+  });
+
+  it("only curates story requests: plain filters make a single call", async () => {
+    const ask = vi.fn(async () => ({ text: '{"summary":"Completas","status":"complete"}' }));
+    const result = await runSmartFilter("só as completas", { index: storyIndex, tags, ask });
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(result.picks).toBeUndefined();
+  });
+
+  it("keeps the tag ranking when the curation call fails", async () => {
+    const ask = vi.fn(async (_i: string, _t: string, effort?: string) => {
+      if (effort === "low") throw new Error("rate limited");
+      return { text: intentAnswer };
+    });
+    const result = await runSmartFilter("parecido com Shadow Slave", { index: storyIndex, tags, ask });
+    expect(result).toMatchObject({ source: "ai", curationFailed: true });
+    expect(result.picks).toBeUndefined();
+  });
+
+  it("reads the picks strictly: known ids, score 7 or more, best first, no repeats, at most 12", () => {
+    const candidates = Array.from({ length: 20 }, (_, i) => novel(`n${i + 1}`, {}));
+    const many = Array.from({ length: 15 }, (_, i) => ({ id: `c${i + 1}`, score: 8, reason: "x" }));
+    const answer = JSON.stringify({ picks: [
+      { id: "c3", score: 6, reason: "fraco" },
+      { id: "c99", score: 10, reason: "inventado" },
+      { id: "c2", score: 7, reason: "ok" },
+      { id: "c5", score: 9.5, reason: "melhor" },
+      { id: "c5", score: 9, reason: "repetido" }
+    ] });
+    expect(parsePicks(answer, candidates)!.ids).toEqual(["n5", "n2"]);
+    expect(parsePicks(JSON.stringify({ picks: many }), candidates)!.ids).toHaveLength(12);
+    expect(parsePicks('{"picks":[]}', candidates)!.ids).toEqual([]);
+    expect(parsePicks("não consegui", candidates)).toBeNull();
   });
 });

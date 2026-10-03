@@ -282,20 +282,27 @@ pub struct SmartAnswer {
     credits: f64,
 }
 
-/// "Filtro inteligente" in Buscar: one short question to the user's own ChatGPT plan (the
-/// translation login), Luna without reasoning. The app sends the instructions and the user's
-/// request and gets JSON filters back; ranking and reasons are computed locally. The usage
-/// goes to the same counters as the translation.
+/// "Filtro inteligente" in Buscar: short questions to the user's own ChatGPT plan (the
+/// translation login), on Luna. The first reads the request into JSON filters (no reasoning);
+/// the second reads the candidates' synopses and keeps the ones that really share story
+/// elements with the reference (`effort: "low"`). The usage goes to the same counters as the
+/// translation.
 #[tauri::command]
-pub async fn smart_filter_ask(state: EngineState<'_>, instructions: String, text: String) -> Result<SmartAnswer, String> {
+pub async fn smart_filter_ask(
+    state: EngineState<'_>,
+    instructions: String,
+    text: String,
+    effort: Option<String>,
+) -> Result<SmartAnswer, String> {
     let engine = engine(&state);
     if !engine.provider.account().logged_in {
         return Err("not_logged_in".to_string());
     }
     let model = super::DEFAULT_MODEL;
+    let effort = smart_filter_effort(effort.as_deref());
     let out = engine
         .provider
-        .translate(model, "none", &instructions, &text)
+        .translate(model, effort, &instructions, &text)
         .await
         .map_err(|err| err.to_string())?;
     let credits = engine.store.log_usage(None, model, 0, &out.usage).unwrap_or(0.0);
@@ -306,4 +313,12 @@ pub async fn smart_filter_ask(state: EngineState<'_>, instructions: String, text
         output_tokens: out.usage.output_tokens,
         credits,
     })
+}
+
+/// Only the efforts the Sign in with ChatGPT spike validated; anything else reads as "none".
+fn smart_filter_effort(effort: Option<&str>) -> &'static str {
+    match effort {
+        Some("low") => "low",
+        _ => "none",
+    }
 }

@@ -114,6 +114,7 @@ function DiscoverPage({ app }: ViewProps) {
     related: discover.related,
     smart: discover.smart,
     smartBusy: discover.smartBusy,
+    smartStage: discover.smartStage,
     aiAvailable: discover.aiAvailable,
     onAskSmart: discover.askSmart,
     onClearSmart: discover.clearSmart,
