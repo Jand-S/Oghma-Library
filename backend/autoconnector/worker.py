@@ -15,8 +15,8 @@ OGHMA_REPO, AUTOCONNECTOR_WORK, OGHMA_COMPOSE_DIR, AUTOCONNECTOR_ENGINE (forca u
 Runtime (AUTOCONNECTOR_RUNTIME):
   docker (padrao, xeonserver): portao e deploy com a imagem oghma-crawler e docker compose.
   venv (VPS): OGHMA_VENV (ex.: /opt/oghma/venv), OGHMA_ENV_FILE (ex.: /opt/oghma/.env),
-    OGHMA_STORAGE_ROOT, OGHMA_LOCK_DIR, AUTOCONNECTOR_RESTART_CMD
-    (padrao "sudo -n systemctl restart oghma-rodizio").
+    OGHMA_STORAGE_ROOT, OGHMA_LOCK_DIR. Depois do deploy, cria <storage>/rodizio.restart
+    (reinicio educado do rodizio); AUTOCONNECTOR_RESTART_CMD troca isso por um comando.
 
 Sem plano em nenhum motor, o pedido volta para a fila do brain com stage=waiting_plan e
 retry_at; quando o plano volta, o pedido e retomado do subagente onde parou
@@ -463,11 +463,19 @@ class Pipeline:
                 raise RuntimeError(f"pip install saiu com {code}: {out[-1500:]}")
             self.run_oghma("upgrade-db")
             self.run_oghma("seed-sources")
-            restart = cfg("AUTOCONNECTOR_RESTART_CMD", "sudo -n systemctl restart oghma-rodizio").split()
+            restart = (cfg("AUTOCONNECTOR_RESTART_CMD") or "").split()
             if restart:
                 code, out = self.proc(restart, timeout=120)
                 if code != 0:
                     self.report(title="Aviso: não consegui reiniciar o rodízio", log=out[-500:])
+            else:
+                # Reinicio educado: o rodizio termina as fontes em andamento, sai e o systemd o religa
+                # com o conector novo (que entra no comeco da fila).
+                flag = Path(cfg("OGHMA_STORAGE_ROOT") or "/srv/oghma") / "rodizio.restart"
+                try:
+                    flag.write_text(f"{self.source_id}\n")
+                except OSError as exc:
+                    self.report(title="Aviso: não consegui pedir o reinício do rodízio", log=str(exc))
             return
         self.sh(["docker", "compose", "build", "-q", "api", "crawler"], cwd=self.compose_dir, timeout=1800)
         self.sh(["docker", "compose", "up", "-d", "api"], cwd=self.compose_dir)

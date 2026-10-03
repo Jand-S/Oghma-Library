@@ -5,6 +5,11 @@ so, sob systemd (`oghma-rodizio.service`). Fila fixa e estavel das fontes habili
 quando uma fonte termina, entra a proxima; ao fim da fila, pausa e recomeca.
 SIGTERM/SIGINT termina de forma limpa: as coletas em andamento sao canceladas e o
 crawl_run delas fica `error` com motivo "parado".
+
+Reinicio educado (`<storage>/rodizio.restart`, criado pelo autoconnector depois do deploy
+de um conector novo): nenhuma fonte nova comeca, as que estao rodando terminam, o
+processo apaga o arquivo e sai; o systemd (Restart=always) religa com o codigo novo.
+Fontes que nunca tiveram uma coleta completa vao para o comeco da fila.
 """
 from __future__ import annotations
 
@@ -19,6 +24,25 @@ from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
 STOP_REASON = "parado: rodizio encerrado (SIGTERM/SIGINT)"
+RESTART_FLAG = "rodizio.restart"
+RESTART_POLL_SECONDS = 30.0
+
+
+def restart_flag_path():
+    from pathlib import Path
+
+    return Path(os.environ.get("OGHMA_STORAGE_ROOT", "/srv/oghma")) / RESTART_FLAG
+
+
+def _restart_requested() -> bool:
+    return restart_flag_path().exists()
+
+
+def _clear_restart() -> None:
+    try:
+        restart_flag_path().unlink()
+    except FileNotFoundError:
+        pass
 
 
 def _flag(name: str, default: str = "1") -> bool:
@@ -60,6 +84,11 @@ def summarize(source_id: str, stats: dict | None, error: str | None) -> tuple[st
     return ("info", f"{source_id}: nada novo", body)
 
 
+def order_sources(ids: list[str], done: set[str]) -> list[str]:
+    """Fontes sem nenhuma coleta completa (recem-adicionadas) primeiro; depois a ordem fixa."""
+    return [i for i in ids if i not in done] + [i for i in ids if i in done]
+
+
 @dataclass
 class Deps:
     """Pontos de troca para os testes (sem banco, rede nem B2)."""
@@ -70,6 +99,8 @@ class Deps:
     mark_stopped: Callable[[str], Awaitable[None]]
     notify: Callable[[str, str, str], None] = brain_notify
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
+    restart_requested: Callable[[], bool] = _restart_requested
+    clear_restart: Callable[[], None] = _clear_restart
 
 
 @dataclass
@@ -80,10 +111,16 @@ class Rodizio:
     publish_enabled: bool = True
     log: list = field(default_factory=list)
     stopping: bool = False
+    draining: bool = False
+
+    def _check_restart(self) -> bool:
+        if not self.draining and self.deps.restart_requested():
+            self.draining = True
+        return self.draining
 
     async def run_source(self, source_id: str, sem: asyncio.Semaphore) -> dict:
         async with sem:
-            if self.stopping:
+            if self.stopping or self._check_restart():
                 return {"source": source_id, "skipped": True}
             started = time.monotonic()
             result: dict = {"source": source_id}
@@ -120,18 +157,28 @@ class Rodizio:
     async def run(self, *, once: bool = False, only: list[str] | None = None) -> None:
         while not self.stopping:
             await self.one_round(only)
-            if once or self.stopping:
+            if once or self.stopping or self._check_restart():
                 break
             await self._pause(self.pause_minutes * 60)
+            if self._check_restart():
+                break
+        if self.draining:
+            # as fontes em andamento ja terminaram; o systemd religa com o codigo novo
+            self.deps.clear_restart()
 
     async def _pause(self, seconds: float) -> None:
-        """Pausa entre voltas que acorda na hora com stop()."""
+        """Pausa entre voltas que acorda na hora com stop() ou com o pedido de reinicio."""
         self._wake = asyncio.Event()
         sleeper = asyncio.create_task(self.deps.sleep(seconds))
         waker = asyncio.create_task(self._wake.wait())
-        done, pending = await asyncio.wait({sleeper, waker}, return_when=asyncio.FIRST_COMPLETED)
+        poller = asyncio.create_task(self._poll_restart())
+        done, pending = await asyncio.wait({sleeper, waker, poller}, return_when=asyncio.FIRST_COMPLETED)
         for t in pending:
             t.cancel()
+
+    async def _poll_restart(self) -> None:
+        while not self._check_restart():
+            await asyncio.sleep(RESTART_POLL_SECONDS)
 
     def stop(self) -> None:
         self.stopping = True
@@ -152,7 +199,9 @@ def default_deps() -> Deps:
 
     async def list_sources() -> list[str]:
         async with SessionLocal() as s:
-            return list((await s.scalars(select(SourceSite.id).where(SourceSite.enabled.is_(True)).order_by(SourceSite.id))).all())
+            ids = list((await s.scalars(select(SourceSite.id).where(SourceSite.enabled.is_(True)).order_by(SourceSite.id))).all())
+            done = set((await s.scalars(select(CrawlRun.source_id).where(CrawlRun.status == "done").distinct())).all())
+        return order_sources(ids, done)
 
     async def crawl(source_id: str) -> dict:
         async with SessionLocal() as s:

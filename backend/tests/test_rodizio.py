@@ -109,3 +109,48 @@ def test_summarize_levels():
     assert summarize("x", {"chapters_new": 0}, None)[0] == "info"
     assert summarize("x", {"chapters_new": 2, "chapters_invalid": 1}, None)[0] == "warn"
     assert summarize("x", None, "boom")[0] == "error"
+
+
+def test_restart_flag_drains_running_sources_and_exits():
+    """Pedido de reinicio no meio da volta: as fontes em andamento terminam, as outras nao comecam."""
+    deps, calls = make(["a", "b", "c", "d"], crawl_delay=0.05)
+    flag = {"set": False, "cleared": 0}
+    original_crawl = deps.crawl
+
+    async def crawl(sid):
+        if sid == "b":
+            flag["set"] = True  # o autoconnector pede o reinicio com a e b ja rodando
+        return await original_crawl(sid)
+
+    deps.crawl = crawl
+    deps.restart_requested = lambda: flag["set"]
+    deps.clear_restart = lambda: flag.update(cleared=flag["cleared"] + 1)
+    rod = Rodizio(deps, parallel=2)
+    asyncio.run(asyncio.wait_for(rod.run(), timeout=5))  # sem once: so sai por causa do reinicio
+    assert sorted(calls["crawl"]) == ["a", "b"]
+    assert sorted(calls["publish"]) == sorted(calls["evict"]) == ["a", "b"]
+    assert calls["stopped"] == [] and flag["cleared"] == 1
+
+
+def test_restart_flag_during_pause_exits(monkeypatch):
+    from oghma import rodizio
+
+    monkeypatch.setattr(rodizio, "RESTART_POLL_SECONDS", 0.01)
+    deps, calls = make(["a"])
+    flag = {"set": False}
+
+    async def long_sleep(_s):
+        flag["set"] = True  # o pedido chega durante a pausa de 30 min
+        await asyncio.sleep(10)
+
+    deps.sleep = long_sleep
+    deps.restart_requested = lambda: flag["set"]
+    deps.clear_restart = lambda: flag.update(set=False)
+    asyncio.run(asyncio.wait_for(Rodizio(deps).run(), timeout=2))
+    assert calls["crawl"] == ["a"] and flag["set"] is False
+
+
+def test_new_sources_first():
+    from oghma.rodizio import order_sources
+
+    assert order_sources(["a", "b", "c", "d"], {"a", "c"}) == ["b", "d", "a", "c"]
