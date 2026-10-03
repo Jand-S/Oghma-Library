@@ -29,6 +29,21 @@ class PlanUsage:
     weekly: float | None = None  # porcentagem usada da janela semanal
     resets_at: int | None = None
     checked_at: float = 0.0
+    weekly_resets_at: int | None = None
+
+    def exhausted(self, now: float | None = None) -> bool:
+        """Plano esgotado (janela de 5 h ou semanal em 100%) e a janela ainda nao reabriu."""
+        now = time.time() if now is None else now
+        if self.weekly is not None and self.weekly >= 100 and (self.weekly_resets_at or now + 1) > now:
+            return True
+        return self.five_hour is not None and self.five_hour >= 100 and (self.resets_at or now + 1) > now
+
+    def available_at(self, now: float | None = None) -> float:
+        """Quando o motor volta a ter plano (epoch). Sem dado, 1 h a partir de agora."""
+        now = time.time() if now is None else now
+        if self.weekly is not None and self.weekly >= 100 and self.weekly_resets_at:
+            return float(self.weekly_resets_at)
+        return float(self.resets_at) if self.resets_at and self.resets_at > now else now + 3600
 
     def score(self) -> float:
         """Menor e melhor. Sem dado, fica no meio para nao ser sempre escolhido nem evitado."""
@@ -128,6 +143,7 @@ class ClaudeCodeEngine(Engine):
             five_hour=None if five is None else round(float(five) * 100, 1),
             weekly=None if week is None else round(float(week) * 100, 1),
             resets_at=windows.get("five_hour", {}).get("resetsAt"),
+            weekly_resets_at=windows.get("seven_day", {}).get("resetsAt"),
         )
 
     def _probe_plan(self) -> PlanUsage:
@@ -241,7 +257,7 @@ class CodexEngine(Engine):
             limits = _find_key(event, "rate_limits") or {}
             primary, secondary = limits.get("primary") or {}, limits.get("secondary") or {}
             return PlanUsage(five_hour=primary.get("used_percent"), weekly=secondary.get("used_percent"),
-                             resets_at=primary.get("resets_at"))
+                             resets_at=primary.get("resets_at"), weekly_resets_at=secondary.get("resets_at"))
         return None
 
     def _probe_plan(self) -> PlanUsage:
@@ -315,11 +331,16 @@ def _find_key(obj, key):
 
 # ------------------------------------------------------------------ escolha
 
+def plan_back_at(engines: list[Engine], now: float | None = None) -> float:
+    """O mais cedo em que algum motor volta a ter plano (epoch)."""
+    now = time.time() if now is None else now
+    return min((e.plan().available_at(now) for e in engines), default=now + 3600)
+
 def pick_engine(engines: list[Engine], exclude: set[str] = frozenset(), force: str | None = None) -> Engine:
     """O motor com mais plano livre (menor uso da janela de 5 h, evitando semanal quase cheio)."""
-    usable = [e for e in engines if e.name not in exclude]
+    usable = [e for e in engines if e.name not in exclude and not e.plan().exhausted()]
     if force:
         usable = [e for e in usable if e.name == force] or usable
     if not usable:
-        raise LimitHit("nenhum motor disponivel")
+        raise LimitHit("nenhum motor com plano disponivel")
     return min(usable, key=lambda e: e.plan().score())

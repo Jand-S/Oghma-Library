@@ -52,6 +52,13 @@ describe("Pedidos de fonte nova", () => {
     expect(screen.getByTestId("pending-source-stage")).toHaveTextContent(strings.queue(2));
   });
 
+  it("sem plano de IA livre mostra quando volta, não a posição na fila", () => {
+    view([request({ status: "queued", stage: "waiting_plan", stageLabel: "Aguardando plano", stageIndex: 2, queuePosition: 1,
+      message: "Aguardando plano, volta às 14:30" })]);
+    expect(screen.getByTestId("pending-source-stage")).toHaveTextContent("Aguardando plano, volta às 14:30");
+    expect(screen.getByTestId("pending-source-badge")).toHaveTextContent(strings.building);
+  });
+
   it("fonte pronta que ainda não está na lista: botão Adicionar e sincronizar", () => {
     const onAddSource = vi.fn();
     view([request({ status: "live", stage: "live", stageLabel: "Pronta para adicionar", stageIndex: 7, sourceId: "novos-livros" })], { onAddSource });

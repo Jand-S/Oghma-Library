@@ -139,3 +139,147 @@ def test_codex_usage_read_from_session_file(tmp_path, monkeypatch):
     monkeypatch.setattr(engines, "CODEX_SESSIONS", str(tmp_path))
     usage = engines.CodexEngine._usage_from_sessions()
     assert (usage.five_hour, usage.weekly) == (7.0, 1.0)
+
+
+# ---------------------------------------------------------------- espera de plano, retomada e runtime venv
+
+class RecordingBrain(worker.NullBrain):
+    def __init__(self):
+        super().__init__()
+        self.updates = []
+
+    def update(self, request_id, **fields):
+        self.updates.append(fields)
+
+
+class NoPlanEngine(FakeEngine):
+    """Motor cujo plano acabou: a janela de 5 h volta em `back` (epoch)."""
+
+    def __init__(self, name, back):
+        super().__init__(name, five_hour=100.0)
+        self.usage.resets_at = int(back)
+
+
+def test_without_plan_request_goes_back_to_queue_with_return_time(tmp_path, monkeypatch):
+    import time as _time
+    monkeypatch.setenv("AUTOCONNECTOR_WORK", str(tmp_path / "ac"))
+    back = _time.time() + 2 * 3600
+    brain = RecordingBrain()
+    request = {"id": "abc1234567", "url": "https://exemplo.com/", "domain": "exemplo.com", "novelUrl": None}
+    pipe = worker.Pipeline(request, brain, [NoPlanEngine("codex", back), NoPlanEngine("claude", back + 600)],
+                           deploy=False, runner=lambda *a, **k: "")
+    pipe.wt = tmp_path / "wt"
+    pipe.work = pipe.wt / "backend" / "autoconnector" / "work"
+    pipe.existing_source = lambda: None
+    pipe.run()
+    final = brain.updates[-1]
+    assert final["status"] == "queued" and final["stage"] == "waiting_plan"
+    assert final["message"] == f"Aguardando plano, volta às {worker.back_label(back)}"
+    assert abs(worker.datetime.fromisoformat(final["retry_at"]).timestamp() - back) < 1
+    assert worker.interrupted_request() is None  # espera não é pedido interrompido
+
+
+def test_plan_running_out_mid_role_pauses_instead_of_failing(tmp_path):
+    codex = FakeEngine("codex", limit_on={"connector-builder"})
+    pipe = _pipeline(tmp_path, [codex], [])
+    with pytest.raises(worker.WaitPlan) as err:
+        pipe.build()
+    assert err.value.role == "connector-builder"
+    assert json.loads((pipe.work / "PROGRESS.json").read_text())["done"] == ["site-analyst"]
+
+
+def test_resume_continues_from_first_missing_step(tmp_path):
+    calls = []
+    fake = FakeEngine("codex", calls=calls)
+    pipe = _pipeline(tmp_path, [fake], [{"ok": True, "pytest": {"output": ""}, "files_outside_scope": []}])
+    (pipe.work / "SITE_REPORT.md").write_text("# Resumo\nWordPress.")
+    conn = pipe.wt / "backend" / "src" / "oghma" / "scraper" / "connectors" / f"{pipe.module}.py"
+    conn.parent.mkdir(parents=True)
+    conn.write_text("# conector")
+    pipe.build()
+    assert [r for _, r in calls] == ["test-writer", "qa-reviewer"]
+
+
+def test_resume_skips_finished_review_rounds(tmp_path):
+    calls = []
+    fake = FakeEngine("codex", approve_after=0, calls=calls)
+    gates = [{"ok": True, "pytest": {"output": ""}, "files_outside_scope": []}]
+    pipe = _pipeline(tmp_path, [fake], gates)
+    (pipe.work / "PROGRESS.json").write_text(json.dumps({"done": [
+        "site-analyst", "connector-builder", "test-writer", "qa-reviewer:0", "connector-fixer:1"]}))
+    (pipe.work / "SITE_REPORT.md").write_text("ok")
+    pipe.build()
+    assert [r for _, r in calls] == ["qa-reviewer"]  # rodada 1: só a revisão
+
+
+def test_gate_in_venv_mode_uses_venv_python_and_worktree_code(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_RUNTIME", "venv")
+    monkeypatch.setenv("OGHMA_VENV", "/opt/oghma/venv")
+    env_file = tmp_path / ".env"
+    env_file.write_text("OGHMA_DATABASE_URL=postgresql+asyncpg://x\n")
+    monkeypatch.setenv("OGHMA_ENV_FILE", str(env_file))
+    request = {"id": "abc1234567", "url": "https://exemplo.com/novel/x", "domain": "exemplo.com",
+               "novelUrl": "https://exemplo.com/novel/x"}
+    pipe = worker.Pipeline(request, worker.NullBrain(), [FakeEngine("codex")], deploy=False, runner=lambda *a, **k: "")
+    pipe.wt = tmp_path / "wt"
+    pipe.work = pipe.wt / "backend" / "autoconnector" / "work"
+    pipe.work.mkdir(parents=True)
+    seen = []
+
+    def fake_proc(cmd, cwd=None, env=None, timeout=1800):
+        seen.append((cmd, cwd, env))
+        if "pytest" in cmd:
+            return 0, "....\n204 passed in 3.0s"
+        return 0, 'aviso\n{"ok": true, "checks": [], "novel": {"title": "X"}}'
+
+    pipe.proc = fake_proc
+    gate = pipe.gate()
+    assert gate["ok"] and gate["probe"]["novel"]["title"] == "X"
+    pytest_cmd, cwd, env = seen[0]
+    assert pytest_cmd[0] == "/opt/oghma/venv/bin/python" and cwd == pipe.wt / "backend"
+    assert env["PYTHONPATH"].startswith(str(pipe.wt / "backend" / "src"))
+    assert env["OGHMA_DATABASE_URL"] == "postgresql+asyncpg://x"
+    probe_cmd = seen[1][0]
+    assert probe_cmd[1:4] == ["-m", "oghma.cli", "probe-connector"] and "--novel-url" in probe_cmd
+
+
+def test_venv_crawl_and_publish_commands(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_RUNTIME", "venv")
+    monkeypatch.setenv("OGHMA_VENV", "/opt/oghma/venv")
+    monkeypatch.setenv("OGHMA_LOCK_DIR", "/var/lib/oghma/locks")
+    request = {"id": "abc1234567", "url": "https://exemplo.com/novel/x", "domain": "exemplo.com",
+               "novelUrl": "https://exemplo.com/novel/x"}
+    pipe = worker.Pipeline(request, worker.NullBrain(), [FakeEngine("codex")], deploy=False, runner=lambda *a, **k: "")
+    cmds = []
+    pipe.proc = lambda cmd, cwd=None, env=None, timeout=1800: (cmds.append(cmd) or (0, ""))
+    pipe.crawl_requested_and_publish()
+    assert cmds[0][:3] == ["flock", "/var/lib/oghma/locks/crawl-exemplo.lock", "/opt/oghma/venv/bin/oghma"]
+    assert cmds[0][3:] == ["crawl", "--source", "exemplo", "--novel-url", "https://exemplo.com/novel/x"]
+    assert cmds[1][2:] == ["/opt/oghma/venv/bin/python", "-m", "oghma.publish", "--source", "exemplo"]
+
+
+def test_interrupted_request_is_remembered_until_it_ends(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_WORK", str(tmp_path))
+    req = {"id": "abc1234567", "domain": "exemplo.com"}
+    worker.save_current(req)
+    assert worker.interrupted_request()["id"] == "abc1234567"
+    worker.clear_current({"id": "outro"})
+    assert worker.interrupted_request() is not None
+    worker.clear_current(req)
+    assert worker.interrupted_request() is None
+
+
+def test_back_label_today_and_other_day():
+    now = worker.datetime(2026, 10, 3, 12, 0, tzinfo=worker.BRT).timestamp()
+    assert worker.back_label(now + 2.5 * 3600, now) == "14:30"
+    assert worker.back_label(now + 24 * 3600, now) == "04/10 12:00"
+
+
+def test_plan_exhaustion_and_return_time():
+    import time as _time
+    now = _time.time()
+    full = PlanUsage(five_hour=100.0, resets_at=int(now + 600))
+    assert full.exhausted(now) and full.available_at(now) == int(now + 600)
+    assert not PlanUsage(five_hour=100.0, resets_at=int(now - 5)).exhausted(now)  # janela já reabriu
+    week = PlanUsage(five_hour=10.0, weekly=100.0, weekly_resets_at=int(now + 9000))
+    assert week.exhausted(now) and week.available_at(now) == int(now + 9000)
