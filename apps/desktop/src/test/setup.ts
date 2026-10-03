@@ -82,3 +82,13 @@ function installStorage(name: StorageName) {
 
 installStorage("localStorage");
 installStorage("sessionStorage");
+
+// A tela Fontes busca pedidos de fonte no brain.jandson.me: nos testes, nunca vai à rede.
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (url.startsWith("https://brain.jandson.me/")) {
+    return new Response(JSON.stringify({ requests: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+  return realFetch(input, init);
+}) as typeof fetch;

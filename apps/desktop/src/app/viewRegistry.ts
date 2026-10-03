@@ -162,6 +162,8 @@ function SourcesPage({ app }: ViewProps) {
     novels: app.discover.results,
     onToggle: sources.toggleSourceEnabled,
     onSync: sources.syncSource,
+    onAddSource: sources.addSource,
+    onNotify: sources.notify,
     onOpenSettings: () => app.navigate("settings", { section: "server" })
   });
 }

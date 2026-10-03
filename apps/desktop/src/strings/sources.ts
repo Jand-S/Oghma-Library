@@ -42,5 +42,31 @@ export const sourcesStrings = {
   syncFailed: "Não foi possível sincronizar a fonte.",
   syncAllDone: "Fontes ativas sincronizadas.",
   syncAllFailed: "Não foi possível sincronizar uma ou mais fontes.",
-  loading: "Carregando fontes…"
+  loading: "Carregando fontes…",
+  request: {
+    open: "Solicitar nova fonte",
+    title: "Solicitar nova fonte",
+    description: "Cole o endereço de um site de novels que ainda não está aqui. Se colar o link de uma novel, ela é baixada primeiro.",
+    urlLabel: "Endereço do site ou da novel",
+    urlPlaceholder: "https://site.com/novel/nome-da-novel",
+    nameLabel: "Seu nome (opcional)",
+    noteLabel: "Observação (opcional)",
+    notePlaceholder: "Ex.: tem a tradução completa de tal obra",
+    submit: "Enviar pedido",
+    cancel: "Cancelar",
+    sent: "Pedido enviado. Ele aparece na lista enquanto é analisado.",
+    duplicate: (domain: string) => `${domain} já foi pedida: acompanhe na lista.`,
+    invalidUrl: "Cole um endereço válido (ex.: https://site.com).",
+    building: "Em construção",
+    ready: "Nova",
+    failed: "Não foi possível",
+    rejected: "Recusada",
+    queue: (position: number) => `Na fila para construção (posição ${position})`,
+    requested: (date: string) => `pedida ${date}`,
+    novel: (title: string) => `Novel pedida: ${title}`,
+    addAndSync: "Adicionar e sincronizar",
+    dismiss: "Remover da lista",
+    stepOf: (index: number, total: number) => `Etapa ${index} de ${total}`,
+    unavailable: "Os pedidos de fonte estão indisponíveis agora."
+  }
 } as const;

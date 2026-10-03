@@ -76,6 +76,35 @@ export function useSourcesController({ backend, sources, setSources, setAppConfi
     });
   };
 
+  /**
+   * Fonte nova vinda de um pedido: recarrega o índice, coloca a fonte na lista (se ainda não
+   * estiver), ativa e sincroniza. Usado pelo botão "Adicionar e sincronizar".
+   */
+  const addSource = async (sourceId: string) => {
+    const known = sources.find((source) => source.id === sourceId);
+    if (known) {
+      if (!known.enabled) toggleSourceEnabled(sourceId);
+      await runSourceSync(sourceId).catch(() => undefined);
+      return;
+    }
+    if (syncingRef.current.includes(sourceId)) return;
+    syncingRef.current = [...syncingRef.current, sourceId];
+    setSyncing((items) => [...items, sourceId]);
+    try {
+      const fresh = await backend.syncSource(sourceId);
+      setSources((items) => items.some((item) => item.id === sourceId) ? items : [...items, { ...fresh, enabled: true }]);
+      setAppConfig((current) => current.enabledSourceIds.includes(sourceId)
+        ? current
+        : { ...current, enabledSourceIds: [...current.enabledSourceIds, sourceId] });
+      markSourcesSynced();
+    } catch (error: unknown) {
+      notify(getErrorMessage(error, sourcesStrings.syncFailed));
+    } finally {
+      syncingRef.current = syncingRef.current.filter((id) => id !== sourceId);
+      setSyncing((items) => items.filter((id) => id !== sourceId));
+    }
+  };
+
   /** Probes the index server; the result is shown inline (no toast). */
   const verifyServer = useCallback((serverUrl: string, indexMode: IndexMode) => {
     const url = serverUrl.trim();
@@ -98,6 +127,8 @@ export function useSourcesController({ backend, sources, setSources, setAppConfi
     syncSource,
     syncEnabledSources,
     toggleSourceEnabled,
+    addSource,
+    notify,
     lastSyncedAt,
     serverCheck,
     verifyServer

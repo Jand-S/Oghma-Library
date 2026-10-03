@@ -185,4 +185,33 @@
     color: var(--text-muted);
     text-align: center;
   }
+
+  /* Pedido de fonte nova: linha em construção até virar fonte de verdade. */
+  .sources-toolbar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .sources-table__row--pending .sources-table__name-text {
+    color: var(--text-muted);
+  }
+
+  .sources-table__row--pending.is-ended {
+    opacity: 0.75;
+  }
+
+  .sources-table__pending-stage {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+  }
+
+  .sources-table__pending-progress {
+    max-width: calc(var(--space-8) * 3);
+    margin-top: var(--space-0-5);
+  }
+
+  .request-source {
+    display: grid;
+    gap: var(--space-2);
+  }
 }

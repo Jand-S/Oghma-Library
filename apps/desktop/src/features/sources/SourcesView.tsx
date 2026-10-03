@@ -1,10 +1,13 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { ExternalLink, Globe2, RefreshCcw, Search, Settings } from "lucide-react";
+import { ExternalLink, Globe2, Plus, RefreshCcw, Search, Settings } from "lucide-react";
 import type { Novel, SourceSite } from "../../core/types";
 import { sourcesStrings } from "../../strings/sources";
 import { Badge, Button, cx, EmptyState, IconButton, Panel, Skeleton, Switch, TextField } from "../../ui";
 import { openExternal } from "../settings/appInfo";
 import { formatRelativeSync } from "./lastSync";
+import { PendingSourceRow } from "./PendingSourceRow";
+import { RequestSourceDialog } from "./RequestSourceDialog";
+import { useSourceRequests } from "./useSourceRequests";
 import { SourceIcon } from "./SourceIcon";
 import { sourceDomain } from "./sourceIcons";
 import "./sources.css";
@@ -23,7 +26,16 @@ export type SourcesViewProps = {
   onOpenSettings: () => void;
   /** Opens the source's site; defaults to the system browser (opener plugin in Tauri). */
   onOpenSite?: (url: string) => void;
+  /** Fonte nova de um pedido: traz do índice, ativa e sincroniza. */
+  onAddSource?: (sourceId: string) => Promise<void> | void;
+  /** Toast curto do app. */
+  onNotify?: (message: string) => void;
+  /** Pedidos de fonte; injetável nos testes. */
+  sourceRequests?: ReturnType<typeof useSourceRequests>;
 };
+
+/** Com pedidos injetados (testes), o hook próprio não busca nada. */
+const INJECTED_REQUESTS = { list: async () => [], refreshMs: 24 * 60 * 60 * 1000 };
 
 /** A search field appears above the list past this many sources. */
 export const SOURCES_SEARCH_THRESHOLD = 8;
@@ -59,13 +71,16 @@ export function sourceLanguage(source: SourceSite, novels: readonly Novel[] = []
 
 const normalize = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
-function SourceRow({ source, syncing, language, onToggle, onSync, onOpenSite }: {
+function SourceRow({ source, syncing, language, onToggle, onSync, onOpenSite, isNew = false, onAdd }: {
   source: SourceSite;
   syncing: boolean;
   language: string;
   onToggle: () => void;
   onSync: () => void;
   onOpenSite: () => void;
+  /** Fonte recém-criada a partir de um pedido. */
+  isNew?: boolean;
+  onAdd?: () => void;
 }) {
   const domain = sourceDomain(source.baseUrl);
   const lastSync = formatRelativeSync(source.lastSync);
@@ -83,6 +98,7 @@ function SourceRow({ source, syncing, language, onToggle, onSync, onOpenSite }: 
           <div className="sources-table__names">
             <span className="sources-table__name">
               <span className="sources-table__name-text">{source.name}</span>
+              {isNew ? <Badge tone="success" data-testid="source-new">{sourcesStrings.request.ready}</Badge> : null}
               {status ? (
                 <Badge tone={status === "offline" ? "danger" : "accent"} data-testid="source-status">
                   {sourcesStrings.status[status]}
@@ -106,6 +122,9 @@ function SourceRow({ source, syncing, language, onToggle, onSync, onOpenSite }: 
       </td>
       <td className="sources-table__cell sources-table__cell--actions">
         <div className="sources-table__actions">
+          {isNew && !source.enabled && onAdd ? (
+            <Button size="sm" variant="primary" loading={syncing} onClick={onAdd}>{sourcesStrings.request.addAndSync}</Button>
+          ) : null}
           <IconButton size="sm" icon={<RefreshCcw />} label={sourcesStrings.syncSource(source.name)} loading={syncing} onClick={onSync} />
           <IconButton size="sm" icon={<ExternalLink />} label={sourcesStrings.openSiteOf(source.name)} onClick={onOpenSite} />
         </div>
@@ -150,9 +169,23 @@ export function SourcesView({
   onToggle,
   onSync,
   onOpenSettings,
-  onOpenSite = (url) => void openExternal(url)
+  onOpenSite = (url) => void openExternal(url),
+  onAddSource,
+  onNotify,
+  sourceRequests
 }: SourcesViewProps) {
   const [query, setQuery] = useState("");
+  const [requestOpen, setRequestOpen] = useState(false);
+  const ownRequests = useSourceRequests(sourceRequests ? INJECTED_REQUESTS : undefined);
+  const requests = sourceRequests ?? ownRequests;
+  const knownIds = useMemo(() => new Set(sources.map((source) => source.id)), [sources]);
+  // Fonte que já virou fonte de verdade sai das linhas de pedido e ganha o destaque "Nova".
+  const newSourceIds = useMemo(
+    () => new Set(requests.requests.filter((r) => r.status === "live" && r.sourceId && knownIds.has(r.sourceId)).map((r) => r.sourceId as string)),
+    [requests.requests, knownIds]
+  );
+  const pending = requests.requests.filter((r) => !(r.status === "live" && r.sourceId && knownIds.has(r.sourceId)));
+  const addSource = (sourceId: string) => void onAddSource?.(sourceId);
   const showSearch = sources.length > SOURCES_SEARCH_THRESHOLD;
   const trimmed = showSearch ? query.trim() : "";
   const visible = useMemo(() => {
@@ -203,6 +236,12 @@ export function SourcesView({
 
   return (
     <div className="o-page o-page--narrow sources-page" data-testid="sources-page">
+      <div className="sources-toolbar">
+        <Button size="sm" variant="outline" icon={<Plus />} onClick={() => setRequestOpen(true)} data-testid="request-source-open">
+          {sourcesStrings.request.open}
+        </Button>
+      </div>
+      <RequestSourceDialog open={requestOpen} onClose={() => setRequestOpen(false)} onSubmit={requests.submit} onSent={onNotify} />
       {showSearch ? (
         <TextField
           type="search"
@@ -225,9 +264,20 @@ export function SourcesView({
             onToggle={() => onToggle(source.id)}
             onSync={() => onSync(source.id)}
             onOpenSite={() => onOpenSite(source.baseUrl)}
+            isNew={newSourceIds.has(source.id)}
+            onAdd={() => addSource(source.id)}
           />
         ))}
-        {visible.length === 0 ? (
+        {pending.map((request) => (
+          <PendingSourceRow
+            key={request.id}
+            request={request}
+            onAdd={onAddSource ? addSource : undefined}
+            adding={Boolean(request.sourceId && syncing.includes(request.sourceId))}
+            onDismiss={requests.dismiss}
+          />
+        ))}
+        {visible.length === 0 && pending.length === 0 ? (
           <tr>
             <td className="sources-table__no-match" colSpan={6}>{sourcesStrings.noMatches(trimmed)}</td>
           </tr>
