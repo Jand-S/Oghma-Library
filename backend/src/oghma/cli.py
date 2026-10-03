@@ -47,6 +47,16 @@ async def _ensure_schema() -> None:
         await conn.execute(text("ALTER TABLE chapter ADD COLUMN IF NOT EXISTS problem VARCHAR(32)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chapter_novel_status ON chapter (novel_id, status)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chapter_novel_hash ON chapter (novel_id, content_hash)"))
+        await conn.execute(text("ALTER TABLE chapter ADD COLUMN IF NOT EXISTS first_seen_at TIMESTAMPTZ"))
+        await conn.execute(text("ALTER TABLE novel ADD COLUMN IF NOT EXISTS storage_state VARCHAR(8) DEFAULT 'hot' NOT NULL"))
+        await conn.execute(text("ALTER TABLE novel ADD COLUMN IF NOT EXISTS last_new_chapter_at TIMESTAMPTZ"))
+        await conn.execute(text("UPDATE chapter SET first_seen_at = fetched_at WHERE first_seen_at IS NULL AND fetched_at IS NOT NULL"))
+        await conn.execute(text(
+            "UPDATE novel n SET last_new_chapter_at = m.last FROM ("
+            "SELECT novel_id, max(first_seen_at) AS last FROM chapter WHERE status = 'ok' GROUP BY novel_id) m "
+            "WHERE m.novel_id = n.id AND n.last_new_chapter_at IS NULL"
+        ))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_novel_storage ON novel (storage_state, last_new_chapter_at)"))
 
 
 @app.command("init-db")
@@ -214,6 +224,35 @@ def probe_connector_cmd(
     _echo_json(report.as_dict())
     if not report.ok:
         raise typer.Exit(code=1)
+
+
+@app.command("evict")
+def evict_cmd(
+    source: str = typer.Option(None, help="so uma fonte"),
+    dry_run: bool = typer.Option(False, help="mostra o que esfriaria, sem apagar"),
+    cap_gb: float = typer.Option(None, help="teto de content+assets em GB (padrao OGHMA_HOT_CAP_GB ou 20)"),
+    window_days: int = typer.Option(60, help="sem capitulo novo ha mais de N dias"),
+) -> None:
+    """Esfria novels publicadas e paradas: apaga content/assets locais (ficam no B2)."""
+    from .coldstore import evict
+
+    async def _run():
+        async with SessionLocal() as s:
+            return await evict(s, source_id=source, dry_run=dry_run, cap_gb=cap_gb, window_days=window_days)
+
+    _echo_json(asyncio.run(_run()))
+
+
+@app.command("rehydrate")
+def rehydrate_cmd(novel: str = typer.Option(..., help="id da novel (<fonte>:<slug>)")) -> None:
+    """Traz de volta do B2 os arquivos de uma novel fria."""
+    from .coldstore import ensure_hot
+
+    async def _run():
+        async with SessionLocal() as s:
+            return await ensure_hot(s, novel)
+
+    _echo_json({"novel": novel, "rehydrated": asyncio.run(_run())})
 
 
 @app.command("audit-content")
