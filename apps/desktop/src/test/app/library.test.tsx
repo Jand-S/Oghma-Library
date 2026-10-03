@@ -197,6 +197,30 @@ describe("Library actions", () => {
     expect(within(getToastRegion()).getByText(libraryStrings.hiddenToast(1))).toBeInTheDocument();
   });
 
+  it("a book removed from the library can be found under Ocultos and brought back", async () => {
+    const user = setupUser();
+    await renderReadyApp();
+    await openLibrary(user);
+    const hiddenChip = () => screen.queryByRole("button", { name: /^Ocultos/ });
+    expect(hiddenChip()).not.toBeInTheDocument();
+
+    await user.click(within(openContextMenu(MOCKINGBIRD)).getByRole("menuitem", { name: libraryStrings.removeFromLibrary }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: libraryStrings.confirmRemove }));
+    await waitFor(() => expect(cardTitles()).toEqual([LOST_TEMPLE]));
+
+    const chip = hiddenChip();
+    expect(chip).toHaveTextContent(libraryStrings.hiddenFilter(1));
+    await user.click(chip!);
+    await waitFor(() => expect(cardTitles()).toEqual([MOCKINGBIRD]));
+
+    const details = await openDetails(user, MOCKINGBIRD);
+    await user.click(within(details).getByTestId("library-unhide"));
+    expect(within(getToastRegion()).getByText(libraryStrings.unhiddenToast(MOCKINGBIRD))).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Voltar" }));
+    await waitFor(() => expect(hiddenChip()).not.toBeInTheDocument());
+    await waitFor(() => expect(cardTitles().sort()).toEqual([LOST_TEMPLE, MOCKINGBIRD].sort()));
+  });
+
   it("deletes files only after a danger confirmation", async () => {
     const user = setupUser();
     await renderReadyApp();

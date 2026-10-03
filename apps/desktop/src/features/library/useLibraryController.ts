@@ -247,7 +247,7 @@ export function useLibraryController({
         personalTags: nextMeta.tags,
         hidden: nextMeta.hidden
       };
-    }).filter((entry) => !entry.hidden));
+    }));
     if (nextMeta.hidden) {
       setSelectedLibraryIds((ids) => ids.filter((id) => id !== item.id));
     }
@@ -262,7 +262,8 @@ export function useLibraryController({
     const ids = new Set(items.map((item) => item.id));
     if (!deleteFiles) {
       const hiddenRows = items.map((item) => ({ ...metadataFromItem(item), hidden: true }));
-      setLibrary((current) => current.filter((entry) => !keys.has(libraryMetaKey(entry))));
+      // Stays in state as hidden: the "Ocultos" chip lists it and it can be brought back.
+      setLibrary((current) => current.map((entry) => keys.has(libraryMetaKey(entry)) ? { ...entry, hidden: true } : entry));
       setSelectedLibraryIds((current) => current.filter((id) => !ids.has(id)));
       void Promise.all(hiddenRows.map((meta) => saveLibraryMetadata(meta))).catch((error: unknown) => {
         notify(getErrorMessage(error, libraryStrings.metaSaveFailed));
@@ -301,13 +302,25 @@ export function useLibraryController({
       });
   };
 
+  /** Brings a book removed from the library back (its files never left the disk). */
+  const unhideLibraryItem = (item: LibraryItem) => {
+    updateLibraryMeta(item, { hidden: false });
+    notify(libraryStrings.unhiddenToast(item.title));
+  };
+
+  const visibleLibrary = useMemo(() => library.filter((item) => !item.hidden), [library]);
+
   const toggleLibrarySelect = (id: string) =>
     setSelectedLibraryIds((ids) => (ids.includes(id) ? ids.filter((itemId) => itemId !== id) : [...ids, id]));
   const removeSelectedLibraryItem = (id: string) =>
     setSelectedLibraryIds((ids) => ids.filter((itemId) => itemId !== id));
 
   return {
-    library,
+    /** Books shown everywhere (Kindle, counts...): the hidden ones are left out. */
+    library: visibleLibrary,
+    /** Every scanned book, hidden ones included (Library page: "Ocultos" chip and details). */
+    allLibrary: library,
+    unhideLibraryItem,
     /** Search, chips, sort and view mode of the Library page (shared with its PageHeader). */
     browse,
     kindleConnected,

@@ -10,6 +10,8 @@ export type LibraryFilters = {
   formats: ReadonlySet<DownloadFormat>;
   favoritesOnly: boolean;
   translatedOnly?: boolean;
+  /** Only the books removed from the library (files still on disk); they are otherwise left out. */
+  hiddenOnly?: boolean;
   sort: LibrarySort;
 };
 
@@ -63,7 +65,8 @@ export function filterLibrary(library: LibraryItem[], filters: LibraryFilters): 
   const filtered = library
     .map((item, index) => ({ item, index }))
     .filter(({ item }) =>
-      matchesQuery(item, filters.query)
+      Boolean(item.hidden) === Boolean(filters.hiddenOnly)
+      && matchesQuery(item, filters.query)
       && (!filters.favoritesOnly || Boolean(item.favorite))
       && (!filters.translatedOnly || isTranslated(item))
       && (filters.formats.size === 0 || formatsOf(item).some((format) => filters.formats.has(format))));

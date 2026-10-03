@@ -38,7 +38,7 @@ function LoadingGrid() {
 export function LibraryView({ library, activeJob, queuedJobs, loading, navigate }: LibraryViewProps) {
   const navigation = useNavigation();
   const detailId = typeof navigation.params.book === "string" ? navigation.params.book : null;
-  const detailItem = detailId ? library.library.find((item) => item.id === detailId) ?? null : null;
+  const detailItem = detailId ? library.allLibrary.find((item) => item.id === detailId) ?? null : null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedScroll = useRef(0);
@@ -97,7 +97,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
 
   const noOutput = !library.outputPath.trim();
   /** Nothing to browse at all (no folder, or an empty library): the empty state centers in the page. */
-  const pageEmpty = noOutput || (!loading && library.library.length === 0);
+  const pageEmpty = noOutput || (!loading && library.allLibrary.length === 0);
   let content;
   if (noOutput) {
     content = (
@@ -108,9 +108,9 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
         action={<Button variant="primary" icon={<FolderCog />} onClick={() => navigate("settings")}>{libraryStrings.noOutputAction}</Button>}
       />
     );
-  } else if (loading && library.library.length === 0) {
+  } else if (loading && library.allLibrary.length === 0) {
     content = <LoadingGrid />;
-  } else if (library.library.length === 0) {
+  } else if (library.allLibrary.length === 0) {
     content = (
       <EmptyState
         icon={<BookOpenText />}

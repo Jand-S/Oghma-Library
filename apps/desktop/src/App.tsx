@@ -80,6 +80,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     showSplash,
     sources
   } = bootstrap;
+  // Books removed from the library stay in state ("Ocultos" in the Library) but nowhere else.
+  const visibleLibrary = useMemo(() => library.filter((item) => !item.hidden), [library]);
   const kindleConnected = kindleStatus?.connected ?? false;
 
   const { refresh: refreshLocalLibrary } = useLocalLibrary({ appConfig, loading, results: catalog, setLibrary });
@@ -128,7 +130,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     bootError,
     focusedNovelId,
     setFocusedNovelId,
-    library,
+    library: visibleLibrary,
     isQueued: downloads.isQueued,
     enqueueDownload: downloads.enqueueDownload,
     notify
@@ -171,7 +173,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   // Also refreshes the library when a PT-BR book is exported (`translation://exported`).
   const translation = useTranslationController({
     client: translationClient,
-    library,
+    library: visibleLibrary,
     toast,
     refreshLibrary: refreshLocalLibrary,
     navigate

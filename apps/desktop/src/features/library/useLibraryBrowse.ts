@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DownloadFormat, LibraryItem } from "../../core/types";
 import { availableFormats, filterLibrary, type LibrarySort, type LibraryViewMode, isTranslated } from "./libraryModel";
 
@@ -32,13 +32,14 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const [selectedFormats, setSelectedFormats] = useState<ReadonlySet<DownloadFormat>>(() => new Set());
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [translatedOnly, setTranslatedOnly] = useState(false);
+  const [hiddenOnly, setHiddenOnly] = useState(false);
   const [sort, setSortState] = useState<LibrarySort>(() => readPref(SORT_KEY, ["recent", "title", "size"], "recent"));
   const [view, setViewState] = useState<LibraryViewMode>(() => readPref(VIEW_KEY, ["grid", "list"], "grid"));
 
   const formats = useMemo(() => availableFormats(library), [library]);
   const filtered = useMemo(
-    () => filterLibrary(library, { query, formats: selectedFormats, favoritesOnly, translatedOnly, sort }),
-    [favoritesOnly, library, query, selectedFormats, sort, translatedOnly]
+    () => filterLibrary(library, { query, formats: selectedFormats, favoritesOnly, translatedOnly, hiddenOnly, sort }),
+    [favoritesOnly, hiddenOnly, library, query, selectedFormats, sort, translatedOnly]
   );
 
   const setSort = useCallback((value: LibrarySort) => {
@@ -63,12 +64,19 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const toggleFavorites = useCallback(() => setFavoritesOnly((value) => !value), []);
   const toggleTranslated = useCallback(() => setTranslatedOnly((value) => !value), []);
   const hasTranslated = useMemo(() => library.some(isTranslated), [library]);
+  const toggleHidden = useCallback(() => setHiddenOnly((value) => !value), []);
+  const hiddenCount = useMemo(() => library.filter((item) => item.hidden).length, [library]);
+  // Last hidden book brought back: leave the (now empty) "Ocultos" view.
+  useEffect(() => {
+    if (hiddenOnly && hiddenCount === 0) setHiddenOnly(false);
+  }, [hiddenCount, hiddenOnly]);
 
   const clearFilters = useCallback(() => {
     setQuery("");
     setSelectedFormats(new Set());
     setFavoritesOnly(false);
     setTranslatedOnly(false);
+    setHiddenOnly(false);
   }, []);
 
   return {
@@ -82,6 +90,9 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     translatedOnly,
     toggleTranslated,
     hasTranslated,
+    hiddenOnly,
+    toggleHidden,
+    hiddenCount,
     sort,
     setSort,
     view,

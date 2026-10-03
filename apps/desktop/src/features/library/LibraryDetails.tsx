@@ -1,4 +1,4 @@
-import { Download, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import type { LibraryItem, LibraryReadingStatus } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
@@ -23,7 +23,7 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
   const [tagInput, setTagInput] = useState("");
   const formats = formatsOf(item);
   const { navigate } = useNavigation();
-  const original = item.translatedFrom ? library.library.find((book) => book.novelId === item.translatedFrom) : undefined;
+  const original = item.translatedFrom ? library.allLibrary.find((book) => book.novelId === item.translatedFrom) : undefined;
   const tags = item.personalTags ?? [];
   const running = library.conversion.converterRunning;
   const busy = Boolean(jobState);
@@ -195,13 +195,27 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
           <section className="library-panel library-danger" aria-labelledby="library-danger-title">
             <h3 id="library-danger-title" className="library-details__heading library-danger__heading">{libraryStrings.dangerZone}</h3>
             <div className="library-danger__row">
-              <div className="library-danger__text">
-                <strong>{libraryStrings.removeFromLibrary}</strong>
-                <span>{libraryStrings.removeFromLibraryHint}</span>
-              </div>
-              <Button variant="outline" size="sm" icon={<EyeOff />} onClick={() => actions.askRemove(item)}>
-                {libraryStrings.removeFromLibrary}
-              </Button>
+              {item.hidden ? (
+                <>
+                  <div className="library-danger__text">
+                    <strong>{libraryStrings.showInLibrary}</strong>
+                    <span>{libraryStrings.showInLibraryHint}</span>
+                  </div>
+                  <Button variant="outline" size="sm" icon={<Eye />} onClick={() => library.unhideLibraryItem(item)} data-testid="library-unhide">
+                    {libraryStrings.showInLibrary}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="library-danger__text">
+                    <strong>{libraryStrings.removeFromLibrary}</strong>
+                    <span>{libraryStrings.removeFromLibraryHint}</span>
+                  </div>
+                  <Button variant="outline" size="sm" icon={<EyeOff />} onClick={() => actions.askRemove(item)}>
+                    {libraryStrings.removeFromLibrary}
+                  </Button>
+                </>
+              )}
             </div>
             <div className="library-danger__row">
               <div className="library-danger__text">

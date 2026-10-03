@@ -1,4 +1,4 @@
-import { Heart, Languages, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
+import { EyeOff, Heart, Languages, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import { libraryStrings } from "../../strings/library";
 import { Badge, Chip, IconButton, SegmentedControl, SelectField, TextField } from "../../ui";
@@ -86,6 +86,11 @@ export function LibraryFilterBar({ browse }: { browse: LibraryBrowse }) {
         {browse.hasTranslated || browse.translatedOnly ? (
           <Chip selected={browse.translatedOnly} onToggle={browse.toggleTranslated} icon={<Languages />}>
             {libraryStrings.translatedFilter}
+          </Chip>
+        ) : null}
+        {browse.hiddenCount > 0 || browse.hiddenOnly ? (
+          <Chip selected={browse.hiddenOnly} onToggle={browse.toggleHidden} icon={<EyeOff />}>
+            {libraryStrings.hiddenFilter(browse.hiddenCount)}
           </Chip>
         ) : null}
       </div>

@@ -102,7 +102,7 @@ export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: Librar
       personalTags: meta.tags,
       hidden: meta.hidden
     };
-  }).filter((item) => !item.hidden);
+  });
 }
 
 /** Re-applies catalog enrichment to already-listed items without touching metadata fields. */

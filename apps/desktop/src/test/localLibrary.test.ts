@@ -116,7 +116,7 @@ describe("catalog enrichment", () => {
     expect(findCatalogNovel(entry({ title: "solo leveling: ragnarok", outputDir: "/o/c" }), catalog)?.id).toBe("cn:1");
   });
 
-  it("builds items with manifest title, novel-key metadata and hides hidden rows", () => {
+  it("builds items with manifest title, novel-key metadata and flags hidden rows", () => {
     const entries = [
       entry({ title: "Solo Leveling: Ragnarök", outputDir: "/o/a", novelId: "cn:42", coverUrl: "asset://a" }),
       entry({ title: "Legado", outputDir: "/o/legacy" }),
@@ -129,7 +129,9 @@ describe("catalog enrichment", () => {
       { key: "novel:cn:9", favorite: false, readingStatus: "unread", tags: [], hidden: true }
     ];
     const items = buildLibraryItems(entries, meta, catalog);
-    expect(items.map((item) => item.title)).toEqual(["Solo Leveling: Ragnarök", "Legado"]);
+    // Hidden books stay in the list (the Library's "Ocultos" chip brings them back), flagged.
+    expect(items.filter((item) => !item.hidden).map((item) => item.title)).toEqual(["Solo Leveling: Ragnarök", "Legado"]);
+    expect(items.filter((item) => item.hidden).map((item) => item.title)).toEqual(["Oculto"]);
     expect(items[0]).toMatchObject({
       id: "local-/o/a",
       novelId: "cn:42",
