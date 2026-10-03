@@ -32,6 +32,10 @@ TAG_WEIGHT = 0.35
 # Sinopses tao proximas assim sao a mesma obra (outra traducao/edicao), nao uma parecida.
 SAME_WORK_COSINE = 0.9
 SYNOPSIS_CHARS = 1500
+# Lotes pequenos: a memoria do modelo cresce com o lote (com 32 textos o mpnet passou de 2,4 GB
+# na VPS de 3,8 GB). Com 4 fica perto de 1 GB, mais lento, sem apertar o rodizio e o Postgres.
+BATCH_SIZE = int(os.environ.get("OGHMA_DISCOVERY_BATCH", "4"))
+THREADS = int(os.environ.get("OGHMA_DISCOVERY_THREADS", "1"))
 
 
 @dataclass
@@ -123,8 +127,8 @@ def embed(texts: list[str], model: str = MODEL, cache: Optional[EmbeddingCache] 
             from fastembed import TextEmbedding
 
             # Fora de /tmp: o modelo (~220 MB) nao precisa ser baixado de novo apos um reboot.
-            embedder = TextEmbedding(model_name=model, cache_dir=str(models_dir) if models_dir else None)
-        for i, vec in zip(missing, embedder.embed([texts[i] for i in missing], batch_size=32)):
+            embedder = TextEmbedding(model_name=model, cache_dir=str(models_dir) if models_dir else None, threads=THREADS)
+        for i, vec in zip(missing, embedder.embed([texts[i] for i in missing], batch_size=BATCH_SIZE)):
             vec = np.asarray(vec, dtype=np.float32)
             store[keys[i]] = vec / (np.linalg.norm(vec) or 1.0)
     return np.stack([store[k] for k in keys]), set(keys)
