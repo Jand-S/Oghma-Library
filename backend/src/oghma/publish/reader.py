@@ -35,6 +35,8 @@ async def read_source(session, source_id: str) -> tuple[SourceRecord, list[Novel
                 tag_keys=list(n.tag_keys or []) or canonical_tag_keys(n.tags or []),
                 extra=dict(n.extra or {}),
                 updated_at=(n.updated_at.isoformat() if n.updated_at else None),
+                first_seen_at=(n.first_seen_at.isoformat() if n.first_seen_at else None),
+                last_new_chapter_at=(n.last_new_chapter_at.isoformat() if n.last_new_chapter_at else None),
                 chapters=[
                     ChapterRecord(
                         id=c.id, number=float(c.number), title=c.title, published_at=c.published_at,

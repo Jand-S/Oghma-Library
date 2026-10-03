@@ -32,6 +32,13 @@ export type Novel = {
   chapters: number;
   /** Chapters the site announces; above `chapters` while the server is still collecting the rest. */
   sourceChapters?: number;
+  /** 0–5, from the source (absent when the source has no rating). */
+  rating?: number;
+  ratingVotes?: number;
+  views?: number;
+  /** ISO dates: when the novel first appeared and when it last got a new chapter. */
+  firstSeenAt?: string;
+  lastChapterAt?: string;
   language: string;
   updatedAt: string;
   description: string;

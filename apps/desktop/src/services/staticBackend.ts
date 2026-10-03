@@ -37,6 +37,11 @@ type CatalogNovel = {
   tagKeys?: string[];
   chapterCount: number;
   sourceChapterCount?: number | null;
+  rating?: number | null;
+  ratingVotes?: number | null;
+  views?: number | null;
+  firstSeenAt?: string | null;
+  lastChapterAt?: string | null;
   updatedAt: string | null;
   bundleKey: string | null;
   bundleVersion: number | null;
@@ -196,6 +201,11 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       status: mapStatus(cn.status),
       chapters: cn.chapterCount,
       ...(cn.sourceChapterCount && cn.sourceChapterCount > cn.chapterCount ? { sourceChapters: cn.sourceChapterCount } : {}),
+      ...(cn.rating ? { rating: cn.rating } : {}),
+      ...(cn.ratingVotes ? { ratingVotes: cn.ratingVotes } : {}),
+      ...(cn.views ? { views: cn.views } : {}),
+      ...(cn.firstSeenAt ? { firstSeenAt: cn.firstSeenAt } : {}),
+      ...(cn.lastChapterAt ? { lastChapterAt: cn.lastChapterAt } : {}),
       language: cn.language || "PT-BR",
       updatedAt: formatUpdatedAt(cn.updatedAt),
       description: cn.description || "",

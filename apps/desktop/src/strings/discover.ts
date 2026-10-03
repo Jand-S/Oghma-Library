@@ -90,6 +90,10 @@ export const discoverStrings = {
   closeDetails: "Fechar detalhes",
   previewBadge: "Pré-visualização",
   chaptersCount: (count: number) => `${count.toLocaleString("pt-BR")} ${count === 1 ? "capítulo" : "capítulos"}`,
+  rating: (value: number, votes?: number) =>
+    `★ ${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${votes ? ` (${votes.toLocaleString("pt-BR")})` : ""}`,
+  ratingLabel: (value: number, votes?: number) =>
+    `Nota ${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de 5${votes ? `, ${votes.toLocaleString("pt-BR")} avaliações` : ""}`,
   chaptersCountOf: (count: number, total: number) => `${count.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} capítulos`,
   chaptersIncompleteHint: (missing: number) => `O site tem ${missing.toLocaleString("pt-BR")} capítulos que o servidor ainda está coletando. Eles entram no download quando a coleta terminar.`,
   updated: (when: string) => `Atualizado: ${when}`,

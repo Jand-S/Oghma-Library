@@ -183,3 +183,27 @@ def test_cache_control_by_key():
     assert cache_control_for("content/x/y/y.v2.tar.gz") == IMMUTABLE
     assert cache_control_for("sources/novellunar-abc.png") == IMMUTABLE
     assert cache_control_for("covers/x/y.jpg") == "public, max-age=86400"
+
+
+def test_catalog_publishes_normalized_fields_instead_of_raw_extra():
+    import json
+    from oghma.publish.catalog import build_catalog_json, public_fields
+    from oghma.publish.records import SourceRecord
+
+    n = _novel()
+    n.extra = {"rating": 4.36, "ratings_count": 128, "views": 44758, "mahou_reader_id": 9, "cover_checked_at": "x",
+               "source_chapter_count": 967}
+    n.first_seen_at, n.last_new_chapter_at = "2026-06-01T00:00:00+00:00", "2026-10-03T20:21:00+00:00"
+    src = SourceRecord(id="central-novel", name="Central", base_url="https://c/", novel_count=1, last_sync=None)
+    row = json.loads(build_catalog_json(src, [n], {}))["novels"][0]
+    assert "extra" not in row
+    assert row["rating"] == 4.36 and row["ratingVotes"] == 128 and row["views"] == 44758
+    assert row["firstSeenAt"].startswith("2026-06-01") and row["lastChapterAt"].startswith("2026-10-03")
+    assert row["sourceChapterCount"] == 967
+    # Escalas diferentes viram 0-5; 0 quer dizer sem dado.
+    n.extra = {"rating": 9.0, "rating_votes": 3}
+    assert public_fields(n)["rating"] == 4.5 and public_fields(n)["ratingVotes"] == 3
+    n.extra = {"rating": 86}
+    assert public_fields(n)["rating"] == 4.3
+    n.extra = {"rating": 0, "views": 0}
+    assert public_fields(n)["rating"] is None and public_fields(n)["views"] is None

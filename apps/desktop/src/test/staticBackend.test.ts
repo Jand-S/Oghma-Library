@@ -181,6 +181,17 @@ describe("staticBackend", () => {
     await expect(createStaticBackendClient(BASE).bootstrap()).rejects.toThrow("não confere com o índice");
   });
 
+  it("maps the normalized rating, views and dates of the catalog", async () => {
+    const raw = catalogJson.novels[0] as Record<string, unknown>;
+    Object.assign(raw, { rating: 4.36, ratingVotes: 128, views: 900, lastChapterAt: "2026-10-03T20:21:00+00:00" });
+    try {
+      const [n] = (await createStaticBackendClient(BASE).bootstrap()).novels;
+      expect(n).toMatchObject({ rating: 4.36, ratingVotes: 128, views: 900, lastChapterAt: "2026-10-03T20:21:00+00:00" });
+    } finally {
+      for (const key of ["rating", "ratingVotes", "views", "lastChapterAt"]) delete raw[key];
+    }
+  });
+
   it("searchNovels filters by query", async () => {
     const client = createStaticBackendClient(BASE);
     expect(await client.searchNovels(emptyFilters())).toHaveLength(1);

@@ -30,6 +30,10 @@ class NovelRecord:
     tag_keys: list[str]
     updated_at: Optional[str]
     extra: dict = field(default_factory=dict)
+    # Quando a novel apareceu pela 1a vez e quando ganhou o ultimo capitulo novo (ISO).
+    # `updated_at` muda a cada crawl; estes servem para "recem-chegadas" e "atualizadas".
+    first_seen_at: Optional[str] = None
+    last_new_chapter_at: Optional[str] = None
     chapters: list[ChapterRecord] = field(default_factory=list)
     # Capitulos que o leitor deve saber que faltam: {"number", "title", "reason"}.
     # reason: "empty" | "placeholder" | "rejected" | "http_404" | "gap" (numero pulado na fonte)

@@ -100,6 +100,11 @@ export function DiscoverDetailPanel({
               <Badge>{discoverStrings.chaptersCount(novel.chapters)}</Badge>
             )}
             {novel.language ? <Badge>{novel.language.toUpperCase()}</Badge> : null}
+            {novel.rating ? (
+              <Badge aria-label={discoverStrings.ratingLabel(novel.rating, novel.ratingVotes)} data-testid="novel-rating">
+                {discoverStrings.rating(novel.rating, novel.ratingVotes)}
+              </Badge>
+            ) : null}
           </div>
         </div>
 
