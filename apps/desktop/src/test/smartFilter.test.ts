@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Novel, TagCatalogItem } from "../core/types";
 import { buildCatalogIndex } from "../services/catalogIndex";
 import {
+  CURATION_INSTRUCTIONS,
   applyIntent,
   buildInstructions,
   localIntent,
@@ -116,7 +117,8 @@ describe("smart filter: curation by reading the synopses", () => {
   const intentAnswer = JSON.stringify({
     summary: "Parecido com Shadow Slave", like: ["Shadow Slave"],
     profile: "Protagonista órfão e cínico preso num mundo de pesadelos, com poder de sombra.",
-    keywords: ["sombra", "pesadelo", "shadow", "nightmare"]
+    keywords: ["sombra", "pesadelo", "shadow", "nightmare"],
+    traits: ["protagonista amaldiçoado por um feitiço", "mundo de pesadelos", "poder de sombra"]
   });
 
   it("pre-selects by shared story tags and synopsis keywords, one edition per work, without the reference", () => {
@@ -135,13 +137,13 @@ describe("smart filter: curation by reading the synopses", () => {
   });
 
   it("asks the model to read the candidates and shows only its picks, with its reasons", async () => {
-    const ask = vi.fn(async (_instructions: string, text: string, effort?: string) => {
-      if (effort !== "low") return { text: intentAnswer, credits: 0.01 };
+    const ask = vi.fn(async (instructions: string, text: string, _effort?: string) => {
+      if (instructions !== CURATION_INSTRUCTIONS) return { text: intentAnswer, credits: 0.01 };
       const id = text.match(/\[(c\d+)\] Lorde das Sombras \|/)![1];
       return {
         text: JSON.stringify({ picks: [{
-          id, score: 9, reason: "Protagonista amaldiçoado num mundo de pesadelos",
-          shared: ["protagonista: jovem amaldiçoado", "mundo: pesadelos"]
+          id, score: 9, reason: "Protagonista amaldiçoado num mundo de pesadelos", traits: ["T1", "T2"],
+          shared: ["T1: jovem amaldiçoado", "T2: mundo de pesadelos"]
         }] }),
         credits: 0.05
       };
@@ -154,6 +156,8 @@ describe("smart filter: curation by reading the synopses", () => {
     const curationText = ask.mock.calls[1][1];
     expect(curationText).toContain("Perfil da história: Protagonista órfão");
     expect(curationText).toContain("Referência: Shadow Slave");
+    expect(curationText).toContain("T2. mundo de pesadelos");
+    expect(ask.mock.calls.map((call) => call[2])).toEqual(["low", "low"]);
     expect(curationText).toContain("mundo de pesadelos controlando sombras");
     expect(stages).toEqual(["understanding", "reading"]);
     expect(result.picks).toEqual(["Lorde das Sombras"]);
@@ -171,8 +175,8 @@ describe("smart filter: curation by reading the synopses", () => {
   });
 
   it("keeps the tag ranking when the curation call fails", async () => {
-    const ask = vi.fn(async (_i: string, _t: string, effort?: string) => {
-      if (effort === "low") throw new Error("rate limited");
+    const ask = vi.fn(async (instructions: string) => {
+      if (instructions === CURATION_INSTRUCTIONS) throw new Error("rate limited");
       return { text: intentAnswer };
     });
     const result = await runSmartFilter("parecido com Shadow Slave", { index: storyIndex, tags, ask });
@@ -197,6 +201,14 @@ describe("smart filter: curation by reading the synopses", () => {
     expect(parsed.reasons.n5).toBe("10/10 · melhor");
     expect(parsePicks(JSON.stringify({ picks: many }), candidates)!.ids).toHaveLength(12);
     expect(parsePicks('{"picks":[]}', candidates)!.ids).toEqual([]);
+    // With traits, a pick must name two real ones (T1..Tn); invented or repeated ids do not count.
+    const traitAnswer = JSON.stringify({ picks: [
+      { id: "c1", score: 9, traits: ["T1", "T3"], shared: two, reason: "a" },
+      { id: "c2", score: 9, traits: ["T1", "t1"], shared: two, reason: "b" },
+      { id: "c3", score: 9, traits: ["T1", "T9"], shared: two, reason: "c" },
+      { id: "c4", score: 9, shared: two, reason: "d" }
+    ] });
+    expect(parsePicks(traitAnswer, candidates, 4)!.ids).toEqual(["n1"]);
     expect(parsePicks("não consegui", candidates)).toBeNull();
   });
 });
@@ -215,5 +227,19 @@ describe("smart filter: the model's stray words and tags never empty the result"
     expect(selectCandidates(index, intent, seeds, filters).map((n) => n.id)).toEqual(
       expect.arrayContaining(["Solo Leveling", "Harém do Herói", "Amor de Verão"])
     );
+  });
+});
+
+describe("smart filter: explicit content", () => {
+  it("leaves explicit novels out unless a reference is explicit too", () => {
+    const explicitIndex = buildCatalogIndex([
+      novel("Shadow Slave", { tagKeys: ["genre.action", "genre.fantasy"] }),
+      novel("Smut Tutorial", { tags: ["Fantasy", "Heavy Smut"], tagKeys: ["genre.action", "genre.fantasy"] }),
+      novel("Leitor Onisciente", { tags: ["Ação", "Adulto"], tagKeys: ["genre.action", "genre.fantasy"] })
+    ]);
+    const intent = { ...localIntent("parecido com Shadow Slave", tags), profile: "x" };
+    const { seeds, filters } = applyIntent(explicitIndex, intent, tags);
+    // "Adulto" (mature themes) stays; only explicit sexual content goes.
+    expect(selectCandidates(explicitIndex, intent, seeds, filters).map((n) => n.id)).toEqual(["Leitor Onisciente"]);
   });
 });

@@ -283,9 +283,9 @@ pub struct SmartAnswer {
 }
 
 /// "Filtro inteligente" in Buscar: short questions to the user's own ChatGPT plan (the
-/// translation login), on Luna. The first reads the request into JSON filters (no reasoning);
-/// the second reads the candidates' synopses and keeps the ones that really share story
-/// elements with the reference (`effort: "low"`). The usage goes to the same counters as the
+/// translation login), on Luna. The first reads the request into JSON filters and the traits
+/// that set the reference apart; the second reads the candidates' synopses and keeps the ones
+/// that really share those traits. The app passes `effort: "low"` to both. The usage goes to the same counters as the
 /// translation.
 #[tauri::command]
 pub async fn smart_filter_ask(

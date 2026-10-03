@@ -20,7 +20,7 @@ function smart(picks: string[]): SmartResult {
   return {
     intent: {
       summary: "Parecido com Shadow Slave", includeTags: [], excludeTags: [], status: "any", language: "all",
-      minChapters: null, maxChapters: null, like: ["Shadow Slave"], query: "", profile: "Órfão num mundo de pesadelos", keywords: [], alsoLike: []
+      minChapters: null, maxChapters: null, like: ["Shadow Slave"], query: "", profile: "Órfão num mundo de pesadelos", keywords: [], alsoLike: [], traits: []
     },
     filters: defaultFilters("all"), seeds: [], source: "ai", picks, candidatesRead: 3,
     pickNovels: picks.map((id) => results.find((n) => n.id === id)!),

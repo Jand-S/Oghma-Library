@@ -35,6 +35,9 @@ export type SmartIntent = {
   keywords: string[];
   /** Works the model knows that share story elements with the request (looked up by title). */
   alsoLike: string[];
+  /** 4-6 concrete traits that set the story wanted apart from others of its genre; the
+   *  curation must match picks against them (T1, T2…). */
+  traits: string[];
 };
 
 export type SmartResult = {
@@ -99,13 +102,17 @@ export function buildInstructions(tags: TagCatalogItem[]): string {
     "Responda SOMENTE com um objeto JSON, sem texto antes ou depois, neste formato:",
     '{"summary": "frase curta em português do que você entendeu", "includeTags": ["key"], "excludeTags": ["key"],',
     '"status": "any|ongoing|complete|paused", "language": "all|pt-br|en", "minChapters": null, "maxChapters": null,',
-    '"like": ["títulos citados como referência"], "query": "", "profile": "", "keywords": [], "alsoLike": []}',
+    '"like": ["títulos citados como referência"], "query": "", "profile": "", "traits": [], "keywords": [], "alsoLike": []}',
     "Regras: use apenas keys da lista de tags abaixo; inclua só as tags que o pedido pede de fato (no máximo 4);",
     "\"parecido com X\" vai em like, não vira tags; números de capítulos viram minChapters/maxChapters;",
     "\"completa/finalizada\" é status complete; query só para palavras que não são tags nem títulos (quase sempre vazio).",
     "profile: quando o pedido cita obras de referência ou fala da história, descreva em 2 a 4 frases objetivas o que define",
     "a história pedida: protagonista (personalidade, origem, poder, arco), premissa, mundo, tom e o que a torna marcante.",
     "Use o que você sabe das obras citadas. Deixe vazio se o pedido for só de filtros objetivos (gênero, status, tamanho).",
+    "traits: com profile, 4 a 6 traços CONCRETOS que diferenciam essa história de outras do mesmo gênero (o que um fã",
+    "sentiria falta). Proibido traço genérico: sobrevivência, mundo perigoso, monstros, magia, sistema, ficar forte,",
+    "fantasia sombria, ação. Exemplo para Re:Zero: \"protagonista volta no tempo ao morrer e só ele lembra\",",
+    "\"sofrimento psicológico do protagonista é o centro da história\", \"mistério sobre quem o trouxe ao mundo\".",
     "keywords: com profile, 8 a 16 palavras curtas, em português e em inglês, que a sinopse de uma obra assim usaria",
     "(ex.: sombra, shadow, pesadelo, nightmare, maldição, curse). Sem nomes de personagens.",
     "alsoLike: com profile, até 15 títulos de light/web novels que você conhece BEM e que têm pontos de HISTÓRIA em comum",
@@ -142,7 +149,8 @@ export function parseIntent(answer: string, validKeys: ReadonlySet<string>): Sma
     query: typeof raw.query === "string" ? raw.query.slice(0, 80) : "",
     profile: typeof raw.profile === "string" ? raw.profile.trim().slice(0, 900) : "",
     keywords: strings(raw.keywords).map((word) => word.trim()).filter(Boolean).slice(0, 20),
-    alsoLike: strings(raw.alsoLike).map((title) => title.trim()).filter(Boolean).slice(0, 15)
+    alsoLike: strings(raw.alsoLike).map((title) => title.trim()).filter(Boolean).slice(0, 15),
+    traits: strings(raw.traits).map((trait) => trait.trim().slice(0, 160)).filter(Boolean).slice(0, 6)
   };
 }
 
@@ -163,7 +171,7 @@ export function localIntent(request: string, tags: TagCatalogItem[]): SmartInten
   let text = ` ${normalizeSearchText(request)} `;
   const intent: SmartIntent = {
     summary: "", includeTags: [], excludeTags: [], status: "any", language: "all",
-    minChapters: null, maxChapters: null, like: [], query: "", profile: "", keywords: [], alsoLike: []
+    minChapters: null, maxChapters: null, like: [], query: "", profile: "", keywords: [], alsoLike: [], traits: []
   };
   // "parecido com Shadow Slave", "tipo Solo Leveling", "estilo X" (from the original text, case kept).
   const like = request.match(/(?:parecid[oa]s?\s+com|tipo|estilo|igual\s+a|no\s+estilo\s+de|similar\s+a)\s+["“]?([^,."”;]+?)["”]?(?=\s*(?:,|\.|;|\bmas\b|\bcom\b|\bsem\b|\bque\b|$))/i);
@@ -263,6 +271,17 @@ export const CURATION_CANDIDATES = 48;
 const MAX_PICKS = 12;
 const MIN_PICK_SCORE = 7;
 
+/** Tags of explicit sexual content. Not the app's "Classificação": there Central Novel's
+ *  "Adulto" (violence, mature themes) counts as erotic, which would drop Omniscient Reader. */
+const EXPLICIT_WORDS = ["smut", "hentai", "sexual content", "conteudo sexual", "porn", "nsfw"];
+
+export function isExplicit(novel: Pick<Novel, "tags">): boolean {
+  return novel.tags.some((tag) => {
+    const text = normalizeSearchText(tag);
+    return EXPLICIT_WORDS.some((word) => text.includes(word));
+  });
+}
+
 /** The request is about the story (a reference or a profile), not only objective filters. */
 export function wantsCuration(intent: SmartIntent): boolean {
   return intent.like.length > 0 || intent.profile.length > 0;
@@ -288,8 +307,10 @@ export function selectCandidates(index: CatalogIndex, intent: SmartIntent, seeds
   const keywordScore = (id: string) => Math.min((hits.get(id) ?? []).reduce((sum, word) => sum + Math.max(idf(word), 0), 0) / 4, 4);
   const seedWorks = new Set(seeds.map((seed) => workKey(seed.title)));
   const named = new Set(intent.alsoLike.map(workKey));
+  // Explicit sexual content only when a reference has it (or the request asked for its tags).
+  const allowExplicit = seeds.some(isExplicit) || [...intent.includeTags].some((key) => EXPLICIT_WORDS.some((word) => key.includes(word)));
   const scored = pool
-    .filter((novel) => !seedWorks.has(workKey(novel.title)))
+    .filter((novel) => !seedWorks.has(workKey(novel.title)) && (allowExplicit || !isExplicit(novel)))
     .map((novel) => ({
       novel,
       score: (named.has(workKey(novel.title)) ? 10 : 0)
@@ -312,18 +333,18 @@ export function selectCandidates(index: CatalogIndex, intent: SmartIntent, seeds
 
 export const CURATION_INSTRUCTIONS = [
   "Você é um curador MUITO exigente de light novels e web novels. Errar por excesso é pior que devolver pouco.",
-  "Recebe o pedido do leitor, o perfil da história que ele quer, as obras de referência e uma lista de candidatos",
-  "(id, título, tags, sinopse). Compare pela HISTÓRIA, em quatro eixos: protagonista (personalidade, origem, poder, arco),",
-  "premissa (o conflito central), mundo (ambientação, regras) e tom. Gênero, tags, \"tem sistema\", \"tem magia\",",
-  "\"protagonista fica forte\" ou \"tem monstros\" NÃO contam como ponto em comum: quase toda novel tem isso.",
-  "Régua da nota (0 a 10): 9-10 = mesma premissa central e mesmo tipo de protagonista; 7-8 = pelo menos dois eixos",
-  "claramente iguais, com evidência na sinopse ou no que você sabe com certeza da obra; 4-6 = parecido só no gênero",
-  "ou num eixo; 0-3 = nada a ver. Na dúvida, dê a nota menor.",
-  'Responda SOMENTE com JSON: {"picks":[{"id":"c3","score":8,"shared":["eixo: o que é igual"],"reason":"..."}]}',
+  "Recebe o pedido do leitor, o perfil da história que ele quer, os TRAÇOS que a diferenciam (T1, T2…), as obras de",
+  "referência e uma lista de candidatos (id, título, tags, sinopse).",
+  "Para cada candidato, veja quais traços ele tem de fato, pela sinopse ou pelo que você sabe COM CERTEZA da obra",
+  "(obras conhecidas podem ter sinopse vaga: use o que sabe delas). Parecido só no gênero, em sobrevivência, mundo",
+  "perigoso, monstros, tutorial, sistema, magia ou \"ficar forte\" NÃO conta: quase toda novel tem isso.",
+  "Régua da nota (0 a 10): 9-10 = a maioria dos traços, com a mesma sensação de leitura; 7-8 = pelo menos dois traços",
+  "claramente presentes; 4-6 = um traço ou só o gênero; 0-3 = nada a ver. Na dúvida, a nota menor.",
+  'Responda SOMENTE com JSON: {"picks":[{"id":"c3","score":8,"traits":["T1","T4"],"shared":["T1: como aparece nesta obra"],"reason":"..."}]}',
   `Regras: só notas ${MIN_PICK_SCORE} ou mais, no máximo ${MAX_PICKS}, da maior para a menor. Se nenhum chegar a ${MIN_PICK_SCORE}, responda {"picks":[]}.`,
-  "shared: os eixos iguais, cada um com o elemento concreto (ex.: \"protagonista: órfão cínico que esconde um segredo\").",
+  "traits: os ids dos traços que a obra tem. shared: como cada traço aparece nela, concreto.",
   "reason: uma frase curta (até 140 caracteres) em português com os pontos em comum mais fortes.",
-  "Não invente o que não está na sinopse nem no que você sabe com certeza. Nunca escolha a referência ou outra edição dela."
+  "Não invente. Nunca escolha a referência ou outra edição dela."
 ].join("\n");
 
 const SYNOPSIS_CHARS = 450;
@@ -339,6 +360,7 @@ const statusLabel: Record<string, string> = { complete: "completa", ongoing: "em
 export function buildCurationText(request: string, intent: SmartIntent, seeds: Novel[], candidates: Novel[]): string {
   const lines = [`Pedido: ${request}`];
   if (intent.profile) lines.push(`Perfil da história: ${intent.profile}`);
+  if (intent.traits.length) lines.push("Traços que a diferenciam:", ...intent.traits.map((trait, i) => `T${i + 1}. ${trait}`));
   for (const seed of seeds) {
     lines.push(`Referência: ${seed.title} | tags: ${seed.tags.slice(0, 8).join(", ")}`, `Sinopse: ${plainSynopsis(seed.description, 800)}`);
   }
@@ -351,7 +373,11 @@ export function buildCurationText(request: string, intent: SmartIntent, seeds: N
 }
 
 /** Reads the curation answer: known ids only, score checked, best first, no repeats. */
-export function parsePicks(answer: string, candidates: Novel[]): { ids: string[]; reasons: Record<string, string>; scores: Record<string, number> } | null {
+export function parsePicks(
+  answer: string,
+  candidates: Novel[],
+  traitCount = 0
+): { ids: string[]; reasons: Record<string, string>; scores: Record<string, number> } | null {
   const start = answer.indexOf("{");
   const end = answer.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
@@ -364,16 +390,21 @@ export function parsePicks(answer: string, candidates: Novel[]): { ids: string[]
   const list = (raw as { picks?: unknown }).picks;
   if (!Array.isArray(list)) return null;
   const picks = list
-    .map((item) => item as { id?: unknown; score?: unknown; reason?: unknown; shared?: unknown })
+    .map((item) => item as { id?: unknown; score?: unknown; reason?: unknown; shared?: unknown; traits?: unknown })
     .map((item) => ({
       novel: typeof item.id === "string" ? candidates[Number(item.id.replace(/^c/i, "")) - 1] : undefined,
       score: typeof item.score === "number" ? item.score : 0,
       reason: typeof item.reason === "string" ? item.reason.trim().slice(0, 240) : "",
-      shared: Array.isArray(item.shared) ? item.shared.filter((axis): axis is string => typeof axis === "string" && axis.trim().length > 0) : []
+      shared: Array.isArray(item.shared) ? item.shared.filter((axis): axis is string => typeof axis === "string" && axis.trim().length > 0) : [],
+      traits: new Set(Array.isArray(item.traits)
+        ? item.traits.filter((id): id is string => typeof id === "string" && /^T\d+$/i.test(id) && Number(id.slice(1)) >= 1 && Number(id.slice(1)) <= traitCount)
+          .map((id) => id.toUpperCase())
+        : [])
     }))
-    // A pick needs two story axes in common, named: "same genre" is not a recommendation.
-    .filter((pick): pick is { novel: Novel; score: number; reason: string; shared: string[] } =>
-      Boolean(pick.novel) && pick.score >= MIN_PICK_SCORE && pick.shared.length >= 2)
+    // A pick needs two of the reference's distinctive traits (or, without traits, two named
+    // story axes): "same genre" is not a recommendation.
+    .filter((pick): pick is { novel: Novel; score: number; reason: string; shared: string[]; traits: Set<string> } =>
+      Boolean(pick.novel) && pick.score >= MIN_PICK_SCORE && (traitCount > 0 ? pick.traits.size >= 2 : pick.shared.length >= 2))
     .sort((a, b) => b.score - a.score);
   const ids: string[] = [];
   const reasons: Record<string, string> = {};
@@ -403,7 +434,8 @@ export async function runSmartFilter(
   let credits = 0;
   try {
     deps.onStage?.("understanding");
-    const answer = await deps.ask(buildInstructions(deps.tags), request);
+    // "low": without reasoning the profile came out generic ("survives a deadly world").
+    const answer = await deps.ask(buildInstructions(deps.tags), request, "low");
     credits += answer.credits ?? 0;
     intent = parseIntent(answer.text, validKeys);
   } catch (error) {
@@ -419,7 +451,7 @@ export async function runSmartFilter(
     deps.onStage?.("reading", candidates.length);
     const answer = await deps.ask(CURATION_INSTRUCTIONS, buildCurationText(request, intent, base.seeds, candidates), "low");
     credits += answer.credits ?? 0;
-    const picks = parsePicks(answer.text, candidates);
+    const picks = parsePicks(answer.text, candidates, intent.traits.length);
     if (!picks) return { ...base, credits, curationFailed: true };
     return {
       ...base,
