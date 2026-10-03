@@ -26,9 +26,11 @@ retry_at; quando o plano volta, o pedido e retomado do subagente onde parou
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -41,7 +43,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from engines import ClaudeCodeEngine, CodexEngine, LimitHit, RunResult, pick_engine, plan_back_at  # noqa: E402
+from engines import ClaudeCodeEngine, CodexEngine, LimitHit, RunResult, agent_env, pick_engine, plan_back_at  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ROLE_TIMEOUT = int(os.environ.get("AUTOCONNECTOR_ROLE_TIMEOUT", 45 * 60))
@@ -54,6 +56,11 @@ POLL_SECONDS = 120
 BUILD_ROLES = ["site-analyst", "connector-builder", "test-writer"]
 NETWORK_ROLES = {"site-analyst", "connector-fixer", "connector-maintainer"}
 BRT = timezone(timedelta(hours=-3))  # horario de Brasilia (sem horario de verao)
+# Ids que viram caminho, nome de branch e argumento de comando: so caracteres seguros.
+SOURCE_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
+REQUEST_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
+# Conector gerado por IA so entra no ar depois de alguem aprovar o diff no brain.
+REQUIRE_APPROVAL = os.environ.get("AUTOCONNECTOR_REQUIRE_APPROVAL", "1").strip().lower() not in ("0", "false", "no")
 
 
 def load_env_file() -> None:
@@ -192,6 +199,8 @@ class Pipeline:
         self.compose_dir = Path(cfg("OGHMA_COMPOSE_DIR", "/home/codex/oghma"))
         self.domain = request["domain"]
         self.source_id = request.get("sourceId") or source_id_for(self.domain)
+        if not SOURCE_ID_RE.fullmatch(self.source_id) or not REQUEST_ID_RE.fullmatch(str(request.get("id") or "")):
+            raise ValueError(f"id inválido no pedido: source_id={self.source_id!r} id={request.get('id')!r}")
         self.module = self.source_id.replace("-", "_")
         self.wt = Path(cfg("AUTOCONNECTOR_WORK", "/home/codex/oghma-autoconnector")) / f"{request['id']}-{self.source_id}"
         self.work = self.wt / "backend" / "autoconnector" / "work"
@@ -215,6 +224,13 @@ class Pipeline:
         """Comando do portao (retorno + saida juntas). Isolado para os testes trocarem."""
         p = subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env, capture_output=True, text=True, timeout=timeout)
         return p.returncode, (p.stdout or "") + (p.stderr or "")
+
+    def gate_env(self, src: Path) -> dict:
+        """Ambiente do portao (testes e probe do codigo gerado): sem o .env do Oghma.
+        O codigo ainda nao foi revisado; ele nao pode ver chaves do B2, do banco nem do brain."""
+        storage = self.work / "gate-storage"
+        storage.mkdir(parents=True, exist_ok=True)
+        return agent_env({"PYTHONPATH": str(src), "OGHMA_STORAGE_ROOT": str(storage)})
 
     def venv_env(self, src: Path | None = None) -> dict:
         """Ambiente dos comandos no venv: .env do Oghma, storage e, no portao, o codigo do worktree."""
@@ -393,7 +409,7 @@ class Pipeline:
         novel_args = ["--novel-url", self.req["novelUrl"]] if self.req.get("novelUrl") else []
         if self.runtime == "venv":
             # Codigo do worktree na frente do pacote instalado: testa o conector novo sem instalar.
-            env = self.venv_env(src=backend / "src")
+            env = self.gate_env(backend / "src")
             python = str(self.venv / "bin" / "python")
             _, pytest_out = self.proc([python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests"],
                                       cwd=backend, env=env)
@@ -405,8 +421,9 @@ class Pipeline:
                  "pip install -q --root-user-action=ignore pytest pytest-asyncio >/dev/null 2>&1; "
                  "pip install -q --root-user-action=ignore --no-deps -e . >/dev/null 2>&1; "
                  "python -m pytest -q -p no:cacheprovider tests 2>&1 | tail -40"])
+            # Sem --env-file e fora da rede do compose: o probe so precisa da internet.
             _, probe_out = self.proc(
-                ["docker", "run", "--rm", "--network", "oghma_default", "--env-file", str(self.compose_dir / ".env"),
+                ["docker", "run", "--rm", "--network", "bridge",
                  "-v", f"{backend / 'src' / 'oghma'}:/usr/local/lib/python3.11/site-packages/oghma",
                  "--entrypoint", "oghma", "oghma-crawler:latest", "probe-connector", "--source", self.source_id, *novel_args])
         pytest_out = pytest_out[-12000:]
@@ -486,7 +503,7 @@ class Pipeline:
             moved.append((path, dest))
         backend = self.wt / "backend"
         code, out = self.proc([str(self.venv / "bin" / "python"), "-m", "pytest", "-q", "-p", "no:cacheprovider",
-                               f"tests/test_{self.module}.py"], cwd=backend, env=self.venv_env(src=backend / "src"))
+                               f"tests/test_{self.module}.py"], cwd=backend, env=self.gate_env(backend / "src"))
         if code != 0:
             for path, dest in moved:
                 shutil.move(str(dest), path)
@@ -549,12 +566,14 @@ class Pipeline:
             self.report(title=f"Coleta completa de {self.source_id} entra no rodízio")
             self._watch_new_source()
             return
+        q = shlex.quote
+        sid, thread = q(self.source_id), q(f"oghma-src-{self.req.get('id')}")
         script = (
-            f"cd {self.compose_dir} && "
-            f"flock {self.lock_dir}/crawl-{self.source_id}.lock docker compose run --rm --no-deps crawler oghma crawl --source {self.source_id} && "
-            f"flock {self.lock_dir}/publish.lock docker compose run --rm --no-deps crawler python -m oghma.publish --source {self.source_id} && "
-            f"brain notify 'Coleta completa de {self.source_id} publicada' --level success --app oghma --thread oghma-src-{self.req.get('id')} "
-            f"|| brain notify 'Coleta completa de {self.source_id} falhou' --level error --app oghma --thread oghma-src-{self.req.get('id')} --body 'Log: {log}'"
+            f"cd {q(str(self.compose_dir))} && "
+            f"flock {q(f'{self.lock_dir}/crawl-{self.source_id}.lock')} docker compose run --rm --no-deps crawler oghma crawl --source {sid} && "
+            f"flock {q(f'{self.lock_dir}/publish.lock')} docker compose run --rm --no-deps crawler python -m oghma.publish --source {sid} && "
+            f"brain notify {q(f'Coleta completa de {self.source_id} publicada')} --level success --app oghma --thread {thread} "
+            f"|| brain notify {q(f'Coleta completa de {self.source_id} falhou')} --level error --app oghma --thread {thread} --body {q(f'Log: {log}')}"
         )
         subprocess.Popen(["nohup", "sh", "-c", script], stdout=open(log, "a"), stderr=subprocess.STDOUT,
                          start_new_session=True)
@@ -591,6 +610,10 @@ class Pipeline:
             if not self.deploy_enabled:
                 self.report(title="Ensaio concluído sem deploy (--no-deploy)", level="success", novel_title=novel_title)
                 return
+            if REQUIRE_APPROVAL and not self.deploy_approved():
+                self.request_review(gate, novel_title)
+                clear_current(self.req)
+                return
             self.report("downloading", "Portão aprovado: fazendo deploy")
             self.deploy(gate)
             self.crawl_requested_and_publish()
@@ -618,6 +641,41 @@ class Pipeline:
             clear_current(self.req)
             self.fail("deploy" if self.progress else "preparo", f"{type(exc).__name__}: {exc}", "infraestrutura",
                       traceback.format_exc()[-4000:])
+
+    # -- revisao humana antes do deploy
+    def diff_digest(self) -> str:
+        """sha256 do diff que o portao acabou de gravar (o que a pessoa aprova)."""
+        path = self.work / "DIFF.patch"
+        return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else ""
+
+    def deploy_approved(self) -> bool:
+        """Aprovado no brain para exatamente este diff. Codigo mudado depois da aprovacao volta para revisao."""
+        approval = self.work / "APPROVAL.json"
+        try:
+            pending = json.loads(approval.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        return bool(self.req.get("deployApproved")) and pending.get("diff_sha256") == self.diff_digest()
+
+    def request_review(self, gate: dict, novel_title: str | None) -> None:
+        digest = self.diff_digest()
+        (self.work / "APPROVAL.json").write_text(json.dumps({"diff_sha256": digest, "requested_at": time.time()}), encoding="utf-8")
+        stat = self.sh(["git", "diff", "--cached", "--stat", "HEAD"], cwd=self.wt, check=False)
+        review = self.work / "REVIEW.md"
+        verdict = review.read_text(encoding="utf-8")[:1500] if review.exists() else "(sem REVIEW.md)"
+        probe = gate.get("probe") or {}
+        body = "\n\n".join([
+            f"O conector de `{self.source_id}` passou no portão automático (pytest + teste ao vivo). "
+            "Ele só entra no ar (merge, push, instalação e coleta) depois da sua aprovação.",
+            f"Novel de teste: {novel_title or '—'} · capítulos vistos no probe: {probe.get('chapters_listed', '—')}",
+            f"Arquivos:\n{stat[-1500:]}",
+            f"Diff completo no servidor: {self.work / 'DIFF.patch'} (sha256 {digest[:12]})",
+            f"Revisor automático:\n{verdict}",
+        ])
+        self.report(status="queued", stage="awaiting_review", message="Em revisão antes de entrar no ar",
+                    level="action", kind="connector_deploy", title=f"{self.domain}: revisar o conector antes do deploy",
+                    body=body[:3800], data={"diff_sha256": digest},
+                    actions=[{"id": "approve", "label": "Aprovar deploy"}, {"id": "reject", "label": "Recusar"}])
 
     # -- falha: explicacao + botoes no brain, frase simples no app
     def diagnose(self, stage: str, error: str, kind: str, log: str) -> dict | None:
@@ -776,10 +834,19 @@ def main() -> int:
         return 0
 
     brain = Brain(cfg("BRAIN_URL", "https://brain.jandson.me"), cfg("BRAIN_TOKEN"))
+    def process(request: dict) -> None:
+        try:
+            pipeline = Pipeline(request, brain, engines, force_engine=force)
+        except ValueError as exc:  # id fora do padrao: nao vira caminho nem comando
+            print(f"[worker] pedido ignorado: {exc}", flush=True)
+            clear_current(request)
+            return
+        pipeline.run()
+
     pending = interrupted_request()
     if pending:
         print(f"[worker] retomando pedido interrompido {pending.get('id')}", flush=True)
-        Pipeline(pending, brain, engines, force_engine=force).run()
+        process(pending)
     while True:
         monitor_new_sources(brain)
         try:
@@ -788,7 +855,7 @@ def main() -> int:
             print(f"[brain] sem conexão: {exc}", flush=True)
             request = None
         if request:
-            Pipeline(request, brain, engines, force_engine=force).run()
+            process(request)
         if args.cmd == "once":
             return 0
         time.sleep(POLL_SECONDS)

@@ -111,8 +111,30 @@ class Engine:
         raise NotImplementedError
 
 
+# Variaveis que os motores (e o codigo que eles escrevem) podem ver. Todo o resto fica de fora:
+# o worker roda com o .env do Oghma (chaves S3 do bucket publico, banco, BRAIN_TOKEN), e um
+# site malicioso lido pelo site-analyst nao pode conseguir esses segredos por injecao de prompt.
+SAFE_ENV_KEYS = {
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LANGUAGE", "TERM", "TMPDIR", "TZ",
+    "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS",
+    "CODEX_HOME", "CLAUDE_CONFIG_DIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME",
+}
+SAFE_ENV_PREFIXES = ("LC_",)
+
+
+def agent_env(extra: dict | None = None, base: dict | None = None) -> dict:
+    """Ambiente minimo para motores, testes e probe do codigo gerado (sem segredos)."""
+    source = os.environ if base is None else base
+    # AUTOCONNECTOR_PASS_ENV="A,B": libera variaveis extras de proposito (ex.: login do motor por chave).
+    allowed = SAFE_ENV_KEYS | {k.strip() for k in os.environ.get("AUTOCONNECTOR_PASS_ENV", "").split(",") if k.strip()}
+    env = {k: v for k, v in source.items() if k in allowed or k.startswith(SAFE_ENV_PREFIXES)}
+    env.update(extra or {})
+    return env
+
+
 def _run_lines(cmd: list[str], cwd: str, timeout: int, stdin: str | None = None) -> tuple[int, list[str], str]:
-    proc = subprocess.run(cmd, cwd=cwd, input=stdin, capture_output=True, text=True, timeout=timeout)
+    proc = subprocess.run(cmd, cwd=cwd, input=stdin, capture_output=True, text=True, timeout=timeout, env=agent_env())
     return proc.returncode, proc.stdout.splitlines(), proc.stderr
 
 
@@ -128,7 +150,8 @@ class ClaudeCodeEngine(Engine):
         if not os.path.exists(CLAUDE_BIN):
             return False
         try:
-            out = subprocess.run([CLAUDE_BIN, "auth", "status"], capture_output=True, text=True, timeout=30).stdout
+            out = subprocess.run([CLAUDE_BIN, "auth", "status"], capture_output=True, text=True, timeout=30,
+                                 env=agent_env()).stdout
             return '"loggedIn": true' in out
         except (OSError, subprocess.TimeoutExpired):
             return False
@@ -238,7 +261,8 @@ class CodexEngine(Engine):
 
     def available(self) -> bool:
         try:
-            out = subprocess.run([CODEX_BIN, "login", "status"], capture_output=True, text=True, timeout=30)
+            out = subprocess.run([CODEX_BIN, "login", "status"], capture_output=True, text=True, timeout=30,
+                                 env=agent_env())
             return "Logged in" in (out.stdout + out.stderr)
         except (OSError, subprocess.TimeoutExpired):
             return False

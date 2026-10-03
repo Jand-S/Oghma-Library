@@ -238,7 +238,9 @@ def test_gate_in_venv_mode_uses_venv_python_and_worktree_code(tmp_path, monkeypa
     pytest_cmd, cwd, env = seen[0]
     assert pytest_cmd[0] == "/opt/oghma/venv/bin/python" and cwd == pipe.wt / "backend"
     assert env["PYTHONPATH"].startswith(str(pipe.wt / "backend" / "src"))
-    assert env["OGHMA_DATABASE_URL"] == "postgresql+asyncpg://x"
+    # O codigo gerado ainda nao revisado roda sem os segredos do .env do Oghma.
+    assert "OGHMA_DATABASE_URL" not in env and "BRAIN_TOKEN" not in env
+    assert env["OGHMA_STORAGE_ROOT"].startswith(str(pipe.work))
     probe_cmd = seen[1][0]
     assert probe_cmd[1:4] == ["-m", "oghma.cli", "probe-connector"] and "--novel-url" in probe_cmd
 
@@ -350,6 +352,7 @@ def test_failure_is_explained_with_retry_button_and_plain_app_message(tmp_path, 
         raise RuntimeError("git commit -q -m... saiu com 128: Author identity unknown")
 
     pipe.deploy = broken_deploy
+    monkeypatch.setattr(worker, "REQUIRE_APPROVAL", False)
     pipe.run()
     final = brain.updates[-1]
     assert final["status"] == "failed"
@@ -399,3 +402,81 @@ def test_unused_fixtures_are_pruned_and_restored_if_tests_need_them(tmp_path, mo
     pipe.proc = lambda *a, **k: (1, "1 failed")
     assert pipe.prune_fixtures() == 0
     assert sorted(p.name for p in fixtures.iterdir()) == ["home.html", "novel.html"]
+
+
+def test_engines_and_generated_code_never_see_oghma_secrets(monkeypatch):
+    monkeypatch.setenv("BRAIN_TOKEN", "segredo")
+    monkeypatch.setenv("OGHMA_S3_SECRET_ACCESS_KEY", "segredo")
+    monkeypatch.setenv("OGHMA_DATABASE_URL", "postgresql://u:p@h/db")
+    monkeypatch.setenv("HOME", "/home/oghma")
+    monkeypatch.setenv("LC_ALL", "C.UTF-8")
+    env = engines.agent_env({"PYTHONPATH": "/wt/src"})
+    assert env["HOME"] == "/home/oghma" and env["LC_ALL"] == "C.UTF-8" and env["PYTHONPATH"] == "/wt/src"
+    assert not {"BRAIN_TOKEN", "OGHMA_S3_SECRET_ACCESS_KEY", "OGHMA_DATABASE_URL"} & set(env)
+    monkeypatch.setenv("AUTOCONNECTOR_PASS_ENV", "ANTHROPIC_API_KEY")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    assert engines.agent_env()["ANTHROPIC_API_KEY"] == "k"
+
+
+@pytest.mark.parametrize("patch", [{"sourceId": "x; rm -rf /"}, {"sourceId": "../etc"}, {"id": "a b"}, {"id": ""}])
+def test_ids_that_would_become_paths_or_commands_are_refused(patch):
+    request = {"id": "abc1234567", "url": "https://exemplo.com/", "domain": "exemplo.com", **patch}
+    with pytest.raises(ValueError):
+        worker.Pipeline(request, worker.NullBrain(), [], runner=lambda *a, **k: "")
+
+
+def _review_pipeline(tmp_path, brain, request_patch=None):
+    request = {"id": "abc1234567", "url": "https://exemplo.com/", "domain": "exemplo.com", "novelUrl": None,
+               **(request_patch or {})}
+    pipe = worker.Pipeline(request, brain, [FakeEngine("codex")], deploy=True, runner=lambda *a, **k: " 1 file changed\n")
+    pipe.wt = tmp_path / "wt"
+    pipe.work = pipe.wt / "backend" / "autoconnector" / "work"
+    pipe.work.mkdir(parents=True, exist_ok=True)
+    pipe.existing_source = lambda: None
+    pipe.prepare_worktree = lambda: None
+    pipe.build = lambda: {"ok": True, "probe": {"novel": {"title": "X"}, "chapters_listed": 10}}
+    deployed = []
+    pipe.deploy = lambda gate: deployed.append(gate)
+    pipe.crawl_requested_and_publish = lambda: None
+    pipe.start_full_crawl = lambda: None
+    return pipe, deployed
+
+
+def test_generated_connector_waits_for_human_approval_of_the_exact_diff(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTOCONNECTOR_WORK", str(tmp_path / "ac"))
+    brain = RecordingBrain2()
+    pipe, deployed = _review_pipeline(tmp_path, brain)
+    (pipe.work / "DIFF.patch").write_text("+ conector\n")
+    pipe.run()
+    review = brain.updates[-1]
+    assert not deployed
+    assert review["status"] == "queued" and review["stage"] == "awaiting_review" and review["kind"] == "connector_deploy"
+    assert [a["id"] for a in review["actions"]] == ["approve", "reject"]
+    assert review["data"]["diff_sha256"] == pipe.diff_digest()
+
+    # Aprovado no brain: o pedido volta com deployApproved e o mesmo diff -> deploy.
+    approved, deployed = _review_pipeline(tmp_path, RecordingBrain2(), {"deployApproved": True})
+    approved.run()
+    assert len(deployed) == 1
+
+    # O codigo mudou depois da aprovacao: volta para revisao em vez de ir ao ar.
+    (pipe.work / "DIFF.patch").write_text("+ conector\n+ algo novo\n")
+    brain3 = RecordingBrain2()
+    changed, deployed = _review_pipeline(tmp_path, brain3, {"deployApproved": True})
+    changed.run()
+    assert not deployed and brain3.updates[-1]["stage"] == "awaiting_review"
+
+
+def test_full_crawl_script_quotes_every_value(tmp_path, monkeypatch):
+    request = {"id": "abc1234567", "url": "https://exemplo.com/", "domain": "exemplo.com", "sourceId": "exemplo"}
+    pipe = worker.Pipeline(request, worker.NullBrain(), [], runner=lambda *a, **k: "")
+    pipe.runtime = "docker"
+    pipe.compose_dir = tmp_path / "dir with space"
+    monkeypatch.setenv("OGHMA_LOG_DIR", str(tmp_path))
+    monkeypatch.setenv("AUTOCONNECTOR_WORK", str(tmp_path))
+    started = []
+    monkeypatch.setattr(worker.subprocess, "Popen", lambda cmd, **k: started.append(cmd))
+    pipe.start_full_crawl()
+    script = started[0][-1]
+    assert f"cd '{tmp_path}/dir with space'" in script
+    assert "'Coleta completa de exemplo publicada'" in script
