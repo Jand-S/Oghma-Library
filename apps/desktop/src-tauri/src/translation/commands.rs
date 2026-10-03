@@ -289,6 +289,7 @@ pub struct SmartAnswer {
 /// translation.
 #[tauri::command]
 pub async fn smart_filter_ask(
+    app: tauri::AppHandle,
     state: EngineState<'_>,
     instructions: String,
     text: String,
@@ -307,12 +308,40 @@ pub async fn smart_filter_ask(
         .map_err(|err| err.to_string())?;
     let credits = engine.store.log_usage(None, model, 0, &out.usage).unwrap_or(0.0);
     engine.emit_usage();
+    log_smart_exchange(&app, effort, &text, &out.text, out.usage.input_tokens, out.usage.output_tokens);
     Ok(SmartAnswer {
         text: out.text,
         input_tokens: out.usage.input_tokens,
         output_tokens: out.usage.output_tokens,
         credits,
     })
+}
+
+/// Keeps the last smart filter exchanges in `app_data_dir/smart-filter.log` (JSON lines; the
+/// request text and the model answer, never tokens) so a bad recommendation can be looked at
+/// afterwards. Rotates to `.old` past 2 MB. Failures are ignored: it is only a diagnostic.
+fn log_smart_exchange(app: &tauri::AppHandle, effort: &str, text: &str, answer: &str, input_tokens: i64, output_tokens: i64) {
+    use std::io::Write;
+    use tauri::Manager;
+    let Ok(dir) = app.path().app_data_dir() else { return };
+    let path = dir.join("smart-filter.log");
+    if std::fs::metadata(&path).map(|meta| meta.len() > 2 * 1024 * 1024).unwrap_or(false) {
+        let _ = std::fs::rename(&path, dir.join("smart-filter.log.old"));
+    }
+    let line = serde_json::json!({
+        "at": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_secs())
+            .unwrap_or(0),
+        "effort": effort,
+        "inputTokens": input_tokens,
+        "outputTokens": output_tokens,
+        "text": text,
+        "answer": answer,
+    });
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(file, "{line}");
+    }
 }
 
 /// Only the efforts the Sign in with ChatGPT spike validated; anything else reads as "none".

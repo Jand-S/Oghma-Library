@@ -138,7 +138,13 @@ describe("smart filter: curation by reading the synopses", () => {
     const ask = vi.fn(async (_instructions: string, text: string, effort?: string) => {
       if (effort !== "low") return { text: intentAnswer, credits: 0.01 };
       const id = text.match(/\[(c\d+)\] Lorde das Sombras \|/)![1];
-      return { text: JSON.stringify({ picks: [{ id, score: 9, reason: "Protagonista amaldiçoado num mundo de pesadelos" }] }), credits: 0.05 };
+      return {
+        text: JSON.stringify({ picks: [{
+          id, score: 9, reason: "Protagonista amaldiçoado num mundo de pesadelos",
+          shared: ["protagonista: jovem amaldiçoado", "mundo: pesadelos"]
+        }] }),
+        credits: 0.05
+      };
     });
     const stages: string[] = [];
     const result = await runSmartFilter("algo parecido com Shadow Slave", {
@@ -151,7 +157,8 @@ describe("smart filter: curation by reading the synopses", () => {
     expect(curationText).toContain("mundo de pesadelos controlando sombras");
     expect(stages).toEqual(["understanding", "reading"]);
     expect(result.picks).toEqual(["Lorde das Sombras"]);
-    expect(result.reasons["Lorde das Sombras"]).toBe("Protagonista amaldiçoado num mundo de pesadelos");
+    expect(result.reasons["Lorde das Sombras"]).toBe("9/10 · Protagonista amaldiçoado num mundo de pesadelos");
+    expect(result.pickNovels?.map((n) => n.id)).toEqual(["Lorde das Sombras"]);
     expect(result.scores["Lorde das Sombras"]).toBeGreaterThan(result.scores["Herói Sorridente"]);
     expect(result.credits).toBeCloseTo(0.06);
   });
@@ -175,17 +182,38 @@ describe("smart filter: curation by reading the synopses", () => {
 
   it("reads the picks strictly: known ids, score 7 or more, best first, no repeats, at most 12", () => {
     const candidates = Array.from({ length: 20 }, (_, i) => novel(`n${i + 1}`, {}));
-    const many = Array.from({ length: 15 }, (_, i) => ({ id: `c${i + 1}`, score: 8, reason: "x" }));
+    const two = ["protagonista: x", "mundo: y"];
+    const many = Array.from({ length: 15 }, (_, i) => ({ id: `c${i + 1}`, score: 8, reason: "x", shared: two }));
     const answer = JSON.stringify({ picks: [
-      { id: "c3", score: 6, reason: "fraco" },
-      { id: "c99", score: 10, reason: "inventado" },
-      { id: "c2", score: 7, reason: "ok" },
-      { id: "c5", score: 9.5, reason: "melhor" },
-      { id: "c5", score: 9, reason: "repetido" }
+      { id: "c3", score: 6, reason: "fraco", shared: two },
+      { id: "c99", score: 10, reason: "inventado", shared: two },
+      { id: "c2", score: 7, reason: "ok", shared: two },
+      { id: "c4", score: 9, reason: "só o gênero", shared: ["gênero: fantasia"] },
+      { id: "c5", score: 9.5, reason: "melhor", shared: two },
+      { id: "c5", score: 9, reason: "repetido", shared: two }
     ] });
-    expect(parsePicks(answer, candidates)!.ids).toEqual(["n5", "n2"]);
+    const parsed = parsePicks(answer, candidates)!;
+    expect(parsed.ids).toEqual(["n5", "n2"]);
+    expect(parsed.reasons.n5).toBe("10/10 · melhor");
     expect(parsePicks(JSON.stringify({ picks: many }), candidates)!.ids).toHaveLength(12);
     expect(parsePicks('{"picks":[]}', candidates)!.ids).toEqual([]);
     expect(parsePicks("não consegui", candidates)).toBeNull();
+  });
+});
+
+describe("smart filter: the model's stray words and tags never empty the result", () => {
+  it("does not filter by the free words of the answer, it only ranks with them", () => {
+    const intent = parseIntent('{"summary":"Parecidas com Shadow Slave","like":["Shadow Slave"],"query":"novels parecidas"}', new Set(tags.map((t) => t.key)))!;
+    const result = applyIntent(index, intent, tags);
+    expect(result.filters.query).toBe("");
+    expect(Object.keys(result.scores)).toHaveLength(4);
+  });
+
+  it("drops tags the model added on its own when they leave almost nothing to read", () => {
+    const intent = { ...localIntent("parecido com Shadow Slave", tags), includeTags: ["genre.romance"], profile: "x" };
+    const { seeds, filters } = applyIntent(index, intent, tags);
+    expect(selectCandidates(index, intent, seeds, filters).map((n) => n.id)).toEqual(
+      expect.arrayContaining(["Solo Leveling", "Harém do Herói", "Amor de Verão"])
+    );
   });
 });

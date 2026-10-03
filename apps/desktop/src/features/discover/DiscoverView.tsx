@@ -102,11 +102,14 @@ export function DiscoverView({
   const [smartBroad, setSmartBroad] = useState(false);
   useEffect(() => setSmartBroad(false), [smart]);
   const curated = Boolean(smart?.picks) && !smartBroad;
-  const results = useMemo(() => {
-    if (!curated || !smart?.picks) return allResults;
-    const picked = new Set(smart.picks);
-    return allResults.filter((novel) => picked.has(novel.id));
-  }, [allResults, curated, smart]);
+  // The picks are shown as they are: they were chosen under the request's filters already, and
+  // intersecting with the grid search hid them whenever the two disagreed.
+  const results = curated ? smart?.pickNovels ?? [] : allResults;
+  // Editing a filter while curated means "show me the list with this filter": go broad.
+  const changeFilters = (next: Filters) => {
+    if (curated) setSmartBroad(true);
+    onFiltersChange(next);
+  };
   const [scrolled, setScrolled] = useState(false);
 
   // Back to the first batch only when the set of novels (or the order) really changes.
@@ -254,7 +257,7 @@ export function DiscoverView({
             filters={filters}
             tagCatalog={tagCatalog}
             scrolled={scrolled}
-            onChange={onFiltersChange}
+            onChange={changeFilters}
             onClear={clearFilters}
           />
         ) : null}

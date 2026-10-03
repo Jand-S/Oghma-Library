@@ -23,6 +23,7 @@ function smart(picks: string[]): SmartResult {
       minChapters: null, maxChapters: null, like: ["Shadow Slave"], query: "", profile: "Órfão num mundo de pesadelos", keywords: [], alsoLike: []
     },
     filters: defaultFilters("all"), seeds: [], source: "ai", picks, candidatesRead: 3,
+    pickNovels: picks.map((id) => results.find((n) => n.id === id)!),
     scores: { A: 1, B: 0.5, C: 109 }, reasons: { C: "Protagonista amaldiçoado num mundo de pesadelos" }
   };
 }
@@ -60,6 +61,11 @@ describe("Filtro inteligente: curated grid", () => {
     expect(screen.getByText(discoverStrings.smartNoPicksTitle)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: discoverStrings.smartShowBroad }));
     expect(titles()).toHaveLength(3);
+  });
+
+  it("shows the picks even when the grid search found none of them", () => {
+    renderView({ smart: smart(["C"]), results: [] });
+    expect(titles()).toEqual(["C"]);
   });
 
   it("tells what it is doing while the model reads the synopses", () => {

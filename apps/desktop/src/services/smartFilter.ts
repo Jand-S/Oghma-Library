@@ -48,6 +48,8 @@ export type SmartResult = {
   reasons: Record<string, string>;
   /** Novels the model kept after reading the synopses, best first. Absent: no curation ran. */
   picks?: string[];
+  /** The same picks as novels: the curated grid shows them as they are (no filter can hide them). */
+  pickNovels?: Novel[];
   /** How many candidates the model read (with `picks`). */
   candidatesRead?: number;
   /** The curation call failed or answered garbage: the ranking is by shared tags only. */
@@ -106,8 +108,9 @@ export function buildInstructions(tags: TagCatalogItem[]): string {
     "Use o que você sabe das obras citadas. Deixe vazio se o pedido for só de filtros objetivos (gênero, status, tamanho).",
     "keywords: com profile, 8 a 16 palavras curtas, em português e em inglês, que a sinopse de uma obra assim usaria",
     "(ex.: sombra, shadow, pesadelo, nightmare, maldição, curse). Sem nomes de personagens.",
-    "alsoLike: com profile, até 15 títulos de light/web novels que você conhece e que têm pontos de HISTÓRIA em comum",
-    "(protagonista, premissa, mundo, tom), com o nome em inglês mais conhecido. Não precisa saber se estão no catálogo.",
+    "alsoLike: com profile, até 15 títulos de light/web novels que você conhece BEM e que têm pontos de HISTÓRIA em comum",
+    "(tipo de protagonista, premissa, mundo, tom), com o nome em inglês mais conhecido. Prefira poucos e certos: nada de",
+    "obras só populares do mesmo gênero. Não precisa saber se estão no catálogo.",
     `Tags: ${list}`
   ].join("\n");
 }
@@ -222,9 +225,11 @@ function describe(intent: SmartIntent, seeds: Novel[], tags: TagCatalogItem[]): 
 /** Turns an intent into Discover filters, seeds, ranking and reasons (all local). */
 export function applyIntent(index: CatalogIndex, intent: SmartIntent, tags: TagCatalogItem[]): Omit<SmartResult, "source"> {
   const seeds = intent.like.map((title) => findTitle(index, title)).filter((novel): novel is Novel => Boolean(novel));
+  // The model's free words ("novels", "algo") never filter: a stray word used to empty the grid.
+  // They only lift the novels that mention them.
   const filters: Filters = {
     ...defaultFilters("all"),
-    query: intent.query,
+    query: "",
     includeTags: intent.includeTags,
     excludeTags: intent.excludeTags,
     status: intent.status,
@@ -235,12 +240,13 @@ export function applyIntent(index: CatalogIndex, intent: SmartIntent, tags: TagC
   const label = (key: string) => tags.find((tag) => tag.key === key)?.label ?? canonicalTagText(key)[0] ?? key.replace(/^\w+\./, "");
   const similarity = similarityToSeeds(index, seeds);
   const seedWorks = new Set(seeds.map((seed) => workKey(seed.title)));
+  const queryHits = keywordHits(index, normalizeSearchText(intent.query).split(" ").filter((word) => word.length >= 3));
   const scores: Record<string, number> = {};
   const reasons: Record<string, string> = {};
   for (const { novel } of index.entries) {
     const sim = similarity.get(novel.id);
     const quality = (novel.rating ?? 0) / 50 + Math.min(novel.chapters, 2000) / 100000;
-    scores[novel.id] = seedWorks.has(workKey(novel.title)) ? -1 : (sim?.score ?? 0) + quality;
+    scores[novel.id] = seedWorks.has(workKey(novel.title)) ? -1 : (sim?.score ?? 0) + quality + (queryHits.get(novel.id)?.length ?? 0) * 0.2;
     if (sim && sim.shared.length) {
       reasons[novel.id] = `Em comum com ${seeds[0]?.title ?? "a referência"}: ${sim.shared.slice(0, 4).map(label).join(", ")}`;
     } else if (intent.includeTags.length) {
@@ -269,7 +275,9 @@ export function wantsCuration(intent: SmartIntent): boolean {
  * the synopses (rare words weigh more), and a little the rating.
  */
 export function selectCandidates(index: CatalogIndex, intent: SmartIntent, seeds: Novel[], filters: Filters, limit = CURATION_CANDIDATES): Novel[] {
-  const pool = searchCatalog(index, { ...filters, query: "" });
+  let pool = searchCatalog(index, { ...filters, query: "" });
+  // Tags the model added on its own can leave almost nothing; then they only rank.
+  if (pool.length < 12 && filters.includeTags.length) pool = searchCatalog(index, { ...filters, query: "", includeTags: [] });
   const similarity = similarityToSeeds(index, seeds);
   const words = [...new Set([...intent.keywords, ...intent.query.split(/\s+/)].map(normalizeSearchText).filter((word) => word.length >= 3))];
   const hits = keywordHits(index, words.slice(0, 24));
@@ -303,15 +311,19 @@ export function selectCandidates(index: CatalogIndex, intent: SmartIntent, seeds
 }
 
 export const CURATION_INSTRUCTIONS = [
-  "Você é um curador exigente de light novels e web novels.",
+  "Você é um curador MUITO exigente de light novels e web novels. Errar por excesso é pior que devolver pouco.",
   "Recebe o pedido do leitor, o perfil da história que ele quer, as obras de referência e uma lista de candidatos",
-  "(id, título, tags, sinopse). Avalie cada candidato pela HISTÓRIA: protagonista (personalidade, origem, poder, arco),",
-  "premissa, mundo, tom e estrutura. Tags iguais NÃO bastam: duas fantasias de ação com sistema podem não ter nada em comum.",
-  "Dê uma nota de 0 a 10 para o quanto quem gostou da referência (ou quem fez o pedido) teria a mesma experiência.",
-  'Responda SOMENTE com JSON: {"picks":[{"id":"c3","score":8,"reason":"..."}]}',
+  "(id, título, tags, sinopse). Compare pela HISTÓRIA, em quatro eixos: protagonista (personalidade, origem, poder, arco),",
+  "premissa (o conflito central), mundo (ambientação, regras) e tom. Gênero, tags, \"tem sistema\", \"tem magia\",",
+  "\"protagonista fica forte\" ou \"tem monstros\" NÃO contam como ponto em comum: quase toda novel tem isso.",
+  "Régua da nota (0 a 10): 9-10 = mesma premissa central e mesmo tipo de protagonista; 7-8 = pelo menos dois eixos",
+  "claramente iguais, com evidência na sinopse ou no que você sabe com certeza da obra; 4-6 = parecido só no gênero",
+  "ou num eixo; 0-3 = nada a ver. Na dúvida, dê a nota menor.",
+  'Responda SOMENTE com JSON: {"picks":[{"id":"c3","score":8,"shared":["eixo: o que é igual"],"reason":"..."}]}',
   `Regras: só notas ${MIN_PICK_SCORE} ou mais, no máximo ${MAX_PICKS}, da maior para a menor. Se nenhum chegar a ${MIN_PICK_SCORE}, responda {"picks":[]}.`,
-  "reason: uma frase curta (até 140 caracteres) em português com os pontos concretos em comum (ex.: \"protagonista órfão que sobrevive com um poder",
-  "amaldiçoado num mundo de pesadelos\"). Use só o que a sinopse diz; não invente. Nunca escolha a própria referência ou outra edição dela."
+  "shared: os eixos iguais, cada um com o elemento concreto (ex.: \"protagonista: órfão cínico que esconde um segredo\").",
+  "reason: uma frase curta (até 140 caracteres) em português com os pontos em comum mais fortes.",
+  "Não invente o que não está na sinopse nem no que você sabe com certeza. Nunca escolha a referência ou outra edição dela."
 ].join("\n");
 
 const SYNOPSIS_CHARS = 450;
@@ -352,13 +364,16 @@ export function parsePicks(answer: string, candidates: Novel[]): { ids: string[]
   const list = (raw as { picks?: unknown }).picks;
   if (!Array.isArray(list)) return null;
   const picks = list
-    .map((item) => item as { id?: unknown; score?: unknown; reason?: unknown })
+    .map((item) => item as { id?: unknown; score?: unknown; reason?: unknown; shared?: unknown })
     .map((item) => ({
       novel: typeof item.id === "string" ? candidates[Number(item.id.replace(/^c/i, "")) - 1] : undefined,
       score: typeof item.score === "number" ? item.score : 0,
-      reason: typeof item.reason === "string" ? item.reason.trim().slice(0, 240) : ""
+      reason: typeof item.reason === "string" ? item.reason.trim().slice(0, 240) : "",
+      shared: Array.isArray(item.shared) ? item.shared.filter((axis): axis is string => typeof axis === "string" && axis.trim().length > 0) : []
     }))
-    .filter((pick): pick is { novel: Novel; score: number; reason: string } => Boolean(pick.novel) && pick.score >= MIN_PICK_SCORE)
+    // A pick needs two story axes in common, named: "same genre" is not a recommendation.
+    .filter((pick): pick is { novel: Novel; score: number; reason: string; shared: string[] } =>
+      Boolean(pick.novel) && pick.score >= MIN_PICK_SCORE && pick.shared.length >= 2)
     .sort((a, b) => b.score - a.score);
   const ids: string[] = [];
   const reasons: Record<string, string> = {};
@@ -367,7 +382,7 @@ export function parsePicks(answer: string, candidates: Novel[]): { ids: string[]
     if (ids.includes(pick.novel.id) || ids.length >= MAX_PICKS) continue;
     scores[pick.novel.id] = 100 + pick.score - ids.length / 100;
     ids.push(pick.novel.id);
-    if (pick.reason) reasons[pick.novel.id] = pick.reason;
+    reasons[pick.novel.id] = `${Math.round(pick.score)}/10 · ${pick.reason || pick.shared.join("; ")}`;
   }
   return { ids, reasons, scores };
 }
@@ -399,7 +414,7 @@ export async function runSmartFilter(
   if (!wantsCuration(intent)) return base;
 
   const candidates = selectCandidates(deps.index, intent, base.seeds, base.filters);
-  if (!candidates.length) return { ...base, picks: [], candidatesRead: 0 };
+  if (!candidates.length) return { ...base, picks: [], pickNovels: [], candidatesRead: 0 };
   try {
     deps.onStage?.("reading", candidates.length);
     const answer = await deps.ask(CURATION_INSTRUCTIONS, buildCurationText(request, intent, base.seeds, candidates), "low");
@@ -410,6 +425,7 @@ export async function runSmartFilter(
       ...base,
       credits,
       picks: picks.ids,
+      pickNovels: picks.ids.map((id) => deps.index.byId.get(id)).filter((novel): novel is Novel => Boolean(novel)),
       candidatesRead: candidates.length,
       scores: { ...base.scores, ...picks.scores },
       // The model's reasons replace the "tags in common" ones; the rest of the grid is hidden anyway.
