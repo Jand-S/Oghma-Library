@@ -16,7 +16,7 @@ from . import connectors  # noqa: F401  (registra conectores)
 from . import registry
 from .base import ChapterRef, NovelMeta, NovelRef
 from .chapter_assets import localize_chapter_images
-from .fetcher import HttpFetcher
+from .fetcher import HttpFetcher, _is_transient
 from .normalize import chapter_problem, clean_description
 from .novel_url import novel_ref_from_url
 
@@ -28,6 +28,11 @@ INVALID_SAMPLES = 20
 RETRY_INVALID_AFTER = timedelta(days=3)
 # Status HTTP que significam "este capitulo nao existe mais nesta URL".
 CHAPTER_GONE_STATUS = {404, 410}
+# Erro passageiro (timeout, conexao, 429, 5xx) que sobrou depois das tentativas do fetcher:
+# o capitulo fica para a proxima coleta e a novel segue. So depois de tantos seguidos a
+# coleta desiste da novel (o site provavelmente caiu); o resto vem na proxima passada.
+MAX_TRANSIENT_STREAK = 5
+NOVEL_ERROR_SAMPLES = 10
 
 
 def _problem_code(message: str) -> str:
@@ -46,6 +51,17 @@ def _count_invalid(stats: dict, novel_id: str, cref: ChapterRef, problem: str) -
     samples = stats.setdefault("invalid_samples", [])
     if len(samples) < INVALID_SAMPLES:
         samples.append({"novel": novel_id, "number": float(cref.number), "url": cref.url, "problem": problem})
+
+
+def _record_error(stats: dict, novel_id: str, cref: ChapterRef | None, exc: BaseException) -> None:
+    """Guarda o motivo (o run antes so dizia "error while processing")."""
+    samples = stats.setdefault("novel_errors", [])
+    if len(samples) < NOVEL_ERROR_SAMPLES:
+        samples.append({
+            "novel": novel_id,
+            "number": float(cref.number) if cref is not None else None,
+            "error": f"{type(exc).__name__}: {exc}"[:300],
+        })
 
 
 def _now() -> datetime:
@@ -177,8 +193,12 @@ async def _upsert_novel(session: AsyncSession, novel_id: str, meta: NovelMeta) -
     nv.tags = meta.tags
     nv.tag_keys = canonical_tag_keys(meta.tags)
     nv.source_url = meta.url
-    if meta.extra:
-        nv.extra = {**dict(nv.extra or {}), **meta.extra}
+    extra = {**dict(nv.extra or {}), **(meta.extra or {})}
+    if meta.source_chapter_count:
+        # Total que o site anuncia: o catalogo mostra "467 de 967" quando a coleta esta incompleta.
+        extra["source_chapter_count"] = int(meta.source_chapter_count)
+    if extra != (nv.extra or {}):
+        nv.extra = extra
     return nv
 
 
@@ -352,6 +372,7 @@ async def crawl_source(
                 else:
                     stats["covers_skipped"] += 1
                 new = 0
+                transient_streak = 0
                 current_count = int(
                     await session.scalar(
                         select(func.count()).select_from(Chapter).where(Chapter.novel_id == novel_id)
@@ -481,10 +502,26 @@ async def crawl_source(
                     try:
                         raw = await connector.fetch_chapter(fetcher, cref.url)
                         norm = connector.normalize_chapter(raw)
-                    except (ValueError, httpx.HTTPStatusError) as exc:
+                    except (ValueError, httpx.HTTPStatusError, httpx.TransportError) as exc:
+                        if _is_transient(exc):
+                            # Site lento ou fora do ar por um momento: o capitulo fica marcado
+                            # como faltante (sem fetched_at, entao a proxima coleta tenta de novo
+                            # na hora) e a novel continua, em vez de parar no meio.
+                            transient_streak += 1
+                            stats["chapters_transient"] = stats.get("chapters_transient", 0) + 1
+                            _record_error(stats, novel_id, cref, exc)
+                            ch = await _upsert_chapter(
+                                session, cid, novel_id, cref, None, None, None,
+                                status="invalid", problem="transient",
+                            )
+                            ch.fetched_at = None
+                            await _save_run_progress(session, run_id, stats)
+                            if transient_streak >= MAX_TRANSIENT_STREAK:
+                                raise
+                            continue
                         # O conector recusou o conteudo (vazio, rate limit) ou a URL sumiu.
                         # Registra so este capitulo para nova tentativa em vez de abortar a
-                        # novel inteira. Outros erros HTTP continuam abortando a novel.
+                        # novel inteira. Outros erros HTTP (403...) continuam abortando a novel.
                         if isinstance(exc, httpx.HTTPStatusError):
                             if exc.response.status_code not in CHAPTER_GONE_STATUS:
                                 raise
@@ -541,6 +578,7 @@ async def crawl_source(
                     if duplicate:
                         stats["chapters_duplicate"] = stats.get("chapters_duplicate", 0) + 1
                     current_count += 1
+                    transient_streak = 0
                     nv = await session.get(Novel, novel_id)
                     if nv is not None:
                         nv.chapter_count = current_count
@@ -575,17 +613,22 @@ async def crawl_source(
                 stats["last_event"] = f"finished {meta.title}: {new} new chapters"
                 await _save_run_progress(session, run_id, stats)
                 _log_progress(f"novel done {index}/{len(refs)} id={novel_id} new_chapters={new}")
-            except Exception:
+            except Exception as exc:
                 stats["errors"] += 1
                 stats["novels_failed"] += 1
                 await session.rollback()
+                _record_error(stats, novel_id, None, exc)
                 stats["stage"] = "novel_error"
-                stats["last_event"] = f"error while processing {novel_id}"
+                stats["last_event"] = f"error while processing {novel_id}: {type(exc).__name__}: {exc}"[:300]
                 await _save_run_progress(session, run_id, stats)
-                _log_progress(f"novel error id={novel_id}")
+                _log_progress(f"novel error id={novel_id} {type(exc).__name__}: {exc}")
         run.status = "done"
         stats["stage"] = "done"
         stats["last_event"] = "crawl done"
+        if stats.get("novels_failed"):
+            # Coleta terminou, mas nao inteira: o motivo fica visivel no run (e no aviso do rodizio).
+            first = (stats.get("novel_errors") or [{}])[-1].get("error", "")
+            run.error = f"{stats['novels_failed']} novel(s) com erro; ultimo: {first}"[:1000]
     except Exception as exc:  # falha geral
         run.status = "error"
         run.error = str(exc)

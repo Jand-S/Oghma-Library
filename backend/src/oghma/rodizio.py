@@ -104,6 +104,14 @@ def summarize(source_id: str, stats: dict | None, error: str | None) -> tuple[st
     failed = int(stats.get("novels_failed") or 0)
     body = (f"{new} capítulos novos, {invalid} inválidos, {failed} novels com erro, "
             f"{stats.get('novels_done', 0)}/{stats.get('novels_total', 0)} novels.")
+    errors = stats.get("novel_errors") or []
+    if errors:
+        last = errors[-1]
+        where = f" (capítulo {last['number']:g})" if last.get("number") is not None else ""
+        body += f" Último erro em {last.get('novel')}{where}: {last.get('error')}"
+    transient = int(stats.get("chapters_transient") or 0)
+    if transient:
+        body += f" {transient} capítulos ficaram para a próxima coleta (site lento ou fora do ar)."
     if invalid or failed:
         return ("warn", f"{source_id}: {new} capítulos novos, {invalid} inválidos", body)
     if new:

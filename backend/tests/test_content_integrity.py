@@ -152,3 +152,45 @@ def test_only_transient_http_errors_are_retried():
     assert _is_transient(httpx.ConnectError("down"))
     assert _is_transient(status_error(429)) and _is_transient(status_error(503))
     assert not _is_transient(status_error(404)) and not _is_transient(status_error(403))
+
+
+def test_transient_errors_are_recorded_with_reason_and_chapter():
+    import httpx
+    from oghma.scraper.base import ChapterRef
+    from oghma.scraper.orchestrator import NOVEL_ERROR_SAMPLES, _is_transient, _record_error
+
+    stats: dict = {}
+    timeout = httpx.ReadTimeout("The read operation timed out")
+    assert _is_transient(timeout)
+    _record_error(stats, "novellunar:unsheathed", ChapterRef(number=468.0, title="Chapter 468", url="u"), timeout)
+    assert stats["novel_errors"] == [
+        {"novel": "novellunar:unsheathed", "number": 468.0, "error": "ReadTimeout: The read operation timed out"}
+    ]
+    for _ in range(NOVEL_ERROR_SAMPLES + 5):
+        _record_error(stats, "n", None, RuntimeError("x"))
+    assert len(stats["novel_errors"]) == NOVEL_ERROR_SAMPLES
+
+
+def test_rodizio_summary_tells_why_a_novel_stopped():
+    from oghma.rodizio import summarize
+
+    level, title, body = summarize("novellunar", {
+        "chapters_new": 467, "novels_failed": 1, "novels_done": 0, "novels_total": 1, "chapters_transient": 5,
+        "novel_errors": [{"novel": "novellunar:unsheathed", "number": 468.0, "error": "ReadTimeout: timed out"}],
+    }, None)
+    assert level == "warn"
+    assert "capítulo 468" in body and "ReadTimeout" in body and "5 capítulos ficaram para a próxima coleta" in body
+
+
+def test_catalog_publishes_the_chapter_count_the_site_announces():
+    import json
+    from oghma.publish.catalog import build_catalog_json
+    from oghma.publish.records import NovelRecord, SourceRecord
+
+    novel = NovelRecord(id="novellunar:unsheathed", source_id="novellunar", slug="unsheathed", title="Unsheathed",
+                        author=None, description=None, cover_path=None, language="en", status="ongoing", tags=[],
+                        tag_keys=[], updated_at=None, extra={"source_chapter_count": 967})
+    source = SourceRecord(id="novellunar", name="NovelLunar", base_url="https://novellunar.com/", novel_count=1, last_sync=None)
+    payload = json.loads(build_catalog_json(source, [novel], {}))
+    assert payload["novels"][0]["sourceChapterCount"] == 967
+    assert payload["novels"][0]["chapterCount"] == 0

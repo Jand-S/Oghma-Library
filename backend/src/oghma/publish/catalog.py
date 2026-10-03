@@ -73,6 +73,8 @@ def build_catalog_json(source: SourceRecord, novels: list[NovelRecord], bundle_i
                 "tags": n.tags or [],
                 "tagKeys": n.tag_keys or canonical_tag_keys(n.tags or []),
                 "chapterCount": len(n.chapters),
+                # Total anunciado pelo site; maior que chapterCount = coleta ainda incompleta.
+                "sourceChapterCount": (n.extra or {}).get("source_chapter_count"),
                 "updatedAt": n.updated_at,
                 "extra": n.extra or {},
                 "bundleKey": bundle_info.get(n.id, {}).get("key"),
