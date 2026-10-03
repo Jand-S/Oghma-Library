@@ -505,6 +505,7 @@ function jobRequestFromItem(item: QueueItem, config: QueueConfig, formats: Downl
     serverUrl: config.serverUrl,
     outputRoot: config.outputPath,
     bundleKey: item.bundleKey,
+    bundleSha256: item.bundleSha256,
     formats,
     preset: item.preset,
     rangeStart: item.rangeStart,

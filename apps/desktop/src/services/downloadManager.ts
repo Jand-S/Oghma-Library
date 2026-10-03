@@ -20,6 +20,7 @@ export type DownloadNovelInput = {
   id: string;
   title: string;
   bundleKey?: string;
+  bundleSha256?: string;
   coverUrl?: string;
 };
 
@@ -452,6 +453,7 @@ export async function runDownload(req: DownloadRequest, opts: RunDownloadOptions
   let lastReport = -Infinity;
   let bundle: ExtractedBundle | null = await fetchBundle(req.serverUrl, req.novel.bundleKey, {
     signal,
+    sha256: req.novel.bundleSha256,
     onProgress: ({ bytesReceived, bytesTotal }) => {
       const complete = bytesTotal !== undefined && bytesReceived >= bytesTotal;
       const speedBps = meter.sample(bytesReceived, complete);

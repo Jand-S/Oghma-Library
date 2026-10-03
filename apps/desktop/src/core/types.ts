@@ -39,6 +39,7 @@ export type Novel = {
   coverUrl?: string;
   bundleKey?: string;
   bundleVersion?: number;
+  bundleSha256?: string;
 };
 
 export type Chapter = {
@@ -76,6 +77,7 @@ export type QueueItem = {
   coverClass: string;
   coverUrl?: string;
   bundleKey?: string;
+  bundleSha256?: string;
   preset: ChapterPreset;
   rangeStart?: number;
   rangeEnd?: number;
@@ -257,6 +259,8 @@ export type DownloadJobRequest = {
   /** Library root (AppConfig.outputPath). The book folder is resolved by begin_export. */
   outputRoot: string;
   bundleKey?: string;
+  /** Catalog sha256 of the bundle; checked while it streams. */
+  bundleSha256?: string;
   formats: DownloadFormat[];
   preset: ChapterPreset;
   rangeStart?: number;

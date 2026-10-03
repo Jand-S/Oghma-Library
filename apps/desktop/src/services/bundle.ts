@@ -1,6 +1,7 @@
 // Motor de download/extração de bundles publicados no B2/CDN.
 // Bundle = tar.gz com `meta.json` + `chapters/<n>.html` (ver backend/publish/bundles.py).
 // Tudo em TS puro: gunzip nativo (DecompressionStream) + untar minimalista, sem dependencias.
+import { Sha256 } from "./sha256";
 
 export type BundleChapter = { number: number; title?: string; html: string };
 export type BundleAsset = { name: string; data: Uint8Array; mediaType: string };
@@ -215,7 +216,15 @@ export type BundleFetchProgress = { bytesReceived: number; bytesTotal?: number }
 export type FetchBundleOptions = {
   signal?: AbortSignal;
   onProgress?: (progress: BundleFetchProgress) => void;
+  /** `bundleSha256` from the catalog: the download is refused if the bytes do not match. */
+  sha256?: string | null;
 };
+
+export const BUNDLE_MISMATCH = "O arquivo baixado não confere com o catálogo (sha256). Tente de novo; se repetir, a fonte precisa ser republicada.";
+
+function checkDigest(hasher: Sha256 | null, expected?: string | null) {
+  if (hasher && expected && hasher.hex() !== expected.toLowerCase()) throw new Error(BUNDLE_MISMATCH);
+}
 
 function contentLength(res: Response): number | undefined {
   const raw = Number(res.headers.get("content-length"));
@@ -227,7 +236,8 @@ function contentLength(res: Response): number | undefined {
 function countedBody(
   body: ReadableStream<Uint8Array>,
   total: number | undefined,
-  options: FetchBundleOptions
+  options: FetchBundleOptions,
+  hasher: Sha256 | null
 ): ReadableStream<Uint8Array> {
   const reader = body.getReader();
   let received = 0;
@@ -244,6 +254,7 @@ function countedBody(
         return;
       }
       received += value.byteLength;
+      hasher?.update(value);
       options.onProgress?.({ bytesReceived: received, bytesTotal: total === undefined ? undefined : Math.max(total, received) });
       controller.enqueue(value);
     },
@@ -294,12 +305,18 @@ export async function fetchBundle(
     if (!res.ok) throw new Error(`HTTP ${res.status} ao baixar ${url}`);
     const total = contentLength(res);
     const body = res.body;
+    const hasher = options.sha256 ? new Sha256() : null;
     if (body && typeof body.getReader === "function" && typeof DecompressionStream !== "undefined") {
-      return await extractFromGzipStream(countedBody(body, total, options), signal);
+      // The extraction reads the stream to the end, so every byte went through the hasher.
+      const extracted = await extractFromGzipStream(countedBody(body, total, options, hasher), signal);
+      checkDigest(hasher, options.sha256);
+      return extracted;
     }
     // Fallback: no streaming body available.
     const buffer = await res.arrayBuffer();
     throwIfAborted(signal);
+    hasher?.update(new Uint8Array(buffer));
+    checkDigest(hasher, options.sha256);
     options.onProgress?.({ bytesReceived: buffer.byteLength, bytesTotal: Math.max(total ?? 0, buffer.byteLength) });
     return extractBundle(await gunzip(buffer));
   } catch (error) {

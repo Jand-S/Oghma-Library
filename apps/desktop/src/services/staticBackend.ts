@@ -1,6 +1,7 @@
 // Cliente de backend "estatico": le o acervo publicado no B2/CDN
 // (index.json -> catalog.json.gz por site -> bundles tar.gz sob demanda).
 // Implementa a mesma interface BackendClient usada pela UI, sem SQLite no cliente.
+import { sha256Hex } from "./sha256";
 import type {
   BootstrapPayload,
   Chapter,
@@ -117,10 +118,14 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function fetchGzipJson<T>(url: string): Promise<T> {
+async function fetchGzipJson<T>(url: string, sha256?: string | null): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status} ao buscar ${url}`);
   const buf = await res.arrayBuffer();
+  // index.json publishes the sha256 of each catalog: a truncated or tampered file is refused.
+  if (sha256 && sha256Hex(new Uint8Array(buf)) !== sha256.toLowerCase()) {
+    throw new Error(`O catálogo baixado não confere com o índice (sha256): ${url}`);
+  }
   const stream = new Response(buf).body;
   if (!stream) throw new Error(`Resposta sem corpo: ${url}`);
   const text = await new Response(stream.pipeThrough(new DecompressionStream("gzip"))).text();
@@ -190,7 +195,8 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       coverClass: coverClassFor(cn.id),
       coverUrl: resolveCover(base, cn.coverUrl),
       bundleKey: cn.bundleKey ?? undefined,
-      bundleVersion: cn.bundleVersion ?? undefined
+      bundleVersion: cn.bundleVersion ?? undefined,
+      bundleSha256: cn.bundleSha256 ?? undefined
     };
   }
 
@@ -208,7 +214,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
     const next: SiteCache[] = [];
     for (const site of index.sites) {
       if (!site.catalogJsonKey) continue; // catalogo antigo (so sqlite) -> ignora no modo estatico
-      const catalog = await fetchGzipJson<CatalogJson>(`${base}/${site.catalogJsonKey}`);
+      const catalog = await fetchGzipJson<CatalogJson>(`${base}/${site.catalogJsonKey}`, site.catalogJsonSha256);
       const novels = new Map<string, CatalogNovel>();
       for (const n of catalog.novels) novels.set(n.id, n);
       const uiNovels = [...novels.values()].map((novel) => novelToUi(novel, catalog.source));
@@ -328,6 +334,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
           coverClass: novel.coverClass,
           coverUrl: novel.coverUrl,
           bundleKey: novel.bundleKey,
+          bundleSha256: novel.bundleSha256,
           preset: selection.preset,
           rangeStart: selection.start,
           rangeEnd: selection.end,

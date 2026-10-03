@@ -7,6 +7,7 @@ import {
   vi
 } from "vitest";
 import type { Filters } from "../core/types";
+import { sha256Hex } from "../services/sha256";
 import { createStaticBackendClient } from "../services/staticBackend";
 
 const BASE = "https://b2.example";
@@ -83,13 +84,24 @@ function emptyFilters(over: Partial<Filters> = {}): Filters {
   };
 }
 
+let tamperCatalog = false;
+
 beforeEach(() => {
+  tamperCatalog = false;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: unknown) => {
       const u = String(url);
-      if (u.endsWith("/index.json")) return new Response(JSON.stringify(indexJson), { status: 200 });
-      if (u.endsWith("/catalog/x.json.gz")) return new Response(await gzip(JSON.stringify(catalogJson)), { status: 200 });
+      // The same gzip bytes back both the index sha256 and the catalog response.
+      const catalogGz = new Uint8Array(await gzip(JSON.stringify(catalogJson)));
+      if (u.endsWith("/index.json")) {
+        const sites = indexJson.sites.map((site) => ({ ...site, catalogJsonSha256: sha256Hex(catalogGz) }));
+        return new Response(JSON.stringify({ ...indexJson, sites }), { status: 200 });
+      }
+      if (u.endsWith("/catalog/x.json.gz")) {
+        if (tamperCatalog) catalogGz[catalogGz.length - 1] ^= 0xff;
+        return new Response(catalogGz, { status: 200 });
+      }
       return new Response("not found", { status: 404 });
     })
   );
@@ -143,6 +155,11 @@ describe("staticBackend", () => {
     }
     const [complete] = (await createStaticBackendClient(BASE).bootstrap()).novels;
     expect(complete.sourceChapters).toBeUndefined();
+  });
+
+  it("a catalog that does not match the index sha256 is refused", async () => {
+    tamperCatalog = true;
+    await expect(createStaticBackendClient(BASE).bootstrap()).rejects.toThrow("não confere com o índice");
   });
 
   it("searchNovels filters by query", async () => {

@@ -12,6 +12,7 @@
 //
 // Usage: node fixtures/generate.mjs [--out <dir>] [--novels 5000] [--secondary 400] [--library 500]
 //                                   [--max-chapter-entries 50] [--seed 20260929]
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -303,7 +304,8 @@ function main() {
       catalogKey: `catalog/${site.id}-bench.sqlite.gz`,
       catalogSha256: "0".repeat(64),
       catalogJsonKey: key,
-      catalogJsonSha256: "0".repeat(64),
+      // The app refuses a catalog whose bytes do not match this hash.
+      catalogJsonSha256: createHash("sha256").update(gz).digest("hex"),
       catalogVersion: 1,
       novelCount: novels.length,
       updatedAt: "2026-09-20T00:00:00Z"

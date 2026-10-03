@@ -1,3 +1,4 @@
+import { Sha256, sha256Hex } from "../services/sha256";
 import {
   afterEach,
   beforeEach,
@@ -7,6 +8,7 @@ import {
   vi
 } from "vitest";
 import {
+  BUNDLE_MISMATCH,
   bundleToText,
   extractBundle,
   fetchBundle,
@@ -154,6 +156,29 @@ describe("bundle", () => {
     expect(progress.length).toBeGreaterThan(2);
     expect(progress.every((p, i) => i === 0 || p.bytesReceived > progress[i - 1].bytesReceived)).toBe(true);
     expect(progress[progress.length - 1]).toEqual({ bytesReceived: gz.length, bytesTotal: gz.length });
+  });
+
+  it("fetchBundle checks the catalog sha256 while streaming and refuses a corrupted bundle", async () => {
+    const gz = new Uint8Array(await gzipBytes(buildTar(files)));
+    const expected = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", gz)), (b) => b.toString(16).padStart(2, "0")).join("");
+    vi.stubGlobal("fetch", vi.fn(async () => chunkedResponse(gz, 7).response));
+    const ok = await fetchBundle("https://b2.example/", "/content/lord.tar.gz", { sha256: expected.toUpperCase() });
+    expect(ok.chapters).toHaveLength(2);
+
+    vi.stubGlobal("fetch", vi.fn(async () => chunkedResponse(gz, 7).response));
+    await expect(fetchBundle("https://b2.example/", "/content/lord.tar.gz", { sha256: "0".repeat(64) })).rejects.toThrow(BUNDLE_MISMATCH);
+  });
+
+  it("incremental sha256 matches WebCrypto for any chunking", async () => {
+    const data = new Uint8Array(1000).map((_, i) => (i * 31 + 7) & 255);
+    for (const size of [0, 1, 55, 56, 63, 64, 65, 119, 120, 1000]) {
+      const slice = data.subarray(0, size);
+      const want = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", slice)), (b) => b.toString(16).padStart(2, "0")).join("");
+      const hasher = new Sha256();
+      for (let i = 0; i < slice.length; i += 13) hasher.update(slice.subarray(i, i + 13));
+      expect(hasher.hex()).toBe(want);
+      expect(sha256Hex(slice)).toBe(want);
+    }
   });
 
   it("fetchBundle accepts a full URL and works without content-length", async () => {
