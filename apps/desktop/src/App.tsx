@@ -1,5 +1,5 @@
 import { CloudOff, RefreshCcw, Settings } from "lucide-react";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavigationProvider, useNavigation, type AppView } from "./app/NavigationContext";
 import { useBootstrapState } from "./app/useBootstrapState";
 import { useKindleDetection } from "./app/useKindleDetection";
@@ -31,21 +31,23 @@ type AppProps = {
   downloadQueue?: DownloadQueue;
   /** Translation engine transport; defaults to Tauri IPC (tests inject a fake). */
   translationClient?: TranslationClient;
+  /** Called after a new server URL is saved (main.tsx reloads; see useSettingsController). */
+  onServerUrlChange?: () => void;
 };
 
 const ERROR_MESSAGE = /^n[aã]o foi poss[ií]vel/i;
 
-export function App({ backend, downloadQueue, translationClient }: AppProps) {
+export function App({ backend, downloadQueue, translationClient, onServerUrlChange }: AppProps) {
   return (
     <ToastProvider>
       <NavigationProvider initialView={readUiPreferences().startPage}>
-        <AppContent backend={backend} downloadQueue={downloadQueue} translationClient={translationClient} />
+        <AppContent backend={backend} downloadQueue={downloadQueue} translationClient={translationClient} onServerUrlChange={onServerUrlChange} />
       </NavigationProvider>
     </ToastProvider>
   );
 }
 
-function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
+function AppContent({ backend, downloadQueue, translationClient, onServerUrlChange }: AppProps) {
   const navigation = useNavigation();
   const { view, params, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
@@ -145,7 +147,10 @@ function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
     toast
   });
   const sourcesController = useSourcesController({ backend, sources, setSources, setAppConfig, notify });
+  // Settings is created after onboarding (it needs onboarding.resetServerProbe): a ref links them.
+  const restartIfServerChangedRef = useRef<() => void>(() => undefined);
   const onboarding = useOnboardingController({
+    onCompleted: () => restartIfServerChangedRef.current(),
     backend,
     appConfig,
     setAppConfig,
@@ -159,8 +164,10 @@ function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
     appConfig,
     setAppConfig,
     onConnectionChanged: onboarding.resetServerProbe,
-    onOpenOnboarding: onboarding.openOnboarding
+    onOpenOnboarding: onboarding.openOnboarding,
+    onServerUrlChange
   });
+  restartIfServerChangedRef.current = settings.restartIfServerChanged;
   // Also refreshes the library when a PT-BR book is exported (`translation://exported`).
   const translation = useTranslationController({
     client: translationClient,
@@ -238,7 +245,7 @@ function AppContent({ backend, downloadQueue, translationClient }: AppProps) {
             setupSync={onboarding.setupSync}
             setupSyncRunning={onboarding.setupSyncRunning}
             setupSyncCompleted={onboarding.setupSyncCompleted}
-            onChange={settings.patchConfig}
+            onChange={settings.patchConfigDraft}
             onToggleSource={onboarding.toggleOnboardingSource}
             onValidateServer={onboarding.validateServer}
             onRetrySync={onboarding.retrySync}

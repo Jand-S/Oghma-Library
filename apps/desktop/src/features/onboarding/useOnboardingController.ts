@@ -14,6 +14,8 @@ type OnboardingControllerArgs = {
   setSources: Dispatch<SetStateAction<SourceSite[]>>;
   setSyncing: Dispatch<SetStateAction<string[]>>;
   notify: (message: string) => void;
+  /** After the setup is saved (App restarts if the server URL changed during onboarding). */
+  onCompleted?: () => void;
 };
 
 const LAST_STEP = onboardingStrings.steps.length - 1;
@@ -27,7 +29,8 @@ export function useOnboardingController({
   setShowOnboarding,
   setSources,
   setSyncing,
-  notify
+  notify,
+  onCompleted
 }: OnboardingControllerArgs) {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [serverProbe, setServerProbe] = useState<ServerProbe | null>(null);
@@ -102,6 +105,7 @@ export function useOnboardingController({
     setOnboardingStep(0);
     resetSync();
     notify(onboardingStrings.setupSaved);
+    onCompleted?.();
   };
 
   const advanceOnboarding = () => {

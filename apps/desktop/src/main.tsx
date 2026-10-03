@@ -65,7 +65,7 @@ async function render() {
   }
   root.render(
     <React.StrictMode>
-      <App backend={resolveBackend()} />
+      <App backend={resolveBackend()} onServerUrlChange={() => window.location.reload()} />
     </React.StrictMode>
   );
 }
