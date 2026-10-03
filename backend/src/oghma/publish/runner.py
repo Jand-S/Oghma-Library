@@ -14,6 +14,7 @@ from .catalog import build_catalog, build_catalog_json
 from .covers import plan_covers
 from .hashing import content_hash, file_sha256
 from .reader import read_source
+from .source_meta import dominant_language, plan_source_icon
 from .state import load_state, publish_lock, save_state
 from .uploader import DryRunUploader, make_uploader
 
@@ -146,12 +147,20 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
     catalog_json_sha, _ = await asyncio.to_thread(file_sha256, catalog_json_gz)
 
     prev_site = state["sites"].get(source_id, {})
+    # Idioma e icone vao no indice: o desktop nao precisa de mapas fixos para fontes novas.
+    icon = await asyncio.to_thread(
+        plan_source_icon, source, Path(settings.storage_root) / "sources", prev_site,
+        user_agent=settings.user_agent,
+    )
     state["sites"][source_id] = {
-        "id": source_id, "name": source.name, "catalogKey": catalog_key,
+        "id": source_id, "name": source.name, "baseUrl": source.base_url or None,
+        "language": dominant_language(novels),
+        "catalogKey": catalog_key,
         "catalogSha256": catalog_sha,
         "catalogJsonKey": catalog_json_key, "catalogJsonSha256": catalog_json_sha,
         "catalogVersion": int(prev_site.get("catalogVersion", 0)) + 1,
         "novelCount": len(novels), "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **icon["fields"],
     }
     index = _index_from_state(state)
     index_bytes = json.dumps(index, ensure_ascii=False, indent=2).encode("utf-8")
@@ -159,6 +168,7 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
 
     cover_plan = [c for c in plan_covers([n for n, _ in changed])]
     summary = {"novels": len(novels), "bundles_changed": len(changed), "covers": len(cover_plan),
+               "icon": state["sites"][source_id].get("iconKey"),
                "missing_covers": missing_covers, "catalog_key": catalog_key,
                "catalog_json_key": catalog_json_key, "uploaded": False}
 
@@ -170,6 +180,8 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
             for n, local in changed
         ]
         files.extend((c["local"], c["key"], c["content_type"]) for c in cover_plan)
+        if icon["upload"]:
+            files.append(icon["upload"])
         if progress:
             progress({"phase": "uploading", "uploadItems": len(files) + 3})
         concurrency = max(1, min(settings.publish_upload_concurrency, 16))
