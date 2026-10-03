@@ -24,6 +24,8 @@ export type SourceRequest = {
   novelTitle: string | null;
   sourceId: string | null;
   message: string;
+  /** Quando o pedido volta a ser construído (esperando plano), ISO. */
+  retryAt?: string | null;
   createdAt: string;
   updatedAt: string;
   duplicate?: boolean;
