@@ -115,15 +115,17 @@ class NullBrain(Brain):
 class _LocalRunBrain(NullBrain):
     """Ensaio sem pedido no brain: cada etapa vira um aviso numa thread propria."""
 
-    def __init__(self, brain: Brain, request: dict):
+    def __init__(self, brain: Brain, request: dict, engine: str | None = None):
         super().__init__()
         self.brain, self.thread = brain, f"oghma-ensaio-{request['id']}"
+        who = f" ({engine})" if engine else ""
+        self.subject = f"Ensaio do autoconnector{who}: {request['domain']} → {request.get('sourceId') or source_id_for(request['domain'])}"
 
     def update(self, request_id, **fields):
         super().update(request_id, **fields)
         if fields.get("title"):
             self.brain.notify(level=fields.get("level", "info"), thread=self.thread, title=fields["title"],
-                              body=fields.get("body") or fields.get("log", "")[:1500])
+                              subject=self.subject, body=fields.get("body") or fields.get("log", "")[:1500])
 
 
 # ------------------------------------------------------------------ pipeline
@@ -469,7 +471,7 @@ def main() -> int:
                    "novelUrl": args.url if u.path.strip("/") else None, "sourceId": args.source_id}
         brain = Brain(cfg("BRAIN_URL", "https://brain.jandson.me"), cfg("BRAIN_TOKEN")) if cfg("BRAIN_TOKEN") else NullBrain()
         if isinstance(brain, Brain) and not isinstance(brain, NullBrain):
-            brain = _LocalRunBrain(brain, request)
+            brain = _LocalRunBrain(brain, request, force)
         Pipeline(request, brain, engines, force_engine=force, deploy=not args.no_deploy and not args.rebuild,
                  rebuild=args.rebuild).run()
         return 0
