@@ -34,6 +34,7 @@ export const languageOptions = [
 export const ratingOptions: Array<{ value: ContentRatingFilter; label: string }> = [
   { value: "all", label: discoverStrings.ratingAll },
   { value: "safe", label: discoverStrings.ratingSafe },
+  { value: "mature", label: discoverStrings.ratingMature },
   { value: "suggestive", label: discoverStrings.ratingSuggestive },
   { value: "erotic", label: discoverStrings.ratingErotic }
 ];

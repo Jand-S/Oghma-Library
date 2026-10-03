@@ -21,17 +21,24 @@ function novel(tags: string[], tagKeys: string[]): Novel {
 }
 
 describe("content rating filters", () => {
-  it("classifies erotic, suggestive and safe novels from normalized tags", () => {
-    expect(contentRatingForNovel(novel(["Adulto"], ["genre.adult"]))).toBe("erotic");
+  it("classifies erotic, suggestive, mature and safe novels from normalized tags", () => {
+    // "Adulto"/"Mature" is mature themes (Omniscient Reader has it), not sexual content.
+    expect(contentRatingForNovel(novel(["Adulto"], ["genre.adult"]))).toBe("mature");
+    expect(contentRatingForNovel(novel(["Mature"], ["genre.adult"]))).toBe("mature");
+    // An explicit age mark and sexual tags stay erotic, even though "+18" shares the tag key.
+    expect(contentRatingForNovel(novel(["+18"], ["genre.adult"]))).toBe("erotic");
+    expect(contentRatingForNovel(novel(["Heavy Smut"], []))).toBe("erotic");
     expect(contentRatingForNovel(novel(["Ecchi"], ["genre.ecchi"]))).toBe("suggestive");
     expect(contentRatingForNovel(novel(["Fantasia"], ["genre.fantasy"]))).toBe("safe");
   });
 
   it("lets erotic tags win over suggestive tags", () => {
-    const item = novel(["Ecchi", "Adulto"], ["genre.ecchi", "genre.adult"]);
+    const item = novel(["Ecchi", "Smut"], ["genre.ecchi"]);
 
     expect(contentRatingForNovel(item)).toBe("erotic");
     expect(matchesContentRating(item, "suggestive")).toBe(false);
     expect(matchesContentRating(item, "erotic")).toBe(true);
+    // Suggestive wins over mature themes.
+    expect(contentRatingForNovel(novel(["Adulto", "Harém"], ["genre.adult", "theme.harem"]))).toBe("suggestive");
   });
 });

@@ -177,8 +177,14 @@ export function matchesTagFilters(novel: Novel, includeTags: string[], excludeTa
     && excludeTags.every((key) => !keys.includes(key));
 }
 
+// "Adulto"/"Adult"/"Mature" (genre.adult) means mature themes on most sources: Central Novel
+// puts it on Omniscient Reader, Against the Gods, All You Need Is Kill. It is its own level, not
+// erotic. An explicit age mark ("+18", "18+", "Adult Only") and sexual tags stay erotic.
+const matureTagKeys = new Set(["genre.adult"]);
+
+const matureTagText = new Set(["adult", "adulto", "mature", "maduro", "publico adulto"]);
+
 const eroticTagKeys = new Set([
-  "genre.adult",
   "genre.erotic",
   "genre.explicit_erotic",
   "theme.bdsm",
@@ -211,8 +217,6 @@ const suggestiveTagKeys = new Set([
 const eroticTagText = new Set([
   "18",
   "18 plus",
-  "adult",
-  "adulto",
   "adult only",
   "bdsm",
   "dirty talk",
@@ -223,11 +227,9 @@ const eroticTagText = new Set([
   "heavy smut",
   "incest",
   "incesto",
-  "mature",
   "non consensual",
   "nonconsensual",
   "nsfw",
-  "publico adulto",
   "sex",
   "sex friends",
   "sex slaves",
@@ -264,13 +266,16 @@ function contentSignals(novel: Pick<Novel, "tags" | "tagKeys">) {
     || rawTexts.some((text) => eroticTagText.has(text));
   const hasSuggestive = keys.some((key) => suggestiveTagKeys.has(key))
     || rawTexts.some((text) => suggestiveTagText.has(text));
-  return { hasErotic, hasSuggestive };
+  const hasMature = keys.some((key) => matureTagKeys.has(key))
+    || rawTexts.some((text) => matureTagText.has(text));
+  return { hasErotic, hasSuggestive, hasMature };
 }
 
 export function contentRatingForNovel(novel: Pick<Novel, "tags" | "tagKeys">): Exclude<ContentRatingFilter, "all"> {
-  const { hasErotic, hasSuggestive } = contentSignals(novel);
+  const { hasErotic, hasSuggestive, hasMature } = contentSignals(novel);
   if (hasErotic) return "erotic";
   if (hasSuggestive) return "suggestive";
+  if (hasMature) return "mature";
   return "safe";
 }
 

@@ -70,6 +70,7 @@ export const discoverStrings = {
   contentRating: "Classificação",
   ratingAll: "Todas",
   ratingSafe: "Livre",
+  ratingMature: "Temas maduros",
   ratingSuggestive: "Sugestivo",
   ratingErotic: "+18",
   chapters: "Capítulos",

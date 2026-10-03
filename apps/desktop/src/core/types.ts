@@ -198,7 +198,9 @@ export type LibraryMeta = {
 };
 
 export type TagCategory = "format" | "genre" | "theme";
-export type ContentRatingFilter = "all" | "safe" | "suggestive" | "erotic";
+/** Content rating, from mildest: "mature" = mature themes (violence, gore, dark subjects; the
+ *  "Adulto"/"Mature" tag of most sources), "suggestive" = ecchi/harem, "erotic" = sexual content. */
+export type ContentRatingFilter = "all" | "safe" | "mature" | "suggestive" | "erotic";
 
 export type TagCatalogItem = {
   key: string;
