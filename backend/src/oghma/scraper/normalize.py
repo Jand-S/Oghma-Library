@@ -202,7 +202,12 @@ _DESC_JUNK_LINE = re.compile(
     r"|^(?:tradu[çc][ãa]o|tradutor(?:a)?|revis[ãa]o|revisor(?:a)?|editor(?:a)?|raws?|fonte|status"
     r"|scan|grupo)\s*:"
     r"|sem autoriza[çc][ãa]o pr[ée]via|solicitar a remo[çc][ãa]o|direitos legais sobre a obra"
-    r"|entrar em contato|entre em contato|^aviso\b",
+    r"|entrar em contato|entre em contato|^aviso\b"
+    # Linha que so separa blocos ("=====", "-----", "*****").
+    r"|^[\s=\-*_~•·.]{4,}$"
+    # Avisos do tradutor sobre a traducao, nao sobre a historia.
+    r"|^\W*aten[çc][ãa]o\W*$|qualidade da tradu[çc][ãa]o|vers[ãa]o (?:web ?novel|light ?novel)\b.*dispon[íi]vel"
+    r"|dispon[íi]vel originalmente|tradu[çc][ãa]o (?:pausada|cancelada|dropada|retomada)",
     re.IGNORECASE,
 )
 _DESC_PREFIX = re.compile(r"^\s*(?:sinopse|synopsis|resumo)\s*[:\-–]\s*", re.I)

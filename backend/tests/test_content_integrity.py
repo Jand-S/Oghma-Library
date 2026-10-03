@@ -205,3 +205,17 @@ def test_cold_novels_are_not_marked_missing_file():
     assert "storage_state" in sql and "cold" in str(
         short_chapters_query().compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
     assert "source_id" in sql
+
+
+def test_clean_description_drops_translator_notices_and_separator_lines():
+    raw = (
+        "⚠️ Atenção!! ⚠️\n\nEssa é a versão WEBNOVEL de Re:Zero disponível originalmente AQUI.\n\n"
+        "Subaru é levado a outro mundo e descobre que volta no tempo quando morre.\n\n"
+        "==============================\n\n"
+        "A qualidade da tradução nos primeiros 80 capítulos é bastante inferior.\n\n"
+        "Só ele lembra das mortes, e a atenção dele está em salvar Emilia."
+    )
+    assert clean_description(raw) == (
+        "Subaru é levado a outro mundo e descobre que volta no tempo quando morre.\n\n"
+        "Só ele lembra das mortes, e a atenção dele está em salvar Emilia."
+    )
