@@ -32,28 +32,31 @@ fonte da verdade da interface: tokens, camadas CSS, primitivas, shell e regras d
 
 ## 1. Princípios
 
-A referência visual é o **Hydra Launcher** (fork `Jand-S/hydra`). A marca continua sendo o teal do Oghma.
+A referência visual é o **software da Apple** (Books, Music, App Store, Finder e Ajustes do Sistema no
+macOS), desde o redesign de 2026-10. Antes era o Hydra Launcher. A marca continua sendo o teal do Oghma.
 
-- **Escuro neutro.** O fundo é preto neutro, sem tom azulado: `#0d0d0d` na sidebar e `#121212` no
-  app. As superfícies sobem em degraus de cinza (`--surface-1/2/3`). Não há gradientes decorativos.
-- **Um acento só.** O teal `#00796b` (`--accent`) marca ação primária, item ativo, foco e progresso.
-  Não use o acento em áreas grandes nem em texto corrido. As cores de status (`--danger`,
-  `--warning`, `--success`, `--info`) só servem para comunicar estado.
-- **Vidro (glass).** Painéis flutuantes e botões sobre imagem usam fundo branco translúcido
-  (`--glass`, `--glass-strong`) com `backdrop-filter: blur(var(--glass-blur))`. Use com moderação:
-  vidro sobre vidro vira ruído.
-- **Grade de 8px.** Todo espaçamento vem de `--space-*` (4, 8, 12, 16, 24, 32, 40, 48, 64). Os
-  controles têm 32, 40 ou 48px de altura (`--control-sm/md/lg`).
-- **Capas grandes 2:3.** O livro é o protagonista. Capas usam `--cover-ratio: 2 / 3` e o
-  componente `Cover`, que mostra as iniciais do título quando não há imagem.
-- **Movimento curto e discreto.** O padrão é `transition: all var(--dur-base) var(--ease)`, que dá a
-  sensação "`all .2s ease`" do Hydra. Nada pisca nem quica. Tudo zera com `prefers-reduced-motion`.
-- **Semântica antes de estilo.** Componentes expõem papéis e rótulos ARIA corretos. Os testes
-  consultam por role, label e `data-testid`, nunca por classe CSS.
-- **Textos em pt-BR com acentos.** Strings visíveis ficam em `src/strings/*`. Identificadores,
-  comentários e mensagens de commit ficam em inglês.
-- **Só tema escuro por enquanto.** Como os tokens são semânticos, um tema claro é só um bloco de
-  override (veja a [seção 9](#9-tema-claro-futuro)).
+- **Escuro do macOS.** Cinzas levemente quentes: `#1f1f21` na sidebar (um pouco mais clara que o
+  conteúdo, como no Music) e `#19191b` no app. As superfícies sobem em degraus (`--surface-1/2/3`).
+  Gradiente só nos fundos que vêm da capa (desfoque) e nos véus sobre ela. Nada de brilhos decorativos.
+- **Fonte do sistema.** `-apple-system` (SF Pro no Mac, Segoe no Windows). Títulos grandes usam
+  `--fs-display` com `--tracking-display`.
+- **Um acento só.** O teal `#00796b` (`--accent`) marca ação primária, seleção e progresso. Ícones e
+  links de texto sobre o escuro usam `--accent-tint` (`#4db6ac`). As cores de status só comunicam estado.
+- **Tons semânticos, não opacidades soltas.** Fundos e bordas coloridos vêm de `--accent-soft`,
+  `--danger-line` etc. (lint `raw-tint`). Seleção usa `--selected-bg` e `--selected-border`.
+- **Listas agrupadas.** Informações e ajustes ficam em linhas com separador fino dentro de uma
+  superfície arredondada (`ListGroup`, `.settings-group__rows`), como nos Ajustes do Sistema.
+- **Títulos de seção em caixa normal.** Um estilo só (`SectionHeader`): semibold, sem caixa alta. Caixa
+  alta fica para sobretítulos pequenos (o "Destaque" do Início) e rótulos de fato (`dt`).
+- **Raios.** `--radius-card` (12px) para cartões, painéis e heróis; `--radius-md` (8px) para controles;
+  `--radius-xl` (18px) para o destaque do Início e o card do onboarding.
+- **Ações destrutivas no menu.** Como no Finder: "Excluir…" fica no fim do menu ⋯, separado e em
+  vermelho, sempre com confirmação. Nada de "zona de perigo" na tela.
+- **Grade de 8px** (`--space-*`) e **capas 2:3** (`Cover`), como antes.
+- **Movimento curto.** Transições de 120–320ms; tudo zera com `prefers-reduced-motion`.
+- **Semântica antes de estilo.** Testes consultam por role, label e `data-testid`, nunca por classe.
+- **Textos em pt-BR** em `src/strings/*`; identificadores e commits em inglês.
+- **Só tema escuro por enquanto** (veja a [seção 9](#9-tema-claro-futuro)).
 
 ## 2. Arquitetura de camadas
 
@@ -165,11 +168,11 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--bg-app` | `#121212` | Fundo do app, da área principal e da borda interna do anel de foco. |
-| `--bg-sidebar` | `#0d0d0d` | Fundo da sidebar e da titlebar, o plano mais escuro. |
-| `--surface-1` | `#1a1a1a` | Cards, painéis e inputs. |
-| `--surface-2` | `#222` | Superfície elevada: hover de card, menus, modais. |
-| `--surface-3` | `#2c2c2c` | Superfície mais alta: trilho de switch, skeleton, fundo de capa sem imagem. |
+| `--bg-app` | `#19191b` | Fundo do app, da área principal e da borda interna do anel de foco. |
+| `--bg-sidebar` | `#1f1f21` | Fundo da sidebar, da titlebar e da navegação dos Ajustes. |
+| `--surface-1` | `#222224` | Cards, painéis e inputs. |
+| `--surface-2` | `#2a2a2d` | Superfície elevada: hover de card, menus, modais. |
+| `--surface-3` | `#3a3a3c` | Superfície mais alta: trilho de switch, skeleton, fundo de capa sem imagem. |
 | `--glass` | `rgba(255,255,255,.06)` | Fundo de vidro: botão `glass`, chip, badge neutro, ícone de EmptyState. |
 | `--glass-strong` | `rgba(255,255,255,.1)` | Hover do vidro, chip selecionado. |
 | `--glass-blur` | `16px` | Raio do `backdrop-filter: blur()` em vidro, modal e painel `glass`. |
@@ -183,15 +186,16 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 |---|---|---|
 | `--border` | `rgba(255,255,255,.08)` | Borda padrão (hairline) de cards, inputs e divisórias. |
 | `--border-strong` | `rgba(255,255,255,.16)` | Borda em hover, botão `outline`, thumb da scrollbar. |
+| `--separator` | `rgba(255,255,255,.06)` | Linha fina entre linhas de lista e tabela. |
 
 ### Texto
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--text` | `#f0f1f7` | Texto principal e títulos. |
-| `--text-2` | `#d0d1d7` | Texto secundário com boa leitura (descrições, corpo de card). |
-| `--text-muted` | `#a6a7af` | Metadados, hints, `<small>`, rótulos auxiliares. Contraste ≥ 4,5:1 em todas as superfícies (8,1 em `--bg-sidebar`, 7,8 em `--bg-app`, 7,3 em `--surface-1`, 6,6 em `--surface-2`, 5,8 em `--surface-3`, 4,5 em `--active` sobre `--surface-2`). |
-| `--text-disabled` | `#5f6068` | Placeholder e itens desabilitados. |
+| `--text` | `#f5f5f7` | Texto principal e títulos. |
+| `--text-2` | `#d1d1d6` | Texto secundário com boa leitura (descrições, corpo de card). |
+| `--text-muted` | `#a8a8ae` | Metadados, hints, `<small>`, rótulos auxiliares. Contraste ≥ 4,5:1 em todas as superfícies (8,1 em `--bg-sidebar`, 7,8 em `--bg-app`, 7,3 em `--surface-1`, 6,6 em `--surface-2`, 5,8 em `--surface-3`, 4,5 em `--active` sobre `--surface-2`). |
+| `--text-disabled` | `#5c5c61` | Placeholder e itens desabilitados. |
 
 ### Marca
 
@@ -203,6 +207,7 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 | `--accent-fg` | `#fff` | Texto e ícone sobre `--accent`. |
 | `--accent-rgb` | `0 121 107` | Canais para tons translúcidos: `rgb(var(--accent-rgb) / .14)`. |
 | `--accent-text` | `#d7f4ef` | Texto sobre fundo de acento suave (badge e chip `accent`). |
+| `--accent-tint` | `#4db6ac` | Ícone do item ativo da sidebar, links "Ver tudo ›", sobretítulos. |
 | `--danger-text` | `#f2b3bc` | Texto sobre fundo de perigo suave (badge/chip `danger`, erro de campo, item de menu `danger`). |
 
 ### Status
@@ -215,6 +220,18 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 | `--info` / `--info-rgb` | `#4fb7e8` / `79 183 232` | Toast informativo. |
 | `--black-rgb` | `0 0 0` | Canais para sombras e véus compostos. Reservado para o tema claro. |
 | `--white-rgb` | `255 255 255` | Canais para brilhos (sheen da capa). |
+
+### Tons semânticos
+
+Fundos e bordas coloridos nas telas vêm destes tokens (o lint `raw-tint` proíbe `rgb(var(--accent-rgb) / a)`
+em `src/features` e `src/shell`). Véus preto/branco sobre capas continuam livres.
+
+| Família | `-subtle` | `-soft` | `-line` | Extra |
+|---|---|---|---|---|
+| `--accent-*` | `.08` áreas grandes, hover | `.16` badge, chip, linha selecionada | `.5` borda de selecionado | `--accent-ring` `.3` (anel/brilho) |
+| `--danger-*`, `--warning-*`, `--success-*`, `--info-*` | `.06` fundo de banner | `.14` badge, chip | `.45` borda | `--success-ring` `.25` |
+| `--selected-bg` / `--selected-border` | | = `--accent-soft` | = `--accent-line` | Item selecionado em listas. |
+| `--scrim` / `--scrim-strong` | | | | Véu preto `.55` / `.78` sobre capas. |
 
 ### Foco
 
@@ -243,24 +260,31 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 | `--radius-xs` | `4px` | Badges, capas pequenas, handles. |
 | `--radius-sm` | `6px` | Inputs simples, itens de menu. |
 | `--radius-md` | `8px` | Botões, cards, capas. |
-| `--radius-lg` | `12px` | Modais, painéis, toasts. |
+| `--radius-lg` | `12px` | Modais e toasts. |
+| `--radius-card` | `12px` | Cartões, painéis, heróis, listas agrupadas, banners. |
+| `--radius-xl` | `18px` | Destaque do Início e card do onboarding. |
 | `--radius-pill` | `999px` | Chips, switches, barras de progresso, scrollbar. |
 
 ### Tipografia
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--font-sans` | `Inter, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif` | Fonte da interface. |
-| `--font-mono` | `"JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace` | `code`, `kbd`, `pre`, caminhos e detalhes de erro. |
+| `--font-sans` | `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Inter, Roboto, system-ui, sans-serif` | Fonte da interface (do sistema). |
+| `--font-mono` | `"SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace` | `code`, `kbd`, `pre` e detalhes de erro. Caminhos usam `PathControl`, não mono. |
+| `--font-serif` | `"Iowan Old Style", Charter, …` | Leitor e revisão da tradução. |
 | `--fs-xs` | `12px` | `<small>`, metadados, badges. |
 | `--fs-sm` | `13px` | Botão `sm`, hints, `h3`. |
 | `--fs-md` | `14px` | Corpo (padrão do `body`). |
 | `--fs-lg` | `16px` | `h2`, botão `lg`, títulos de card grandes. |
 | `--fs-xl` | `20px` | Título de modal e de seção de destaque. |
 | `--fs-2xl` | `24px` | `h1`, título do PageHeader. |
-| `--fs-3xl` | `32px` | Números de destaque e hero. Ainda não é usado. |
+| `--fs-3xl` | `32px` | Título do herói da Biblioteca, números de destaque. |
+| `--fs-display` | `28px` | Título grande (destaque do Início). |
 | `--lh-tight` | `1.25` | Títulos e controles. |
 | `--lh-base` | `1.5` | Corpo de texto. |
+| `--lh-snug` | `1.35` | Títulos de capa em duas linhas. |
+| `--lh-reading` | `1.7` | Leitura longa (leitor e revisão da tradução). |
+| `--tracking-tight` / `--tracking-display` | `-0.01em` / `-0.02em` | Títulos de seção / título grande. |
 | `--fw-regular` | `400` | Corpo. |
 | `--fw-medium` | `500` | Itens de navegação, rótulos. |
 | `--fw-semibold` | `600` | Botões, títulos de card. |
@@ -358,6 +382,7 @@ O script `scripts/check-css.mjs` não tem dependências. Ele varre `src/**/*.css
 | `important` | `!important` é proibido. Resolva com camadas. |
 | `unlayered` | Regra fora de `@layer`. |
 | `duplicate` | Seletor repetido na mesma camada e no mesmo contexto de at-rule. Junte as duas regras. |
+| `raw-tint` | `rgb(var(--accent/danger/warning/success/info-rgb) / a)` em `src/features` ou `src/shell`. Use os tons semânticos (`--accent-soft`, `--danger-line`…). |
 
 - `url(...)` e strings entre aspas são ignorados, então data URIs e `content: "…"` não disparam o lint.
 - `rem`, `em`, `%`, `vh`, `fr` e números sem unidade são permitidos. Prefira token quando o valor
@@ -765,6 +790,39 @@ Os dois renderizam `<section aria-labelledby>` quando há título, com `<h2>` no
   <code>{outputPath}</code>
 </Panel>
 ```
+
+### SectionHeader
+
+`title`, `subtitle?`, `as?` (`h2`/`h3`), `size?` (`lg` para seções de página, `md` em painéis), `id?`,
+`action?`, `onSeeAll?` + `seeAllLabel?` (link "Ver tudo ›" em `--accent-tint`). É o único estilo de
+título de seção: semibold, sem caixa alta.
+
+### ListGroup e ListRow
+
+Lista agrupada no estilo Apple: superfície arredondada (`--radius-card`) com linhas separadas por
+`--separator` recuado. `ListGroup` aceita `title?` e `footer?`; `ListRow` aceita `icon?` (num quadrado
+`--surface-3`), `label`, `description?`, o valor/controle como `children` e `stacked` (valor embaixo,
+para caminhos). Usado em Biblioteca > Informações e Ajustes > Conta. Dentro dos Ajustes o fundo passa
+para `--surface-2`.
+
+### Banner
+
+`tone` (`info`/`warning`/`danger`/`success`), `icon?` (padrão por tom; `null` tira), `title?`,
+`children`, `actions?`. Aviso dentro da página: limite do ChatGPT, estado do projeto de tradução,
+livro oculto, conectar a conta. Usa `--*-subtle` no fundo e `--*-line` na borda.
+
+### PathControl
+
+Barra de caminho no estilo Finder: ícone de pasta e as últimas `segments` (padrão 2) pastas; as pastas
+pai não encolhem, só a última. O caminho completo fica no `title`; o menu de contexto tem "Mostrar no
+Finder" (com `onReveal`) e "Copiar caminho". Sem `onReveal` é estático. Use para qualquer caminho
+mostrado ao usuário (Biblioteca, Kindle, resumo do onboarding), nunca `<code>`.
+
+### Tabela (`.o-table`)
+
+Classe compartilhada em `ui/Table.css`: cabeçalho `--fs-xs` `--text-muted`, linhas separadas por
+`--separator`, hover neutro e `.o-table--sticky` para cabeçalho fixo. A tabela da Tradução segue o
+mesmo visual.
 
 ### SortableList
 
@@ -1260,3 +1318,23 @@ Os agentes do P2 e mudanças futuras **acrescentam** uma subseção `### <Tela>`
 - Favicons embutidos em `public/sources/<sourceId>.png` (64×64), mapeados em `sourceIcons.ts`; `SourceIcon` cai para um monograma quando não há ícone. Nenhum favicon é buscado em runtime.
 - `lastSync.ts` guarda a hora da última sincronização bem-sucedida (`oghma.sources.lastSync`), compartilhada com Ajustes e o onboarding.
 - `data-testid`: `sources-page`, `source-row`, `source-icon`, `source-skeleton`, `source-status`.
+
+### Redesign Apple (2026-10)
+
+- **Sidebar** em grupos como no Music (sem rótulo: Início, Buscar; **Biblioteca**: Biblioteca,
+  Downloads, Kindle; **Ferramentas**: Tradução, Fontes), definidos em `shell/nav.ts` (`navGroups`). O
+  item ativo é uma pílula `--active` com ícone `--accent-tint`.
+- **PageHeader** sem borda fixa: a linha aparece quando a página rola (`.o-app__main--scrolled`).
+- **⌘K / Ctrl+K** em qualquer tela abre o Buscar com o campo focado.
+- **Conta ChatGPT** é uma só: `controllers.account` (`app/account.ts`) é a fatia de conta do controller
+  da Tradução. Aparece em Ajustes > Conta (`features/account/ChatGptAccount.tsx`), no avatar com menu no
+  cabeçalho da Tradução e no banner "Conecte sua conta" da Tradução deslogada.
+- **Buscar:** a IA saiu do painel da novel ("Parecidos" vem do servidor). O campo de busca tem uma
+  lista no estilo Spotlight (`DiscoverSearchField.tsx`): "Pedir sugestões à IA" (⌘↵) e atalhos de
+  título. Deslogado, a linha conecta e roda o pedido depois do login (`askSmartAfterLogin`).
+- **Início:** destaque rotativo (`HomeFeatured`), cards largos para os livros, fileiras com "Ver tudo ›"
+  (`HomeShelf`), "Porque você leu X" e "Explorar por gênero" (`HomeGenres`).
+- **Biblioteca:** sem "Zona de perigo" (ocultar/excluir no menu ⋯); painel "Informações" com
+  `PathControl`; livro oculto mostra um `Banner`.
+- **Ajustes:** ícones em quadrados (ativo em `--accent`) e linhas agrupadas em `--surface-2`.
+
