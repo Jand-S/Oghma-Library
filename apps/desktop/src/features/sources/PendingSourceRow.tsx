@@ -66,7 +66,7 @@ export function PendingSourceRow({ request, site, onAdd, adding = false, onDismi
       <td className="sources-table__cell sources-table__cell--number">{site ? site.count.toLocaleString("pt-BR") : "—"}</td>
       <td className="sources-table__cell sources-table__cell--sync" title={requested.title}>{strings.requested(requested.label.toLowerCase())}</td>
       {ready && request.sourceId && onAdd ? (
-        <AddSourceCell loading={adding} onAdd={() => onAdd(request.sourceId as string)} />
+        <AddSourceCell loading={adding} onAdd={() => onAdd(request.sourceId as string)} onDismiss={() => onDismiss(request.id)} />
       ) : (
         <>
           <td className="sources-table__cell sources-table__cell--switch">
@@ -74,7 +74,8 @@ export function PendingSourceRow({ request, site, onAdd, adding = false, onDismi
           </td>
           <td className="sources-table__cell sources-table__cell--actions">
             <div className="sources-table__actions">
-              {ended ? <IconButton size="sm" icon={<X />} label={strings.dismiss} onClick={() => onDismiss(request.id)} /> : null}
+              {/* Any request can leave the list: it only stops being followed here. */}
+              <IconButton size="sm" icon={<X />} label={strings.dismiss} onClick={() => onDismiss(request.id)} data-testid="pending-source-dismiss" />
             </div>
           </td>
         </>

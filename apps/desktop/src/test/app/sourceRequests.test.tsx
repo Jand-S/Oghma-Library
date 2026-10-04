@@ -111,6 +111,14 @@ describe("Pedidos de fonte nova", () => {
     expect(requests.dismiss).toHaveBeenCalledWith("a1b2c3d4e5");
   });
 
+  it("pedido pronto ou em construção também pode sair da lista (fonte retirada ou que não interessa)", () => {
+    const ready = view([request({ status: "live", stage: "live", stageIndex: 7, sourceId: "novellunar", domain: "novellunar.com" })], { onAddSource: vi.fn() });
+    const row = screen.getByTestId("pending-source-row");
+    expect(within(row).getByRole("button", { name: strings.addAndSync })).toBeInTheDocument();
+    fireEvent.click(within(row).getByRole("button", { name: strings.dismiss }));
+    expect(ready.dismiss).toHaveBeenCalledWith("a1b2c3d4e5");
+  });
+
   it("envia o pedido pelo modal e avisa", async () => {
     const onNotify = vi.fn();
     const requests = view([], { onNotify });
