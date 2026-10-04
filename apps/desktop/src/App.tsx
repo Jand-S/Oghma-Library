@@ -219,6 +219,29 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
 
   const goTo = (target: AppView) => navigate(target, undefined, { root: true });
 
+  // ⌘K / Ctrl+K: jump to the Buscar search field from anywhere (Spotlight-style).
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== "k") return;
+      event.preventDefault();
+      navigateRef.current("discover", undefined, { root: true });
+      const focus = (tries: number) => {
+        const field = document.querySelector<HTMLInputElement>("[data-testid='discover-search']");
+        if (field) {
+          field.focus();
+          field.select();
+        } else if (tries > 0) {
+          window.setTimeout(() => focus(tries - 1), 50);
+        }
+      };
+      window.setTimeout(() => focus(10), 0);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <>
       {splashMounted ? <SplashScreen steps={bootSteps} leaving={!showSplash} /> : null}

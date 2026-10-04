@@ -1,4 +1,4 @@
-import { useCallback, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useState, type CSSProperties, type ReactNode, type UIEvent } from "react";
 import type { AppView } from "../app/NavigationContext";
 import { cx } from "../ui";
 import { BottomPanel, type BottomPanelProps } from "./BottomPanel";
@@ -66,6 +66,12 @@ export function AppShell({
   const [width, setWidth] = useState(() => clampSidebarWidth(readNumber(WIDTH_KEY, SIDEBAR_WIDTH.default)));
   const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
   const [resizing, setResizing] = useState(false);
+  // The header hairline only shows once the page has scrolled under it (macOS toolbar style).
+  const [scrolledView, setScrolledView] = useState<AppView | null>(null);
+  const onContentScroll = (event: UIEvent<HTMLDivElement>) => {
+    const scrolled = event.currentTarget.scrollTop > 0;
+    if (scrolled !== (scrolledView === active)) setScrolledView(scrolled ? active : null);
+  };
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((value) => {
@@ -97,9 +103,9 @@ export function AppShell({
           onResizeEnd={(value) => write(WIDTH_KEY, String(value))}
         />
       </div>
-      <main className="o-app__main">
+      <main className={cx("o-app__main", scrolledView === active && "o-app__main--scrolled")}>
         <PageHeader {...header} key={`header-${active}`} />
-        <div className={cx("o-app__content", `o-app__content--${contentLayout}`)} key={`content-${active}`} data-layout={contentLayout}>
+        <div className={cx("o-app__content", `o-app__content--${contentLayout}`)} key={`content-${active}`} data-layout={contentLayout} onScroll={contentLayout === "scroll" ? onContentScroll : undefined}>
           {children}
         </div>
       </main>

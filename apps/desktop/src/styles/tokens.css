@@ -40,6 +40,8 @@
     --accent-rgb: 0 121 107;
     /* Tinted foregrounds for text on soft accent/danger backgrounds (badges, chips). */
     --accent-text: #d7f4ef;
+    /* Bright teal for icons and text links on dark surfaces (sidebar selection, "Ver tudo"). */
+    --accent-tint: #4db6ac;
     --danger-text: #f2b3bc;
 
     /* Status */

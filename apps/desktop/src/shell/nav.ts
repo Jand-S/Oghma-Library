@@ -1,6 +1,6 @@
 import { BookOpenText, Download, Globe2, House, Languages, Search, Settings, Tablet } from "lucide-react";
 import type { AppView } from "../app/NavigationContext";
-import { navStrings } from "../strings/common";
+import { navGroupStrings, navStrings } from "../strings/common";
 
 export type NavItem = {
   id: AppView;
@@ -8,15 +8,23 @@ export type NavItem = {
   icon: typeof Search;
 };
 
-/** Sidebar entries, top to bottom. "settings" is pinned to the bottom of the sidebar. */
-export const navItems: NavItem[] = [
-  { id: "home", label: navStrings.home, icon: House },
-  { id: "discover", label: navStrings.discover, icon: Search },
-  { id: "downloads", label: navStrings.downloads, icon: Download },
-  { id: "library", label: navStrings.library, icon: BookOpenText },
-  { id: "kindle", label: navStrings.kindle, icon: Tablet },
-  { id: "translation", label: navStrings.translation, icon: Languages },
-  { id: "sources", label: navStrings.sources, icon: Globe2 }
+const item = (id: NavItem["id"], icon: NavItem["icon"]): NavItem => ({ id, label: navStrings[id as keyof typeof navStrings], icon });
+
+export type NavGroup = {
+  id: string;
+  /** Small caption above the group (none for the first one), like the Music.app sidebar. */
+  label?: string;
+  items: NavItem[];
+};
+
+/** Sidebar groups, top to bottom. "settings" is pinned to the bottom of the sidebar. */
+export const navGroups: NavGroup[] = [
+  { id: "discover", items: [item("home", House), item("discover", Search)] },
+  { id: "library", label: navGroupStrings.library, items: [item("library", BookOpenText), item("downloads", Download), item("kindle", Tablet)] },
+  { id: "tools", label: navGroupStrings.tools, items: [item("translation", Languages), item("sources", Globe2)] }
 ];
+
+/** Every sidebar entry in display order (without settings). */
+export const navItems: NavItem[] = navGroups.flatMap((group) => group.items);
 
 export const settingsNavItem: NavItem = { id: "settings", label: navStrings.settings, icon: Settings };

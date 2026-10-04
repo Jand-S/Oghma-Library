@@ -23,6 +23,12 @@ export const navStrings = {
   settings: "Ajustes"
 } as const;
 
+/** Captions of the sidebar groups. */
+export const navGroupStrings = {
+  library: "Biblioteca",
+  tools: "Ferramentas"
+} as const;
+
 /** Page titles shown in the page header, per view. */
 export const pageTitleStrings = {
   home: "Início",

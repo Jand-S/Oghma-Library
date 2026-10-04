@@ -52,7 +52,7 @@
     padding: var(--space-0-5) 0;
     border: 0;
     background: none;
-    color: var(--accent-text);
+    color: var(--accent-tint);
     font: inherit;
     font-size: var(--fs-sm);
     font-weight: var(--fw-medium);

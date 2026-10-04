@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as R
 import type { AppView } from "../app/NavigationContext";
 import { kindleStrings, shellStrings } from "../strings/common";
 import { cx } from "../ui";
-import { navItems, settingsNavItem, type NavItem } from "./nav";
+import { navGroups, settingsNavItem, type NavItem } from "./nav";
 import "./Sidebar.css";
 
 /** Mirrors --sidebar-w, --sidebar-w-min and --sidebar-w-max in tokens.css. */
@@ -145,9 +145,14 @@ export function Sidebar({
         <span className="o-sidebar__brand-name" data-tauri-drag-region>{shellStrings.appName}</span>
       </div>
       <nav className="o-sidebar__nav" aria-label={shellStrings.mainNav}>
-        <ul role="list" className="o-sidebar__menu">
-          {navItems.map(renderItem)}
-        </ul>
+        {navGroups.map((group) => (
+          <div key={group.id} className="o-sidebar__group">
+            {group.label ? <h2 className="o-sidebar__group-label" id={`nav-group-${group.id}`}>{group.label}</h2> : null}
+            <ul role="list" className="o-sidebar__menu" aria-labelledby={group.label ? `nav-group-${group.id}` : undefined}>
+              {group.items.map(renderItem)}
+            </ul>
+          </div>
+        ))}
       </nav>
       <div className="o-sidebar__footer">
         <ul role="list" className="o-sidebar__menu">
