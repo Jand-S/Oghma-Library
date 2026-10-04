@@ -53,9 +53,11 @@ def test_other_books_of_the_same_series_are_not_suggestions():
     assert series_key("Re:Zero Kara Hajimeru Isekai Seikatsu") == ""
     assert series_key("Shadow Slave") == ""
     novels = [nv("m1", "Mushoku Tensei: Jobless Reincarnation"), nv("m2", "Mushoku Tensei: Reencarnação do Desempregado"),
-              nv("x", "Outra")]
-    vecs = unit([1, 0], [1, 0.01], [0.5, 0.5])
-    assert [i for i, _ in build_discovery(novels, vecs, unit([1, 0], [0, 1], [0.7, 0.7]))["similar"]["m1"]] == ["x"]
+              nv("m3", "Mushoku Tensei"), nv("x", "Outra")]
+    vecs = unit([1, 0], [1, 0.01], [1, 0.02], [0.5, 0.5])
+    out = build_discovery(novels, vecs, unit([1, 0], [0, 1], [0.6, 0.8], [0.7, 0.7]))["similar"]
+    assert [i for i, _ in out["m1"]] == ["x"]
+    assert [i for i, _ in out["m3"]] == ["x"]
 
 
 def test_ficha_wins_over_the_synopsis():

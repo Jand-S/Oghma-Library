@@ -40,7 +40,9 @@ def _register_custom_models() -> None:
         sources=ModelSource(hf="Xenova/paraphrase-multilingual-mpnet-base-v2"), model_file="onnx/model_quantized.onnx")
 TOP_K = 24
 # Peso do cosseno dos textos e das tags de historia (Jaccard) na nota do par.
-TAG_WEIGHT = float(os.environ.get("OGHMA_DISCOVERY_TAG_WEIGHT", "0.35"))
+# 0,2: com fichas, tags genericas (acao, fantasia, magia, sistema) puxavam obras comuns; com 0,35
+# Shadow Slave perdia Book of the Dead e Second Coming of Gluttony para fantasias genericas.
+TAG_WEIGHT = float(os.environ.get("OGHMA_DISCOVERY_TAG_WEIGHT", "0.2"))
 TEXT_WEIGHT = 1.0 - TAG_WEIGHT
 # Sinopses tao proximas assim sao a mesma obra (outra traducao/edicao), nao uma parecida.
 SAME_WORK_COSINE = 0.9
@@ -179,7 +181,8 @@ def build_discovery(novels: list[DiscoveryNovel], story_vecs, synopsis_vecs, top
     story = story_vecs @ story_vecs.T
     similar: dict[str, list[list]] = {}
     for i in range(n):
-        same = {i} | {j for j in range(n) if keys[j] == keys[i] or (series[i] and series[j] == series[i])} | {
+        same = {i} | {j for j in range(n) if keys[j] == keys[i] or (series[i] and series[i] in (series[j], keys[j]))
+                      or (series[j] and series[j] == keys[i])} | {
             j for j in range(n) if novels[j].id in set(editions.get(novels[i].id, []))}
         jac = np.array([len(t & tags[i]) / (len(t | tags[i]) or 1) for t in tags], dtype=np.float32)
         score = TEXT_WEIGHT * story[i] + TAG_WEIGHT * jac
