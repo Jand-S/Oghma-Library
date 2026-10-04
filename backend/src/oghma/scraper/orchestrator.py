@@ -631,9 +631,11 @@ async def crawl_source(
             run.error = f"{stats['novels_failed']} novel(s) com erro; ultimo: {first}"[:1000]
     except Exception as exc:  # falha geral
         run.status = "error"
-        run.error = str(exc)
+        # Com o tipo: um timeout do httpx tem mensagem vazia e o run ficava sem motivo.
+        reason = f"{type(exc).__name__}: {exc}".strip().rstrip(":")
+        run.error = reason[:1000]
         stats["stage"] = "crawl_error"
-        stats["last_event"] = str(exc)
+        stats["last_event"] = reason[:300]
     finally:
         run = await session.get(CrawlRun, run_id) or run
         run.finished_at = _now()
