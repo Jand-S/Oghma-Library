@@ -50,7 +50,12 @@
     --progress-fill: var(--warning);
   }
 
-  .translation-block__title,
+  .translation-block__title {
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+
   .translation-compare__label {
     color: var(--text-muted);
     font-size: var(--fs-xs);
@@ -74,7 +79,7 @@
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
     background: var(--surface-1);
   }
 
@@ -243,7 +248,7 @@
     gap: var(--space-1-5);
     padding: var(--space-2);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
     background: var(--surface-1);
   }
 
@@ -402,71 +407,6 @@
     width: calc(var(--space-8) + var(--space-1-5));
   }
 
-  .translation-banner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--space-0-5) var(--space-1-5);
-    padding: var(--space-1-5) var(--space-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--glass);
-    color: var(--text-2);
-    font-size: var(--fs-sm);
-    line-height: var(--lh-base);
-  }
-
-  .translation-banner__title {
-    color: var(--text);
-    font-size: var(--fs-sm);
-    font-weight: var(--fw-bold);
-    letter-spacing: 0.08em;
-  }
-
-  .translation-banner--paused,
-  .translation-banner--waiting {
-    border-color: var(--warning-line);
-    background: var(--warning-soft);
-  }
-
-  .translation-banner--paused .translation-banner__title,
-  .translation-banner--waiting .translation-banner__title {
-    color: var(--warning);
-  }
-
-  .translation-banner--waiting .translation-banner__detail {
-    font-variant-numeric: tabular-nums;
-  }
-
-  .translation-banner--done,
-  .translation-banner--exported {
-    border-color: var(--success-line);
-    background: var(--success-soft);
-  }
-
-  .translation-banner--done .translation-banner__title,
-  .translation-banner--exported .translation-banner__title {
-    color: var(--success);
-  }
-
-  .translation-banner--error {
-    border-color: var(--danger-line);
-    background: var(--danger-soft);
-  }
-
-  .translation-banner--error .translation-banner__title {
-    color: var(--danger-text);
-  }
-
-  .translation-banner--preparing {
-    border-color: var(--info-line);
-    background: var(--info-subtle);
-  }
-
-  .translation-banner--preparing .translation-banner__title {
-    color: var(--info);
-  }
-
   .translation-status {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 7rem)) minmax(0, 1fr);
@@ -535,7 +475,7 @@
     color: var(--text-2);
     font-family: var(--font-mono);
     font-size: var(--fs-xs);
-    line-height: 1.65;
+    line-height: var(--lh-reading);
     list-style: none;
   }
 
@@ -580,7 +520,7 @@
   .translation-table-wrap {
     overflow-x: auto;
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
   }
 
   .translation-table {
@@ -592,19 +532,21 @@
   .translation-table th,
   .translation-table td {
     padding: var(--space-1) var(--space-1-5);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--separator);
     text-align: left;
     vertical-align: middle;
   }
 
+  /* Same header as .o-table (Fontes); sticky over the surface. */
   .translation-table thead th {
     position: sticky;
     top: 0;
     z-index: var(--z-sticky);
-    background: var(--surface-2);
+    border-bottom-color: var(--border);
+    background: var(--surface-1);
     color: var(--text-muted);
     font-size: var(--fs-xs);
-    font-weight: var(--fw-semibold);
+    font-weight: var(--fw-medium);
     white-space: nowrap;
   }
 
@@ -730,12 +672,6 @@
     max-width: 20rem;
   }
 
-
-
-
-
-
-
   .translation-table__suggestion > td {
     padding-block: var(--space-1-5);
   }
@@ -855,7 +791,7 @@
     color: var(--text-2);
     font-family: var(--font-serif);
     font-size: var(--fs-lg);
-    line-height: 1.75;
+    line-height: var(--lh-reading);
   }
 
   .translation-reader__text {
@@ -910,9 +846,6 @@
     color: var(--text-muted);
     font-size: var(--fs-sm);
   }
-
-
-
 
   /* ---- Revisar ---------------------------------------------------------- */
   .translation-issues {
@@ -1137,7 +1070,7 @@
     color: var(--text);
     font-family: var(--font-serif);
     font-size: var(--fs-md);
-    line-height: 1.65;
+    line-height: var(--lh-reading);
   }
 
   .translation-review__text--source {

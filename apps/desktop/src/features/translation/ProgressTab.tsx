@@ -2,7 +2,7 @@ import { BookPlus, Eye, Library, Pause, Play, RotateCcw, X } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { LimitState, LogEvent, ProjectDetail, TranslationScope } from "../../services/translationClient";
 import { translationStrings as t } from "../../strings/translation";
-import { Button, ConfirmationModal, ProgressBar, SegmentedControl, TextField, cx } from "../../ui";
+import { Banner as UiBanner, Button, ConfirmationModal, ProgressBar, SegmentedControl, TextField, cx, type BannerTone } from "../../ui";
 import { limitMessage } from "./LimitBanner";
 import {
   formatClock,
@@ -29,11 +29,19 @@ function StatCard({ label, value, note, testId }: { label: string; value: ReactN
 
 type BannerKind = "paused" | "waiting" | "done" | "exported" | "error" | "preparing";
 
+const BANNER_TONES: Record<BannerKind, BannerTone> = {
+  paused: "warning",
+  waiting: "warning",
+  done: "success",
+  exported: "success",
+  error: "danger",
+  preparing: "info"
+};
+
 function Banner({ kind, title, tooltip, children }: { kind: BannerKind; title: string; tooltip?: string; children: ReactNode }) {
   return (
-    <div className={cx("translation-banner", `translation-banner--${kind}`)} role="status" title={tooltip} data-testid="translation-banner" data-kind={kind}>
-      <strong className="translation-banner__title">{title}</strong>
-      <span className="translation-banner__detail">{children}</span>
+    <div title={tooltip} data-testid="translation-banner" data-kind={kind}>
+      <UiBanner tone={BANNER_TONES[kind]} title={title}>{children}</UiBanner>
     </div>
   );
 }
