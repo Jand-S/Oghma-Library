@@ -56,6 +56,19 @@
     /* Star ratings (system orange, as in Apple's apps); empty stars stay quiet. */
     --rating: #ff9f0a;
     --rating-empty: rgba(255, 255, 255, 0.22);
+    /* Profile avatar backgrounds (same ids as the account API). */
+    --avatar-coral: #ff6b5e;
+    --avatar-tangerina: #ff9f43;
+    --avatar-ambar: #f5be3c;
+    --avatar-lima: #9acd4f;
+    --avatar-menta: #3ccb95;
+    --avatar-turquesa: #22b8c2;
+    --avatar-celeste: #4a9eff;
+    --avatar-anil: #5b67f0;
+    --avatar-lavanda: #9b7bff;
+    --avatar-orquidea: #cf63e0;
+    --avatar-rosa: #ff6fa4;
+    --avatar-grafite: #5a616d;
     --black-rgb: 0 0 0;
     --white-rgb: 255 255 255;
 

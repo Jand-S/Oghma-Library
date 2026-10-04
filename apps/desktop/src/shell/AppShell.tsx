@@ -42,6 +42,8 @@ export type AppShellProps = {
   active: AppView;
   onNavigate: (view: AppView) => void;
   sidebarStatus?: SidebarStatus;
+  /** Account control at the bottom of the sidebar (avatar + nickname, or "Entrar"). */
+  sidebarAccount?: (collapsed: boolean) => ReactNode;
   header: PageHeaderProps;
   bottomPanel: BottomPanelProps;
   /** Content-area variant: the page scrolls as a whole, or the view fills it (see layout.css). */
@@ -56,6 +58,7 @@ export function AppShell({
   active,
   onNavigate,
   sidebarStatus,
+  sidebarAccount,
   header,
   bottomPanel,
   contentLayout = "scroll",
@@ -101,6 +104,7 @@ export function AppShell({
           onResize={setWidth}
           onResizingChange={setResizing}
           onResizeEnd={(value) => write(WIDTH_KEY, String(value))}
+          account={sidebarAccount?.(collapsed)}
         />
       </div>
       <main className={cx("o-app__main", scrolledView === active && "o-app__main--scrolled")}>

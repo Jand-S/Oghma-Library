@@ -71,7 +71,7 @@ function loadTauriCore(): Promise<TauriCore> {
   return tauriCore;
 }
 
-async function loadInvoke(): Promise<Invoke | null> {
+export async function loadInvoke(): Promise<Invoke | null> {
   if (!isTauriRuntime()) return null;
   try {
     const mod = await loadTauriCore();

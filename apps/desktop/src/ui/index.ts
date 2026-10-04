@@ -27,3 +27,5 @@ export { ListGroup, ListRow, type ListGroupProps, type ListRowProps } from "./Li
 export { Banner, type BannerProps, type BannerTone } from "./Banner";
 export { PathControl, pathSegments, type PathControlProps } from "./PathControl";
 export { StarRating, type StarRatingProps } from "./StarRating";
+export { Avatar, avatarDescription, type AvatarProps } from "./Avatar";
+export { CodeInput, type CodeInputProps } from "./CodeInput";

@@ -449,3 +449,17 @@
     }
   }
 }
+
+@layer features {
+  .settings-accounts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .settings-accounts__block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+  }
+}

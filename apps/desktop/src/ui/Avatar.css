@@ -1,0 +1,66 @@
+@import "../styles/layers.css";
+
+@layer components {
+  .o-avatar {
+    --avatar-size: var(--control-md);
+    --avatar-bg: var(--avatar-grafite);
+    position: relative;
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: var(--avatar-size);
+    height: var(--avatar-size);
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--avatar-bg);
+    /* Hairline inner ring keeps light colors crisp on dark surfaces. */
+    box-shadow: inset 0 0 0 1px rgb(var(--black-rgb) / 0.12);
+    user-select: none;
+  }
+
+  .o-avatar__art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .o-avatar__initial {
+    color: var(--text);
+    font-size: calc(var(--avatar-size) * 0.42);
+    font-weight: var(--fw-semibold);
+    line-height: 1;
+  }
+
+  .o-avatar--xs {
+    --avatar-size: var(--icon-lg);
+  }
+
+  .o-avatar--sm {
+    --avatar-size: var(--control-sm);
+  }
+
+  .o-avatar--md {
+    --avatar-size: var(--control-md);
+  }
+
+  .o-avatar--lg {
+    --avatar-size: calc(var(--space-8) + var(--space-1));
+  }
+
+  .o-avatar--xl {
+    --avatar-size: calc(var(--space-8) * 1.75);
+  }
+
+  .o-avatar--coral { --avatar-bg: var(--avatar-coral); }
+  .o-avatar--tangerina { --avatar-bg: var(--avatar-tangerina); }
+  .o-avatar--ambar { --avatar-bg: var(--avatar-ambar); }
+  .o-avatar--lima { --avatar-bg: var(--avatar-lima); }
+  .o-avatar--menta { --avatar-bg: var(--avatar-menta); }
+  .o-avatar--turquesa { --avatar-bg: var(--avatar-turquesa); }
+  .o-avatar--celeste { --avatar-bg: var(--avatar-celeste); }
+  .o-avatar--anil { --avatar-bg: var(--avatar-anil); }
+  .o-avatar--lavanda { --avatar-bg: var(--avatar-lavanda); }
+  .o-avatar--orquidea { --avatar-bg: var(--avatar-orquidea); }
+  .o-avatar--rosa { --avatar-bg: var(--avatar-rosa); }
+  .o-avatar--grafite { --avatar-bg: var(--avatar-grafite); }
+}

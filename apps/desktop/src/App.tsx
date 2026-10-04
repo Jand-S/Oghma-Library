@@ -25,6 +25,11 @@ import { downloadsStrings } from "./strings/downloads";
 import { Button, EmptyState, ToastProvider, useToast, type ToastTone } from "./ui";
 import { OnboardingWizard } from "./features/onboarding/OnboardingView";
 import { readUiPreferences } from "./features/settings/preferences";
+import { AccountSheet, type AccountSheetStep } from "./features/account/AccountSheet";
+import { SidebarAccount } from "./features/account/SidebarAccount";
+import { useOghmaAccount } from "./features/account/useOghmaAccount";
+import { oghmaAccountStrings } from "./strings/oghmaAccount";
+import { tauriAccountClient, type AccountClient } from "./services/accountClient";
 
 type AppProps = {
   backend: BackendClient;
@@ -34,21 +39,29 @@ type AppProps = {
   translationClient?: TranslationClient;
   /** Called after a new server URL is saved (main.tsx reloads; see useSettingsController). */
   onServerUrlChange?: () => void;
+  /** Oghma account transport; defaults to Tauri IPC (tests inject a fake). */
+  accountClient?: AccountClient;
 };
 
 const ERROR_MESSAGE = /^n[aã]o foi poss[ií]vel/i;
 
-export function App({ backend, downloadQueue, translationClient, onServerUrlChange }: AppProps) {
+export function App({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient }: AppProps) {
   return (
     <ToastProvider>
       <NavigationProvider initialView={readUiPreferences().startPage}>
-        <AppContent backend={backend} downloadQueue={downloadQueue} translationClient={translationClient} onServerUrlChange={onServerUrlChange} />
+        <AppContent
+          backend={backend}
+          downloadQueue={downloadQueue}
+          translationClient={translationClient}
+          onServerUrlChange={onServerUrlChange}
+          accountClient={accountClient}
+        />
       </NavigationProvider>
     </ToastProvider>
   );
 }
 
-function AppContent({ backend, downloadQueue, translationClient, onServerUrlChange }: AppProps) {
+function AppContent({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient }: AppProps) {
   const navigation = useNavigation();
   const { view, params, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
@@ -86,6 +99,12 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   const kindleConnected = kindleStatus?.connected ?? false;
 
   const { refresh: refreshLocalLibrary } = useLocalLibrary({ appConfig, loading, results: catalog, setLibrary });
+
+  // Conta Oghma: the library syncs with the account; pulled changes rescan the library.
+  const [accountTransport] = useState(() => accountClient ?? tauriAccountClient());
+  const oghmaAccount = useOghmaAccount({ client: accountTransport, onLibraryChanged: refreshLocalLibrary, notify });
+  const [accountSheet, setAccountSheet] = useState<{ open: boolean; step: AccountSheetStep }>({ open: false, step: "email" });
+  const openAccountSheet = useCallback((step: AccountSheetStep = "email") => setAccountSheet({ open: true, step }), []);
 
   const [queue] = useState(() => downloadQueue ?? getDownloadQueue());
   const downloads = useDownloadsController({ appConfig, queue, notify, toast });
@@ -192,7 +211,9 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     settings,
     sources: sourcesController,
     translation,
-    account
+    account,
+    oghmaAccount,
+    openAccountSheet
   };
 
   // Once boot settles, warm the lazily loaded view chunks so navigation stays instant.
@@ -215,6 +236,13 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     { id: "catalog", label: bootStrings.catalog, status: !loading && !bootError ? "done" : "pending" },
     { id: "ready", label: bootStrings.ready, status: bootDone && !bootError ? "done" : "pending" }
   ], [bootDone, bootError, loading]);
+
+  // Sources of the library's books (account shelf included): onboarding offers to turn them on.
+  const librarySources = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const item of library) if (item.sourceId && item.sourceName) seen.set(item.sourceId, item.sourceName);
+    return [...seen].map(([id, name]) => ({ id, name }));
+  }, [library]);
 
   const showBootError = Boolean(bootError) && view !== "settings";
   const definition = viewRegistry[view];
@@ -253,6 +281,14 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
         active={view}
         onNavigate={goTo}
         sidebarStatus={{ downloading: downloads.downloading, flashKey: downloads.pulse, kindleConnected }}
+        sidebarAccount={(collapsed) => (
+          <SidebarAccount
+            account={oghmaAccount}
+            collapsed={collapsed}
+            onOpenSheet={openAccountSheet}
+            onOpenSettings={() => navigate("settings", { section: "account" }, { root: true })}
+          />
+        )}
         header={{ ...viewHeader, title: definition.title, onBack: canGoBack ? back : undefined }}
         bottomPanel={{
           active: downloads.active,
@@ -262,6 +298,17 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
         }}
         contentLayout={showBootError ? "scroll" : definition.layout}
         overlays={(
+          <>
+          <AccountSheet
+            account={oghmaAccount}
+            open={accountSheet.open}
+            initialStep={accountSheet.step}
+            onClose={() => setAccountSheet((value) => ({ ...value, open: false }))}
+            onDone={({ created, nickname }) => {
+              if (created && nickname) toast({ message: oghmaAccountStrings.welcome(nickname), tone: "success" });
+              else if (accountSheet.step === "profile") toast({ message: oghmaAccountStrings.profileSaved, tone: "success" });
+            }}
+          />
           <OnboardingWizard
             open={!loading && showOnboarding}
             allowClose={hasCompletedSetup()}
@@ -281,7 +328,18 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
             onBack={onboarding.rewindOnboarding}
             onNext={onboarding.advanceOnboarding}
             onClose={onboarding.closeOnboarding}
+            account={{
+              available: oghmaAccount.available,
+              signedIn: oghmaAccount.signedIn,
+              nickname: oghmaAccount.user?.nickname,
+              email: oghmaAccount.user?.email,
+              avatarId: oghmaAccount.user?.avatarId,
+              avatarColor: oghmaAccount.user?.avatarColor,
+              onSignIn: () => openAccountSheet("email")
+            }}
+            librarySources={librarySources}
           />
+          </>
         )}
       >
         {showBootError ? (

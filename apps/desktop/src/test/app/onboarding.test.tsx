@@ -18,10 +18,14 @@ describe("Onboarding", () => {
     const user = setupUser();
     renderApp();
     await openWizard();
-    expect(screen.getByTestId("onboarding-step")).toHaveTextContent(onboardingStrings.stepOf(1, 5));
+    expect(screen.getByTestId("onboarding-step")).toHaveTextContent(onboardingStrings.stepOf(1, 6));
 
     // 1. Boas-vindas
     await user.click(screen.getByRole("button", { name: onboardingStrings.start }));
+
+    // 2. Conta (optional; outside the desktop app it only explains where to sign in later).
+    expect(screen.getByRole("heading", { name: onboardingStrings.accountTitle })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: onboardingStrings.accountSkip }));
 
     // 2. Servidor: "Próximo" stays disabled until the server is verified.
     expect(screen.getByLabelText(onboardingStrings.serverUrlLabel)).toBeInTheDocument();
@@ -43,7 +47,7 @@ describe("Onboarding", () => {
     await user.click(screen.getByRole("button", { name: onboardingStrings.finishAndSync }));
     expect(screen.getByRole("heading", { name: onboardingStrings.syncHeading })).toBeInTheDocument();
     expect(screen.getByText(onboardingStrings.summaryHeading)).toBeInTheDocument();
-    expect(screen.getByTestId("onboarding-step")).toHaveTextContent(onboardingStrings.stepOf(5, 5));
+    expect(screen.getByTestId("onboarding-step")).toHaveTextContent(onboardingStrings.stepOf(6, 6));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: onboardingStrings.enterApp })).toBeEnabled();
@@ -60,6 +64,7 @@ describe("Onboarding", () => {
     renderApp();
     await openWizard();
     await user.click(screen.getByRole("button", { name: onboardingStrings.start }));
+    await user.click(screen.getByRole("button", { name: onboardingStrings.accountSkip }));
     await user.click(screen.getByRole("button", { name: onboardingStrings.validateServer }));
     await screen.findByText(onboardingStrings.sourcesAvailable(3));
     await user.click(screen.getByRole("button", { name: onboardingStrings.next }));
@@ -81,6 +86,8 @@ describe("Onboarding", () => {
     expect(screen.getByRole("heading", { name: onboardingStrings.welcomeTitle })).toBeInTheDocument();
 
     fireEvent.keyDown(screen.getByRole("heading", { name: onboardingStrings.welcomeTitle }), { key: "Enter" });
+    // The optional account step: Enter skips it.
+    fireEvent.keyDown(await screen.findByRole("heading", { name: onboardingStrings.accountTitle }), { key: "Enter" });
     const url = await screen.findByLabelText(onboardingStrings.serverUrlLabel);
 
     // Enter inside the URL field verifies the server instead of advancing.

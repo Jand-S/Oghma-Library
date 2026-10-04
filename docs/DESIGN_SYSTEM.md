@@ -220,6 +220,12 @@ para compor transparência: `rgb(var(--accent-rgb) / 0.14)`. Não use `color-mix
 | `--info` / `--info-rgb` | `#4fb7e8` / `79 183 232` | Toast informativo. |
 | `--black-rgb` | `0 0 0` | Canais para sombras e véus compostos. Reservado para o tema claro. |
 | `--white-rgb` | `255 255 255` | Canais para brilhos (sheen da capa). |
+| `--rating` / `--rating-empty` | `#ff9f0a` / branco `.22` | Estrelas da nota do leitor (laranja do sistema, como nos apps da Apple). |
+| `--avatar-<cor>` | 12 cores (`coral` … `grafite`) | Fundo do avatar do perfil. Os ids são os mesmos da API da conta. |
+
+Status de leitura (`features/library/ReadingStatus.css`): ponto colorido + texto. Lendo `--accent-tint`,
+Pausado `--warning`, Concluído `--success`, Abandonado `--text-disabled` (texto `--text-muted`); "Não
+iniciado" não mostra nada.
 
 ### Tons semânticos
 
@@ -697,7 +703,7 @@ Menu de ações que abre ancorado num gatilho ou como menu de contexto nas coord
 
 | Prop | Tipo | Notas |
 |---|---|---|
-| `items` | `ReadonlyArray<MenuItem>` | `{ label, icon?, onSelect, danger?, disabled?, separatorBefore? }` |
+| `items` | `ReadonlyArray<MenuItem>` | `{ label, icon?, onSelect, danger?, disabled?, separatorBefore?, heading?, checked?, trailing? }`. `heading` abre um grupo com legenda ("Leitura"); `checked` vira `menuitemradio` com a marca de seleção, como nos menus do macOS. |
 | `label` | `string` | Nome acessível do menu. |
 | `align` | `"start" \| "end"` | Alinhamento ao gatilho. Padrão `"start"`. |
 | `trigger` | `ReactElement` | **Modo âncora.** Recebe `onClick`, `onKeyDown`, `aria-haspopup`, `aria-expanded` e `aria-controls`. |
@@ -817,6 +823,26 @@ Barra de caminho no estilo Finder: ícone de pasta e as últimas `segments` (pad
 pai não encolhem, só a última. O caminho completo fica no `title`; o menu de contexto tem "Mostrar no
 Finder" (com `onReveal`) e "Copiar caminho". Sem `onReveal` é estático. Use para qualquer caminho
 mostrado ao usuário (Biblioteca, Kindle, resumo do onboarding), nunca `<code>`.
+
+### StarRating
+
+Cinco estrelas. Sem `onChange` é só leitura (`role="img"`; `compact` esconde as vazias). Com `onChange`
+vira `radiogroup`: clique ou setas para dar nota, a mesma estrela de novo (ou Backspace) tira a nota, e
+o hover mostra a prévia. Tamanhos `xs` (cards e linhas), `sm`, `md` (detalhes e folha "Que nota você dá?").
+Nos cards, um livro sem nota só mostra as estrelas no hover/foco.
+
+### Avatar
+
+Foto de perfil redonda: um dos 24 arquétipos (`public/avatars/<id>.svg`, gerados por
+`scripts/avatars/generate.py`) sobre a cor escolhida (`--avatar-<cor>`), ou a inicial do apelido.
+`size` `xs`/`sm`/`md`/`lg`/`xl`; decorativo por padrão (passe `label` para anunciar). Arte própria do
+Oghma: personagens originais por gênero, formas simples e cores chapadas, sem contorno nem gradiente.
+
+### CodeInput
+
+Código de uso único em caixas (6 por padrão), como a verificação do ID Apple: avança ao digitar, volta
+no Backspace, colar o código inteiro preenche tudo e `onComplete` dispara com o último dígito.
+`invalid` balança as caixas e pinta a borda de `--danger-line`.
 
 ### Tabela (`.o-table`)
 

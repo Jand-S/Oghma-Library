@@ -1,0 +1,21 @@
+[Unit]
+Description=Oghma: API da conta (login por código, perfil e biblioteca sincronizada)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=oghma
+WorkingDirectory=/opt/oghma/app/backend
+EnvironmentFile=/opt/oghma/.env
+# Só no loopback: o Caddy publica em HTTPS. Um worker (o limite por IP fica na memória).
+ExecStart=/opt/oghma/venv/bin/uvicorn oghma.accounts.app:app --host 127.0.0.1 --port 8090 --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1 --no-server-header
+MemoryMax=200M
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

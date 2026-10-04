@@ -74,11 +74,8 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
               <div className="library-hero__badges">
                 <TranslationBadge item={item} />
                 {formats.map((format) => <Badge key={format} tone="accent">{format}</Badge>)}
-                {shelf ? (
-                  <Badge tone={item.unavailable ? "warning" : "neutral"}>
-                    {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
-                    {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
-                  </Badge>
+                {shelf && !item.unavailable ? (
+                  <Badge><CloudDownload aria-hidden="true" />{libraryStrings.onShelfBadge}</Badge>
                 ) : null}
                 {item.favorite ? <Badge><Heart aria-hidden="true" />{libraryStrings.favorite}</Badge> : null}
               </div>
@@ -110,7 +107,11 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                 </div>
               ) : null}
               <div className="library-actions" role="toolbar" aria-label={libraryStrings.moreActions}>
-                {shelf ? (
+                {shelf && item.unavailable ? (
+                  <Button variant="primary" icon={<Search />} onClick={() => actions.findOtherEdition(item)} data-testid="library-find-edition">
+                    {libraryStrings.findOtherEdition}
+                  </Button>
+                ) : shelf ? (
                   <Button
                     variant="primary"
                     icon={<CloudDownload />}
@@ -126,11 +127,6 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                     {revealLabel}
                   </Button>
                 )}
-                {shelf && item.unavailable ? (
-                  <Button variant="outline" icon={<Search />} onClick={() => actions.findOtherEdition(item)} data-testid="library-find-edition">
-                    {libraryStrings.findOtherEdition}
-                  </Button>
-                ) : null}
                 {shelf ? null : <Button
                   variant={item.newChapters ? "primary" : "outline"}
                   icon={<Download />}

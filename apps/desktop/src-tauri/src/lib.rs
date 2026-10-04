@@ -3,6 +3,7 @@ mod export_root;
 mod files;
 mod kindle;
 mod library_meta;
+mod oghma_account;
 mod paths;
 mod staging;
 mod translation;
@@ -19,6 +20,7 @@ pub fn run() {
         .setup(|app| {
             // Output folder lives on the Rust side; file commands only accept paths inside it.
             tauri::Manager::manage(app, export_root::ExportRoot::load(export_root::store_path(app.handle())));
+            tauri::Manager::manage(app, oghma_account::OghmaAccount::default());
             // Opens translation.db, registers the engine as managed state and pauses
             // projects left `running`. A failure only disables the translation screen.
             if let Err(err) = translation::init(app.handle()) {
@@ -51,6 +53,12 @@ pub fn run() {
             library_meta::library_sync_mark_clean,
             library_meta::library_sync_apply,
             library_meta::library_sync_mark_all_dirty,
+            oghma_account::oghma_account_status,
+            oghma_account::oghma_account_request_code,
+            oghma_account::oghma_account_verify,
+            oghma_account::oghma_account_api,
+            oghma_account::oghma_account_logout,
+            oghma_account::oghma_account_forget,
             translation::commands::translation_account,
             translation::commands::translation_login,
             translation::commands::translation_login_cancel,

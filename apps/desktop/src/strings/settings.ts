@@ -16,7 +16,7 @@ export const settingsStrings = {
   },
   descriptions: {
     general: "Idioma, tela inicial e aparência do app.",
-    account: "Sua conta do ChatGPT, usada na tradução e nas sugestões da busca.",
+    account: "A conta Oghma leva sua biblioteca a qualquer computador. A do ChatGPT é usada na tradução e nas sugestões da busca.",
     downloads: "Onde os livros são salvos e como cada download começa.",
     server: "Servidor de índices, modo de indexação e sincronização das fontes.",
     kindle: "Envio para o Kindle por cabo ou Wi-Fi, e cópia dos livros para o iCloud Drive.",

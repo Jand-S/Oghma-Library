@@ -38,7 +38,7 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
 
   const redownloadDisabledReason = (item: LibraryItem) => {
-    if (!canRedownload(item)) return libraryStrings.notInCatalog;
+    if (!canRedownload(item) || item.unavailable) return libraryStrings.notInCatalog;
     if (isBusy(item)) return libraryStrings.alreadyQueued;
     return undefined;
   };

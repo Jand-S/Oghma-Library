@@ -14,6 +14,8 @@ import type { SettingsController } from "../features/settings/useSettingsControl
 import type { SourcesController } from "../features/sources/useSourcesController";
 import type { TranslationController } from "../features/translation/useTranslationController";
 import type { AccountController } from "./account";
+import type { AccountSheetStep } from "../features/account/AccountSheet";
+import type { OghmaAccountController } from "../features/account/useOghmaAccount";
 import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
 import type { ContentLayout, PageHeaderProps } from "../shell";
 import { pageTitleStrings } from "../strings/common";
@@ -70,6 +72,10 @@ export type AppControllers = {
   translation: TranslationController;
   /** ChatGPT account (one source of truth for Tradução, Buscar and Ajustes). */
   account: AccountController;
+  /** Conta Oghma: profile, devices and the library sync. */
+  oghmaAccount: OghmaAccountController;
+  /** Opens the sign-in sheet (or the profile editor). */
+  openAccountSheet: (step?: AccountSheetStep) => void;
 };
 
 export type ViewProps = { app: AppControllers };
@@ -238,6 +244,8 @@ function SettingsPage({ app }: ViewProps) {
     kindleStatus: app.library.kindleStatus,
     onNavigate: (view: AppView) => app.navigate(view),
     account: app.account,
+    oghmaAccount: app.oghmaAccount,
+    onOpenAccountSheet: app.openAccountSheet,
     onRetryAccount: () => void app.translation.refreshAccount(),
     initialCategory: isSettingsCategory(params.section) ? params.section : undefined
   });

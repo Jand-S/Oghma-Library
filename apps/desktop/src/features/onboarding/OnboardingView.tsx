@@ -1,10 +1,10 @@
-import { ArrowLeft, ArrowRight, BookOpenText, CheckCircle2, CircleAlert, Clock3, Download, Globe2, LoaderCircle, RefreshCcw, Search, Tablet, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpenText, CheckCircle2, CircleAlert, Clock3, Download, Globe2, LibraryBig, LoaderCircle, RefreshCcw, Search, Star, Tablet, UserRound, X } from "lucide-react";
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { SetupSyncEntry } from "../../constants/ui";
 import { defaultAppConfig } from "../../core/appConfig";
 import type { AppConfig, ServerProbe, SourceSite } from "../../core/types";
 import { onboardingStrings } from "../../strings/onboarding";
-import { Badge, Button, cx, IconButton, PathControl, ProgressBar, Switch, TextField } from "../../ui";
+import { Avatar, Badge, Button, cx, IconButton, PathControl, ProgressBar, Switch, TextField } from "../../ui";
 import { getFocusable } from "../../ui/focus";
 import { FolderField } from "../settings/FolderField";
 import { FormatPicker } from "../settings/FormatPicker";
@@ -32,6 +32,20 @@ export type OnboardingWizardProps = {
   onBack: () => void;
   onNext: () => void;
   onClose: () => void;
+  /** Conta Oghma (optional step): who is signed in, and the button that opens the sign-in sheet. */
+  account?: OnboardingAccount;
+  /** Sources of the books already in the library (e.g. pulled from the account). */
+  librarySources?: { id: string; name: string }[];
+};
+
+export type OnboardingAccount = {
+  available: boolean;
+  signedIn: boolean;
+  nickname?: string | null;
+  email?: string | null;
+  avatarId?: string | null;
+  avatarColor?: string | null;
+  onSignIn: () => void;
 };
 
 type StepContext = OnboardingWizardProps & {
@@ -42,7 +56,7 @@ type StepContext = OnboardingWizardProps & {
 };
 
 type StepDefinition = {
-  id: "welcome" | "server" | "folder" | "preferences" | "sync";
+  id: "welcome" | "account" | "server" | "folder" | "preferences" | "sync";
   title: string;
   lead: string;
   canProceed: (ctx: StepContext) => boolean;
@@ -61,6 +75,15 @@ export const steps: StepDefinition[] = [
     canProceed: () => true,
     nextLabel: () => onboardingStrings.start,
     render: () => <WelcomeStep />
+  },
+  {
+    id: "account",
+    title: onboardingStrings.accountTitle,
+    lead: onboardingStrings.accountLead,
+    // Optional: "Pular por agora" until the reader signs in.
+    canProceed: () => true,
+    nextLabel: (ctx) => (ctx.account?.signedIn ? onboardingStrings.next : onboardingStrings.accountSkip),
+    render: (ctx) => <AccountStep ctx={ctx} />
   },
   {
     id: "server",
@@ -118,6 +141,48 @@ function WelcomeStep() {
       </ul>
       <p className="onboarding-hint">{onboardingStrings.welcomeHint}</p>
     </>
+  );
+}
+
+const perkIcons = [LibraryBig, Star, UserRound];
+
+function AccountStep({ ctx }: { ctx: StepContext }) {
+  const account = ctx.account;
+  if (!account?.available) {
+    return <p className="onboarding-hint">{onboardingStrings.accountUnavailable}</p>;
+  }
+  if (account.signedIn) {
+    const name = account.nickname || account.email || "";
+    return (
+      <div className="onboarding-account onboarding-account--in" data-testid="onboarding-account">
+        <Avatar avatarId={account.avatarId} color={account.avatarColor} nickname={name} size="lg" />
+        <div className="onboarding-account__text">
+          <strong>{onboardingStrings.accountSignedIn(name)}</strong>
+          <span>{onboardingStrings.accountSignedInHint}</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="onboarding-stack">
+      <ul className="onboarding-features">
+        {onboardingStrings.accountPerks.map((perk, index) => {
+          const Icon = perkIcons[index] ?? UserRound;
+          return (
+            <li className="onboarding-features__item" key={perk.title}>
+              <span className="onboarding-features__icon" aria-hidden="true"><Icon /></span>
+              <strong>{perk.title}</strong>
+              <span>{perk.text}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="onboarding-account">
+        <Button variant="primary" icon={<UserRound />} onClick={account.onSignIn} data-testid="onboarding-account-sign-in">
+          {onboardingStrings.accountSignIn}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -203,6 +268,9 @@ function FolderStep({ ctx }: { ctx: StepContext }) {
 
 function PreferencesStep({ ctx }: { ctx: StepContext }) {
   const sourcesHintId = useId();
+  // Books from the account come from sources this computer has not turned on yet.
+  const missing = (ctx.librarySources ?? []).filter((source) =>
+    ctx.sources.some((item) => item.id === source.id) && !ctx.config.enabledSourceIds.includes(source.id));
   return (
     <div className="onboarding-stack onboarding-stack--loose">
       <FormatPicker
@@ -215,6 +283,15 @@ function PreferencesStep({ ctx }: { ctx: StepContext }) {
         <p className={cx("onboarding-sources__hint", ctx.selectedSources.length === 0 && "is-error")} id={sourcesHintId}>
           {ctx.selectedSources.length === 0 ? onboardingStrings.sourcesRequired : onboardingStrings.sourcesHint}
         </p>
+        {missing.length ? (
+          <div className="onboarding-library-sources" data-testid="onboarding-library-sources">
+            <LibraryBig aria-hidden="true" />
+            <span>{onboardingStrings.librarySources(missing.map((source) => source.name).join(", "))}</span>
+            <Button size="sm" variant="outline" onClick={() => missing.forEach((source) => ctx.onToggleSource(source.id))}>
+              {onboardingStrings.librarySourcesAction}
+            </Button>
+          </div>
+        ) : null}
         <div className="onboarding-sources__list">
           {ctx.sources.map((source) => (
             <Switch

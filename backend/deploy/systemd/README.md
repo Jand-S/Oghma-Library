@@ -23,3 +23,37 @@ parecidos de todo o catálogo e publica `discovery/similar-<ts>.json.gz`. O mode
 precisa do extra: `pip install -e "backend[discovery]"`. Arquivos em `/srv/oghma/discovery`
 (fichas, cache de vetores, modelo). A geração de fichas para sozinha com o plano do Codex em 85%
 (5 h) ou 90% (semana) e continua na noite seguinte.
+
+## Conta (`oghma-accounts`)
+
+API pública da conta Oghma (login por código no e-mail, apelido/avatar e a biblioteca
+sincronizada), em `oghma.accounts.app`. Só tem rotas de conta; as de administração dos crawlers
+nunca passam por ela. Escuta em `127.0.0.1:8090`; o Caddy publica em HTTPS. As tabelas
+(`account_*`) são criadas na partida, no mesmo Postgres.
+
+Variáveis no `/opt/oghma/.env`:
+
+| Variável | Uso |
+|---|---|
+| `OGHMA_ACCOUNTS_DATABASE_URL` | normalmente igual a `OGHMA_DATABASE_URL` |
+| `OGHMA_ACCOUNTS_SECRET` | 32+ caracteres aleatórios (`openssl rand -hex 32`); assina códigos e tokens. Trocar derruba todas as sessões |
+| `OGHMA_ACCOUNTS_MAILER` | `resend` em produção (`log` escreve o código no journal, para teste) |
+| `OGHMA_ACCOUNTS_RESEND_API_KEY` | chave da Resend |
+| `OGHMA_ACCOUNTS_MAIL_FROM` | remetente num domínio verificado na Resend (SPF/DKIM), ex.: `Oghma <conta@seu-dominio>` |
+
+```bash
+systemctl enable --now oghma-accounts
+curl -s http://127.0.0.1:8090/health
+```
+
+Caddy (o domínio precisa apontar para a VPS):
+
+```caddy
+conta.SEU-DOMINIO {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8090
+}
+```
+
+O app usa `https://conta.SEU-DOMINIO` como servidor da conta (Ajustes > Conta > Servidor; padrão
+em `apps/desktop/src/features/account/oghmaAccount.ts`).

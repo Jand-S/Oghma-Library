@@ -1,0 +1,112 @@
+/** Conta Oghma (login por código, perfil e sincronização), pt-BR. */
+export const oghmaAccountStrings = {
+  name: "Conta Oghma",
+  tagline: "Sua biblioteca em todos os computadores",
+  signIn: "Entrar",
+  signInOrCreate: "Entrar ou criar conta",
+  signedOutTitle: "Leve sua biblioteca com você",
+  signedOutHint: "Com a conta Oghma, status, notas e a sua estante aparecem em qualquer computador onde você entrar. Os arquivos continuam só no seu disco.",
+  unavailable: "A conta Oghma funciona no app desktop.",
+
+  // Sheet: e-mail
+  emailTitle: "Entrar no Oghma",
+  emailHint: "Digite seu e-mail. Enviamos um código de 6 dígitos; se for a primeira vez, a conta é criada na hora.",
+  emailLabel: "E-mail",
+  emailPlaceholder: "voce@exemplo.com",
+  continue: "Continuar",
+  sending: "Enviando…",
+
+  // Sheet: code
+  codeTitle: "Digite o código",
+  codeHint: (email: string) => `Enviamos um código para ${email}. Ele vale por 10 minutos.`,
+  codeLabel: "Código de 6 dígitos",
+  codeDigit: (index: number) => `Dígito ${index} de 6`,
+  verifying: "Conferindo…",
+  resend: "Reenviar código",
+  resendIn: (seconds: number) => `Reenviar em ${seconds} s`,
+  codeResent: "Enviamos um código novo.",
+  changeEmail: "Usar outro e-mail",
+
+  // Sheet: profile
+  profileTitle: "Crie seu perfil",
+  profileHint: "Escolha como seus amigos vão ver você. Dá para trocar depois em Ajustes.",
+  editProfileTitle: "Editar perfil",
+  nicknameLabel: "Apelido",
+  nicknamePlaceholder: "seu_apelido",
+  nicknameHelp: "3 a 20 caracteres: letras, números, _ e ponto.",
+  nicknameChecking: "Verificando…",
+  nicknameAvailable: "Disponível",
+  nicknameTaken: "Já está em uso",
+  nicknameSuggestions: "Livres:",
+  avatarLabel: "Avatar",
+  colorLabel: "Cor de fundo",
+  shuffle: "Sortear",
+  saveProfile: "Concluir",
+  saveChanges: "Salvar",
+  saving: "Salvando…",
+  skipForNow: "Agora não",
+  welcome: (nickname: string) => `Boas-vindas, ${nickname}!`,
+  profileSaved: "Perfil salvo.",
+
+  // Settings
+  profile: "Perfil",
+  editProfile: "Editar perfil",
+  email: "E-mail",
+  library: "Biblioteca",
+  syncNow: "Sincronizar agora",
+  syncing: "Sincronizando…",
+  syncedAgo: (ago: string) => `Sincronizada ${ago}`,
+  neverSynced: "Ainda não sincronizada",
+  syncError: "Não foi possível sincronizar. Tentamos de novo em instantes.",
+  syncFooter: "Sincroniza status, nota, favoritos, marcadores e os livros da estante. Os arquivos dos livros nunca saem deste computador.",
+  devices: "Dispositivos conectados",
+  thisDevice: "Este computador",
+  lastSeen: (ago: string) => `Usado ${ago}`,
+  disconnect: "Desconectar",
+  deviceDisconnected: "Dispositivo desconectado.",
+  signOut: "Sair",
+  signOutHint: "A biblioteca deste computador continua aqui; só para de sincronizar.",
+  syncLabel: "Sincronização",
+  signedOut: "Você saiu da conta Oghma. A biblioteca deste computador continua aqui.",
+  deleteAccount: "Apagar conta",
+  deleteAccountHint: "Apaga a conta e a biblioteca sincronizada. Os livros neste computador continuam no disco.",
+  deleteConfirmTitle: "Apagar sua conta Oghma?",
+  deleteConfirmDescription:
+    "A conta, o apelido e a biblioteca sincronizada serão apagados do servidor. Os livros e notas deste computador continuam aqui. Esta ação não pode ser desfeita.",
+  deleteConfirm: "Apagar conta",
+  accountDeleted: "Conta apagada.",
+  server: "Servidor da conta",
+  serverHint: "Só mude se você hospeda o seu próprio servidor do Oghma.",
+  chatGptHeading: "ChatGPT (tradução e IA)",
+  oghmaHeading: "Conta Oghma",
+  menuLabel: (nickname: string) => `Conta de ${nickname}`,
+  openAccount: "Abrir conta",
+
+  // Errors (API codes)
+  errors: {
+    invalid_email: "Digite um e-mail válido.",
+    too_soon: "Aguarde um pouco antes de pedir outro código.",
+    too_many_codes: "Muitos códigos pedidos. Tente de novo em uma hora.",
+    invalid_code: "Código incorreto.",
+    expired_code: "Este código expirou. Peça um novo.",
+    too_many_attempts: "Muitas tentativas. Peça um novo código.",
+    rate_limited: "Muitas tentativas a partir desta rede. Tente de novo em alguns minutos.",
+    mail_failed: "Não conseguimos enviar o e-mail agora. Tente de novo.",
+    nickname_taken: "Esse apelido já está em uso.",
+    nickname_too_short: "O apelido precisa de pelo menos 3 caracteres.",
+    nickname_too_long: "O apelido pode ter até 20 caracteres.",
+    nickname_invalid_chars: "Use letras, números, _ e ponto; comece e termine com letra ou número.",
+    nickname_reserved: "Esse apelido é reservado.",
+    nickname_cooldown: "Você trocou de apelido há pouco. Dá para trocar de novo daqui a alguns dias.",
+    invalid_avatar: "Escolha um avatar da lista.",
+    unauthorized: "Sua sessão expirou. Entre de novo.",
+    server_error: "O servidor da conta está com problemas. Tente de novo em instantes.",
+    network: "Não foi possível falar com o servidor da conta. Verifique a internet.",
+    unknown: "Algo deu errado. Tente de novo."
+  } as Record<string, string>,
+  attemptsLeft: (count: number) => (count === 1 ? "Resta 1 tentativa." : `Restam ${count} tentativas.`)
+} as const;
+
+export function accountErrorMessage(code: string) {
+  return oghmaAccountStrings.errors[code] ?? oghmaAccountStrings.errors.unknown;
+}

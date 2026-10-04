@@ -22,6 +22,11 @@ import { ServerSection } from "./ServerSection";
 import { TranslationSection } from "./TranslationSection";
 import type { AccountController } from "../../app/account";
 import { ChatGptAccountCard } from "../account/ChatGptAccount";
+import { OghmaAccountSection } from "../account/OghmaAccountSection";
+import type { AccountSheetStep } from "../account/AccountSheet";
+import type { OghmaAccountController } from "../account/useOghmaAccount";
+import { oghmaAccountStrings } from "../../strings/oghmaAccount";
+import { SectionHeader } from "../../ui";
 import "./settings.css";
 
 import { settingsCategories, type SettingsCategory } from "./categories";
@@ -55,6 +60,9 @@ export type SettingsViewProps = {
   onNavigate: (view: AppView) => void;
   /** ChatGPT account (Ajustes > Conta). */
   account: AccountController;
+  /** Conta Oghma (Ajustes > Conta, above the ChatGPT account). */
+  oghmaAccount?: OghmaAccountController;
+  onOpenAccountSheet?: (step: AccountSheetStep) => void;
   onRetryAccount?: () => void;
   initialCategory?: SettingsCategory;
 };
@@ -109,7 +117,20 @@ export function SettingsView(props: SettingsViewProps) {
       body = <GeneralSection saved={saved} />;
       break;
     case "account":
-      body = <ChatGptAccountCard account={props.account} onRetry={props.onRetryAccount} />;
+      body = (
+        <div className="settings-accounts">
+          {props.oghmaAccount ? (
+            <section className="settings-accounts__block">
+              <SectionHeader as="h3" size="md" title={oghmaAccountStrings.oghmaHeading} />
+              <OghmaAccountSection account={props.oghmaAccount} onOpenSheet={(step) => props.onOpenAccountSheet?.(step)} />
+            </section>
+          ) : null}
+          <section className="settings-accounts__block">
+            {props.oghmaAccount ? <SectionHeader as="h3" size="md" title={oghmaAccountStrings.chatGptHeading} /> : null}
+            <ChatGptAccountCard account={props.account} onRetry={props.onRetryAccount} />
+          </section>
+        </div>
+      );
       break;
     case "downloads":
       body = <DownloadsSection config={props.config} save={save} saved={saved} onNavigate={props.onNavigate} />;

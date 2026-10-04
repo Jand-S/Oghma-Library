@@ -1,5 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { AppView } from "../app/NavigationContext";
 import { kindleStrings, shellStrings } from "../strings/common";
 import { cx } from "../ui";
@@ -30,6 +30,8 @@ export type SidebarProps = SidebarStatus & {
   onResize: (width: number) => void;
   onResizingChange?: (resizing: boolean) => void;
   onResizeEnd?: (width: number) => void;
+  /** The reader's account at the bottom (avatar and nickname, or "Entrar"). */
+  account?: ReactNode;
 };
 
 export function Sidebar({
@@ -43,7 +45,8 @@ export function Sidebar({
   onResizeEnd,
   downloading = false,
   flashKey = 0,
-  kindleConnected = false
+  kindleConnected = false,
+  account
 }: SidebarProps) {
   const [flashing, setFlashing] = useState(false);
   const dragStart = useRef<{ x: number; width: number } | null>(null);
@@ -155,6 +158,7 @@ export function Sidebar({
         ))}
       </nav>
       <div className="o-sidebar__footer">
+        {account ? <div className="o-sidebar__account">{account}</div> : null}
         <ul role="list" className="o-sidebar__menu">
           {renderItem(settingsNavItem)}
         </ul>

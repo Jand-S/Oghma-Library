@@ -93,6 +93,16 @@
     border-top: 1px solid var(--separator);
   }
 
+  .o-sidebar__account {
+    display: flex;
+    min-width: 0;
+  }
+
+  .o-sidebar__account > * {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .o-sidebar__item {
     position: relative;
     display: flex;

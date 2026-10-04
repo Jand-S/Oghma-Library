@@ -203,7 +203,7 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                   <div className="library-row__status">
                     <ReadingStatusLabel status={item.readingStatus} />
                   </div>
-                  <div className="library-row__rating" data-card-control>
+                  <div className={cx("library-row__rating", Boolean(item.rating) && "is-rated")} data-card-control>
                     <StarRating
                       size="xs"
                       label={`${libraryStrings.ratingLabel}: ${item.title}`}

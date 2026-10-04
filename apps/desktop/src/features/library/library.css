@@ -51,7 +51,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-0-5) var(--space-1-5);
+    gap: var(--space-0-5) var(--space-3);
     min-width: 0;
   }
 
@@ -62,11 +62,8 @@
     min-width: 0;
   }
 
-  /* Hairline between the status chips and the format/favorite chips. */
-  .library-bar__group + .library-bar__group {
-    padding-left: var(--space-1-5);
-    border-left: 1px solid var(--separator);
-  }
+  /* Status chips and format/favorite chips are separate groups: a wider gap, no divider
+     (a divider would dangle at the start of the line when the bar wraps). */
 
   .library-bar__sort {
     flex: 0 0 auto;
@@ -706,6 +703,16 @@
     display: flex;
     align-items: center;
     min-width: 0;
+  }
+
+  .library-row__rating:not(.is-rated) {
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .library-row:hover .library-row__rating,
+  .library-row:focus-within .library-row__rating {
+    opacity: 1;
   }
 
   .library-row.is-shelf .o-cover {
