@@ -184,11 +184,23 @@ export type LibraryItem = {
   exportedAt: string;
   favorite?: boolean;
   readingStatus?: LibraryReadingStatus;
+  /** The reader's rating, 1–5 stars. */
+  rating?: number;
   personalTags?: string[];
   hidden?: boolean;
   /** Chapters the catalog has beyond this download (whole-novel downloads only). */
   newChapters?: number;
+  /** "local" = files on this disk; "shelf" = in the library without files (download on demand). */
+  availability?: LibraryAvailability;
+  /** Catalog source of the book (`novel.sourceId`). */
+  sourceId?: string;
+  /** The book is no longer in any published catalog (its source left); shown from the snapshot. */
+  unavailable?: boolean;
+  /** When the book entered the library (ms since epoch). */
+  addedAt?: number;
 };
+
+export type LibraryAvailability = "local" | "shelf";
 
 export type LibraryReadingStatus = "unread" | "reading" | "paused" | "completed" | "dropped";
 
@@ -197,7 +209,32 @@ export type LibraryMeta = {
   favorite: boolean;
   readingStatus: LibraryReadingStatus;
   tags: string[];
+  /** Removed from this device's library while its files stay on disk (not synced). */
   hidden: boolean;
+  /** 1–5 stars; null/absent = not rated. */
+  rating?: number | null;
+  /** In the library even without files. */
+  onShelf?: boolean;
+  /** ms since epoch. */
+  addedAt?: number | null;
+  /** Last change, ms since epoch (set when saving; drives the account sync). */
+  changedAt?: number | null;
+  /** Tombstone: removed from the library at this time (ms). */
+  deletedAt?: number | null;
+  /** The book as it looked when added, so it shows even when its source leaves the catalog. */
+  snapshot?: BookSnapshot | null;
+};
+
+/** What the library needs to show a book without its files or its catalog entry. */
+export type BookSnapshot = {
+  novelId: string;
+  title: string;
+  author?: string;
+  sourceId?: string;
+  sourceName?: string;
+  coverUrl?: string;
+  chapters?: number;
+  description?: string;
 };
 
 export type TagCategory = "format" | "genre" | "theme";

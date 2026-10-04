@@ -59,19 +59,18 @@ export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNove
     const catalog = catalogIndex.entries.map((entry) => entry.novel).filter((novel) => enabled.has(novel.sourceId));
     const owned = new Set(library.map((item) => item.novelId).filter((id): id is string => Boolean(id)));
 
-    // Seeds: favorites weigh most, then what is being read, then anything downloaded.
-    const ranked = [...library].sort((a, b) => score(b) - score(a));
-    const seeds = ranked
-      .map((item) => (item.novelId ? catalogIndex.byId.get(item.novelId) : undefined))
-      .filter((novel): novel is Novel => Boolean(novel))
-      .slice(0, 8);
+    // Seeds: what the reader rated high, favorites and what is being read pull the suggestions;
+    // low ratings and dropped books push their look-alikes down.
+    const { seeds, weights, avoid, seedItems } = homeSeeds(library, catalogIndex);
 
-    const forYou = similarNovels(catalogIndex, seeds, { limit: SHELF, exclude: owned, sourceIds });
+    const forYou = similarNovels(catalogIndex, seeds, { limit: SHELF, exclude: owned, sourceIds, weights, avoid });
     const because: Shelf[] = [];
-    for (const seed of seeds.slice(0, BECAUSE_ROWS)) {
-      const items = similarNovels(catalogIndex, [seed], { limit: SHELF, exclude: owned, sourceIds });
-      if (items.length >= 4) because.push({ id: `because-${seed.id}`, title: homeStrings.becauseYouRead(seed.title), kind: "novel", items });
-    }
+    seeds.slice(0, BECAUSE_ROWS).forEach((seed, i) => {
+      const items = similarNovels(catalogIndex, [seed], { limit: SHELF, exclude: owned, sourceIds, avoid });
+      if (items.length < 4) return;
+      const title = seedItems[i].rating === 5 ? homeStrings.becauseYouLoved(seed.title) : homeStrings.becauseYouRead(seed.title);
+      because.push({ id: `because-${seed.id}`, title, kind: "novel", items });
+    });
     if (forYou.length) shelves.push({ id: "for-you", title: homeStrings.forYou, hint: homeStrings.forYouHint, kind: "novel", items: forYou });
     shelves.push(...because);
 
@@ -186,6 +185,35 @@ export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNove
 
 const EXCLUDED_GENRES = new Set(["genre.erotic", "genre.explicit_erotic", "genre.adult", "genre.ecchi", "genre.smut", "genre.hentai"]);
 
-function score(item: LibraryItem) {
-  return (item.favorite ? 4 : 0) + (item.readingStatus === "reading" ? 2 : item.readingStatus === "completed" ? 1 : 0);
+/** ≤ this many stars, or dropped, counts as "not for me". */
+const DISLIKE_MAX = 2;
+const MAX_SEEDS = 8;
+const MAX_AVOID = 6;
+
+/**
+ * How much a library book should pull the recommendations: stars weigh most (5★ = 3,
+ * 4★ = 2, 3★ = 0.5), then favorite and reading; a book with no signal still counts a little.
+ * Negative = the reader did not like it (≤ 2★ or dropped without a better rating).
+ */
+export function seedWeight(item: LibraryItem): number {
+  const rating = item.rating ?? 0;
+  if ((rating > 0 && rating <= DISLIKE_MAX) || (item.readingStatus === "dropped" && rating < 3)) return -1;
+  const stars = rating === 5 ? 3 : rating === 4 ? 2 : rating === 3 ? 0.5 : 0;
+  const status = item.readingStatus === "reading" ? 1.5 : item.readingStatus === "completed" && !rating ? 1 : 0;
+  const weight = stars + (item.favorite ? 2 : 0) + status;
+  return weight > 0 ? weight : 0.25;
+}
+
+/** Library books as recommendation seeds (best first, with weights) and the books to steer away from. */
+export function homeSeeds(library: LibraryItem[], index: CatalogIndex) {
+  const resolved = library
+    .map((item) => ({ item, novel: item.novelId ? index.byId.get(item.novelId) : undefined, weight: seedWeight(item) }))
+    .filter((entry): entry is { item: LibraryItem; novel: Novel; weight: number } => Boolean(entry.novel));
+  const liked = resolved.filter((entry) => entry.weight > 0).sort((a, b) => b.weight - a.weight).slice(0, MAX_SEEDS);
+  return {
+    seeds: liked.map((entry) => entry.novel),
+    weights: liked.map((entry) => entry.weight),
+    seedItems: liked.map((entry) => entry.item),
+    avoid: resolved.filter((entry) => entry.weight < 0).slice(0, MAX_AVOID).map((entry) => entry.novel)
+  };
 }

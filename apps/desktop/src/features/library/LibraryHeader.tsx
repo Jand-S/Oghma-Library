@@ -1,13 +1,15 @@
-import { EyeOff, Heart, Languages, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
+import { CloudDownload, EyeOff, Heart, Languages, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import { libraryStrings } from "../../strings/library";
 import { Badge, Chip, IconButton, SegmentedControl, SelectField, TextField } from "../../ui";
-import type { LibrarySort, LibraryViewMode } from "./libraryModel";
+import { statusFilters, type LibrarySort, type LibraryStatusFilter, type LibraryViewMode } from "./libraryModel";
+import { ReadingStatusIcon } from "./ReadingStatus";
 import type { LibraryBrowse } from "./useLibraryBrowse";
 
 const sortOptions = [
   { value: "recent", label: libraryStrings.sortRecent },
   { value: "title", label: libraryStrings.sortTitle },
+  { value: "rating", label: libraryStrings.sortRating },
   { value: "size", label: libraryStrings.sortSize }
 ] as const;
 
@@ -70,11 +72,40 @@ export function libraryHeader(app: AppControllers): ViewHeader {
   };
 }
 
-/** Sub-bar under the header: format and favorites chips, plus the sort order. */
+function statusLabel(status: LibraryStatusFilter) {
+  if (status === "all") return libraryStrings.allBooks;
+  if (status === "shelf") return libraryStrings.shelfFilter;
+  return libraryStrings.readingStatusPlural[status];
+}
+
+function StatusChipIcon({ status }: { status: LibraryStatusFilter }) {
+  if (status === "all") return null;
+  if (status === "shelf") return <CloudDownload />;
+  return <ReadingStatusIcon status={status} />;
+}
+
+/** Sub-bar under the header: reading-status chips, format and favorites chips, plus the sort order. */
 export function LibraryFilterBar({ browse }: { browse: LibraryBrowse }) {
+  // Statuses with no book stay out of the way (the selected one always shows).
+  const shown = statusFilters.filter((status) => status === "all" || status === browse.status || browse.statusCounts[status] > 0);
   return (
     <div className="library-bar" data-testid="library-toolbar">
-      <div className="library-bar__filters" role="group" aria-label={libraryStrings.formatFilterLabel}>
+      <div className="library-bar__filters">
+        {shown.length > 1 ? (
+          <div className="library-bar__group" role="group" aria-label={libraryStrings.statusFilterLabel} data-testid="library-status-filters">
+            {shown.map((status) => (
+              <Chip
+                key={status}
+                selected={browse.status === status}
+                onToggle={() => browse.setStatus(status)}
+                icon={<StatusChipIcon status={status} />}
+              >
+                {status === "all" ? statusLabel(status) : `${statusLabel(status)} ${browse.statusCounts[status].toLocaleString("pt-BR")}`}
+              </Chip>
+            ))}
+          </div>
+        ) : null}
+        <div className="library-bar__group" role="group" aria-label={libraryStrings.formatFilterLabel}>
         {browse.formats.map((format) => (
           <Chip key={format} selected={browse.selectedFormats.has(format)} onToggle={() => browse.toggleFormat(format)}>
             {format}
@@ -93,6 +124,7 @@ export function LibraryFilterBar({ browse }: { browse: LibraryBrowse }) {
             {libraryStrings.hiddenFilter(browse.hiddenCount)}
           </Chip>
         ) : null}
+        </div>
       </div>
       <SelectField
         label={libraryStrings.sortLabel}

@@ -362,7 +362,7 @@ pub fn commit_export(
     let committed = commit_export_at(&staging, &target)?;
     let keys = meta_keys_for(&committed, &final_dir, novel_id.trim());
     // The files are already in place; a metadata failure must not fail the export.
-    if let Err(err) = library_meta::reset_hidden(&app, &keys) {
+    if let Err(err) = library_meta::mark_downloaded(&app, &keys) {
         eprintln!("Warning: could not reset hidden flag for {final_dir:?}: {err}");
     }
     Ok(())

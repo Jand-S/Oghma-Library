@@ -1,10 +1,11 @@
-import { Download, Eye, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CloudDownload, Download, Eye, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Search, Trash2 } from "lucide-react";
 import { getPlatform } from "../../shell/platform";
 import { useState, type CSSProperties } from "react";
-import type { LibraryItem, LibraryReadingStatus } from "../../core/types";
+import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
-import { AppleLogo, Badge, Banner, Button, Chip, Cover, DropdownMenu, IconButton, ListGroup, ListRow, PathControl, ProgressBar, SelectField, TextField, cx, type MenuItem } from "../../ui";
-import { formatDownloadedAt, formatsOf, jobLabel, type BookJobState } from "./libraryModel";
+import { AppleLogo, Badge, Banner, Button, Chip, Cover, DropdownMenu, IconButton, ListGroup, ListRow, PathControl, ProgressBar, StarRating, TextField, cx, type MenuItem } from "../../ui";
+import { formatDownloadedAt, formatsOf, isShelf, jobLabel, type BookJobState } from "./libraryModel";
+import { ReadingStatusLabel, ReadingStatusPicker } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
 import type { LibraryController } from "./useLibraryController";
 import { useNavigation } from "../../app/NavigationContext";
@@ -17,7 +18,9 @@ type LibraryDetailsProps = {
   jobState: BookJobState | null;
 };
 
-const readingStatuses: LibraryReadingStatus[] = ["unread", "reading", "paused", "completed", "dropped"];
+function formatAddedAt(addedAt: number) {
+  return new Date(addedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 /** Book page: blurred cover hero, action bar, synopsis, reading notes and an Apple-style info list. Hide and delete live in the ⋯ menu. */
 export function LibraryDetails({ item, library, actions, jobState }: LibraryDetailsProps) {
@@ -29,6 +32,7 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
   const running = library.conversion.converterRunning;
   const busy = Boolean(jobState);
   const redownloadReason = actions.redownloadDisabledReason(item);
+  const shelf = isShelf(item);
 
   const addTag = () => {
     const value = tagInput.trim();
@@ -48,7 +52,7 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
     item.hidden
       ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item), separatorBefore: true }
       : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => actions.askRemove(item), separatorBefore: true },
-    { label: libraryStrings.deleteFilesMenu, icon: <Trash2 />, onSelect: () => actions.askDelete(item), danger: true, separatorBefore: true }
+    ...(shelf ? [] : [{ label: libraryStrings.deleteFilesMenu, icon: <Trash2 />, onSelect: () => actions.askDelete(item), danger: true, separatorBefore: true }])
   ];
   const revealLabel = getPlatform() === "macos" ? libraryStrings.showInFinder : libraryStrings.openFolder;
 
@@ -70,8 +74,20 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
               <div className="library-hero__badges">
                 <TranslationBadge item={item} />
                 {formats.map((format) => <Badge key={format} tone="accent">{format}</Badge>)}
+                {shelf ? (
+                  <Badge tone={item.unavailable ? "warning" : "neutral"}>
+                    {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
+                    {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
+                  </Badge>
+                ) : null}
                 {item.favorite ? <Badge><Heart aria-hidden="true" />{libraryStrings.favorite}</Badge> : null}
               </div>
+              {item.rating || (item.readingStatus && item.readingStatus !== "unread") ? (
+                <div className="library-hero__reading">
+                  <ReadingStatusLabel status={item.readingStatus} />
+                  <StarRating size="sm" value={item.rating} compact />
+                </div>
+              ) : null}
               {item.translatedFrom ? (
                 <p className="library-hero__origin" data-testid="library-translated-from">
                   {libraryStrings.translatedFrom}{" "}
@@ -94,10 +110,28 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                 </div>
               ) : null}
               <div className="library-actions" role="toolbar" aria-label={libraryStrings.moreActions}>
-                <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
-                  {revealLabel}
-                </Button>
-                <Button
+                {shelf ? (
+                  <Button
+                    variant="primary"
+                    icon={<CloudDownload />}
+                    data-testid="library-download"
+                    onClick={() => actions.download(item)}
+                    disabled={Boolean(redownloadReason)}
+                    title={redownloadReason ?? libraryStrings.downloadHint}
+                  >
+                    {libraryStrings.download}
+                  </Button>
+                ) : (
+                  <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
+                    {revealLabel}
+                  </Button>
+                )}
+                {shelf && item.unavailable ? (
+                  <Button variant="outline" icon={<Search />} onClick={() => actions.findOtherEdition(item)} data-testid="library-find-edition">
+                    {libraryStrings.findOtherEdition}
+                  </Button>
+                ) : null}
+                {shelf ? null : <Button
                   variant={item.newChapters ? "primary" : "outline"}
                   icon={<Download />}
                   data-testid="library-redownload"
@@ -106,11 +140,13 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                   title={redownloadReason ?? (item.newChapters ? libraryStrings.newChaptersHint(item.newChapters) : libraryStrings.redownloadHint)}
                 >
                   {item.newChapters ? libraryStrings.updateWithNew(item.newChapters) : libraryStrings.downloadAgain}
-                </Button>
-                <Button variant="outline" icon={<FileCog />} onClick={() => actions.openConvert(item)} disabled={running || busy}>
-                  {libraryStrings.convert}
-                </Button>
-                {library.icloudAvailable ? (
+                </Button>}
+                {shelf ? null : (
+                  <Button variant="outline" icon={<FileCog />} onClick={() => actions.openConvert(item)} disabled={running || busy}>
+                    {libraryStrings.convert}
+                  </Button>
+                )}
+                {library.icloudAvailable && !shelf ? (
                   <Button
                     variant="outline"
                     icon={<AppleLogo />}
@@ -134,6 +170,14 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
           </div>
         </div>
       </header>
+
+      {shelf && item.unavailable ? (
+        <div className="library-details__notice">
+          <Banner tone="warning" icon={<AlertTriangle />} title={libraryStrings.unavailableBadge}>
+            {libraryStrings.unavailableHint}
+          </Banner>
+        </div>
+      ) : null}
 
       {item.hidden ? (
         <div className="library-details__notice">
@@ -161,12 +205,19 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
         <aside className="library-details__side">
           <section className="library-panel" aria-labelledby="library-reading-title">
             <h3 id="library-reading-title" className="library-panel__title">{libraryStrings.readingHeading}</h3>
-            <SelectField
-              label={libraryStrings.readingStatus}
-              value={item.readingStatus ?? "unread"}
-              options={readingStatuses.map((status) => ({ value: status, label: libraryStrings.readingStatusLabels[status] }))}
-              onChange={(event) => library.updateLibraryMeta(item, { readingStatus: event.target.value as LibraryReadingStatus })}
-            />
+            <div className="library-reading">
+              <span className="library-details__label">{libraryStrings.readingStatus}</span>
+              <ReadingStatusPicker value={item.readingStatus ?? "unread"} onChange={(status) => actions.setStatus(item, status)} />
+            </div>
+            <div className="library-reading library-reading--rating">
+              <span className="library-details__label">{libraryStrings.ratingLabel}</span>
+              <StarRating
+                size="md"
+                label={libraryStrings.ratingLabel}
+                value={item.rating}
+                onChange={(value) => actions.rate(item, value)}
+              />
+            </div>
             <div className="library-tags">
               <span className="library-details__label">{libraryStrings.tagsLabel}</span>
               <div className="library-tags__list">
@@ -196,10 +247,12 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
 
           <ListGroup title={libraryStrings.infoHeading}>
             <ListRow label={libraryStrings.factSource}>{item.sourceName ?? libraryStrings.localSource}</ListRow>
-            <ListRow label={libraryStrings.factFormats}>{formats.join(", ")}</ListRow>
+            <ListRow label={libraryStrings.factAvailability}>{shelf ? libraryStrings.availabilityShelf : libraryStrings.availabilityLocal}</ListRow>
+            {shelf ? null : <ListRow label={libraryStrings.factFormats}>{formats.join(", ")}</ListRow>}
             {item.chapters ? <ListRow label={libraryStrings.factChapters}>{item.chapters.toLocaleString("pt-BR")}</ListRow> : null}
-            <ListRow label={libraryStrings.factSize}>{libraryStrings.size(item.sizeMb)}</ListRow>
-            <ListRow label={libraryStrings.factDownloaded}>{formatDownloadedAt(item)}</ListRow>
+            {shelf ? null : <ListRow label={libraryStrings.factSize}>{libraryStrings.size(item.sizeMb)}</ListRow>}
+            {shelf ? null : <ListRow label={libraryStrings.factDownloaded}>{formatDownloadedAt(item)}</ListRow>}
+            {item.addedAt ? <ListRow label={libraryStrings.factAdded}>{formatAddedAt(item.addedAt)}</ListRow> : null}
             {item.outputDir ? (
               <ListRow label={libraryStrings.factFolder} stacked>
                 <PathControl

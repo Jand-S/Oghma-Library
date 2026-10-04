@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { AppConfig, DownloadFormat, LibraryItem, LibraryMeta, Novel } from "../core/types";
+import type { AppConfig, BookSnapshot, DownloadFormat, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import { downloadFormats } from "../core/types";
 import { sanitizeFileName } from "../services/downloadManager";
 import {
@@ -7,6 +7,7 @@ import {
   listLocalLibrary,
   novelMetaKey,
   prepareExportRoot,
+  saveLibraryMetaRows,
   type LocalLibraryEntry
 } from "../services/localFiles";
 
@@ -18,7 +19,14 @@ type LocalLibraryArgs = {
   /** Current catalog results, used only to enrich local items (author, description…). */
   results: Novel[];
   setLibrary: (items: LibraryUpdate) => void;
+  /** Rows were written by the library itself (downloads joining the shelf): the sync pushes them. */
+  onMetaChanged?: () => void;
 };
+
+function mergeRows(rows: LibraryMeta[], additions: LibraryMeta[]): LibraryMeta[] {
+  const keys = new Set(additions.map((row) => row.key));
+  return [...rows.filter((row) => !keys.has(row.key)), ...additions];
+}
 
 const OUTPUT_PATH_DEBOUNCE_MS = 300;
 const FOCUS_DEBOUNCE_MS = 400;
@@ -79,20 +87,87 @@ function formatsOf(files: string[]): DownloadFormat[] {
 
 /** Metadata row for an entry: the `novel:<id>` key wins over the legacy folder-path key. */
 export function metaForEntry(entry: LocalLibraryEntry, metaByKey: Map<string, LibraryMeta>): LibraryMeta {
-  return (entry.novelId ? metaByKey.get(novelMetaKey(entry.novelId)) : undefined)
-    ?? metaByKey.get(entry.outputDir)
+  const live = (meta: LibraryMeta | undefined) => (meta && !meta.deletedAt ? meta : undefined);
+  return live(entry.novelId ? metaByKey.get(novelMetaKey(entry.novelId)) : undefined)
+    ?? live(metaByKey.get(entry.outputDir))
     ?? { key: entry.outputDir, favorite: false, readingStatus: "unread", tags: [], hidden: false };
+}
+
+function personalFields(meta: LibraryMeta) {
+  return {
+    favorite: meta.favorite,
+    readingStatus: meta.readingStatus,
+    rating: meta.rating ?? undefined,
+    personalTags: meta.tags,
+    hidden: meta.hidden,
+    addedAt: meta.addedAt ?? undefined
+  };
+}
+
+/** Novel id of a `novel:<id>` key, or undefined for folder-path keys. */
+export function novelIdOfKey(key: string): string | undefined {
+  return key.startsWith("novel:") ? key.slice("novel:".length) : undefined;
+}
+
+/** Catalog novel for an id, following the moved-novel aliases. */
+export function catalogNovelById(catalog: Novel[], id: string): Novel | undefined {
+  return catalog.find((novel) => novel.id === id) ?? catalog.find((novel) => novel.aliases?.includes(id));
+}
+
+/** What the library keeps of a catalog novel (or of a downloaded book) to show it later without either. */
+export function snapshotOf(novelId: string, known: Novel | undefined, fallback?: Partial<BookSnapshot>): BookSnapshot {
+  return {
+    novelId,
+    title: known?.title ?? fallback?.title ?? novelId,
+    author: known?.author || fallback?.author || undefined,
+    sourceId: known?.sourceId ?? fallback?.sourceId,
+    sourceName: known?.sourceName ?? fallback?.sourceName,
+    // Local asset URLs (asset://) only make sense on this computer.
+    coverUrl: known?.coverUrl ?? (fallback?.coverUrl?.startsWith("http") ? fallback.coverUrl : undefined),
+    chapters: known?.chapters ?? fallback?.chapters,
+    description: known?.description ?? fallback?.description
+  };
+}
+
+/** A library book without files: from the catalog when it is still published, else from the snapshot. */
+export function shelfItem(meta: LibraryMeta, novelId: string, known: Novel | undefined): LibraryItem {
+  const snap = meta.snapshot ?? undefined;
+  return {
+    id: `shelf-${novelId}`,
+    novelId: known?.id ?? novelId,
+    title: known?.title ?? snap?.title ?? novelId,
+    author: known?.author ?? snap?.author ?? "",
+    format: "EPUB",
+    formats: [],
+    chapters: known?.chapters ?? snap?.chapters ?? 0,
+    sizeMb: 0,
+    coverClass: known?.coverClass ?? "cover-c",
+    coverUrl: known?.coverUrl ?? snap?.coverUrl,
+    bundleKey: known?.bundleKey,
+    description: known?.description ?? snap?.description,
+    sourceId: known?.sourceId ?? snap?.sourceId,
+    sourceName: known?.sourceName ?? snap?.sourceName,
+    exportedAt: meta.addedAt ? new Date(meta.addedAt).toISOString() : "Local",
+    availability: "shelf",
+    unavailable: !known,
+    ...personalFields(meta)
+  };
 }
 
 export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: LibraryMeta[], catalog: Novel[]): LibraryItem[] {
   const metaByKey = new Map(metaRows.map((meta) => [meta.key, meta]));
-  return entries.map((entry): LibraryItem => {
+  const onDisk = new Set<string>();
+  const local = entries.map((entry): LibraryItem => {
     const formats = formatsOf(entry.files);
     const known = findCatalogNovel(entry, catalog);
     const meta = metaForEntry(entry, metaByKey);
+    const fields = catalogFields(entry, known);
+    if (entry.novelId) onDisk.add(entry.novelId);
+    if (fields.novelId) onDisk.add(fields.novelId);
+    if (known) onDisk.add(known.id);
     return {
       id: `local-${entry.outputDir}`,
-      ...catalogFields(entry, known),
+      ...fields,
       title: entry.title,
       format: formats[0] ?? "EPUB",
       formats,
@@ -108,12 +183,55 @@ export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: Librar
       outputDir: entry.outputDir,
       files: entry.files,
       exportedAt: entry.mtimeMs ? new Date(entry.mtimeMs).toISOString() : "Local",
-      favorite: meta.favorite,
-      readingStatus: meta.readingStatus,
-      personalTags: meta.tags,
-      hidden: meta.hidden
+      availability: "local",
+      sourceId: known?.sourceId,
+      ...personalFields(meta)
     };
   });
+  const shelf: LibraryItem[] = [];
+  for (const meta of metaRows) {
+    const novelId = novelIdOfKey(meta.key);
+    if (!novelId || !meta.onShelf || meta.deletedAt || onDisk.has(novelId)) continue;
+    const known = catalogNovelById(catalog, novelId);
+    if (known && onDisk.has(known.id)) continue;
+    shelf.push(shelfItem(meta, novelId, known));
+  }
+  return [...local, ...shelf];
+}
+
+/**
+ * Downloaded books that are not in the library rows yet (downloaded before the shelf existed,
+ * or on this device only): they join the library with a snapshot. A book removed on purpose
+ * (tombstone) only comes back when its files are newer than the removal (downloaded again).
+ */
+export function shelfAdditions(entries: LocalLibraryEntry[], metaRows: LibraryMeta[], catalog: Novel[], now = Date.now()): LibraryMeta[] {
+  const metaByKey = new Map(metaRows.map((meta) => [meta.key, meta]));
+  const out: LibraryMeta[] = [];
+  for (const entry of entries) {
+    if (entry.language) continue; // translations are this computer's own books
+    const known = findCatalogNovel(entry, catalog);
+    const novelId = entry.novelId ?? known?.id;
+    if (!novelId) continue;
+    const key = novelMetaKey(novelId);
+    const row = metaByKey.get(key);
+    const legacy = metaByKey.get(entry.outputDir);
+    if (row && !row.deletedAt && (row.onShelf || row.hidden)) continue;
+    if (row?.deletedAt && (entry.mtimeMs ?? 0) <= row.deletedAt) continue;
+    if (!row && legacy?.hidden) continue;
+    const base = row && !row.deletedAt ? row : legacy && !legacy.deletedAt ? legacy : undefined;
+    out.push({
+      key,
+      favorite: base?.favorite ?? false,
+      readingStatus: base?.readingStatus ?? "unread",
+      tags: base?.tags ?? [],
+      hidden: false,
+      rating: base?.rating ?? null,
+      onShelf: true,
+      addedAt: base?.addedAt ?? entry.mtimeMs ?? now,
+      snapshot: snapshotOf(novelId, known, { title: entry.title, coverUrl: entry.coverUrl, chapters: entry.chapterCount })
+    });
+  }
+  return out;
 }
 
 /** Re-applies catalog enrichment to already-listed items without touching metadata fields. */
@@ -121,6 +239,28 @@ export function enrichLibraryItems(items: LibraryItem[], entries: LocalLibraryEn
   const entryByDir = new Map(entries.map((entry) => [entry.outputDir, entry]));
   let changed = false;
   const next = items.map((item) => {
+    if (item.availability === "shelf" && item.novelId) {
+      const known = catalogNovelById(catalog, item.novelId);
+      if (!known) return item;
+      const same = !item.unavailable && item.title === known.title && item.coverUrl === (known.coverUrl ?? item.coverUrl)
+        && item.chapters === known.chapters && item.sourceName === known.sourceName && item.bundleKey === known.bundleKey;
+      if (same) return item;
+      changed = true;
+      return {
+        ...item,
+        novelId: known.id,
+        title: known.title,
+        author: known.author,
+        coverUrl: known.coverUrl ?? item.coverUrl,
+        coverClass: known.coverClass,
+        chapters: known.chapters,
+        description: known.description,
+        sourceId: known.sourceId,
+        sourceName: known.sourceName,
+        bundleKey: known.bundleKey,
+        unavailable: false
+      };
+    }
     const entry = item.outputDir ? entryByDir.get(item.outputDir) : undefined;
     if (!entry) return item;
     const known = findCatalogNovel(entry, catalog);
@@ -141,13 +281,15 @@ export function enrichLibraryItems(items: LibraryItem[], entries: LocalLibraryEn
 /**
  * Keeps the local library in sync with the output folder. Scans on output path change
  * (debounced), when `loading` finishes, on window focus (debounced) and on `refresh()`.
- * Catalog `results` only enrich items; they never trigger a disk scan.
+ * Catalog `results` only enrich items; only the first catalog triggers a scan (shelf books
+ * and untracked downloads need it). The library is the files on disk plus the shelf rows.
  */
-export function useLocalLibrary({ appConfig, loading, results, setLibrary }: LocalLibraryArgs) {
+export function useLocalLibrary({ appConfig, loading, results, setLibrary, onMetaChanged }: LocalLibraryArgs) {
   const outputPath = appConfig.outputPath;
   const resultsRef = useRef(results);
   resultsRef.current = results;
   const entriesRef = useRef<LocalLibraryEntry[]>([]);
+  const metaRowsRef = useRef<LibraryMeta[]>([]);
   const requestSeq = useRef(0);
   const lastRefreshAt = useRef(0);
   const preparedRoot = useRef<string | null>(null);
@@ -163,7 +305,12 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary }: Loc
       .then(([entries, metaRows]) => {
         if (!entries || seq !== requestSeq.current) return;
         entriesRef.current = entries;
-        setLibrary(buildLibraryItems(entries, metaRows, resultsRef.current));
+        const catalog = resultsRef.current;
+        const additions = catalog.length ? shelfAdditions(entries, metaRows, catalog) : [];
+        const rows = additions.length ? mergeRows(metaRows, additions) : metaRows;
+        metaRowsRef.current = rows;
+        setLibrary(buildLibraryItems(entries, rows, catalog));
+        if (additions.length) void saveLibraryMetaRows(additions).then(() => onMetaChanged?.()).catch(() => undefined);
       })
       .catch(() => undefined);
   }, [outputPath, setLibrary]);
@@ -191,11 +338,21 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary }: Loc
     };
   }, [refresh]);
 
-  // New catalog results only re-enrich what is already listed (no disk scan).
+  // New catalog results re-enrich what is already listed (no disk scan); the first catalog
+  // also brings the shelf books in (they need it to resolve) and adds untracked downloads.
+  const hadCatalog = useRef(false);
   useEffect(() => {
-    if (entriesRef.current.length === 0) return;
+    if (!results.length) return;
+    if (!hadCatalog.current) {
+      hadCatalog.current = true;
+      if (lastRefreshAt.current > 0) {
+        refresh();
+        return;
+      }
+    }
+    if (entriesRef.current.length === 0 && metaRowsRef.current.length === 0) return;
     setLibrary((current) => enrichLibraryItems(current, entriesRef.current, results));
-  }, [results, setLibrary]);
+  }, [refresh, results, setLibrary]);
 
   return { refresh, refreshLocalLibrary: refresh };
 }

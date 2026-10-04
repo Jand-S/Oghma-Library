@@ -1,9 +1,10 @@
-import { FolderOpen, Heart, Languages, MoreVertical } from "lucide-react";
+import { AlertTriangle, CloudDownload, FolderOpen, Heart, Languages, MoreVertical } from "lucide-react";
 import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Cover, DropdownMenu, IconButton, Spinner, cx, type MenuPoint } from "../../ui";
-import { formatDownloadedAt, formatSummary, formatsOf, isTranslated, jobLabel, type BookJobState, type LibraryViewMode } from "./libraryModel";
+import { Badge, Cover, DropdownMenu, IconButton, Spinner, StarRating, cx, type MenuPoint } from "../../ui";
+import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, jobLabel, type BookJobState, type LibraryViewMode } from "./libraryModel";
+import { ReadingStatusLabel } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
 
 type CollectionProps = {
@@ -38,7 +39,6 @@ function JobBadge({ state, className }: { state: BookJobState; className?: strin
   );
 }
 
-/** Grid of covers or dense list, with a shared right-click menu. */
 /** "PT-BR" (finished translation) or "Prévia 42%" (partial book). */
 export function TranslationBadge({ item, className }: { item: LibraryItem; className?: string }) {
   if (!isTranslated(item)) return null;
@@ -56,6 +56,21 @@ export function TranslationBadge({ item, className }: { item: LibraryItem; class
   );
 }
 
+/** Cloud badge on books kept in the library without files; a warning when the source left. */
+function ShelfBadge({ item }: { item: LibraryItem }) {
+  return (
+    <span
+      className="library-tile__formats library-tile__shelf"
+      title={item.unavailable ? libraryStrings.unavailableHint : libraryStrings.onShelfHint}
+      data-testid="library-shelf-badge"
+    >
+      {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
+      {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
+    </span>
+  );
+}
+
+/** Grid of covers or dense list, with a shared right-click menu. */
 export function LibraryCollection({ items, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
 
@@ -90,7 +105,7 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
             return (
               <li key={item.id} className="library-grid__cell">
                 <article
-                  className={cx("library-tile", state && "is-busy")}
+                  className={cx("library-tile", state && "is-busy", isShelf(item) && "is-shelf", item.unavailable && "is-unavailable")}
                   data-testid="library-card"
                   onClick={openItem(item)}
                   onContextMenu={openContext(item)}
@@ -98,7 +113,9 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                   <div className="library-tile__media">
                     <Cover src={item.coverUrl} title={item.title} size="fill" sheen className="library-tile__cover" />
                     <div className="library-tile__overlay" aria-hidden="true" />
-                    <span className="library-tile__formats" title={formatsOf(item).join(", ")}>{formatSummary(item)}</span>
+                    {isShelf(item)
+                      ? <ShelfBadge item={item} />
+                      : <span className="library-tile__formats" title={formatsOf(item).join(", ")}>{formatSummary(item)}</span>}
                     {state || isTranslated(item) || item.newChapters ? (
                       <div className="library-tile__flags">
                         {state ? <JobBadge state={state} /> : null}
@@ -129,10 +146,21 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                       {item.title}
                     </button>
                     <span className="library-tile__meta">
-                      {[item.author, item.chapters ? libraryStrings.chapters(item.chapters) : libraryStrings.size(item.sizeMb)]
+                      {[item.author, item.chapters ? libraryStrings.chapters(item.chapters) : isShelf(item) ? "" : libraryStrings.size(item.sizeMb)]
                         .filter(Boolean)
                         .join(" · ")}
                     </span>
+                    <div className="library-tile__footer">
+                      <ReadingStatusLabel status={item.readingStatus} />
+                      <span className={cx("library-tile__rating", Boolean(item.rating) && "is-rated")} data-card-control>
+                        <StarRating
+                          size="xs"
+                          label={`${libraryStrings.ratingLabel}: ${item.title}`}
+                          value={item.rating}
+                          onChange={(value) => actions.rate(item, value)}
+                        />
+                      </span>
+                    </div>
                   </div>
                 </article>
               </li>
@@ -144,6 +172,8 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
           <div className="library-list__head" aria-hidden="true">
             <span />
             <span>{libraryStrings.listTitle}</span>
+            <span>{libraryStrings.listStatus}</span>
+            <span>{libraryStrings.listRating}</span>
             <span>{libraryStrings.listFormats}</span>
             <span className="library-list__num">{libraryStrings.listSize}</span>
             <span>{libraryStrings.listDate}</span>
@@ -155,7 +185,7 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
               return (
                 <li
                   key={item.id}
-                  className={cx("library-row", state && "is-busy")}
+                  className={cx("library-row", state && "is-busy", isShelf(item) && "is-shelf")}
                   data-testid="library-row"
                   onClick={openItem(item)}
                   onContextMenu={openContext(item)}
@@ -170,14 +200,40 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                       {item.author || item.sourceName || libraryStrings.localSource}
                     </span>
                   </div>
+                  <div className="library-row__status">
+                    <ReadingStatusLabel status={item.readingStatus} />
+                  </div>
+                  <div className="library-row__rating" data-card-control>
+                    <StarRating
+                      size="xs"
+                      label={`${libraryStrings.ratingLabel}: ${item.title}`}
+                      value={item.rating}
+                      onChange={(value) => actions.rate(item, value)}
+                    />
+                  </div>
                   <div className="library-row__formats">
                     <TranslationBadge item={item} />
-                    {formatsOf(item).map((format) => <Badge key={format}>{format}</Badge>)}
+                    {isShelf(item) ? (
+                      <Badge tone={item.unavailable ? "warning" : "neutral"} title={item.unavailable ? libraryStrings.unavailableHint : libraryStrings.onShelfHint}>
+                        {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
+                        {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
+                      </Badge>
+                    ) : formatsOf(item).map((format) => <Badge key={format}>{format}</Badge>)}
                   </div>
-                  <span className="library-row__num">{libraryStrings.size(item.sizeMb)}</span>
+                  <span className="library-row__num">{isShelf(item) ? "—" : libraryStrings.size(item.sizeMb)}</span>
                   <span className="library-row__date">{formatDownloadedAt(item)}</span>
                   <div className="library-row__actions" data-card-control>
-                    <IconButton label={`${libraryStrings.openFolder}: ${item.title}`} icon={<FolderOpen />} size="sm" onClick={() => onOpenFolder(item)} />
+                    {isShelf(item) ? (
+                      <IconButton
+                        label={`${libraryStrings.download}: ${item.title}`}
+                        icon={<CloudDownload />}
+                        size="sm"
+                        onClick={() => actions.download(item)}
+                        disabled={Boolean(actions.redownloadDisabledReason(item))}
+                      />
+                    ) : (
+                      <IconButton label={`${libraryStrings.openFolder}: ${item.title}`} icon={<FolderOpen />} size="sm" onClick={() => onOpenFolder(item)} />
+                    )}
                     {moreMenu(item, "library-row__menu", "ghost")}
                   </div>
                 </li>

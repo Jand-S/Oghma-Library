@@ -1185,3 +1185,56 @@
     color: var(--accent);
   }
 }
+
+@layer features {
+  /* Library row under the hero: add / "Já li", or the reader's status and stars. */
+  .discover-shelf {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    margin: var(--space-1) var(--space-3) 0;
+    padding: var(--space-1) var(--space-1-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+  }
+
+  .discover-shelf--owned {
+    justify-content: space-between;
+  }
+
+  .discover-shelf__owned {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: none;
+    color: var(--accent-tint);
+    font: inherit;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+  }
+
+  .discover-shelf__owned svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .discover-shelf__owned:hover {
+    text-decoration: underline;
+  }
+
+  .discover-shelf__owned:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .discover-shelf__rating {
+    margin-left: auto;
+  }
+}

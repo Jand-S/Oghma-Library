@@ -233,9 +233,10 @@ describe("Library actions", () => {
     const menu = await screen.findByRole("menu");
     await user.click(within(menu).getByRole("menuitem", { name: libraryStrings.deleteFilesMenu }));
     const dialog = screen.getByRole("dialog", { name: libraryStrings.confirmDeleteTitle(LOST_TEMPLE) });
-    // Danger confirmations focus Cancel first.
+    // Danger confirmations focus Cancel first. A catalog book can keep its place on the shelf.
     expect(within(dialog).getByRole("button", { name: "Cancelar" })).toHaveFocus();
-    await user.click(within(dialog).getByRole("button", { name: libraryStrings.confirmDelete }));
+    expect(within(dialog).getByRole("button", { name: libraryStrings.confirmDeleteKeep })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: libraryStrings.confirmDeleteAll }));
 
     // Outside Tauri there is nothing to delete: the book stays and the user is told why.
     await waitFor(() => expect(within(getToastRegion()).getByText(libraryStrings.deleteDesktopOnly)).toBeInTheDocument());

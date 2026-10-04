@@ -1,0 +1,58 @@
+@import "../styles/layers.css";
+
+@layer components {
+  .o-stars {
+    --star-size: var(--fs-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--space-0-5) / 4);
+    line-height: 1;
+  }
+
+  .o-stars--xs {
+    --star-size: calc(var(--fs-xs) - var(--space-0-5) / 2);
+  }
+
+  .o-stars--md {
+    --star-size: var(--icon-md);
+    gap: calc(var(--space-0-5) / 2);
+  }
+
+  .o-stars__star {
+    width: var(--star-size);
+    height: var(--star-size);
+    color: var(--rating-empty);
+    fill: currentColor;
+    stroke-width: 0;
+    transition: color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  }
+
+  .o-stars__star.is-on,
+  .o-stars__button.is-on .o-stars__star {
+    color: var(--rating);
+  }
+
+  .o-stars__button {
+    display: inline-grid;
+    place-items: center;
+    padding: calc(var(--space-0-5) / 2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: none;
+    cursor: pointer;
+  }
+
+  .o-stars__button:hover .o-stars__star {
+    transform: scale(1.12);
+  }
+
+  .o-stars__button.is-preview .o-stars__star {
+    color: var(--rating);
+    opacity: 0.85;
+  }
+
+  .o-stars__button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}

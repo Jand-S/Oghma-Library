@@ -696,7 +696,7 @@ impl Host for TauriHost {
     }
 
     fn library_committed(&self, keys: &[String]) {
-        if let Err(err) = crate::library_meta::reset_hidden(&self.0, keys) {
+        if let Err(err) = crate::library_meta::mark_downloaded(&self.0, keys) {
             eprintln!("Warning: could not reset hidden flag for translated book: {err}");
         }
     }

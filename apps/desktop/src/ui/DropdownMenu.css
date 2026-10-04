@@ -79,4 +79,33 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .o-menu__heading {
+    padding: var(--space-0-5) var(--space-1) calc(var(--space-0-5) / 2);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+  }
+
+  .o-menu__check {
+    display: inline-flex;
+    width: var(--icon-sm);
+    color: var(--accent-tint);
+    visibility: hidden;
+  }
+
+  .o-menu__check.is-checked {
+    visibility: visible;
+  }
+
+  .o-menu__check svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .o-menu__trailing {
+    display: inline-flex;
+    margin-left: auto;
+    padding-left: var(--space-1);
+  }
 }

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import type { ChapterSelection, Filters, Novel, SourceSite, TagCatalogItem } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
 import { Button, EmptyState, cx } from "../../ui";
-import { DiscoverDetailPanel } from "./DiscoverDetailPanel";
+import { DiscoverDetailPanel, type DiscoverShelf } from "./DiscoverDetailPanel";
 import { DiscoverFilterBar } from "./DiscoverFilters";
 import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
 import type { SortDirection } from "./DiscoverHeader";
@@ -51,6 +51,8 @@ export type DiscoverViewProps = {
   onRetrySearch: () => void;
   onOpenSources: () => void;
   onOpenSettings: () => void;
+  /** Library actions for the open novel (add to shelf, "Já li", rating). */
+  shelf?: DiscoverShelf;
 };
 
 /** Controls a background click must never dismiss the preview from (filter popovers included). */
@@ -87,7 +89,8 @@ export function DiscoverView({
   onAddSelected,
   onRetrySearch,
   onOpenSources,
-  onOpenSettings
+  onOpenSettings,
+  shelf
 }: DiscoverViewProps) {
   const [visibleCount, setVisibleCount] = useState(DISCOVER_PAGE_SIZE);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -282,6 +285,7 @@ export function DiscoverView({
           editions={related?.editions}
           similar={related?.similar}
           onOpenNovel={onPreviewNovel}
+          shelf={shelf}
         />
       ) : null}
     </div>

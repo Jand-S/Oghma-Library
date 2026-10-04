@@ -26,3 +26,4 @@ export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
 export { ListGroup, ListRow, type ListGroupProps, type ListRowProps } from "./ListGroup";
 export { Banner, type BannerProps, type BannerTone } from "./Banner";
 export { PathControl, pathSegments, type PathControlProps } from "./PathControl";
+export { StarRating, type StarRatingProps } from "./StarRating";

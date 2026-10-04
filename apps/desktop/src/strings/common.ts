@@ -70,6 +70,10 @@ export const bootStrings = {
 
 /** Labels used by the src/ui primitives. */
 export const uiStrings = {
+  rating: "Nota",
+  ratingValue: (stars: number) => `Nota ${stars} de 5`,
+  notRated: "Sem nota",
+  rateStars: (stars: number) => `${stars} ${stars === 1 ? "estrela" : "estrelas"}`,
   close: "Fechar",
   cancel: "Cancelar",
   confirm: "Confirmar",

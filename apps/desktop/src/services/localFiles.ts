@@ -251,17 +251,68 @@ export async function listLibraryMetadata(): Promise<LibraryMeta[]> {
   return invoke<LibraryMeta[]>("list_library_meta");
 }
 
+/** Listeners told after the app writes library rows (the account sync pushes them). */
+const metaWriteListeners = new Set<() => void>();
+
+export function onLibraryMetaWrite(listener: () => void): () => void {
+  metaWriteListeners.add(listener);
+  return () => metaWriteListeners.delete(listener);
+}
+
+function notifyMetaWrite() {
+  for (const listener of metaWriteListeners) listener();
+}
+
 export async function saveLibraryMetadata(meta: LibraryMeta): Promise<boolean> {
   const invoke = await loadInvoke();
   if (!invoke) return false;
   const novelId = novelIdByOutputDir.get(meta.key);
+  const stamped = { ...meta, changedAt: Date.now() };
   if (novelId) {
     // Write the stable key and drop the legacy folder-path row in one transaction.
-    await invoke("save_library_meta", { meta: { ...meta, key: novelMetaKey(novelId) }, legacyKey: meta.key });
+    // Books downloaded from the catalog are part of the library (the shelf).
+    await invoke("save_library_meta", { meta: { ...stamped, key: novelMetaKey(novelId), onShelf: stamped.onShelf ?? !stamped.hidden }, legacyKey: meta.key });
   } else {
-    await invoke("save_library_meta", { meta });
+    await invoke("save_library_meta", { meta: stamped });
   }
+  notifyMetaWrite();
   return true;
+}
+
+/** Saves rows already keyed (`novel:<id>`), e.g. books joining the shelf. */
+export async function saveLibraryMetaRows(rows: LibraryMeta[]): Promise<boolean> {
+  const invoke = await loadInvoke();
+  if (!invoke || rows.length === 0) return false;
+  const now = Date.now();
+  for (const meta of rows) await invoke("save_library_meta", { meta: { ...meta, changedAt: meta.changedAt ?? now } });
+  notifyMetaWrite();
+  return true;
+}
+
+// ---------- Account sync (rows keyed `novel:<id>`) ----------
+
+export async function librarySyncPending(): Promise<LibraryMeta[]> {
+  const invoke = await loadInvoke();
+  if (!invoke) return [];
+  return invoke<LibraryMeta[]>("library_sync_pending");
+}
+
+export async function librarySyncMarkClean(entries: { key: string; changedAt: number }[]): Promise<number> {
+  const invoke = await loadInvoke();
+  if (!invoke || entries.length === 0) return 0;
+  return invoke<number>("library_sync_mark_clean", { entries });
+}
+
+export async function librarySyncApply(rows: LibraryMeta[]): Promise<number> {
+  const invoke = await loadInvoke();
+  if (!invoke || rows.length === 0) return 0;
+  return invoke<number>("library_sync_apply", { rows });
+}
+
+export async function librarySyncMarkAllDirty(): Promise<number> {
+  const invoke = await loadInvoke();
+  if (!invoke) return 0;
+  return invoke<number>("library_sync_mark_all_dirty");
 }
 
 export async function deleteLibraryMetadata(key: string): Promise<boolean> {
@@ -273,6 +324,7 @@ export async function deleteLibraryMetadata(key: string): Promise<boolean> {
     await invoke("delete_library_meta", { key: novelMetaKey(novelId) });
     novelIdByOutputDir.delete(key);
   }
+  notifyMetaWrite();
   return true;
 }
 

@@ -1,5 +1,12 @@
 /** Labels for the discover (search) view, pt-BR. */
 export const discoverStrings = {
+  addToLibrary: "Adicionar à biblioteca",
+  alreadyRead: "Já li",
+  alreadyReadHint: "Põe na biblioteca como Concluído, sem baixar, para você dar nota.",
+  inYourLibrary: "Na sua biblioteca",
+  onYourShelf: "Na sua estante",
+  openInLibrary: "Abrir na Biblioteca",
+  yourRating: "Sua nota",
   // Toolbar
   source: "Fonte",
   search: "Buscar livros",

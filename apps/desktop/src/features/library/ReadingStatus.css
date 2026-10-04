@@ -1,0 +1,51 @@
+@import "../../styles/layers.css";
+
+@layer features {
+  /* ---------- Reading status and rating ---------- */
+  .reading-status {
+    --status-color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    min-width: 0;
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+  }
+
+  .reading-status__dot {
+    flex: none;
+    width: calc(var(--space-1) - var(--space-0-5) / 2);
+    height: calc(var(--space-1) - var(--space-0-5) / 2);
+    border-radius: 50%;
+    background: var(--status-color);
+  }
+
+  .reading-status--reading {
+    --status-color: var(--accent-tint);
+  }
+
+  .reading-status--paused {
+    --status-color: var(--warning);
+  }
+
+  .reading-status--completed {
+    --status-color: var(--success);
+  }
+
+  .reading-status--dropped {
+    --status-color: var(--text-disabled);
+    color: var(--text-muted);
+  }
+
+  .reading-status-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-0-5);
+  }
+
+  .reading-status-picker__option {
+    display: inline-flex;
+  }
+}

@@ -1,7 +1,7 @@
 import { createElement as h, lazy, type ComponentType, type ReactNode } from "react";
 import { BookOpenText } from "lucide-react";
 import { defaultFilters } from "../core/defaults";
-import type { LibraryItem, Novel } from "../core/types";
+import type { LibraryItem, LibraryMeta, Novel } from "../core/types";
 import type { HomeSeeAll } from "../features/home/HomeView";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
 import { DiscoverView } from "../features/discover/DiscoverView";
@@ -126,7 +126,15 @@ function DiscoverPage({ app }: ViewProps) {
     onAddSelected: discover.addSelectedToQueue,
     onRetrySearch: discover.retrySearch,
     onOpenSources: () => app.navigate("sources"),
-    onOpenSettings: () => app.navigate("settings")
+    onOpenSettings: () => app.navigate("settings"),
+    shelf: {
+      find: (novel: Novel) => app.library.findByNovel(novel),
+      add: (novel: Novel, patch?: Partial<Pick<LibraryMeta, "readingStatus">>) => {
+        app.library.addToShelf(novel, patch);
+      },
+      rate: (item: LibraryItem, rating: number | null) => app.library.updateLibraryMeta(item, { rating }),
+      open: (item: LibraryItem) => app.navigate("library", { book: item.id })
+    }
   });
 }
 
@@ -179,7 +187,8 @@ function LibraryPage({ app }: ViewProps) {
     activeJob: app.downloads.activeJob,
     queuedJobs: app.downloads.queuedJobs,
     loading: app.loading,
-    navigate: app.navigate
+    navigate: app.navigate,
+    catalogIndex: app.discover.catalogIndex
   });
 }
 

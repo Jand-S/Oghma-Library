@@ -128,23 +128,49 @@ export function editionsOf(index: CatalogIndex, novel: Novel): Novel[] {
   return [...unique.values()].sort((a, b) => b.chapters - a.chapters);
 }
 
+export type SimilarOptions = {
+  limit?: number;
+  exclude?: ReadonlySet<string>;
+  sourceIds?: readonly string[];
+  /** Weight of each seed (same order as `seeds`; default 1): a 5-star book pulls harder than a 3-star one. */
+  weights?: readonly number[];
+  /** Books the reader disliked (low rating, dropped): novels close to them sink. */
+  avoid?: readonly Novel[];
+};
+
+/** How much a disliked book pushes its look-alikes down, relative to a seed of weight 1. */
+const AVOID_WEIGHT = 0.6;
+
 /**
- * Similar novels from the server's list, when every seed has one: the scores of all seeds are
- * summed, so "Para você" with several favorites favors what is close to many of them. Null
- * (caller falls back to tags) without the list.
+ * Similar novels from the server's list, when every seed has one: the (weighted) scores of all
+ * seeds are summed, so "Para você" with several favorites favors what is close to many of them,
+ * and what is close to a disliked book loses points. Null (caller falls back to tags) without the list.
  */
 function similarFromDiscovery(
   index: CatalogIndex,
   seeds: Novel[],
   limit: number,
-  options: { exclude?: ReadonlySet<string>; sourceIds?: readonly string[] }
+  options: SimilarOptions
 ): Novel[] | null {
   const lists = seeds.map((seed) => index.discovery?.similar.get(seed.id));
   if (!lists.length || lists.some((list) => !list)) return null;
   const seedWorks = new Set(seeds.flatMap((seed) => [seed, ...editionsOf(index, seed)]).map((novel) => workKey(novel.title)));
   const allowed = options.sourceIds ? new Set(options.sourceIds) : null;
   const total = new Map<string, number>();
-  for (const list of lists) for (const [id, score] of list!) total.set(id, (total.get(id) ?? 0) + score);
+  lists.forEach((list, i) => {
+    const weight = options.weights?.[i] ?? 1;
+    for (const [id, score] of list!) total.set(id, (total.get(id) ?? 0) + score * weight);
+  });
+  for (const disliked of options.avoid ?? []) {
+    for (const [id, score] of index.discovery?.similar.get(disliked.id) ?? []) {
+      if (total.has(id)) total.set(id, total.get(id)! - score * AVOID_WEIGHT);
+    }
+  }
+  const avoidWorks = new Set((options.avoid ?? []).map((novel) => workKey(novel.title)));
+  for (const [id, score] of total) {
+    const novel = index.byId.get(id);
+    if (score <= 0 || (novel && avoidWorks.has(workKey(novel.title)))) total.delete(id);
+  }
   const out: Novel[] = [];
   const seen = new Set<string>();
   for (const [id] of [...total.entries()].sort((a, b) => b[1] - a[1])) {
@@ -175,15 +201,26 @@ function similarFromDiscovery(
 export function similarNovels(
   index: CatalogIndex,
   seeds: Novel[],
-  options: { limit?: number; exclude?: ReadonlySet<string>; sourceIds?: readonly string[] } = {}
+  options: SimilarOptions = {}
 ): Novel[] {
   const limit = options.limit ?? 8;
   if (!seeds.length) return [];
   const precomputed = similarFromDiscovery(index, seeds, limit, options);
   if (precomputed) return precomputed;
-  const seedEntries = seeds.map((seed) => index.entries.find((entry) => entry.novel.id === seed.id)).filter(Boolean) as Entry[];
-  const seedTags = seedEntries.map((entry) => storyTags(entry.tagKeys));
-  const seedWorks = new Set(seeds.map((seed) => workKey(seed.title)));
+  const tagsOfSeed = (seed: Novel) => {
+    const entry = index.entries.find((item) => item.novel.id === seed.id);
+    return entry ? storyTags(entry.tagKeys) : null;
+  };
+  const seedTags = seeds
+    .map((seed, i) => ({ tags: tagsOfSeed(seed), weight: options.weights?.[i] ?? 1 }))
+    .filter((seed): seed is { tags: Set<string>; weight: number } => Boolean(seed.tags));
+  const avoidTags = (options.avoid ?? []).map(tagsOfSeed).filter((tags): tags is Set<string> => Boolean(tags));
+  const seedWorks = new Set([...seeds, ...(options.avoid ?? [])].map((seed) => workKey(seed.title)));
+  const jaccard = (a: Set<string>, b: Set<string>) => {
+    let shared = 0;
+    for (const tag of a) if (b.has(tag)) shared += 1;
+    return shared < 2 ? 0 : shared / (a.size + b.size - shared);
+  };
   const languages = new Set(seeds.map((seed) => seed.language.toLowerCase()));
   const allowed = options.sourceIds ? new Set(options.sourceIds) : null;
   const scored: Array<{ novel: Novel; score: number }> = [];
@@ -194,14 +231,13 @@ export function similarNovels(
     const tags = storyTags(entry.tagKeys);
     if (tags.size === 0) continue;
     let best = 0;
-    for (const seed of seedTags) {
-      let shared = 0;
-      for (const tag of tags) if (seed.has(tag)) shared += 1;
-      if (shared < 2) continue;
-      best = Math.max(best, shared / (seed.size + tags.size - shared));
-    }
-    if (best === 0) continue;
-    const score = best + (languages.has(novel.language.toLowerCase()) ? 0.05 : 0) + Math.min(novel.chapters, 2000) / 200000;
+    for (const seed of seedTags) best = Math.max(best, jaccard(seed.tags, tags) * seed.weight);
+    if (best <= 0) continue;
+    let penalty = 0;
+    for (const disliked of avoidTags) penalty = Math.max(penalty, jaccard(disliked, tags));
+    const affinity = best - penalty * AVOID_WEIGHT;
+    if (affinity <= 0) continue;
+    const score = affinity + (languages.has(novel.language.toLowerCase()) ? 0.05 : 0) + Math.min(novel.chapters, 2000) / 200000;
     scored.push({ novel, score });
   }
   scored.sort((a, b) => b.score - a.score);

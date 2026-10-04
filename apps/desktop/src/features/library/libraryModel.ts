@@ -1,14 +1,18 @@
-import type { DownloadFormat, DownloadJob, LibraryItem } from "../../core/types";
+import type { DownloadFormat, DownloadJob, LibraryItem, LibraryReadingStatus } from "../../core/types";
 import { downloadFormats } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 
-export type LibrarySort = "recent" | "title" | "size";
+export type LibrarySort = "recent" | "title" | "size" | "rating";
+/** Reading-status chips (single choice): every book, one status, or the books without files. */
+export type LibraryStatusFilter = "all" | Exclude<LibraryReadingStatus, "unread"> | "shelf";
+export const statusFilters: LibraryStatusFilter[] = ["all", "reading", "paused", "completed", "dropped", "shelf"];
 export type LibraryViewMode = "grid" | "list";
 
 export type LibraryFilters = {
   query: string;
   formats: ReadonlySet<DownloadFormat>;
   favoritesOnly: boolean;
+  status?: LibraryStatusFilter;
   translatedOnly?: boolean;
   /** Only the books removed from the library (files still on disk); they are otherwise left out. */
   hiddenOnly?: boolean;
@@ -21,7 +25,29 @@ export function isTranslated(item: LibraryItem) {
 }
 
 export function formatsOf(item: LibraryItem): DownloadFormat[] {
+  if (isShelf(item)) return [];
   return item.formats?.length ? item.formats : [item.format];
+}
+
+/** In the library without files on this computer. */
+export function isShelf(item: LibraryItem) {
+  return item.availability === "shelf";
+}
+
+export function matchesStatus(item: LibraryItem, status: LibraryStatusFilter = "all") {
+  if (status === "all") return true;
+  if (status === "shelf") return isShelf(item);
+  return item.readingStatus === status;
+}
+
+/** How many visible books each status chip would show. */
+export function statusCounts(library: LibraryItem[]): Record<LibraryStatusFilter, number> {
+  const counts = Object.fromEntries(statusFilters.map((status) => [status, 0])) as Record<LibraryStatusFilter, number>;
+  for (const item of library) {
+    if (item.hidden) continue;
+    for (const status of statusFilters) if (matchesStatus(item, status)) counts[status] += 1;
+  }
+  return counts;
 }
 
 /** "EPUB · AZW3" */
@@ -29,9 +55,10 @@ export function formatSummary(item: LibraryItem) {
   return formatsOf(item).join(" · ");
 }
 
-/** Milliseconds since epoch when `exportedAt` is a real date, otherwise NaN. */
+/** Milliseconds since epoch: when it entered the library, else the download date; NaN when unknown. */
 export function itemTimestamp(item: LibraryItem) {
-  return Date.parse(item.exportedAt);
+  const downloaded = Date.parse(item.exportedAt);
+  return Number.isFinite(downloaded) ? downloaded : item.addedAt ?? NaN;
 }
 
 /** Short pt-BR date ("29 de set. de 2026"), the raw label for legacy values, or a dash. */
@@ -68,6 +95,7 @@ export function filterLibrary(library: LibraryItem[], filters: LibraryFilters): 
       Boolean(item.hidden) === Boolean(filters.hiddenOnly)
       && matchesQuery(item, filters.query)
       && (!filters.favoritesOnly || Boolean(item.favorite))
+      && matchesStatus(item, filters.status)
       && (!filters.translatedOnly || isTranslated(item))
       && (filters.formats.size === 0 || formatsOf(item).some((format) => filters.formats.has(format))));
 
@@ -75,6 +103,9 @@ export function filterLibrary(library: LibraryItem[], filters: LibraryFilters): 
   filtered.sort((a, b) => {
     if (filters.sort === "title") return collator.compare(a.item.title, b.item.title) || a.index - b.index;
     if (filters.sort === "size") return b.item.sizeMb - a.item.sizeMb || a.index - b.index;
+    if (filters.sort === "rating") {
+      return (b.item.rating ?? 0) - (a.item.rating ?? 0) || collator.compare(a.item.title, b.item.title) || a.index - b.index;
+    }
     // Recent first; items without a real date keep the scan order after dated ones.
     const ta = itemTimestamp(a.item);
     const tb = itemTimestamp(b.item);

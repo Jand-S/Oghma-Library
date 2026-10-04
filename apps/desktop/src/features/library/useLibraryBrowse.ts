@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DownloadFormat, LibraryItem } from "../../core/types";
-import { availableFormats, filterLibrary, type LibrarySort, type LibraryViewMode, isTranslated } from "./libraryModel";
+import { availableFormats, filterLibrary, statusCounts, type LibrarySort, type LibraryStatusFilter, type LibraryViewMode, isTranslated } from "./libraryModel";
 
 const VIEW_KEY = "oghma.library.view";
 const SORT_KEY = "oghma.library.sort";
@@ -31,16 +31,20 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const [query, setQuery] = useState("");
   const [selectedFormats, setSelectedFormats] = useState<ReadonlySet<DownloadFormat>>(() => new Set());
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [status, setStatusState] = useState<LibraryStatusFilter>("all");
   const [translatedOnly, setTranslatedOnly] = useState(false);
   const [hiddenOnly, setHiddenOnly] = useState(false);
-  const [sort, setSortState] = useState<LibrarySort>(() => readPref(SORT_KEY, ["recent", "title", "size"], "recent"));
+  const [sort, setSortState] = useState<LibrarySort>(() => readPref(SORT_KEY, ["recent", "title", "size", "rating"], "recent"));
   const [view, setViewState] = useState<LibraryViewMode>(() => readPref(VIEW_KEY, ["grid", "list"], "grid"));
 
   const formats = useMemo(() => availableFormats(library), [library]);
   const filtered = useMemo(
-    () => filterLibrary(library, { query, formats: selectedFormats, favoritesOnly, translatedOnly, hiddenOnly, sort }),
-    [favoritesOnly, hiddenOnly, library, query, selectedFormats, sort, translatedOnly]
+    () => filterLibrary(library, { query, formats: selectedFormats, favoritesOnly, status, translatedOnly, hiddenOnly, sort }),
+    [favoritesOnly, hiddenOnly, library, query, selectedFormats, sort, status, translatedOnly]
   );
+  const counts = useMemo(() => statusCounts(library), [library]);
+  /** Picking the selected status again goes back to every book. */
+  const setStatus = useCallback((value: LibraryStatusFilter) => setStatusState((current) => (current === value ? "all" : value)), []);
 
   const setSort = useCallback((value: LibrarySort) => {
     setSortState(value);
@@ -75,6 +79,7 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     setQuery("");
     setSelectedFormats(new Set());
     setFavoritesOnly(false);
+    setStatusState("all");
     setTranslatedOnly(false);
     setHiddenOnly(false);
   }, []);
@@ -87,6 +92,10 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     toggleFormat,
     favoritesOnly,
     toggleFavorites,
+    status,
+    setStatus,
+    /** Books per status chip (hidden books left out). */
+    statusCounts: counts,
     translatedOnly,
     toggleTranslated,
     hasTranslated,

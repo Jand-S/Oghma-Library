@@ -1,7 +1,8 @@
 import { BookOpenText, FolderCog, SearchX } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigation, type AppView } from "../../app/NavigationContext";
-import type { DownloadJob, LibraryItem } from "../../core/types";
+import type { DownloadJob, LibraryItem, Novel } from "../../core/types";
+import { editionsOf, type CatalogIndex } from "../../services/catalogIndex";
 import { libraryStrings } from "../../strings/library";
 import { Button, EmptyState, Skeleton, cx } from "../../ui";
 import { LibraryCollection } from "./LibraryCollection";
@@ -18,6 +19,8 @@ type LibraryViewProps = {
   queuedJobs: DownloadJob[];
   loading: boolean;
   navigate: (view: AppView) => void;
+  /** Catalog of every source: "Procurar em outra fonte" for books whose source left. */
+  catalogIndex?: CatalogIndex | null;
 };
 
 function LoadingGrid() {
@@ -35,7 +38,7 @@ function LoadingGrid() {
 }
 
 /** Library page: browse (grid or list) and, with `?book=<id>`, the book details. */
-export function LibraryView({ library, activeJob, queuedJobs, loading, navigate }: LibraryViewProps) {
+export function LibraryView({ library, activeJob, queuedJobs, loading, navigate, catalogIndex }: LibraryViewProps) {
   const navigation = useNavigation();
   const detailId = typeof navigation.params.book === "string" ? navigation.params.book : null;
   const detailItem = detailId ? library.allLibrary.find((item) => item.id === detailId) ?? null : null;
@@ -60,7 +63,15 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate 
     else navigation.navigate("library", {}, { replace: true });
   }, [navigation]);
 
-  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails });
+  const findEditions = useCallback((item: LibraryItem): Novel[] => {
+    if (!catalogIndex) return [];
+    const known = item.novelId ? catalogIndex.byId.get(item.novelId) : undefined;
+    // A book whose source left the catalog: match the work by its title (and the server's story matches).
+    const probe = known ?? ({ id: item.novelId ?? item.id, title: item.title, sourceId: item.sourceId ?? "" } as Novel);
+    return editionsOf(catalogIndex, probe);
+  }, [catalogIndex]);
+
+  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions });
 
   // The book left the library (removed or deleted): go back to the grid.
   useEffect(() => {

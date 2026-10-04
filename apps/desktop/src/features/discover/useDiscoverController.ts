@@ -128,7 +128,8 @@ export function useDiscoverController({
   }, [view, backend, bootError, filters.sourceId, loading, notify]);
 
   const libraryNovelIds = useMemo(
-    () => new Set(library.map((item) => item.novelId).filter((id): id is string => Boolean(id))),
+    // Downloaded copies only: a book on the shelf (no files) is downloaded, not "downloaded again".
+    () => new Set(library.filter((item) => item.availability !== "shelf").map((item) => item.novelId).filter((id): id is string => Boolean(id))),
     [library]
   );
 

@@ -1,11 +1,12 @@
-import { Check, Clock, Download, RotateCcw, X } from "lucide-react";
+import { BookCheck, BookmarkPlus, Check, Clock, Download, RotateCcw, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { statusLabel } from "../../constants/ui";
 import { estimateChapters } from "../../core/defaults";
-import type { ChapterPreset, ChapterSelection, DownloadFormat, Novel, NovelStatus } from "../../core/types";
+import type { ChapterPreset, ChapterSelection, DownloadFormat, LibraryItem, LibraryMeta, Novel, NovelStatus } from "../../core/types";
 import { offeredFormats } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
-import { Badge, Button, Chip, Cover, IconButton, SegmentedControl, Switch, TextField, cx, type BadgeTone } from "../../ui";
+import { Badge, Button, Chip, Cover, IconButton, SegmentedControl, StarRating, Switch, TextField, cx, type BadgeTone } from "../../ui";
+import { ReadingStatusLabel } from "../library/ReadingStatus";
 
 /** Synopses longer than this start clamped with a "Mostrar mais" toggle. */
 const SYNOPSIS_CLAMP_CHARS = 280;
@@ -35,6 +36,8 @@ type DiscoverDetailPanelProps = {
   similar?: Novel[];
   /** Opens another novel in this panel (preview). */
   onOpenNovel?: (novel: Novel) => void;
+  /** The reader's library for this novel: add to the shelf, "Já li", rating. */
+  shelf?: DiscoverShelf;
   /** "Sugerir parecidos": the model reads this story and the catalog synopses (ChatGPT login). */
 };
 
@@ -96,6 +99,7 @@ export function DiscoverDetailPanel({
   editions = [],
   similar = [],
   onOpenNovel,
+  shelf
 }: DiscoverDetailPanelProps) {
   const [synopsisOpen, setSynopsisOpen] = useState(false);
   useEffect(() => setSynopsisOpen(false), [novel.id]);
@@ -153,6 +157,8 @@ export function DiscoverDetailPanel({
             ) : null}
           </div>
         </div>
+
+        {shelf ? <ShelfRow novel={novel} shelf={shelf} /> : null}
 
         <div className="discover-detail__body">
           <section className="discover-detail__section">
@@ -433,5 +439,53 @@ function DownloadConfigurator({
         {label}
       </Button>
     </section>
+  );
+}
+
+export type DiscoverShelf = {
+  /** The library book for a novel (downloaded or on the shelf), if any. */
+  find: (novel: Novel) => LibraryItem | undefined;
+  add: (novel: Novel, patch?: Partial<Pick<LibraryMeta, "readingStatus">>) => void;
+  rate: (item: LibraryItem, rating: number | null) => void;
+  open: (item: LibraryItem) => void;
+};
+
+/** "Adicionar à biblioteca" / "Já li", or — once it is there — its status and the reader's stars. */
+function ShelfRow({ novel, shelf }: { novel: Novel; shelf: DiscoverShelf }) {
+  const item = shelf.find(novel);
+  if (!item || item.hidden) {
+    return (
+      <div className="discover-shelf" data-testid="discover-shelf">
+        <Button variant="outline" size="sm" icon={<BookmarkPlus />} onClick={() => shelf.add(novel)} data-testid="discover-add-shelf">
+          {discoverStrings.addToLibrary}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<BookCheck />}
+          onClick={() => shelf.add(novel, { readingStatus: "completed" })}
+          title={discoverStrings.alreadyReadHint}
+          data-testid="discover-already-read"
+        >
+          {discoverStrings.alreadyRead}
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="discover-shelf discover-shelf--owned" data-testid="discover-shelf">
+      <button type="button" className="discover-shelf__owned" onClick={() => shelf.open(item)} title={discoverStrings.openInLibrary}>
+        <Check aria-hidden="true" />
+        {item.availability === "shelf" ? discoverStrings.onYourShelf : discoverStrings.inYourLibrary}
+      </button>
+      <ReadingStatusLabel status={item.readingStatus} />
+      <StarRating
+        size="sm"
+        className="discover-shelf__rating"
+        label={discoverStrings.yourRating}
+        value={item.rating}
+        onChange={(value) => shelf.rate(item, value)}
+      />
+    </div>
   );
 }

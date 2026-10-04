@@ -50,8 +50,22 @@
   .library-bar__filters {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-0-5) var(--space-1-5);
+    min-width: 0;
+  }
+
+  .library-bar__group {
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-0-5);
     min-width: 0;
+  }
+
+  /* Hairline between the status chips and the format/favorite chips. */
+  .library-bar__group + .library-bar__group {
+    padding-left: var(--space-1-5);
+    border-left: 1px solid var(--separator);
   }
 
   .library-bar__sort {
@@ -292,8 +306,8 @@
   /* ---------- List ---------- */
   .library-list {
     --library-list-cols:
-      var(--space-6) minmax(0, 1fr) calc(var(--space-8) * 2.25) calc(var(--space-8) * 1.25)
-      calc(var(--space-8) * 1.75) calc(var(--space-8) * 1.25);
+      var(--space-6) minmax(0, 1fr) calc(var(--space-8) * 1.5) calc(var(--space-8) * 1.25)
+      calc(var(--space-8) * 2) calc(var(--space-8) * 1) calc(var(--space-8) * 1.5) calc(var(--space-8) * 1.25);
     display: flex;
     flex-direction: column;
     border: 1px solid var(--border);
@@ -637,5 +651,137 @@
     .library-hero__title {
       font-size: var(--fs-2xl);
     }
+  }
+}
+
+@layer features {
+  /* Card footer: status on the left, stars on the right. Fixed height so the grid stays even. */
+  .library-tile__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1);
+    min-height: calc(var(--space-2) + var(--space-0-5));
+    min-width: 0;
+  }
+
+  .library-tile__rating {
+    display: inline-flex;
+    margin-left: auto;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  /* Unrated: the stars only show while pointing at (or tabbing through) the card. */
+  .library-tile__rating:not(.is-rated) {
+    opacity: 0;
+  }
+
+  .library-tile:hover .library-tile__rating,
+  .library-tile:focus-within .library-tile__rating {
+    opacity: 1;
+  }
+
+  /* Shelf books (no files here): a cloud badge where the formats chip would be. */
+  .library-tile__shelf {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+  }
+
+  .library-tile__shelf svg {
+    width: var(--fs-sm);
+    height: var(--fs-sm);
+  }
+
+  .library-tile.is-shelf .library-tile__cover {
+    filter: saturate(0.85);
+  }
+
+  .library-tile.is-unavailable .library-tile__cover {
+    filter: grayscale(0.7) brightness(0.8);
+  }
+
+  .library-row__status,
+  .library-row__rating {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .library-row.is-shelf .o-cover {
+    opacity: 0.85;
+  }
+
+  .library-rate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) 0 var(--space-1);
+  }
+
+  .library-rate__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    text-align: center;
+  }
+}
+
+@layer features {
+  .library-edition {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-1-5);
+    padding: var(--space-1) var(--space-1-5);
+  }
+
+  .library-edition + .library-edition {
+    border-top: 1px solid var(--separator);
+  }
+
+  .library-edition__text {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--space-0-5) / 2);
+    min-width: 0;
+  }
+
+  .library-edition__text strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-edition__text span {
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+}
+
+@layer features {
+  .library-hero__reading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    margin-top: var(--space-0-5);
+  }
+
+  .library-reading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+  }
+
+  .library-reading--rating {
+    gap: calc(var(--space-0-5) / 2);
+  }
+
+  .library-reading--rating .o-stars {
+    margin-left: calc(var(--space-0-5) / -2);
   }
 }

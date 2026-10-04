@@ -198,13 +198,14 @@ describe("Tauri calls", () => {
 
     const meta: LibraryMeta = { key: row.outputDir, favorite: true, readingStatus: "reading", tags: [], hidden: true };
     await saveLibraryMetadata(meta);
+    // Every save is stamped for the account sync; a hidden book is off the shelf.
     expect(invokeMock).toHaveBeenLastCalledWith("save_library_meta", {
-      meta: { ...meta, key: "novel:cn:42" },
+      meta: { ...meta, key: "novel:cn:42", onShelf: false, changedAt: expect.any(Number) },
       legacyKey: row.outputDir
     });
 
     await saveLibraryMetadata({ ...meta, key: "/elsewhere" });
-    expect(invokeMock).toHaveBeenLastCalledWith("save_library_meta", { meta: { ...meta, key: "/elsewhere" } });
+    expect(invokeMock).toHaveBeenLastCalledWith("save_library_meta", { meta: { ...meta, key: "/elsewhere", changedAt: expect.any(Number) } });
 
     await deleteLibraryMetadata(row.outputDir);
     expect(invokeMock).toHaveBeenCalledWith("delete_library_meta", { key: row.outputDir });
@@ -225,7 +226,7 @@ describe("Tauri calls", () => {
 describe("useLocalLibrary", () => {
   const appConfig = { outputPath: "~/out" } as AppConfig;
 
-  it("scans once, ignores catalog changes for disk scans, and rescans on focus and refresh", async () => {
+  it("scans once more for the first catalog only, then on focus and refresh", async () => {
     setTauri(true);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "list_export_library") return [row];
@@ -246,22 +247,26 @@ describe("useLocalLibrary", () => {
     expect(invokeMock).toHaveBeenCalledWith("cleanup_export_root", { outputRoot: "~/out" });
     expect(library[0].author).toBe("");
 
+    // The first catalog rescans (shelf books and untracked downloads need it); later ones only enrich.
     rerender({ results: [novel({ id: "cn:42", title: "Qualquer", author: "Autora" })] });
     await waitFor(() => expect(library[0].author).toBe("Autora"));
+    await waitFor(() => expect(scans()).toBe(2));
+    rerender({ results: [novel({ id: "cn:42", title: "Qualquer", author: "Outra" })] });
+    await waitFor(() => expect(library[0].author).toBe("Outra"));
     await new Promise((resolve) => setTimeout(resolve, 400));
-    expect(scans()).toBe(1);
+    expect(scans()).toBe(2);
 
     const realNow = Date.now();
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(realNow + 10_000);
     try {
       act(() => { window.dispatchEvent(new Event("focus")); });
-      await waitFor(() => expect(scans()).toBe(2));
+      await waitFor(() => expect(scans()).toBe(3));
     } finally {
       nowSpy.mockRestore();
     }
 
     act(() => result.current.refresh());
-    await waitFor(() => expect(scans()).toBe(3));
+    await waitFor(() => expect(scans()).toBe(4));
     expect(result.current.refreshLocalLibrary).toBe(result.current.refresh);
     expect(invokeMock.mock.calls.filter(([command]) => command === "cleanup_export_root")).toHaveLength(1);
   });

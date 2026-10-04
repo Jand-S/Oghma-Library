@@ -53,6 +53,9 @@
     --success-rgb: 118 184 120;
     --info: #4fb7e8;
     --info-rgb: 79 183 232;
+    /* Star ratings (system orange, as in Apple's apps); empty stars stay quiet. */
+    --rating: #ff9f0a;
+    --rating-empty: rgba(255, 255, 255, 0.22);
     --black-rgb: 0 0 0;
     --white-rgb: 255 255 255;
 

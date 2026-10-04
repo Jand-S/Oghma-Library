@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { ToastTone } from "../../ui";
 import { useConversionManager } from "../../app/useConversionManager";
-import type { AppConfig, EnqueueResult, KindleDeviceStatus, LibraryItem, LibraryMeta, QueueItem } from "../../core/types";
+import type { AppConfig, EnqueueResult, KindleDeviceStatus, LibraryItem, LibraryMeta, Novel, QueueItem } from "../../core/types";
+import { shelfItem, snapshotOf } from "../../app/useLocalLibrary";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { sanitizeFileName } from "../../services/downloadManager";
 import type { DownloadQueue } from "../../services/downloadQueue";
@@ -10,6 +11,7 @@ import {
   deleteLocalLibraryFiles,
   getICloudStatus,
   joinPath,
+  novelMetaKey,
   revealInICloud,
   saveItemsToICloud,
   saveLibraryMetadata,
@@ -208,7 +210,7 @@ export function useLibraryController({
       notify(libraryStrings.notInCatalog);
       return;
     }
-    const formats = item.formats?.length ? item.formats : [item.format];
+    const formats = item.formats?.length ? item.formats : appConfig.defaultFormats?.length ? appConfig.defaultFormats : [item.format];
     void backend.createDownloads([{
       novelId: item.novelId,
       preset: "all",
@@ -228,13 +230,29 @@ export function useLibraryController({
   const openLibraryItemFolder = (item: LibraryItem) =>
     openOutputFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`, notify);
 
-  const libraryMetaKey = (item: LibraryItem) => item.outputDir ?? item.id;
+  /** Disk books keep their folder path as key (localFiles maps it to `novel:<id>`); shelf books use the novel key. */
+  const libraryMetaKey = (item: LibraryItem) =>
+    item.availability === "shelf" && item.novelId ? novelMetaKey(item.novelId) : item.outputDir ?? item.id;
   const metadataFromItem = (item: LibraryItem): LibraryMeta => ({
     key: libraryMetaKey(item),
     favorite: Boolean(item.favorite),
     readingStatus: item.readingStatus ?? "unread",
     tags: item.personalTags ?? [],
-    hidden: Boolean(item.hidden)
+    hidden: Boolean(item.hidden),
+    rating: item.rating ?? null,
+    onShelf: item.novelId && !item.language ? !item.hidden : false,
+    addedAt: item.addedAt ?? null,
+    snapshot: item.novelId && !item.language
+      ? snapshotOf(item.novelId, undefined, {
+        title: item.title,
+        author: item.author,
+        sourceId: item.sourceId,
+        sourceName: item.sourceName,
+        coverUrl: item.coverUrl,
+        chapters: item.chapters,
+        description: item.description
+      })
+      : null
   });
 
   const updateLibraryMeta = (item: LibraryItem, patch: Partial<Omit<LibraryMeta, "key">>) => {
@@ -245,6 +263,7 @@ export function useLibraryController({
         ...entry,
         favorite: nextMeta.favorite,
         readingStatus: nextMeta.readingStatus,
+        rating: nextMeta.rating ?? undefined,
         personalTags: nextMeta.tags,
         hidden: nextMeta.hidden
       };
@@ -257,12 +276,85 @@ export function useLibraryController({
     });
   };
 
-  const deleteLibraryItems = (items: LibraryItem[], deleteFiles: boolean) => {
+  /** The library book for a catalog novel (by id, aliases or the novel it was downloaded as). */
+  const findByNovel = (novel: Pick<Novel, "id"> & { aliases?: string[] }) => library.find((item) =>
+    item.novelId === novel.id || (item.novelId ? novel.aliases?.includes(item.novelId) : false));
+
+  /**
+   * Puts a catalog novel in the library without downloading it (the shelf). Already there:
+   * only applies `patch` (e.g. "Já li" → Concluído).
+   */
+  const addToShelf = (novel: Novel, patch: Partial<Omit<LibraryMeta, "key">> = {}) => {
+    const existing = findByNovel(novel);
+    if (existing) {
+      updateLibraryMeta(existing, { hidden: false, ...patch });
+      if (existing.hidden) notify(libraryStrings.unhiddenToast(existing.title));
+      return existing;
+    }
+    const now = Date.now();
+    const meta: LibraryMeta = {
+      key: novelMetaKey(novel.id),
+      favorite: false,
+      readingStatus: "unread",
+      tags: [],
+      hidden: false,
+      rating: null,
+      onShelf: true,
+      addedAt: now,
+      snapshot: snapshotOf(novel.id, novel),
+      ...patch
+    };
+    const item = shelfItem(meta, novel.id, novel);
+    setLibrary((current) => [...current.filter((entry) => entry.id !== item.id), item]);
+    void saveLibraryMetadata(meta).catch((error: unknown) => {
+      notify(getErrorMessage(error, libraryStrings.metaSaveFailed), "danger");
+    });
+    notify(libraryStrings.addedToShelf(novel.title), "success");
+    return item;
+  };
+
+  /**
+   * Points a shelf book at the same work in another source (its source left the catalog):
+   * the old row becomes a tombstone and the new one keeps status, rating, favorite and tags.
+   */
+  const swapEdition = (item: LibraryItem, novel: Novel) => {
+    if (!item.novelId || item.novelId === novel.id) return;
+    const meta: LibraryMeta = {
+      ...metadataFromItem(item),
+      key: novelMetaKey(novel.id),
+      hidden: false,
+      onShelf: true,
+      snapshot: snapshotOf(novel.id, novel)
+    };
+    const next = shelfItem(meta, novel.id, novel);
+    setLibrary((current) => [...current.filter((entry) => entry.id !== item.id && entry.id !== next.id), next]);
+    void deleteLibraryMetadata(novelMetaKey(item.novelId))
+      .then(() => saveLibraryMetadata(meta))
+      .catch((error: unknown) => notify(getErrorMessage(error, libraryStrings.metaSaveFailed), "danger"));
+    notify(libraryStrings.editionSwapped(novel.sourceName), "success");
+    return next;
+  };
+
+  /**
+   * Removes books from the library. Shelf books leave everywhere (a tombstone the account
+   * syncs). Downloaded books: `deleteFiles` false hides them on this device (files stay);
+   * true deletes the folder, and `keepOnShelf` keeps the book in the library without files.
+   */
+  const deleteLibraryItems = (items: LibraryItem[], deleteFiles: boolean, keepOnShelf = false) => {
     if (items.length === 0) return;
+    const shelfOnly = items.filter((item) => item.availability === "shelf");
+    if (shelfOnly.length) {
+      const shelfIds = new Set(shelfOnly.map((item) => item.id));
+      setLibrary((current) => current.filter((entry) => !shelfIds.has(entry.id)));
+      void Promise.all(shelfOnly.map((item) => deleteLibraryMetadata(libraryMetaKey(item)))).catch(() => undefined);
+      notify(libraryStrings.removedFromShelf(shelfOnly.length));
+      items = items.filter((item) => item.availability !== "shelf");
+      if (items.length === 0) return;
+    }
     const keys = new Set(items.map(libraryMetaKey));
     const ids = new Set(items.map((item) => item.id));
     if (!deleteFiles) {
-      const hiddenRows = items.map((item) => ({ ...metadataFromItem(item), hidden: true }));
+      const hiddenRows = items.map((item) => ({ ...metadataFromItem(item), hidden: true, onShelf: false }));
       // Stays in state as hidden: the "Ocultos" chip lists it and it can be brought back.
       setLibrary((current) => current.map((entry) => keys.has(libraryMetaKey(entry)) ? { ...entry, hidden: true } : entry));
       setSelectedLibraryIds((current) => current.filter((id) => !ids.has(id)));
@@ -277,7 +369,12 @@ export function useLibraryController({
       notify(libraryStrings.folderNotFound);
       return;
     }
-    void Promise.allSettled(deletable.map((item) => deleteLocalLibraryFiles(appConfig.outputPath, item.outputDir ?? "")))
+    // Saved before the folder goes: the shelf row needs the folder's novel id mapping.
+    const keepRows = keepOnShelf
+      ? deletable.filter((item) => item.novelId).map((item) => ({ ...metadataFromItem(item), hidden: false, onShelf: true }))
+      : [];
+    void Promise.all(keepRows.map((meta) => saveLibraryMetadata(meta)))
+      .then(() => Promise.allSettled(deletable.map((item) => deleteLocalLibraryFiles(appConfig.outputPath, item.outputDir ?? ""))))
       .then((results) => {
         const deletedItems = deletable.filter((_, index) => {
           const result = results[index];
@@ -291,11 +388,12 @@ export function useLibraryController({
         const deletedIds = new Set(deletedItems.map((item) => item.id));
         setLibrary((current) => current.filter((entry) => !deletedKeys.has(libraryMetaKey(entry))));
         setSelectedLibraryIds((current) => current.filter((id) => !deletedIds.has(id)));
-        void Promise.all(deletedItems.map((item) => deleteLibraryMetadata(libraryMetaKey(item)))).catch(() => undefined);
+        const kept = new Set(keepRows.length ? deletedItems.filter((item) => item.novelId).map((item) => item.id) : []);
+        void Promise.all(deletedItems.filter((item) => !kept.has(item.id)).map((item) => deleteLibraryMetadata(libraryMetaKey(item)))).catch(() => undefined);
         const failedCount = items.length - deletedItems.length;
         notify(failedCount > 0
           ? libraryStrings.deletedPartial(deletedItems.length, failedCount)
-          : libraryStrings.deletedToast(deletedItems.length));
+          : kept.size ? libraryStrings.filesDeletedKept(deletedItems.length) : libraryStrings.deletedToast(deletedItems.length));
         refreshLocalLibrary();
       })
       .catch((error: unknown) => {
@@ -343,6 +441,9 @@ export function useLibraryController({
     removeSelectedLibraryItem,
     openLibraryItemFolder,
     updateLibraryMeta,
+    addToShelf,
+    swapEdition,
+    findByNovel,
     deleteLibraryItems,
     redownloadItem,
     /** Target and book ids of the current (or last) conversion batch, in order. */

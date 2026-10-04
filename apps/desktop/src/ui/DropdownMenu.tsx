@@ -13,6 +13,7 @@ import {
   type ReactElement,
   type ReactNode
 } from "react";
+import { Check } from "lucide-react";
 import { createPortal } from "react-dom";
 import { cx } from "./cx";
 import "./DropdownMenu.css";
@@ -25,6 +26,12 @@ export type MenuItem = {
   disabled?: boolean;
   /** Draws a divider above this item. */
   separatorBefore?: boolean;
+  /** Small caption above the item that starts a group ("Leitura", "Nota"). */
+  heading?: string;
+  /** Checkmark state for choices inside a group (menuitemradio). */
+  checked?: boolean;
+  /** Content after the label (e.g. stars), right-aligned. */
+  trailing?: ReactNode;
 };
 
 export type MenuPoint = { x: number; y: number };
@@ -200,20 +207,26 @@ export function DropdownMenu({ items, label, align = "start", className, trigger
       >
         {items.map((item, index) => (
           <div key={`${item.label}-${index}`} role="none" className={cx("o-menu__row", item.separatorBefore && "o-menu__row--separated")}>
+            {item.heading ? <div role="presentation" className="o-menu__heading">{item.heading}</div> : null}
             <button
               ref={(node) => {
                 itemRefs.current[index] = node;
               }}
               type="button"
-              role="menuitem"
+              role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+              aria-checked={item.checked === undefined ? undefined : item.checked}
               tabIndex={-1}
               disabled={item.disabled}
               aria-disabled={item.disabled || undefined}
               className={cx("o-menu__item", item.danger && "o-menu__item--danger")}
               onClick={() => select(item)}
             >
+              {item.checked !== undefined ? (
+                <span className={cx("o-menu__check", item.checked && "is-checked")} aria-hidden="true"><Check /></span>
+              ) : null}
               {item.icon ? <span className="o-menu__icon" aria-hidden="true">{item.icon}</span> : null}
               <span className="o-menu__label">{item.label}</span>
+              {item.trailing ? <span className="o-menu__trailing" aria-hidden="true">{item.trailing}</span> : null}
             </button>
           </div>
         ))}
