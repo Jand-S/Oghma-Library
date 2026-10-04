@@ -192,3 +192,32 @@ def test_python_taxonomy_is_the_single_source_and_matches_the_app_labels():
     unaccented = [label for label in py_labels.values() if re.search(r"(cao|coes)\b", label)]
     assert unaccented == []
     assert all(unicodedata.is_normalized("NFC", label) for label in py_labels.values())
+
+
+def test_unpublish_source_drops_it_from_the_index_but_keeps_bundle_versions(tmp_path, monkeypatch):
+    import json as _json
+    from types import SimpleNamespace
+
+    import oghma.config
+    from oghma.publish import runner
+    from oghma.publish.state import load_state, save_state
+
+    monkeypatch.setattr(oghma.config, "get_settings", lambda: SimpleNamespace(storage_root=str(tmp_path)))
+    uploaded = {}
+
+    class Up:
+        def put_bytes(self, data, key, content_type):
+            uploaded[key] = _json.loads(data)
+
+    monkeypatch.setattr(runner, "make_uploader", lambda dry_run: Up())
+    save_state(str(tmp_path / "publish_state.json"), {
+        "sites": {"a": {"id": "a", "novelCount": 3}, "b": {"id": "b", "novelCount": 1}},
+        "novels": {"b:x": {"version": 4}}, "discovery": {"similarKey": "discovery/s.json.gz"}})
+
+    out = runner.unpublish_source("b")
+    assert out == {"source": "b", "removed": True, "novels": 1, "sites_left": 1}
+    assert [s["id"] for s in uploaded["index.json"]["sites"]] == ["a"]
+    assert uploaded["index.json"]["discovery"]["similarKey"] == "discovery/s.json.gz"
+    state = load_state(str(tmp_path / "publish_state.json"))
+    assert "b" not in state["sites"] and state["novels"]["b:x"]["version"] == 4
+    assert runner.unpublish_source("b")["removed"] is False

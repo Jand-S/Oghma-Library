@@ -352,6 +352,17 @@ def source_disable_cmd(source: str = typer.Argument(..., help="id da fonte")) ->
     _set_source_enabled(source, False)
 
 
+@app.command("source-unpublish")
+def source_unpublish_cmd(
+    source: str = typer.Argument(..., help="id da fonte"),
+    dry_run: bool = typer.Option(False, help="simula o upload do index.json"),
+) -> None:
+    """Tira a fonte do app (index.json). Use com source-disable para ela tambem sair do rodizio."""
+    from .publish.runner import unpublish_source
+
+    _echo_json(unpublish_source(source, dry_run=dry_run))
+
+
 @app.command("audit-content")
 def audit_content_cmd(source: str = typer.Option(None, help="so uma fonte")) -> None:
     """Relatorio somente leitura: status dos capitulos, sinopses e o que mark-chapters mudaria."""
