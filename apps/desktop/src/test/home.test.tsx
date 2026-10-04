@@ -15,22 +15,25 @@ const book = (id: string, patch: Partial<LibraryItem>): LibraryItem => ({
   id, title: id, author: "", format: "EPUB", chapters: 100, sizeMb: 1, coverClass: "", exportedAt: "", ...patch
 });
 
+const story = "Uma história longa o bastante para o destaque: um protagonista, um mundo cruel e um mistério que atravessa volumes.";
 const catalog = [
   novel("Shadow Slave", { tagKeys: ["genre.action", "genre.fantasy", "theme.level_system"], lastChapterAt: "2026-10-03T00:00:00Z" }),
   novel("Solo Leveling", { tagKeys: ["genre.action", "genre.fantasy", "theme.level_system"], firstSeenAt: "2026-10-01T00:00:00Z" }),
-  novel("Amor de Verão", { tagKeys: ["genre.romance"], sourceId: "off-source" })
+  novel("Amor de Verão", { tagKeys: ["genre.romance"], sourceId: "off-source" }),
+  novel("Lord of the Mysteries", { tagKeys: ["genre.mystery"], rating: 4.9, ratingVotes: 50, coverUrl: "lotm.jpg", description: story }),
+  novel("Reverend Insanity", { tagKeys: ["genre.mystery"], rating: 4.7, ratingVotes: 20, coverUrl: "ri.jpg", description: story })
 ];
+const handlers = () => ({ onOpenNovel: vi.fn(), onOpenBook: vi.fn(), onSeeAll: vi.fn(), onBrowseTag: vi.fn(), onOpenLibrary: vi.fn() });
 const index = buildCatalogIndex(catalog);
 
 describe("Início", () => {
   it("shows reading, new chapters and suggestions; opens books and novels", () => {
-    const onOpenBook = vi.fn();
-    const onOpenNovel = vi.fn();
+    const props = handlers();
+    const { onOpenBook, onOpenNovel } = props;
     const library = [
       book("lib-ss", { title: "Shadow Slave", novelId: "Shadow Slave", readingStatus: "reading", favorite: true, newChapters: 12 })
     ];
-    render(<HomeView catalogIndex={index} library={library} sourceIds={["central-novel"]} loading={false}
-      onOpenNovel={onOpenNovel} onOpenBook={onOpenBook} onExplore={vi.fn()} />);
+    render(<HomeView catalogIndex={index} library={library} sourceIds={["central-novel"]} loading={false} {...props} />);
 
     expect(screen.getByTestId("home-shelf-reading")).toHaveTextContent(homeStrings.reading);
     const fresh = screen.getByTestId("home-shelf-new-chapters");
@@ -44,17 +47,34 @@ describe("Início", () => {
     fireEvent.click(within(forYou).getByRole("button", { name: /Solo Leveling/ }));
     expect(onOpenNovel).toHaveBeenCalledWith(catalog[1]);
 
-    expect(screen.getByTestId("home-shelf-updated")).toHaveTextContent("Shadow Slave");
+    const fresh2 = screen.getByTestId("home-shelf-updated");
+    expect(fresh2).toHaveTextContent("Shadow Slave");
+    fireEvent.click(within(fresh2).getByRole("button", { name: /Ver tudo/ }));
+    expect(props.onSeeAll).toHaveBeenCalledWith({ sort: "updated" });
     expect(screen.getByTestId("home-shelf-new")).toHaveTextContent("Solo Leveling");
     expect(screen.queryByTestId("home-welcome")).not.toBeInTheDocument();
   });
 
-  it("invites a new user to explore the catalog", () => {
-    const onExplore = vi.fn();
-    render(<HomeView catalogIndex={index} library={[]} sourceIds={["central-novel"]} loading={false}
-      onOpenNovel={vi.fn()} onOpenBook={vi.fn()} onExplore={onExplore} />);
-    fireEvent.click(within(screen.getByTestId("home-welcome")).getByRole("button", { name: homeStrings.explore }));
-    expect(onExplore).toHaveBeenCalled();
+  it("features well-described novels and opens them; genres open Buscar filtered", () => {
+    const props = handlers();
+    render(<HomeView catalogIndex={index} library={[]} sourceIds={["central-novel"]} loading={false} {...props} />);
+
+    const hero = screen.getByTestId("home-featured");
+    expect(hero).toHaveTextContent("Lord of the Mysteries");
+    expect(hero).toHaveTextContent(homeStrings.featured);
+    fireEvent.click(within(hero).getByTestId("home-featured-open"));
+    expect(props.onOpenNovel).toHaveBeenCalledWith(catalog[3]);
+    fireEvent.click(within(hero).getByRole("button", { name: homeStrings.next }));
+    expect(hero).toHaveTextContent("Reverend Insanity");
+
+    const genres = screen.getByTestId("home-genres");
+    fireEvent.click(within(genres).getByRole("button", { name: /Mistério/ }));
+    expect(props.onBrowseTag).toHaveBeenCalledWith("genre.mystery");
+  });
+
+  it("gives a new user a short tip instead of the reader rows", () => {
+    render(<HomeView catalogIndex={index} library={[]} sourceIds={["central-novel"]} loading={false} {...handlers()} />);
+    expect(screen.getByTestId("home-welcome")).toHaveTextContent(homeStrings.welcomeTip);
     expect(screen.queryByTestId("home-shelf-reading")).not.toBeInTheDocument();
   });
 });

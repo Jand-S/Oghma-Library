@@ -1,6 +1,8 @@
 import { createElement as h, lazy, type ComponentType, type ReactNode } from "react";
 import { BookOpenText } from "lucide-react";
+import { defaultFilters } from "../core/defaults";
 import type { LibraryItem, Novel } from "../core/types";
+import type { HomeSeeAll } from "../features/home/HomeView";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
 import { DiscoverView } from "../features/discover/DiscoverView";
 import type { DiscoverController } from "../features/discover/useDiscoverController";
@@ -140,7 +142,16 @@ function HomePage({ app }: ViewProps) {
       discover.openPreviewNovel(novel);
     },
     onOpenBook: (item: LibraryItem) => navigate("library", { book: item.id }),
-    onExplore: () => navigate("discover")
+    onSeeAll: ({ sort, status }: HomeSeeAll) => {
+      discover.setFilters({ ...defaultFilters("all"), ...(status ? { status } : {}) });
+      discover.setSortDirection(sort === "title" ? "asc" : sort);
+      navigate("discover");
+    },
+    onBrowseTag: (key: string) => {
+      discover.setFilters({ ...defaultFilters("all"), includeTags: [key] });
+      navigate("discover");
+    },
+    onOpenLibrary: () => navigate("library")
   });
 }
 

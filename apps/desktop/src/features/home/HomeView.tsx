@@ -1,10 +1,16 @@
-import { Compass } from "lucide-react";
 import { useMemo } from "react";
+import { buildFallbackTagCatalog, contentRatingForNovel } from "../../core/tagFilters";
 import type { LibraryItem, Novel } from "../../core/types";
-import { similarNovels, sortNovels, type CatalogIndex } from "../../services/catalogIndex";
+import { similarNovels, sortNovels, type CatalogIndex, type NovelSort } from "../../services/catalogIndex";
 import { homeStrings } from "../../strings/home";
-import { Button, Cover, EmptyState, Skeleton } from "../../ui";
+import { Skeleton } from "../../ui";
+import { HomeFeatured } from "./HomeFeatured";
+import { HomeGenres, type GenreTile } from "./HomeGenres";
+import { HomeBookCard, HomeShelf, HomeTile } from "./HomeShelf";
 import "./home.css";
+
+/** What "Ver tudo" opens in Buscar: an order and optionally a status. */
+export type HomeSeeAll = { sort: NovelSort; status?: "complete" };
 
 export type HomeViewProps = {
   /** Every loaded novel (all sources); null while the catalog loads. */
@@ -16,61 +22,113 @@ export type HomeViewProps = {
   loading: boolean;
   onOpenNovel: (novel: Novel) => void;
   onOpenBook: (item: LibraryItem) => void;
-  onExplore: () => void;
+  /** Buscar with the shelf's order applied. */
+  onSeeAll: (preset: HomeSeeAll) => void;
+  /** Buscar filtered by a tag. */
+  onBrowseTag: (key: string) => void;
+  onOpenLibrary: () => void;
 };
 
 const SHELF = 14;
+const FEATURED = 5;
+const GENRES = 10;
+/** Seeds that get their own "Porque você leu X" row. */
+const BECAUSE_ROWS = 2;
 
 type Shelf =
   | { id: string; title: string; hint?: string; kind: "book"; items: LibraryItem[] }
-  | { id: string; title: string; hint?: string; kind: "novel"; items: Novel[] };
+  | { id: string; title: string; hint?: string; kind: "novel"; items: Novel[]; seeAll?: HomeSeeAll };
+
+const hasStory = (novel: Novel) => Boolean(novel.coverUrl && novel.description && novel.description.trim().length > 80);
 
 /**
- * Início: what to read next. Shelves hide when empty, so a new user sees the catalog
- * shelves and an invitation to explore; a reader sees their books and new chapters first.
+ * Início, in the Apple Books/TV mould: a featured hero, the reader's books, rows of
+ * suggestions with "Ver tudo", and genres to explore. Empty rows hide, so a new user sees
+ * the catalog rows; a reader sees their books and new chapters first.
  */
-export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNovel, onOpenBook, onExplore }: HomeViewProps) {
-  const shelves = useMemo<Shelf[]>(() => {
-    const out: Shelf[] = [];
+export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNovel, onOpenBook, onSeeAll, onBrowseTag, onOpenLibrary }: HomeViewProps) {
+  const model = useMemo(() => {
+    const shelves: Shelf[] = [];
     const reading = library.filter((item) => item.readingStatus === "reading");
-    if (reading.length) out.push({ id: "reading", title: homeStrings.reading, kind: "book", items: reading.slice(0, SHELF) });
+    if (reading.length) shelves.push({ id: "reading", title: homeStrings.reading, kind: "book", items: reading.slice(0, SHELF) });
     const updated = library.filter((item) => item.newChapters).sort((a, b) => (b.newChapters ?? 0) - (a.newChapters ?? 0));
-    if (updated.length) out.push({ id: "new-chapters", title: homeStrings.newChapters, hint: homeStrings.newChaptersHint, kind: "book", items: updated.slice(0, SHELF) });
-    if (!catalogIndex) return out;
+    if (updated.length) shelves.push({ id: "new-chapters", title: homeStrings.newChapters, hint: homeStrings.newChaptersHint, kind: "book", items: updated.slice(0, SHELF) });
+    if (!catalogIndex) return { shelves, featured: [] as Novel[], featuredFromLibrary: false, genres: [] as GenreTile[] };
 
     const enabled = new Set(sourceIds);
     const catalog = catalogIndex.entries.map((entry) => entry.novel).filter((novel) => enabled.has(novel.sourceId));
     const owned = new Set(library.map((item) => item.novelId).filter((id): id is string => Boolean(id)));
 
-    // "Para você": favorites weigh most, then what is being read, then anything downloaded.
+    // Seeds: favorites weigh most, then what is being read, then anything downloaded.
     const ranked = [...library].sort((a, b) => score(b) - score(a));
     const seeds = ranked
       .map((item) => (item.novelId ? catalogIndex.byId.get(item.novelId) : undefined))
       .filter((novel): novel is Novel => Boolean(novel))
       .slice(0, 8);
+
     const forYou = similarNovels(catalogIndex, seeds, { limit: SHELF, exclude: owned, sourceIds });
-    if (forYou.length) out.push({ id: "for-you", title: homeStrings.forYou, hint: homeStrings.forYouHint, kind: "novel", items: forYou });
+    const because: Shelf[] = [];
+    for (const seed of seeds.slice(0, BECAUSE_ROWS)) {
+      const items = similarNovels(catalogIndex, [seed], { limit: SHELF, exclude: owned, sourceIds });
+      if (items.length >= 4) because.push({ id: `because-${seed.id}`, title: homeStrings.becauseYouRead(seed.title), kind: "novel", items });
+    }
+    if (forYou.length) shelves.push({ id: "for-you", title: homeStrings.forYou, hint: homeStrings.forYouHint, kind: "novel", items: forYou });
+    shelves.push(...because);
 
     const fresh = sortNovels(catalog.filter((novel) => novel.lastChapterAt), "updated").slice(0, SHELF);
-    if (fresh.length) out.push({ id: "updated", title: homeStrings.updated, kind: "novel", items: fresh });
+    if (fresh.length) shelves.push({ id: "updated", title: homeStrings.updated, kind: "novel", items: fresh, seeAll: { sort: "updated" } });
     const arrivals = sortNovels(catalog.filter((novel) => novel.firstSeenAt), "new").slice(0, SHELF);
-    if (arrivals.length) out.push({ id: "new", title: homeStrings.arrivals, kind: "novel", items: arrivals });
-    const best = sortNovels(catalog.filter((novel) => novel.rating && (novel.ratingVotes ?? 0) >= 5), "rating").slice(0, SHELF);
-    if (best.length) out.push({ id: "rated", title: homeStrings.bestRated, kind: "novel", items: best });
-    if (!out.some((shelf) => shelf.kind === "novel")) {
+    if (arrivals.length) shelves.push({ id: "new", title: homeStrings.arrivals, kind: "novel", items: arrivals, seeAll: { sort: "new" } });
+    const rated = sortNovels(catalog.filter((novel) => novel.rating && (novel.ratingVotes ?? 0) >= 5), "rating");
+    if (rated.length) shelves.push({ id: "rated", title: homeStrings.bestRated, kind: "novel", items: rated.slice(0, SHELF), seeAll: { sort: "rating" } });
+    const complete = sortNovels(catalog.filter((novel) => novel.status === "complete"), "chapters");
+    if (!shelves.some((shelf) => shelf.kind === "novel") && complete.length) {
       // Catalogs published before the dated fields: show the longest finished works instead.
-      const complete = sortNovels(catalog.filter((novel) => novel.status === "complete"), "chapters").slice(0, SHELF);
-      if (complete.length) out.push({ id: "complete", title: homeStrings.complete, kind: "novel", items: complete });
+      shelves.push({ id: "complete", title: homeStrings.completeWorks, kind: "novel", items: complete.slice(0, SHELF), seeAll: { sort: "chapters", status: "complete" } });
     }
-    return out;
+
+    // Hero: the best "Para você" picks with a cover and a real synopsis; else the best rated.
+    const featuredFromLibrary = forYou.filter(hasStory).length >= 3;
+    const pool = featuredFromLibrary ? forYou : [...rated, ...fresh, ...complete];
+    const seen = new Set<string>();
+    const featured = pool.filter((novel) => {
+      if (!hasStory(novel) || owned.has(novel.id) || seen.has(novel.id) || contentRatingForNovel(novel) === "erotic") return false;
+      seen.add(novel.id);
+      return true;
+    }).slice(0, FEATURED);
+
+    // Genres: the most common story genres in the enabled sources (never the erotic ones).
+    const byTag = new Map<string, Novel[]>();
+    for (const entry of catalogIndex.entries) {
+      if (!enabled.has(entry.novel.sourceId)) continue;
+      for (const key of entry.tagKeys) {
+        if (!key.startsWith("genre.") || EXCLUDED_GENRES.has(key)) continue;
+        const list = byTag.get(key);
+        if (list) list.push(entry.novel);
+        else byTag.set(key, [entry.novel]);
+      }
+    }
+    const labels = new Map(buildFallbackTagCatalog(catalog).map((tag) => [tag.key, tag.label]));
+    const genres: GenreTile[] = [...byTag.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, GENRES)
+      .map(([key, novels]) => ({
+        key,
+        label: labels.get(key) ?? key.replace(/^genre\./, ""),
+        count: novels.length,
+        covers: sortNovels(novels.filter((novel) => novel.coverUrl && contentRatingForNovel(novel) !== "erotic"), "rating").slice(0, 3)
+      }));
+
+    return { shelves, featured, featuredFromLibrary, genres };
   }, [catalogIndex, library, sourceIds]);
 
   if (loading && !catalogIndex) {
     return (
       <div className="o-page home-page" aria-busy="true">
+        <Skeleton width="100%" height="calc(var(--space-8) * 5)" radius="var(--radius-xl)" />
         {[0, 1].map((row) => (
           <section className="home-shelf" key={row}>
-            <Skeleton width="30%" height="var(--fs-lg)" />
+            <Skeleton width="30%" height="var(--fs-xl)" />
             <div className="home-shelf__row">
               {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} width="var(--home-tile)" height="calc(var(--home-tile) * 1.5)" radius="var(--radius-md)" />)}
             </div>
@@ -80,54 +138,54 @@ export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNove
     );
   }
 
+  const { shelves, featured, featuredFromLibrary, genres } = model;
+  const bookShelves = shelves.filter((shelf): shelf is Extract<Shelf, { kind: "book" }> => shelf.kind === "book");
+  const novelShelves = shelves.filter((shelf): shelf is Extract<Shelf, { kind: "novel" }> => shelf.kind === "novel");
+  // Personal rows and the first catalog row, then genres, then the remaining catalog rows.
+  const firstCatalogRow = novelShelves.findIndex((shelf) => shelf.seeAll);
+  const splitAt = firstCatalogRow < 0 ? novelShelves.length : firstCatalogRow + 1;
+  const leading = novelShelves.slice(0, splitAt);
+  const trailing = novelShelves.slice(splitAt);
+
+  const renderNovelShelf = (shelf: Extract<Shelf, { kind: "novel" }>) => (
+    <HomeShelf key={shelf.id} id={shelf.id} title={shelf.title} subtitle={shelf.hint} onSeeAll={shelf.seeAll ? () => onSeeAll(shelf.seeAll!) : undefined}>
+      {shelf.items.map((novel) => (
+        <HomeTile key={novel.id} title={novel.title} cover={novel.coverUrl} meta={novel.sourceName} onClick={() => onOpenNovel(novel)} />
+      ))}
+    </HomeShelf>
+  );
+
   return (
     <div className="o-page home-page" data-testid="home-page">
-      {library.length === 0 ? (
-        <section className="home-welcome" data-testid="home-welcome">
-          <EmptyState
-            icon={<Compass />}
-            title={homeStrings.welcomeTitle}
-            description={homeStrings.welcomeDescription}
-            action={<Button variant="primary" icon={<Compass />} onClick={onExplore}>{homeStrings.explore}</Button>}
-          />
-        </section>
+      {featured.length ? (
+        <HomeFeatured novels={featured} eyebrow={featuredFromLibrary ? homeStrings.forYou : homeStrings.featured} onOpen={onOpenNovel} />
       ) : null}
-      {shelves.map((shelf) => (
-        <section className="home-shelf" key={shelf.id} aria-labelledby={`home-${shelf.id}`} data-testid={`home-shelf-${shelf.id}`}>
-          <div className="home-shelf__head">
-            <h2 className="home-shelf__title" id={`home-${shelf.id}`}>{shelf.title}</h2>
-            {shelf.hint ? <p className="home-shelf__hint">{shelf.hint}</p> : null}
-          </div>
-          <ul className="home-shelf__row">
-            {shelf.kind === "book"
-              ? shelf.items.map((item) => (
-                  <li key={item.id}>
-                    <Tile title={item.title} cover={item.coverUrl} meta={item.newChapters ? homeStrings.plusChapters(item.newChapters) : item.sourceName}
-                      accent={Boolean(item.newChapters)} onClick={() => onOpenBook(item)} />
-                  </li>
-                ))
-              : shelf.items.map((novel) => (
-                  <li key={novel.id}>
-                    <Tile title={novel.title} cover={novel.coverUrl} meta={novel.sourceName} onClick={() => onOpenNovel(novel)} />
-                  </li>
-                ))}
-          </ul>
-        </section>
+      {library.length === 0 ? (
+        <p className="home-tip" data-testid="home-welcome">{homeStrings.welcomeTip}</p>
+      ) : null}
+      {bookShelves.map((shelf) => (
+        <HomeShelf key={shelf.id} id={shelf.id} title={shelf.title} subtitle={shelf.hint} variant="wide" onSeeAll={onOpenLibrary}>
+          {shelf.items.map((item) => (
+            <HomeBookCard
+              key={item.id}
+              title={item.title}
+              cover={item.coverUrl}
+              meta={item.sourceName ?? item.author}
+              accent={item.newChapters ? homeStrings.plusChapters(item.newChapters) : undefined}
+              onClick={() => onOpenBook(item)}
+            />
+          ))}
+        </HomeShelf>
       ))}
+      {leading.map(renderNovelShelf)}
+      <HomeGenres genres={genres} onBrowse={onBrowseTag} />
+      {trailing.map(renderNovelShelf)}
     </div>
   );
 }
 
+const EXCLUDED_GENRES = new Set(["genre.erotic", "genre.explicit_erotic", "genre.adult", "genre.ecchi", "genre.smut", "genre.hentai"]);
+
 function score(item: LibraryItem) {
   return (item.favorite ? 4 : 0) + (item.readingStatus === "reading" ? 2 : item.readingStatus === "completed" ? 1 : 0);
-}
-
-function Tile({ title, cover, meta, accent = false, onClick }: { title: string; cover?: string; meta?: string; accent?: boolean; onClick: () => void }) {
-  return (
-    <button type="button" className="home-tile" onClick={onClick} title={title}>
-      <Cover src={cover} title={title} size="fill" sheen className="home-tile__cover" />
-      <span className="home-tile__title">{title}</span>
-      {meta ? <span className={accent ? "home-tile__meta home-tile__meta--accent" : "home-tile__meta"}>{meta}</span> : null}
-    </button>
-  );
 }
