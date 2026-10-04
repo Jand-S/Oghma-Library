@@ -13,7 +13,7 @@ class AccountSettings(BaseSettings):
     # Envio dos códigos: "resend" (produção) ou "log" (desenvolvimento: o código vai para o log).
     mailer: str = "log"
     resend_api_key: str = ""
-    mail_from: str = "Oghma <conta@oghma.app>"
+    mail_from: str = "Oghma <conta@oghma.dev>"
     code_ttl_seconds: int = 600
     code_max_attempts: int = 5
     code_resend_seconds: int = 60

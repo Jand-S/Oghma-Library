@@ -83,7 +83,7 @@ const accountShim = (signedIn, meta) => `(() => {
     library_sync_mark_clean: () => 0,
     library_sync_apply: () => 0,
     library_sync_mark_all_dirty: () => 0,
-    oghma_account_status: () => ({ signedIn, baseUrl: "https://oghma-conta.jandson.me" }),
+    oghma_account_status: () => ({ signedIn, baseUrl: "https://conta.oghma.dev" }),
     oghma_account_request_code: (a) => ok({ email: a.email, resendIn: 60 }, 202),
     oghma_account_verify: () => { signedIn = true; return ok({ user, created: true }); },
     oghma_account_logout: () => { signedIn = false; return null; },

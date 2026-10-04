@@ -1,7 +1,7 @@
 import { loadInvoke } from "./localFiles";
 
 /** Where the Oghma account lives unless the reader points the app elsewhere (Ajustes > Conta). */
-export const DEFAULT_ACCOUNT_SERVER = "https://oghma-conta.jandson.me";
+export const DEFAULT_ACCOUNT_SERVER = "https://conta.oghma.dev";
 
 export type AccountUser = {
   publicId: string;

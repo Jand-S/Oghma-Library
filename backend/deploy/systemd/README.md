@@ -39,7 +39,7 @@ Variáveis no `/opt/oghma/.env`:
 | `OGHMA_ACCOUNTS_SECRET` | 32+ caracteres aleatórios (`openssl rand -hex 32`); assina códigos e tokens. Trocar derruba todas as sessões |
 | `OGHMA_ACCOUNTS_MAILER` | `resend` em produção (`log` escreve o código no journal, para teste) |
 | `OGHMA_ACCOUNTS_RESEND_API_KEY` | chave da Resend |
-| `OGHMA_ACCOUNTS_MAIL_FROM` | remetente num domínio verificado na Resend (SPF/DKIM), ex.: `Oghma <conta@seu-dominio>` |
+| `OGHMA_ACCOUNTS_MAIL_FROM` | remetente num domínio verificado na Resend (SPF/DKIM), ex.: `Oghma <conta@oghma.dev>` |
 
 ```bash
 systemctl enable --now oghma-accounts
@@ -49,11 +49,11 @@ curl -s http://127.0.0.1:8090/health
 Caddy (o domínio precisa apontar para a VPS):
 
 ```caddy
-conta.SEU-DOMINIO {
+conta.oghma.dev {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8090
 }
 ```
 
-O app usa `https://conta.SEU-DOMINIO` como servidor da conta (Ajustes > Conta > Servidor; padrão
+O app usa `https://conta.oghma.dev` como servidor da conta (Ajustes > Conta > Servidor; padrão
 em `apps/desktop/src/features/account/oghmaAccount.ts`).
