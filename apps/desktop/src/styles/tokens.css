@@ -9,11 +9,11 @@
     color-scheme: dark;
 
     /* Surfaces */
-    --bg-app: #121212;
-    --bg-sidebar: #0d0d0d;
-    --surface-1: #1a1a1a;
-    --surface-2: #222;
-    --surface-3: #2c2c2c;
+    --bg-app: #19191b;
+    --bg-sidebar: #1f1f21;
+    --surface-1: #222224;
+    --surface-2: #2a2a2d;
+    --surface-3: #3a3a3c;
     --glass: rgba(255, 255, 255, 0.06);
     --glass-strong: rgba(255, 255, 255, 0.1);
     --glass-blur: 16px;
@@ -23,13 +23,14 @@
 
     /* Borders */
     --border: rgba(255, 255, 255, 0.08);
+    --separator: rgba(255, 255, 255, 0.06);
     --border-strong: rgba(255, 255, 255, 0.16);
 
     /* Text */
-    --text: #f0f1f7;
-    --text-2: #d0d1d7;
-    --text-muted: #a6a7af; /* ≥ 4.5:1 on every surface, incl. --active over --surface-2 */
-    --text-disabled: #5f6068;
+    --text: #f5f5f7;
+    --text-2: #d1d1d6;
+    --text-muted: #a8a8ae; /* ≥ 4.5:1 on every surface, incl. --active over --surface-2 */
+    --text-disabled: #5c5c61;
 
     /* Brand */
     --accent: #00796b;
@@ -53,6 +54,34 @@
     --black-rgb: 0 0 0;
     --white-rgb: 255 255 255;
 
+    /*
+     * Semantic tints. Features use these instead of rgb(var(--x-rgb) / a)
+     * (lint rule raw-tint): -subtle for large areas and hover, -soft for
+     * badges, chips and selected rows, -line for their borders.
+     */
+    --accent-subtle: rgb(var(--accent-rgb) / 0.08);
+    --accent-soft: rgb(var(--accent-rgb) / 0.16);
+    --accent-line: rgb(var(--accent-rgb) / 0.5);
+    --accent-ring: rgb(var(--accent-rgb) / 0.3);
+    --danger-subtle: rgb(var(--danger-rgb) / 0.06);
+    --danger-soft: rgb(var(--danger-rgb) / 0.14);
+    --danger-line: rgb(var(--danger-rgb) / 0.45);
+    --warning-subtle: rgb(var(--warning-rgb) / 0.06);
+    --warning-soft: rgb(var(--warning-rgb) / 0.14);
+    --warning-line: rgb(var(--warning-rgb) / 0.45);
+    --success-subtle: rgb(var(--success-rgb) / 0.06);
+    --success-soft: rgb(var(--success-rgb) / 0.14);
+    --success-line: rgb(var(--success-rgb) / 0.45);
+    --success-ring: rgb(var(--success-rgb) / 0.25);
+    --info-subtle: rgb(var(--info-rgb) / 0.06);
+    --info-soft: rgb(var(--info-rgb) / 0.14);
+    --info-line: rgb(var(--info-rgb) / 0.45);
+    --selected-bg: var(--accent-soft);
+    --selected-border: var(--accent-line);
+    /* Scrims over cover art (text on images). */
+    --scrim: rgb(var(--black-rgb) / 0.55);
+    --scrim-strong: rgb(var(--black-rgb) / 0.78);
+
     /* Focus */
     --focus-ring: 0 0 0 2px var(--bg-app), 0 0 0 4px rgb(var(--accent-rgb) / 0.7);
 
@@ -72,11 +101,14 @@
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
+    /* Cards, panels and heroes. Controls stay on --radius-md. */
+    --radius-card: 12px;
+    --radius-xl: 18px;
     --radius-pill: 999px;
 
     /* Type */
-    --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif;
-    --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Inter, Roboto, system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
     --font-serif: "Iowan Old Style", Charter, "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
     --fs-xs: 12px;
     --fs-sm: 13px;
@@ -85,8 +117,15 @@
     --fs-xl: 20px;
     --fs-2xl: 24px;
     --fs-3xl: 32px;
+    /* Large titles (Início hero, page titles), like macOS's 26–28pt large title. */
+    --fs-display: 28px;
     --lh-tight: 1.25;
     --lh-base: 1.5;
+    --lh-snug: 1.35;
+    /* Long-form reading (translation reader and review, serif). */
+    --lh-reading: 1.7;
+    --tracking-tight: -0.01em;
+    --tracking-display: -0.02em;
     --fw-regular: 400;
     --fw-medium: 500;
     --fw-semibold: 600;
@@ -135,9 +174,9 @@
     --dur-slow: 320ms;
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.42);
   }
 
   /*

@@ -144,7 +144,7 @@
 
   .o-sidebar__indicator--activity {
     background: var(--accent);
-    box-shadow: 0 0 0 var(--ring-width) rgb(var(--accent-rgb) / 0.3);
+    box-shadow: 0 0 0 var(--ring-width) var(--accent-ring);
     animation: sidebar-pulse 1.6s var(--ease) infinite;
   }
 
@@ -161,7 +161,7 @@
   }
 
   .o-sidebar__item.is-flashing {
-    background: rgb(var(--accent-rgb) / 0.3);
+    background: var(--accent-ring);
   }
 
   .o-sidebar__toggle {
@@ -181,7 +181,7 @@
   .o-sidebar__handle:hover,
   .o-sidebar__handle:focus-visible,
   .o-app--resizing .o-sidebar__handle {
-    background: rgb(var(--accent-rgb) / 0.5);
+    background: var(--accent-line);
     box-shadow: none;
   }
 

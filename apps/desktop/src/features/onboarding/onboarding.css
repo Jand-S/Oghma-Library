@@ -11,23 +11,8 @@
     place-items: center;
     padding: var(--onboarding-pad) var(--space-3);
     overflow-y: auto;
-    background:
-      radial-gradient(60% 55% at 12% 8%, rgb(var(--accent-rgb) / 0.32), transparent 70%),
-      radial-gradient(50% 50% at 92% 96%, rgb(var(--accent-rgb) / 0.22), transparent 70%),
-      radial-gradient(40% 40% at 85% 10%, rgb(var(--info-rgb) / 0.08), transparent 70%),
-      var(--bg-sidebar);
+    background: var(--bg-app);
     animation: fade-in var(--dur-slow) var(--ease) both;
-  }
-
-  /* Dot grid texture, faded towards the edges. */
-  .onboarding::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgb(var(--white-rgb) / 0.05) 1px, transparent 1px);
-    background-size: var(--space-3) var(--space-3);
-    mask-image: radial-gradient(70% 70% at 50% 50%, rgb(var(--black-rgb) / 1), transparent);
-    pointer-events: none;
   }
 
   /* Lets the window be dragged by the top edge (macOS has no titlebar). */
@@ -46,12 +31,10 @@
     width: min(100%, calc(var(--space-8) * 10 + var(--space-5)));
     /* Fixed height: the footer stays put between steps; the body scrolls if needed. */
     height: min(calc(100vh - var(--titlebar-h) - var(--onboarding-pad) * 2), calc(var(--space-8) * 10 + var(--space-3)));
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-lg);
-    background: rgb(var(--black-rgb) / 0.35);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--surface-1);
     box-shadow: var(--shadow-lg);
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    backdrop-filter: blur(var(--glass-blur));
     animation: scale-fade-in var(--dur-slow) var(--ease) both;
   }
 
@@ -120,7 +103,7 @@
   }
 
   .onboarding__dot.is-done {
-    background: rgb(var(--accent-rgb) / 0.6);
+    background: var(--accent-line);
   }
 
   .onboarding__dot.is-current {
@@ -150,7 +133,7 @@
     width: calc(var(--space-8) + var(--space-2));
     height: calc(var(--space-8) + var(--space-2));
     margin-bottom: var(--space-1);
-    filter: drop-shadow(0 var(--space-1) var(--space-3) rgb(var(--accent-rgb) / 0.45));
+    filter: drop-shadow(0 var(--space-1) var(--space-3) var(--accent-ring));
   }
 
   .onboarding__eyebrow {
@@ -263,7 +246,7 @@
     height: var(--control-sm);
     margin-bottom: var(--space-0-5);
     border-radius: var(--radius-sm);
-    background: rgb(var(--accent-rgb) / 0.16);
+    background: var(--accent-soft);
     color: var(--accent-text);
   }
 
@@ -284,13 +267,13 @@
   }
 
   .onboarding-status--ok {
-    border-color: rgb(var(--success-rgb) / 0.35);
-    background: rgb(var(--success-rgb) / 0.06);
+    border-color: var(--success-line);
+    background: var(--success-subtle);
   }
 
   .onboarding-status--error {
-    border-color: rgb(var(--danger-rgb) / 0.35);
-    background: rgb(var(--danger-rgb) / 0.06);
+    border-color: var(--danger-line);
+    background: var(--danger-subtle);
   }
 
   .onboarding-status__head {

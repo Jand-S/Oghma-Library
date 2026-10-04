@@ -1,0 +1,108 @@
+@import "../styles/layers.css";
+
+@layer components {
+  .o-list-group {
+    display: grid;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .o-list-group__title {
+    margin: 0;
+    padding: 0 var(--space-0-5);
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+
+  .o-list-group__rows {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+  }
+
+  .o-list-group__footer {
+    margin: 0;
+    padding: 0 var(--space-0-5);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .o-list-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    min-height: var(--control-md);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* Hairline separator inset from the leading edge, like grouped lists on macOS. */
+  .o-list-row + .o-list-row::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: var(--space-2);
+    border-top: 1px solid var(--separator);
+  }
+
+  .o-list-row__icon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: var(--control-sm);
+    height: var(--control-sm);
+    border-radius: var(--radius-md);
+    background: var(--surface-3);
+    color: var(--text-2);
+  }
+
+  .o-list-row__icon svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .o-list-row__text {
+    display: grid;
+    flex: 1 1 auto;
+    gap: var(--hairline);
+    min-width: 0;
+  }
+
+  .o-list-row__label {
+    color: var(--text);
+    font-size: var(--fs-md);
+  }
+
+  .o-list-row__description {
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+  }
+
+  .o-list-row__value {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-md);
+    text-align: right;
+  }
+
+  .o-list-row--stacked {
+    flex-wrap: wrap;
+  }
+
+  .o-list-row--stacked .o-list-row__value {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+}

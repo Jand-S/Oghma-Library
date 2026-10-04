@@ -197,7 +197,7 @@
   }
 
   .library-tile__flags > .library-lang.o-badge--accent {
-    background: rgb(var(--accent-rgb) / 0.85);
+    background: var(--accent);
     color: var(--accent-fg);
   }
 
@@ -425,9 +425,7 @@
     position: absolute;
     inset: 0;
     z-index: -1;
-    background:
-      radial-gradient(circle at 20% 10%, rgb(var(--accent-rgb) / 0.35), transparent 55%),
-      var(--surface-1);
+    background: var(--surface-1);
   }
 
   .library-hero--image .library-hero__backdrop {
@@ -641,8 +639,8 @@
   }
 
   .library-danger {
-    border-color: rgb(var(--danger-rgb) / 0.35);
-    background: rgb(var(--danger-rgb) / 0.05);
+    border-color: var(--danger-line);
+    background: var(--danger-subtle);
   }
 
   .library-danger__heading {
@@ -658,7 +656,7 @@
 
   .library-danger__row + .library-danger__row {
     padding-top: var(--space-2);
-    border-top: 1px solid rgb(var(--danger-rgb) / 0.2);
+    border-top: 1px solid var(--danger-soft);
   }
 
   .library-danger__text {

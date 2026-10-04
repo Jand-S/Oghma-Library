@@ -6,7 +6,7 @@
     flex-direction: column;
     min-width: 0;
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
     background: var(--surface-1);
   }
 

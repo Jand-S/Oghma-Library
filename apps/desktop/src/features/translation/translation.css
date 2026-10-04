@@ -66,7 +66,7 @@
     width: var(--control-md);
     height: var(--control-md);
     border-radius: var(--radius-pill);
-    background: rgb(var(--accent-rgb) / 0.22);
+    background: var(--accent-soft);
     color: var(--accent-text);
     font-size: var(--fs-lg);
     font-weight: var(--fw-semibold);
@@ -143,9 +143,9 @@
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-1) var(--space-2);
-    border: 1px solid rgb(var(--warning-rgb) / 0.45);
+    border: 1px solid var(--warning-line);
     border-radius: var(--radius-md);
-    background: rgb(var(--warning-rgb) / 0.1);
+    background: var(--warning-soft);
     color: var(--text);
     font-size: var(--fs-sm);
     font-variant-numeric: tabular-nums;
@@ -236,8 +236,8 @@
   }
 
   .translation-project[aria-pressed="true"] {
-    border-color: rgb(var(--accent-rgb) / 0.45);
-    background: rgb(var(--accent-rgb) / 0.12);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
   }
 
   .translation-project .o-cover {
@@ -537,8 +537,8 @@
 
   .translation-banner--paused,
   .translation-banner--waiting {
-    border-color: rgb(var(--warning-rgb) / 0.45);
-    background: rgb(var(--warning-rgb) / 0.1);
+    border-color: var(--warning-line);
+    background: var(--warning-soft);
   }
 
   .translation-banner--paused .translation-banner__title,
@@ -552,8 +552,8 @@
 
   .translation-banner--done,
   .translation-banner--exported {
-    border-color: rgb(var(--success-rgb) / 0.45);
-    background: rgb(var(--success-rgb) / 0.1);
+    border-color: var(--success-line);
+    background: var(--success-soft);
   }
 
   .translation-banner--done .translation-banner__title,
@@ -562,8 +562,8 @@
   }
 
   .translation-banner--error {
-    border-color: rgb(var(--danger-rgb) / 0.5);
-    background: rgb(var(--danger-rgb) / 0.12);
+    border-color: var(--danger-line);
+    background: var(--danger-soft);
   }
 
   .translation-banner--error .translation-banner__title {
@@ -571,8 +571,8 @@
   }
 
   .translation-banner--preparing {
-    border-color: rgb(var(--info-rgb) / 0.4);
-    background: rgb(var(--info-rgb) / 0.08);
+    border-color: var(--info-line);
+    background: var(--info-subtle);
   }
 
   .translation-banner--preparing .translation-banner__title {
@@ -802,7 +802,7 @@
   }
 
   .translation-table__edit {
-    background: rgb(var(--accent-rgb) / 0.06);
+    background: var(--accent-subtle);
   }
 
   .translation-table__edit th,
@@ -859,7 +859,7 @@
     padding: var(--space-1) var(--space-1-5);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    background: rgb(var(--accent-rgb) / 0.08);
+    background: var(--accent-subtle);
   }
 
   .translation-suggestion__icon {
@@ -1122,8 +1122,8 @@
   }
 
   .translation-review__issue[aria-pressed="true"] {
-    border-color: rgb(var(--accent-rgb) / 0.45);
-    background: rgb(var(--accent-rgb) / 0.12);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
   }
 
   .translation-review__chapter {
@@ -1178,8 +1178,8 @@
   }
 
   .translation-review__chunk--issue {
-    border-color: rgb(var(--warning-rgb) / 0.55);
-    background: rgb(var(--warning-rgb) / 0.04);
+    border-color: var(--warning-line);
+    background: var(--warning-subtle);
   }
 
   .translation-review__alert {
@@ -1189,7 +1189,7 @@
     gap: var(--space-1) var(--space-1-5);
     padding: var(--space-1) var(--space-1-5);
     border-radius: var(--radius-sm);
-    background: rgb(var(--warning-rgb) / 0.1);
+    background: var(--warning-soft);
   }
 
   .translation-review__alert-icon {
@@ -1276,7 +1276,7 @@
   .translation-review__en {
     padding: 0 var(--space-0-5);
     border-radius: var(--radius-xs);
-    background: rgb(var(--warning-rgb) / 0.3);
+    background: var(--warning-line);
     color: var(--text);
   }
 
@@ -1318,8 +1318,8 @@
   }
 
   .translation-picker__item[aria-pressed="true"] {
-    border-color: rgb(var(--accent-rgb) / 0.45);
-    background: rgb(var(--accent-rgb) / 0.12);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
   }
 
   .translation-picker__item:disabled {

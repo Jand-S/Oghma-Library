@@ -27,18 +27,13 @@
     overflow: hidden;
     padding: var(--space-3);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background:
-      radial-gradient(circle at 0% 0%, rgb(var(--white-rgb) / 0.06), transparent 50%),
-      var(--surface-1);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
     animation: fade-in var(--dur-base) var(--ease) both;
   }
 
   .kindle-hero--connected {
-    border-color: rgb(var(--accent-rgb) / 0.35);
-    background:
-      radial-gradient(circle at 0% 0%, rgb(var(--accent-rgb) / 0.28), transparent 55%),
-      var(--surface-1);
+    border-color: var(--accent-line);
   }
 
   .kindle-hero__icon {
@@ -54,8 +49,8 @@
   }
 
   .kindle-hero--connected .kindle-hero__icon {
-    border-color: rgb(var(--accent-rgb) / 0.5);
-    background: rgb(var(--accent-rgb) / 0.16);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
     color: var(--accent-text);
   }
 
@@ -101,7 +96,7 @@
 
   .kindle-dot--on {
     background: var(--success);
-    box-shadow: 0 0 0 calc(var(--space-0-5) / 2) rgb(var(--success-rgb) / 0.25);
+    box-shadow: 0 0 0 calc(var(--space-0-5) / 2) var(--success-ring);
   }
 
   .kindle-hero__facts {
@@ -169,7 +164,7 @@
     width: var(--space-3);
     height: var(--space-3);
     border-radius: 50%;
-    background: rgb(var(--accent-rgb) / 0.16);
+    background: var(--accent-soft);
     color: var(--accent-text);
     font-size: var(--fs-xs);
     font-weight: var(--fw-bold);
@@ -286,7 +281,7 @@
 
 
   .kindle-book.is-checked .kindle-book__cover {
-    box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) rgb(var(--accent-rgb) / 0.25);
+    box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) var(--accent-ring);
   }
 
   .kindle-book.is-checked .kindle-book__title {
@@ -402,8 +397,8 @@
   }
 
   .kindle-queue-item.is-active {
-    border-color: rgb(var(--accent-rgb) / 0.5);
-    background: rgb(var(--accent-rgb) / 0.08);
+    border-color: var(--accent-line);
+    background: var(--accent-subtle);
   }
 
   .kindle-queue-item.is-done {

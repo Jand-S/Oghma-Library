@@ -1,0 +1,49 @@
+@import "../styles/layers.css";
+
+/* Shared data table (Fontes, Tradução). Feature CSS only sets column widths and cell content. */
+@layer components {
+  .o-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-sm);
+  }
+
+  .o-table th {
+    padding: var(--space-1) var(--space-1-5);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-medium);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .o-table td {
+    padding: var(--space-1-5);
+    vertical-align: middle;
+  }
+
+  .o-table th:first-child,
+  .o-table td:first-child {
+    padding-left: var(--space-2);
+  }
+
+  .o-table tbody tr {
+    transition: background var(--dur-fast) var(--ease);
+  }
+
+  .o-table tbody tr + tr {
+    border-top: 1px solid var(--separator);
+  }
+
+  .o-table tbody tr:hover {
+    background: var(--hover);
+  }
+
+  .o-table--sticky thead th {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    background: var(--surface-1);
+  }
+}

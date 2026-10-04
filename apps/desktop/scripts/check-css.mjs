@@ -9,6 +9,9 @@
  *   - !important
  *   - rules outside an @layer block
  *   - duplicate selectors inside the same layer and at-rule context
+ *   - raw-tint: brand/status tints (rgb(var(--accent-rgb) / a) etc.) inside
+ *     src/features or src/shell; use the semantic tokens (--accent-soft, --danger-line…).
+ *     Black/white scrims over cover art are allowed.
  *
  * Every finding is an error: the run exits 1 if there is any.
  */
@@ -181,6 +184,9 @@ function checkValue(value) {
   return problems;
 }
 
+const TINT = /rgb\(\s*var\(--(accent|danger|warning|success|info)-rgb\)/;
+const TINT_SCOPES = ["features/", "shell/"];
+
 const files = listCssFiles(srcRoot)
   .map((full) => ({ full, rel: relative(srcRoot, full).split(sep).join("/") }))
   .filter(({ rel }) => !EXCLUDED.has(rel))
@@ -200,6 +206,9 @@ for (const { full, rel } of files) {
     if (event.kind === "decl") {
       for (const [code, message] of checkValue(event.value)) {
         report(event.index, code, `${event.prop}: ${message}`);
+      }
+      if (TINT_SCOPES.some((scope) => rel.startsWith(scope)) && TINT.test(event.value)) {
+        report(event.index, "raw-tint", `${event.prop}: brand/status tint; use --accent-soft, --danger-line… from tokens.css`);
       }
       continue;
     }

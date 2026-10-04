@@ -108,14 +108,14 @@
   }
 
   .discover-pill.is-active {
-    border-color: rgb(var(--accent-rgb) / 0.6);
-    background: rgb(var(--accent-rgb) / 0.16);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
     color: var(--accent-text);
   }
 
   .discover-pill.is-active:hover,
   .discover-pill.is-active.is-open {
-    background: rgb(var(--accent-rgb) / 0.24);
+    background: var(--accent-soft);
   }
 
   .discover-pill__label,
@@ -245,7 +245,7 @@
   }
 
   .discover-option:focus-visible {
-    box-shadow: inset 0 0 0 var(--ring-width) rgb(var(--accent-rgb) / 0.7);
+    box-shadow: inset 0 0 0 var(--ring-width) var(--accent-line);
   }
 
   .discover-option.is-checked {
@@ -321,14 +321,14 @@
   }
 
   .discover-tag.is-excluded {
-    --chip-bg: rgb(var(--danger-rgb) / 0.14);
-    --chip-border: rgb(var(--danger-rgb) / 0.55);
+    --chip-bg: var(--danger-soft);
+    --chip-border: var(--danger-line);
     --chip-fg: var(--danger-text);
   }
 
   .discover-tag.is-excluded .o-chip__label {
     text-decoration: line-through;
-    text-decoration-color: rgb(var(--danger-rgb) / 0.6);
+    text-decoration-color: var(--danger-line);
   }
 
   /* Text-like action ("Limpar tudo", "Limpar tags"). */
@@ -341,7 +341,7 @@
   }
 
   .discover-link:hover:not(:disabled) {
-    background: rgb(var(--accent-rgb) / 0.12);
+    background: var(--accent-soft);
   }
 
   /* ---------- Active filter chips (inline, after the triggers) ---------- */
@@ -441,7 +441,7 @@
   }
 
   .discover-card.is-selected .discover-card__media {
-    box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) rgb(var(--accent-rgb) / 0.25);
+    box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) var(--accent-ring);
   }
 
 
@@ -565,9 +565,7 @@
     inset: 0 0 auto;
     z-index: -1;
     height: calc(var(--space-8) * 4);
-    background:
-      radial-gradient(circle at 50% 30%, rgb(var(--accent-rgb) / 0.4), transparent 70%),
-      var(--surface-2);
+    background: var(--surface-2);
     background-position: center;
     background-size: cover;
     filter: blur(var(--space-4)) saturate(1.2);
@@ -683,8 +681,8 @@
   }
 
   .discover-detail__tag-more:hover {
-    border-color: rgb(var(--accent-rgb) / 0.6);
-    background: rgb(var(--accent-rgb) / 0.12);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
     color: var(--accent-text);
   }
 
@@ -835,9 +833,9 @@
 
   .discover-config__hint {
     padding: var(--space-1) var(--space-1-5);
-    border: 1px solid rgb(var(--warning-rgb) / 0.35);
+    border: 1px solid var(--warning-line);
     border-radius: var(--radius-sm);
-    background: rgb(var(--warning-rgb) / 0.1);
+    background: var(--warning-soft);
     color: var(--warning);
     font-size: var(--fs-xs);
     line-height: var(--lh-base);
