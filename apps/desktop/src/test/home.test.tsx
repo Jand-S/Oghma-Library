@@ -67,6 +67,18 @@ describe("Início", () => {
     fireEvent.click(within(hero).getByRole("button", { name: homeStrings.next }));
     expect(hero).toHaveTextContent("Reverend Insanity");
 
+    // A horizontal trackpad swipe turns the page too (one page per gesture).
+    fireEvent.wheel(hero, { deltaX: -80, deltaY: 2 });
+    expect(hero).toHaveTextContent("Lord of the Mysteries");
+    fireEvent.wheel(hero, { deltaX: -80, deltaY: 0 });
+    expect(hero).toHaveTextContent("Lord of the Mysteries");
+    // Vertical scrolling is left to the page.
+    fireEvent.wheel(hero, { deltaX: 0, deltaY: 300 });
+    expect(hero).toHaveTextContent("Lord of the Mysteries");
+    // Keyboard arrows.
+    fireEvent.keyDown(within(hero).getByTestId("home-featured-open"), { key: "ArrowRight" });
+    expect(hero).toHaveTextContent("Reverend Insanity");
+
     const genres = screen.getByTestId("home-genres");
     fireEvent.click(within(genres).getByRole("button", { name: /Mistério/ }));
     expect(props.onBrowseTag).toHaveBeenCalledWith("genre.mystery");

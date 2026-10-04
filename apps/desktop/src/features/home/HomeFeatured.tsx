@@ -1,11 +1,17 @@
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
 import type { Novel } from "../../core/types";
 import { homeStrings } from "../../strings/home";
 import { Button, Cover, IconButton, cx } from "../../ui";
 
 /** Time each featured novel stays on screen. */
 export const FEATURED_INTERVAL_MS = 8000;
+/** Horizontal wheel distance (trackpad swipe) that turns the page. */
+const WHEEL_STEP = 60;
+/** After a wheel turn, ignore the rest of the same swipe (trackpad momentum). */
+const WHEEL_COOLDOWN_MS = 650;
+/** Mouse drag distance that turns the page. */
+const DRAG_STEP = 50;
 
 function prefersReducedMotion() {
   return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -25,6 +31,11 @@ type HomeFeaturedProps = {
 export function HomeFeatured({ novels, eyebrow, onOpen }: HomeFeaturedProps) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [direction, setDirection] = useState<"next" | "prev" | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const wheel = useRef({ acc: 0, lockedUntil: 0 });
+  const drag = useRef<{ x: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
   const count = novels.length;
   const current = novels[Math.min(index, count - 1)];
 
@@ -35,7 +46,69 @@ export function HomeFeatured({ novels, eyebrow, onOpen }: HomeFeaturedProps) {
   }, [count, paused]);
 
   if (!current) return null;
-  const go = (step: number) => setIndex((value) => (value + step + count) % count);
+  const go = (step: number) => {
+    if (count < 2) return;
+    setDirection(step > 0 ? "next" : "prev");
+    setIndex((value) => (value + step + count) % count);
+  };
+  const jump = (target: number) => {
+    if (target === index) return;
+    setDirection(target > index ? "next" : "prev");
+    setIndex(target);
+  };
+
+  // Trackpad two-finger swipe / horizontal wheel: one page per gesture.
+  const onWheel = (event: WheelEvent<HTMLElement>) => {
+    if (count < 2 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+    const now = Date.now();
+    const state = wheel.current;
+    if (now < state.lockedUntil) return;
+    state.acc += event.deltaX;
+    if (Math.abs(state.acc) < WHEEL_STEP) return;
+    go(state.acc > 0 ? 1 : -1);
+    state.acc = 0;
+    state.lockedUntil = now + WHEEL_COOLDOWN_MS;
+  };
+
+  // Mouse drag (or touch swipe) across the hero.
+  const onPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (count < 2 || event.button !== 0) return;
+    if ((event.target as Element).closest(".home-hero__nav, .home-hero__actions")) return;
+    drag.current = { x: event.clientX, moved: false };
+  };
+  const onPointerMove = (event: PointerEvent<HTMLElement>) => {
+    const start = drag.current;
+    if (!start) return;
+    if (!start.moved && Math.abs(event.clientX - start.x) > 6) {
+      start.moved = true;
+      setDragging(true);
+    }
+  };
+  const onPointerUp = (event: PointerEvent<HTMLElement>) => {
+    const start = drag.current;
+    drag.current = null;
+    setDragging(false);
+    if (!start?.moved) return;
+    const dx = event.clientX - start.x;
+    if (Math.abs(dx) >= DRAG_STEP) {
+      // The drag ended on the cover: do not also open it.
+      suppressClick.current = true;
+      go(dx < 0 ? 1 : -1);
+    }
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "ArrowRight") go(1);
+    else if (event.key === "ArrowLeft") go(-1);
+    else return;
+    event.preventDefault();
+  };
+  const open = (novel: Novel) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    onOpen(novel);
+  };
   const facts = [
     current.author,
     current.sourceName,
@@ -46,7 +119,7 @@ export function HomeFeatured({ novels, eyebrow, onOpen }: HomeFeaturedProps) {
 
   return (
     <section
-      className={cx("home-hero", current.coverUrl && "home-hero--image")}
+      className={cx("home-hero", current.coverUrl && "home-hero--image", dragging && "is-dragging")}
       style={style}
       aria-roledescription={homeStrings.featuredRole}
       aria-label={homeStrings.featured}
@@ -55,10 +128,19 @@ export function HomeFeatured({ novels, eyebrow, onOpen }: HomeFeaturedProps) {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
+      onWheel={onWheel}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => {
+        drag.current = null;
+        setDragging(false);
+      }}
+      onKeyDown={onKeyDown}
     >
       <div className="home-hero__backdrop" aria-hidden="true" key={`bg-${current.id}`} />
-      <div className="home-hero__content" key={current.id}>
-        <button type="button" className="home-hero__cover" onClick={() => onOpen(current)} aria-label={homeStrings.openDetails(current.title)}>
+      <div className={cx("home-hero__content", direction && `home-hero__content--${direction}`)} key={current.id}>
+        <button type="button" className="home-hero__cover" onClick={() => open(current)} draggable={false} aria-label={homeStrings.openDetails(current.title)}>
           <Cover src={current.coverUrl} title={current.title} size="fill" sheen />
         </button>
         <div className="home-hero__info">
@@ -72,7 +154,7 @@ export function HomeFeatured({ novels, eyebrow, onOpen }: HomeFeaturedProps) {
           </p>
           {current.description ? <p className="home-hero__synopsis">{current.description}</p> : null}
           <div className="home-hero__actions">
-            <Button variant="primary" onClick={() => onOpen(current)} data-testid="home-featured-open">{homeStrings.details}</Button>
+            <Button variant="primary" onClick={() => open(current)} data-testid="home-featured-open">{homeStrings.details}</Button>
           </div>
         </div>
       </div>
@@ -87,7 +169,7 @@ export function HomeFeatured({ novels, eyebrow, onOpen }: HomeFeaturedProps) {
                 className={cx("home-hero__dot", i === index && "is-active")}
                 aria-label={novel.title}
                 aria-current={i === index ? "true" : undefined}
-                onClick={() => setIndex(i)}
+                onClick={() => jump(i)}
               />
             ))}
           </div>

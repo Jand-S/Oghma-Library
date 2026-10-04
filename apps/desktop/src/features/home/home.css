@@ -44,6 +44,8 @@
   }
 
   .home-hero__content {
+    touch-action: pan-y;
+    user-select: none;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
@@ -51,6 +53,38 @@
     padding: var(--space-4) var(--space-5);
     padding-bottom: var(--space-6);
     animation: fade-in var(--dur-slow) var(--ease) both;
+  }
+
+  .home-hero__content--next {
+    animation: home-hero-next var(--dur-slow) var(--ease) both;
+  }
+
+  .home-hero__content--prev {
+    animation: home-hero-prev var(--dur-slow) var(--ease) both;
+  }
+
+  .home-hero.is-dragging .home-hero__content {
+    cursor: grabbing;
+  }
+
+  /* The cover image must not start a native image drag when swiping. */
+  .home-hero img {
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+
+  @keyframes home-hero-next {
+    from {
+      opacity: 0;
+      transform: translateX(var(--space-5));
+    }
+  }
+
+  @keyframes home-hero-prev {
+    from {
+      opacity: 0;
+      transform: translateX(calc(var(--space-5) * -1));
+    }
   }
 
   .home-hero__cover {
@@ -203,8 +237,9 @@
     grid-auto-columns: var(--home-tile);
     grid-auto-flow: column;
     gap: var(--space-2);
-    margin: 0;
-    padding: 0 0 var(--space-0-5);
+    /* Room for the hover scale and shadow, which the scroll container would clip. */
+    margin: calc(var(--space-1) * -1) calc(var(--space-1) * -1) 0;
+    padding: var(--space-1) var(--space-1) var(--space-1-5);
     overflow-x: auto;
     list-style: none;
     scroll-snap-type: x proximity;
@@ -234,7 +269,7 @@
 
   .home-shelf__arrow {
     position: absolute;
-    top: calc(var(--home-tile) * 0.75 - var(--control-sm) / 2);
+    top: calc(var(--space-1) + var(--home-tile) * 0.75 - var(--control-sm) / 2);
     display: grid;
     place-items: center;
     width: var(--control-sm);
@@ -295,16 +330,32 @@
     scroll-snap-align: start;
   }
 
+  /* Same hover as the Buscar cards: the cover grows a little, lifts and the sheen shows. */
   .home-tile__cover {
     aspect-ratio: var(--cover-ratio);
     margin-bottom: var(--space-0-5);
     border-radius: var(--radius-md);
-    transition: transform var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
+    transition: scale var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
   }
 
-  .home-tile:hover .home-tile__cover {
+  .home-tile .o-cover--sheen::after {
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease);
+  }
+
+  .home-tile:hover .home-tile__cover,
+  .home-tile:focus-visible .home-tile__cover {
+    scale: 1.04;
     box-shadow: var(--shadow-md);
-    transform: translateY(calc(var(--hairline) * -2));
+  }
+
+  .home-tile:hover .o-cover--sheen::after,
+  .home-tile:focus-visible .o-cover--sheen::after {
+    opacity: 1;
+  }
+
+  .home-tile:hover .home-tile__title {
+    color: var(--text);
   }
 
   .home-tile:focus-visible {
@@ -312,7 +363,7 @@
   }
 
   .home-tile:focus-visible .home-tile__cover {
-    box-shadow: var(--focus-ring);
+    box-shadow: var(--focus-ring), var(--shadow-md);
   }
 
   .home-tile__title {
@@ -358,6 +409,11 @@
   .home-book:hover {
     border-color: var(--border-strong);
     background: var(--surface-2);
+    box-shadow: var(--shadow-md);
+  }
+
+  .home-book:hover .home-book__cover {
+    scale: 1.05;
   }
 
   .home-book:focus-visible {
@@ -370,6 +426,7 @@
     width: calc(var(--space-8) - var(--space-1));
     aspect-ratio: var(--cover-ratio);
     border-radius: var(--radius-sm);
+    transition: scale var(--dur-base) var(--ease);
   }
 
   .home-book__text {
@@ -437,6 +494,7 @@
   .home-genre:hover {
     border-color: var(--border-strong);
     background: var(--surface-2);
+    box-shadow: var(--shadow-md);
   }
 
   .home-genre:focus-visible {
