@@ -39,7 +39,7 @@ Variáveis no `/opt/oghma/.env`:
 | `OGHMA_ACCOUNTS_SECRET` | 32+ caracteres aleatórios (`openssl rand -hex 32`); assina códigos e tokens. Trocar derruba todas as sessões |
 | `OGHMA_ACCOUNTS_MAILER` | `resend` em produção (`log` escreve o código no journal, para teste) |
 | `OGHMA_ACCOUNTS_RESEND_API_KEY` | chave da Resend |
-| `OGHMA_ACCOUNTS_MAIL_FROM` | remetente num domínio verificado na Resend (SPF/DKIM), ex.: `Oghma <conta@oghma.dev>` |
+| `OGHMA_ACCOUNTS_MAIL_FROM` | remetente num domínio verificado na Resend (SPF/DKIM), ex.: `Oghma <noreply@oghma.dev>` |
 
 Roda de uma worktree própria, para o deploy da conta não mexer no checkout dos crawlers
 (`/opt/oghma/app`); usa o mesmo venv (FastAPI, SQLAlchemy e asyncpg já estão nele).
