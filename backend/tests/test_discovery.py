@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from oghma.discovery.similar import (DiscoveryNovel, EmbeddingCache, build_discovery, embed, ficha_text, novel_text,
-                                     work_key)
+                                     series_key, work_key)
 from oghma.publish.runner import _index_from_state
 from oghma.publish.uploader import IMMUTABLE, cache_control_for
 
@@ -46,6 +46,16 @@ def test_same_work_in_another_language_is_an_edition_not_a_suggestion():
     # Short synopses match by chance: they never make an edition.
     short = [nv("p", "Um", description="curta"), nv("q", "Dois", source="novel-mania", description="curta")]
     assert build_discovery(short, unit([1, 0], [1, 0]), unit([1, 0], [1, 0]))["editions"] == {}
+
+
+def test_other_books_of_the_same_series_are_not_suggestions():
+    assert series_key("Mushoku Tensei: Jobless Reincarnation") == series_key("Mushoku Tensei: Reencarnação do Desempregado") == "mushoku tensei"
+    assert series_key("Re:Zero Kara Hajimeru Isekai Seikatsu") == ""
+    assert series_key("Shadow Slave") == ""
+    novels = [nv("m1", "Mushoku Tensei: Jobless Reincarnation"), nv("m2", "Mushoku Tensei: Reencarnação do Desempregado"),
+              nv("x", "Outra")]
+    vecs = unit([1, 0], [1, 0.01], [0.5, 0.5])
+    assert [i for i, _ in build_discovery(novels, vecs, unit([1, 0], [0, 1], [0.7, 0.7]))["similar"]["m1"]] == ["x"]
 
 
 def test_ficha_wins_over_the_synopsis():

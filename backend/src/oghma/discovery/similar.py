@@ -40,8 +40,8 @@ def _register_custom_models() -> None:
         sources=ModelSource(hf="Xenova/paraphrase-multilingual-mpnet-base-v2"), model_file="onnx/model_quantized.onnx")
 TOP_K = 24
 # Peso do cosseno dos textos e das tags de historia (Jaccard) na nota do par.
-TEXT_WEIGHT = 0.65
-TAG_WEIGHT = 0.35
+TAG_WEIGHT = float(os.environ.get("OGHMA_DISCOVERY_TAG_WEIGHT", "0.35"))
+TEXT_WEIGHT = 1.0 - TAG_WEIGHT
 # Sinopses tao proximas assim sao a mesma obra (outra traducao/edicao), nao uma parecida.
 SAME_WORK_COSINE = 0.9
 SYNOPSIS_CHARS = 1500
@@ -68,6 +68,17 @@ def work_key(title: str) -> str:
     text = unicodedata.normalize("NFD", text)
     text = "".join(ch for ch in text if not unicodedata.combining(ch)).lower()
     return re.sub(r"[^a-z0-9]+", " ", text).strip()
+
+
+def series_key(title: str) -> str:
+    """Nome da serie antes de ":" ou " - " ("Mushoku Tensei: Jobless Reincarnation" e
+    "Mushoku Tensei: Reencarnacao do Desempregado"), quando ele e longo o bastante para nao
+    juntar obras por acaso ("Re:Zero" fica de fora). Vazio quando nao ha serie."""
+    head = re.split(r"\s*[:–—]\s*|\s+-\s+", title or "", maxsplit=1)
+    if len(head) < 2:
+        return ""
+    key = work_key(head[0])
+    return key if len(key) >= 8 and " " in key else ""
 
 
 def _plain(text: Optional[str]) -> str:
@@ -156,6 +167,7 @@ def build_discovery(novels: list[DiscoveryNovel], story_vecs, synopsis_vecs, top
 
     n = len(novels)
     keys = [work_key(x.title) for x in novels]
+    series = [series_key(x.title) for x in novels]
     tags = [story_tags(x.tag_keys) for x in novels]
     same_text = synopsis_vecs @ synopsis_vecs.T
     editions: dict[str, list[str]] = {}
@@ -167,7 +179,7 @@ def build_discovery(novels: list[DiscoveryNovel], story_vecs, synopsis_vecs, top
     story = story_vecs @ story_vecs.T
     similar: dict[str, list[list]] = {}
     for i in range(n):
-        same = {i} | {j for j in range(n) if keys[j] == keys[i]} | {
+        same = {i} | {j for j in range(n) if keys[j] == keys[i] or (series[i] and series[j] == series[i])} | {
             j for j in range(n) if novels[j].id in set(editions.get(novels[i].id, []))}
         jac = np.array([len(t & tags[i]) / (len(t | tags[i]) or 1) for t in tags], dtype=np.float32)
         score = TEXT_WEIGHT * story[i] + TAG_WEIGHT * jac
