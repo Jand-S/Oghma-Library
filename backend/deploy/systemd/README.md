@@ -28,7 +28,7 @@ precisa do extra: `pip install -e "backend[discovery]"`. Arquivos em `/srv/oghma
 
 API pública da conta Oghma (login por código no e-mail, apelido/avatar e a biblioteca
 sincronizada), em `oghma.accounts.app`. Só tem rotas de conta; as de administração dos crawlers
-nunca passam por ela. Escuta em `127.0.0.1:8090`; o Caddy publica em HTTPS. As tabelas
+nunca passam por ela. Escuta em `127.0.0.1:8096`; o Caddy publica em HTTPS. As tabelas
 (`account_*`) são criadas na partida, no mesmo Postgres.
 
 Variáveis no `/opt/oghma/.env`:
@@ -41,9 +41,16 @@ Variáveis no `/opt/oghma/.env`:
 | `OGHMA_ACCOUNTS_RESEND_API_KEY` | chave da Resend |
 | `OGHMA_ACCOUNTS_MAIL_FROM` | remetente num domínio verificado na Resend (SPF/DKIM), ex.: `Oghma <conta@oghma.dev>` |
 
+Roda de uma worktree própria, para o deploy da conta não mexer no checkout dos crawlers
+(`/opt/oghma/app`); usa o mesmo venv (FastAPI, SQLAlchemy e asyncpg já estão nele).
+
 ```bash
-systemctl enable --now oghma-accounts
-curl -s http://127.0.0.1:8090/health
+sudo -u oghma git -C /opt/oghma/app fetch origin feature/library-account
+sudo -u oghma git -C /opt/oghma/app worktree add /opt/oghma/accounts origin/feature/library-account   # 1ª vez
+sudo -u oghma git -C /opt/oghma/accounts checkout --detach origin/feature/library-account             # atualizar
+cp /opt/oghma/accounts/backend/deploy/systemd/oghma-accounts.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now oghma-accounts   # restart para atualizar
+curl -s http://127.0.0.1:8096/health
 ```
 
 Caddy (o domínio precisa apontar para a VPS):
@@ -51,7 +58,7 @@ Caddy (o domínio precisa apontar para a VPS):
 ```caddy
 conta.oghma.dev {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8090
+	reverse_proxy 127.0.0.1:8096
 }
 ```
 
