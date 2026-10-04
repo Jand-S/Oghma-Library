@@ -976,8 +976,6 @@
     color: var(--text-muted);
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
   }
 
   .translation-review__issues {
@@ -1044,8 +1042,6 @@
     color: var(--text-muted);
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
   }
 
   .translation-review__chunks {

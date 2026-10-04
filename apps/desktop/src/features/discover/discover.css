@@ -196,8 +196,6 @@
     color: var(--text-muted);
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
   }
 
   .discover-popover__range {
@@ -698,11 +696,9 @@
   }
 
   .discover-detail__section-title {
-    color: var(--text-muted);
-    font-size: var(--fs-xs);
+    color: var(--text);
+    font-size: var(--fs-md);
     font-weight: var(--fw-semibold);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
   }
 
   .discover-detail__synopsis {
@@ -908,12 +904,20 @@
 
 
   /* "Também em": the same work in other sources. */
+  /* Grouped list (Apple inset style): one surface, hairlines between rows. */
   .discover-editions {
     display: grid;
-    gap: var(--space-0-5);
     margin: 0;
     padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
     list-style: none;
+  }
+
+  .discover-editions > li + li {
+    border-top: 1px solid var(--separator);
   }
 
   .discover-editions__item {
@@ -923,9 +927,8 @@
     justify-content: space-between;
     gap: var(--space-1);
     padding: var(--space-1) var(--space-1-5);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-1);
+    border: 0;
+    background: none;
     color: var(--text);
     font-size: var(--fs-sm);
     text-align: left;
@@ -933,8 +936,7 @@
   }
 
   .discover-editions__item:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-2);
+    background: var(--hover);
   }
 
   .discover-editions__meta {
@@ -1026,13 +1028,6 @@
     color: var(--text-muted);
     font-size: var(--fs-xs);
     white-space: nowrap;
-  }
-
-  .discover-detail__section-head {
-    display: flex;
-    gap: var(--space-1);
-    align-items: center;
-    justify-content: space-between;
   }
 
   .discover-card__reason {
