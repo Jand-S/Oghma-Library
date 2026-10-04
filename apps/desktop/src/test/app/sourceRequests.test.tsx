@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest";
 import type { SourceSite } from "../../core/types";
 import { SourcesView } from "../../features/sources/SourcesView";
-import { normalizeRequestUrl, type SourceRequest } from "../../services/sourceRequests";
+import { forgetRequest, listSourceRequests, normalizeRequestUrl, type SourceRequest } from "../../services/sourceRequests";
 import { sourcesStrings } from "../../strings/sources";
 
 const strings = sourcesStrings.request;
@@ -138,5 +138,17 @@ describe("Pedidos de fonte nova", () => {
     fireEvent.click(screen.getByRole("button", { name: strings.submit }));
     expect(await screen.findByText(strings.invalidUrl)).toBeInTheDocument();
     expect(requests.submit).not.toHaveBeenCalled();
+  });
+});
+
+describe("Pedidos dispensados", () => {
+  it("não voltam quando o brain devolve de novo um pedido pronto (ele mostra a todos os dos últimos 14 dias)", async () => {
+    localStorage.clear();
+    const live = request({ id: "abcdef0123", status: "live", stage: "live", stageIndex: 7, sourceId: "novellunar", domain: "novellunar.com" });
+    const other = request({ id: "0123abcdef", status: "building", stage: "building" });
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ requests: [live, other] }), { status: 200 }));
+    expect((await listSourceRequests(fetchImpl as unknown as typeof fetch)).map((r) => r.id)).toEqual(["abcdef0123", "0123abcdef"]);
+    forgetRequest("abcdef0123");
+    expect((await listSourceRequests(fetchImpl as unknown as typeof fetch)).map((r) => r.id)).toEqual(["0123abcdef"]);
   });
 });
