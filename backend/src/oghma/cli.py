@@ -352,6 +352,16 @@ def source_disable_cmd(source: str = typer.Argument(..., help="id da fonte")) ->
     _set_source_enabled(source, False)
 
 
+@app.command("detect-moved")
+def detect_moved_cmd(source: str = typer.Option(..., help="id da fonte")) -> None:
+    """Marca as novels cujo endereco o site mudou (301 para outra novel listada); a publicacao
+    seguinte deixa a antiga fora do app e passa o id dela para a nova como apelido."""
+    import oghma.scraper.connectors  # noqa: F401
+    from .scraper.moved import detect_moved_now
+
+    _echo_json(asyncio.run(detect_moved_now(source)))
+
+
 @app.command("source-unpublish")
 def source_unpublish_cmd(
     source: str = typer.Argument(..., help="id da fonte"),

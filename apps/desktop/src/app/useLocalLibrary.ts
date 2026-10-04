@@ -38,7 +38,11 @@ function normalizeTitle(value: string): string {
  * (a title match could be a different novel); legacy entries fall back to the title.
  */
 export function findCatalogNovel(entry: LocalLibraryEntry, catalog: Novel[]): Novel | undefined {
-  if (entry.novelId) return catalog.find((novel) => novel.id === entry.novelId);
+  // An old id still matches after the site moved the novel (the catalog lists it under `aliases`).
+  if (entry.novelId) {
+    const id = entry.novelId;
+    return catalog.find((novel) => novel.id === id) ?? catalog.find((novel) => novel.aliases?.includes(id));
+  }
   const exact = catalog.find((novel) =>
     novel.title === entry.title || sanitizeFileName(novel.title) === entry.folderName
   );

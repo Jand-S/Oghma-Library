@@ -52,6 +52,7 @@ def public_fields(n: NovelRecord) -> dict:
         "firstSeenAt": n.first_seen_at,
         "lastChapterAt": n.last_new_chapter_at,
         "sourceChapterCount": extra.get("source_chapter_count"),
+        **({"aliases": n.aliases} if n.aliases else {}),
     }
 
 

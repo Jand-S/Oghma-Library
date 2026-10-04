@@ -38,6 +38,8 @@ class NovelRecord:
     # Capitulos que o leitor deve saber que faltam: {"number", "title", "reason"}.
     # reason: "empty" | "placeholder" | "rejected" | "http_404" | "gap" (numero pulado na fonte)
     missing: list[dict] = field(default_factory=list)
+    # Ids antigos da mesma novel (o site mudou o endereco): o app reconhece livros baixados por eles.
+    aliases: list[str] = field(default_factory=list)
 
 
 @dataclass

@@ -32,6 +32,9 @@ export type Novel = {
   chapters: number;
   /** Chapters the site announces; above `chapters` while the server is still collecting the rest. */
   sourceChapters?: number;
+  /** Older ids of this novel (the site moved it to a new address): a book downloaded under one of
+   *  them is still this novel. */
+  aliases?: string[];
   /** 0–5, from the source (absent when the source has no rating). */
   rating?: number;
   ratingVotes?: number;

@@ -316,6 +316,17 @@ async def crawl_source(
             refs: list[NovelRef] = [novel_ref_from_url(connector, novel_url)]
         else:
             refs = list(await connector.discover_novels(fetcher, limit=limit))
+        if not novel_url and limit is None:
+            # Obras que mudaram de endereco no site: a antiga deixa de ser publicada (o app
+            # mostrava a mesma novel duas vezes). Nunca derruba a coleta.
+            try:
+                from .moved import detect_moved
+
+                moved = await detect_moved(session, connector, fetcher, source_id, refs, log=_log_progress)
+                if moved:
+                    stats["moved"] = moved[:20]
+            except Exception as exc:  # pragma: no cover - so diagnostico
+                _log_progress(f"moved check failed source={source_id}: {type(exc).__name__}: {exc}")
         stats["stage"] = "discovered"
         stats["discovered_total"] = len(refs)
         stats["novels_total"] = len(refs)
