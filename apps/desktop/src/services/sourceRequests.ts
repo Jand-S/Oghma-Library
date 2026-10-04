@@ -6,6 +6,9 @@ export const SOURCE_REQUESTS_URL = "https://brain.jandson.me/api/public/oghma/so
 /** Só identifica o app para o filtro anti-robô do brain; não é segredo. */
 const APP_KEY = "oghma-desktop-1";
 const IDS_KEY = "oghma.sourceRequests.v1";
+/** Pedidos que a pessoa tirou da lista. O brain mostra a todos os pedidos prontos dos últimos
+ *  14 dias, então esquecer o id não basta: sem este filtro o pedido voltava ao abrir Fontes. */
+const DISMISSED_KEY = "oghma.sourceRequests.dismissed.v1";
 const REQUESTER_KEY = "oghma.requester.v1";
 
 export type SourceRequestStatus = "pending" | "queued" | "building" | "live" | "failed" | "rejected";
@@ -52,8 +55,22 @@ function writeIds(ids: string[]) {
 
 export const myRequestIds = readIds;
 
+function readDismissed(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
+    return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function forgetRequest(id: string) {
   writeIds(readIds().filter((item) => item !== id));
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...readDismissed().filter((item) => item !== id), id].slice(-200)));
+  } catch {
+    // Sem localStorage o pedido some só até a próxima atualização da lista.
+  }
 }
 
 export function savedRequester(): string {
@@ -114,5 +131,6 @@ export async function listSourceRequests(fetchImpl: typeof fetch = fetch): Promi
   const query = ids.length ? `?ids=${encodeURIComponent(ids.join(","))}` : "";
   const response = await fetchImpl(`${SOURCE_REQUESTS_URL}${query}`, { headers: { Accept: "application/json" } });
   const body = (await parse(response)) as { requests?: SourceRequest[] };
-  return Array.isArray(body.requests) ? body.requests : [];
+  const dismissed = new Set(readDismissed());
+  return Array.isArray(body.requests) ? body.requests.filter((request) => !dismissed.has(request.id)) : [];
 }
