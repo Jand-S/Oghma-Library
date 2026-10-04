@@ -371,6 +371,16 @@ def mark_chapters_cmd(
     _echo_json(asyncio.run(mark_chapters(source, apply=apply)))
 
 
+@app.command("discovery-fichas")
+def discovery_fichas_cmd(
+    limit: int = typer.Option(None, help="no maximo N obras nesta rodada"),
+) -> None:
+    """Escreve com o Codex a ficha da historia das obras sem ficha (ou com sinopse nova)."""
+    from .discovery.runner import run_fichas
+
+    _echo_json(asyncio.run(run_fichas(limit=limit)))
+
+
 @app.command("discovery-build")
 def discovery_build_cmd(
     dry_run: bool = typer.Option(False, help="simula o upload"),

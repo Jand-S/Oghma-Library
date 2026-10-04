@@ -62,6 +62,7 @@ class DiscoveryNovel:
     description: Optional[str]
     tags: list[str] = field(default_factory=list)
     tag_keys: list[str] = field(default_factory=list)
+    author: Optional[str] = None
 
 
 def work_key(title: str) -> str:

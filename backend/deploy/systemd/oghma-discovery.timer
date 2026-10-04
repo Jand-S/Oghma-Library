@@ -1,0 +1,10 @@
+[Unit]
+Description=Oghma: parecidos e fichas das obras novas, toda madrugada
+
+[Timer]
+OnCalendar=*-*-* 05:00:00 UTC
+Persistent=true
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

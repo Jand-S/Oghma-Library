@@ -25,10 +25,11 @@ async def read_novels(source_ids: list[str]) -> list[DiscoveryNovel]:
 
     async with SessionLocal() as session:
         rows = (await session.execute(
-            select(Novel.id, Novel.source_id, Novel.title, Novel.language, Novel.description, Novel.tags, Novel.tag_keys)
+            select(Novel.id, Novel.source_id, Novel.title, Novel.author, Novel.language, Novel.description, Novel.tags,
+                   Novel.tag_keys)
             .where(Novel.source_id.in_(source_ids)).order_by(Novel.id)
         )).all()
-    return [DiscoveryNovel(id=r.id, source_id=r.source_id, title=r.title, language=r.language or "",
+    return [DiscoveryNovel(id=r.id, source_id=r.source_id, title=r.title, author=r.author, language=r.language or "",
                            description=r.description, tags=list(r.tags or []),
                            tag_keys=list(r.tag_keys or []) or canonical_tag_keys(r.tags or []))
             for r in rows]
@@ -36,6 +37,18 @@ async def read_novels(source_ids: list[str]) -> list[DiscoveryNovel]:
 
 def _ts() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+
+
+async def run_fichas(*, limit: int | None = None) -> dict:
+    """Fichas pendentes de todo o catalogo publicado (o Codex roda numa thread)."""
+    from ..config import get_settings
+    from ..publish.state import load_state
+    from .fichas import generate
+
+    root = Path(get_settings().storage_root)
+    sources = list(load_state(str(root / "publish_state.json")).get("sites", {}).keys())
+    novels = await read_novels(sources)
+    return await asyncio.to_thread(generate, novels, root / "discovery" / "fichas.json", limit=limit)
 
 
 async def run(*, dry_run: bool = False, no_upload: bool = False) -> dict:
