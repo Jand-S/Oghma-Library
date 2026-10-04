@@ -58,7 +58,9 @@ describe("Library browsing", () => {
     expect(within(details).getByRole("heading", { level: 2, name: MOCKINGBIRD })).toBeInTheDocument();
     expect(within(details).getByRole("heading", { name: libraryStrings.synopsis })).toBeInTheDocument();
     expect(within(within(details).getByTestId("detail-cover")).getByRole("img")).toHaveAttribute("src", expect.stringContaining("oghma-icon.svg"));
-    expect(within(details).getByRole("heading", { name: libraryStrings.dangerZone })).toBeInTheDocument();
+    // No "danger zone": hide and delete live in the ⋯ menu; the info list shows where the files are.
+    expect(within(details).queryByText("Zona de perigo")).not.toBeInTheDocument();
+    expect(within(details).getByRole("heading", { name: libraryStrings.infoHeading })).toBeInTheDocument();
     // Sending to the Kindle lives on the Kindle page; the library opens the folder.
     expect(within(details).getByRole("button", { name: libraryStrings.openFolder })).toBeInTheDocument();
     expect(within(details).queryByRole("button", { name: /Kindle/ })).not.toBeInTheDocument();
@@ -227,8 +229,9 @@ describe("Library actions", () => {
     await openLibrary(user);
     const details = await openDetails(user, LOST_TEMPLE);
 
-    const dangerZone = within(details).getByRole("region", { name: libraryStrings.dangerZone });
-    await user.click(within(dangerZone).getByRole("button", { name: libraryStrings.deleteFiles }));
+    await user.click(within(details).getByRole("button", { name: libraryStrings.moreActions }));
+    const menu = await screen.findByRole("menu");
+    await user.click(within(menu).getByRole("menuitem", { name: libraryStrings.deleteFilesMenu }));
     const dialog = screen.getByRole("dialog", { name: libraryStrings.confirmDeleteTitle(LOST_TEMPLE) });
     // Danger confirmations focus Cancel first.
     expect(within(dialog).getByRole("button", { name: "Cancelar" })).toHaveFocus();

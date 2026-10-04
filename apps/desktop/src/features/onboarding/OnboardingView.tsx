@@ -4,7 +4,7 @@ import type { SetupSyncEntry } from "../../constants/ui";
 import { defaultAppConfig } from "../../core/appConfig";
 import type { AppConfig, ServerProbe, SourceSite } from "../../core/types";
 import { onboardingStrings } from "../../strings/onboarding";
-import { Badge, Button, cx, IconButton, ProgressBar, Switch, TextField } from "../../ui";
+import { Badge, Button, cx, IconButton, PathControl, ProgressBar, Switch, TextField } from "../../ui";
 import { getFocusable } from "../../ui/focus";
 import { FolderField } from "../settings/FolderField";
 import { FormatPicker } from "../settings/FormatPicker";
@@ -305,7 +305,7 @@ function SyncStep({ ctx }: { ctx: StepContext }) {
         <h2 className="onboarding-summary__title" id="onboarding-summary-title">{onboardingStrings.summaryHeading}</h2>
         <dl className="onboarding-facts onboarding-facts--summary">
           <div><dt>{onboardingStrings.summaryServer}</dt><dd title={ctx.config.serverUrl}>{sourceDomain(ctx.config.serverUrl)}</dd></div>
-          <div><dt>{onboardingStrings.summaryFolder}</dt><dd title={ctx.config.outputPath}>{ctx.config.outputPath}</dd></div>
+          <div><dt>{onboardingStrings.summaryFolder}</dt><dd><PathControl path={ctx.config.outputPath} segments={2} /></dd></div>
           <div><dt>{onboardingStrings.summaryFormats}</dt><dd>{ctx.config.defaultFormats.join(", ")}</dd></div>
           <div><dt>{onboardingStrings.summarySources}</dt><dd>{selectedSources.map((source) => source.name).join(", ")}</dd></div>
         </dl>

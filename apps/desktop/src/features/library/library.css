@@ -514,28 +514,6 @@
     margin-top: var(--space-0-5);
   }
 
-  .library-hero__facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-4);
-    margin: var(--space-1) 0 0;
-  }
-
-  .library-hero__fact dt {
-    color: var(--text-muted);
-    font-size: var(--fs-xs);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .library-hero__fact dd {
-    margin: 0;
-    color: var(--text);
-    font-size: var(--fs-md);
-    font-weight: var(--fw-semibold);
-    font-variant-numeric: tabular-nums;
-  }
-
   .library-hero__job {
     display: flex;
     flex-direction: column;
@@ -591,30 +569,25 @@
     font-weight: var(--fw-semibold);
   }
 
-  .library-details__folder {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-0-5);
-    padding-top: var(--space-2);
-    border-top: 1px solid var(--border);
-  }
-
-  .library-details__path {
-    color: var(--text-2);
-    font-family: var(--font-mono);
-    font-size: var(--fs-sm);
-    overflow-wrap: anywhere;
-    user-select: text;
-  }
-
   .library-panel {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1-5);
     padding: var(--space-2);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
     background: var(--surface-1);
+  }
+
+  .library-panel__title {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+
+  .library-details__notice {
+    padding: var(--space-3) var(--space-3) 0;
   }
 
   .library-tags {
@@ -632,44 +605,6 @@
   .library-tags__empty {
     color: var(--text-muted);
     font-size: var(--fs-sm);
-  }
-
-  .library-danger {
-    border-color: var(--danger-line);
-    background: var(--danger-subtle);
-  }
-
-  .library-danger__heading {
-    color: var(--danger-text);
-  }
-
-  .library-danger__row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-1);
-  }
-
-  .library-danger__row + .library-danger__row {
-    padding-top: var(--space-2);
-    border-top: 1px solid var(--danger-soft);
-  }
-
-  .library-danger__text {
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--space-0-5) / 2);
-    font-size: var(--fs-sm);
-  }
-
-  .library-danger__text strong {
-    color: var(--text);
-    font-weight: var(--fw-semibold);
-  }
-
-  .library-danger__text span {
-    color: var(--text-muted);
-    line-height: var(--lh-base);
   }
 
   /* ---------- Convert dialog ---------- */

@@ -86,7 +86,11 @@ export const libraryStrings = {
   noTags: "Sem marcadores",
   addTag: "Adicionar marcador",
   newTag: "Novo marcador",
-  dangerZone: "Zona de perigo",
+  infoHeading: "Informações",
+  factSource: "Fonte",
+  copyPath: "Copiar caminho",
+  deleteFilesMenu: "Excluir arquivos…",
+  hiddenBannerTitle: "Oculto da biblioteca",
   removeFromLibraryHint: "Some da biblioteca, mas a pasta e os arquivos continuam no disco.",
   newChaptersShort: (count: number) => `+${count.toLocaleString("pt-BR")} cap.`,
   newChaptersHint: (count: number) =>

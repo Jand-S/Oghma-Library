@@ -98,11 +98,13 @@
 
   .o-list-row--stacked {
     flex-wrap: wrap;
+    row-gap: var(--space-0-5);
   }
 
   .o-list-row--stacked .o-list-row__value {
     flex-basis: 100%;
     justify-content: flex-start;
+    color: var(--text-2);
     text-align: left;
   }
 }

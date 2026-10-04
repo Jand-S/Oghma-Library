@@ -46,8 +46,15 @@
     color: var(--text-muted);
   }
 
+  /* Parent folders keep their (short) names; only the last one truncates. */
+  .o-path__segment {
+    flex: 0 0 auto;
+    max-width: 14ch;
+  }
+
   .o-path__segment:last-child {
     flex: 0 1 auto;
+    max-width: none;
   }
 
   .o-path svg {

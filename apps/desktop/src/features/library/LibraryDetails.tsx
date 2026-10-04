@@ -1,8 +1,9 @@
 import { Download, Eye, EyeOff, FileCog, FolderOpen, Heart, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { getPlatform } from "../../shell/platform";
 import { useState, type CSSProperties } from "react";
 import type { LibraryItem, LibraryReadingStatus } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
-import { AppleLogo, Badge, Button, Chip, Cover, DropdownMenu, IconButton, ProgressBar, SelectField, TextField, cx, type MenuItem } from "../../ui";
+import { AppleLogo, Badge, Banner, Button, Chip, Cover, DropdownMenu, IconButton, ListGroup, ListRow, PathControl, ProgressBar, SelectField, TextField, cx, type MenuItem } from "../../ui";
 import { formatDownloadedAt, formatsOf, jobLabel, type BookJobState } from "./libraryModel";
 import type { BookActions } from "./useBookActions";
 import type { LibraryController } from "./useLibraryController";
@@ -18,7 +19,7 @@ type LibraryDetailsProps = {
 
 const readingStatuses: LibraryReadingStatus[] = ["unread", "reading", "paused", "completed", "dropped"];
 
-/** Hydra-style book page: blurred cover hero, action bar, reading notes and a danger zone. */
+/** Book page: blurred cover hero, action bar, synopsis, reading notes and an Apple-style info list. Hide and delete live in the ⋯ menu. */
 export function LibraryDetails({ item, library, actions, jobState }: LibraryDetailsProps) {
   const [tagInput, setTagInput] = useState("");
   const formats = formatsOf(item);
@@ -44,16 +45,14 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
       icon: <Heart />,
       onSelect: () => actions.toggleFavorite(item)
     },
-    { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => actions.askRemove(item), separatorBefore: true },
-    { label: libraryStrings.deleteFiles, icon: <Trash2 />, onSelect: () => actions.askDelete(item), danger: true }
+    item.hidden
+      ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item), separatorBefore: true }
+      : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => actions.askRemove(item), separatorBefore: true },
+    { label: libraryStrings.deleteFilesMenu, icon: <Trash2 />, onSelect: () => actions.askDelete(item), danger: true, separatorBefore: true }
   ];
+  const revealLabel = getPlatform() === "macos" ? libraryStrings.showInFinder : libraryStrings.openFolder;
 
   const backdrop = item.coverUrl ? ({ "--library-hero-image": `url("${item.coverUrl}")` } as CSSProperties) : undefined;
-  const facts = [
-    { label: libraryStrings.factSize, value: libraryStrings.size(item.sizeMb) },
-    ...(item.chapters ? [{ label: libraryStrings.factChapters, value: item.chapters.toLocaleString("pt-BR") }] : []),
-    { label: libraryStrings.factDownloaded, value: formatDownloadedAt(item) }
-  ];
 
   return (
     <article className="library-details" data-testid="library-detail" aria-label={libraryStrings.detailsLabel}>
@@ -83,14 +82,6 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                   </button>
                 </p>
               ) : null}
-              <dl className="library-hero__facts">
-                {facts.map((fact) => (
-                  <div key={fact.label} className="library-hero__fact">
-                    <dt>{fact.label}</dt>
-                    <dd>{fact.value}</dd>
-                  </div>
-                ))}
-              </dl>
               {jobState ? (
                 <div className="library-hero__job" role="status">
                   <span>{jobLabel(jobState)}</span>
@@ -104,7 +95,7 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
               ) : null}
               <div className="library-actions" role="toolbar" aria-label={libraryStrings.moreActions}>
                 <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
-                  {libraryStrings.openFolder}
+                  {revealLabel}
                 </Button>
                 <Button
                   variant={item.newChapters ? "primary" : "outline"}
@@ -144,21 +135,32 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
         </div>
       </header>
 
+      {item.hidden ? (
+        <div className="library-details__notice">
+          <Banner
+            tone="info"
+            icon={<EyeOff />}
+            title={libraryStrings.hiddenBannerTitle}
+            actions={(
+              <Button variant="outline" size="sm" icon={<Eye />} onClick={() => library.unhideLibraryItem(item)} data-testid="library-unhide">
+                {libraryStrings.showInLibrary}
+              </Button>
+            )}
+          >
+            {libraryStrings.showInLibraryHint}
+          </Banner>
+        </div>
+      ) : null}
+
       <div className="library-details__body">
         <section className="library-details__main" aria-labelledby="library-synopsis-title">
           <h3 id="library-synopsis-title" className="library-details__heading">{libraryStrings.synopsis}</h3>
           <p className="library-details__synopsis is-selectable">{item.description?.trim() || libraryStrings.noSynopsis}</p>
-          {item.outputDir ? (
-            <div className="library-details__folder">
-              <span className="library-details__label">{libraryStrings.factFolder}</span>
-              <code className="library-details__path is-selectable">{item.outputDir}</code>
-            </div>
-          ) : null}
         </section>
 
         <aside className="library-details__side">
           <section className="library-panel" aria-labelledby="library-reading-title">
-            <h3 id="library-reading-title" className="library-details__heading">{libraryStrings.readingHeading}</h3>
+            <h3 id="library-reading-title" className="library-panel__title">{libraryStrings.readingHeading}</h3>
             <SelectField
               label={libraryStrings.readingStatus}
               value={item.readingStatus ?? "unread"}
@@ -192,41 +194,24 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
             </div>
           </section>
 
-          <section className="library-panel library-danger" aria-labelledby="library-danger-title">
-            <h3 id="library-danger-title" className="library-details__heading library-danger__heading">{libraryStrings.dangerZone}</h3>
-            <div className="library-danger__row">
-              {item.hidden ? (
-                <>
-                  <div className="library-danger__text">
-                    <strong>{libraryStrings.showInLibrary}</strong>
-                    <span>{libraryStrings.showInLibraryHint}</span>
-                  </div>
-                  <Button variant="outline" size="sm" icon={<Eye />} onClick={() => library.unhideLibraryItem(item)} data-testid="library-unhide">
-                    {libraryStrings.showInLibrary}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="library-danger__text">
-                    <strong>{libraryStrings.removeFromLibrary}</strong>
-                    <span>{libraryStrings.removeFromLibraryHint}</span>
-                  </div>
-                  <Button variant="outline" size="sm" icon={<EyeOff />} onClick={() => actions.askRemove(item)}>
-                    {libraryStrings.removeFromLibrary}
-                  </Button>
-                </>
-              )}
-            </div>
-            <div className="library-danger__row">
-              <div className="library-danger__text">
-                <strong>{libraryStrings.deleteFiles}</strong>
-                <span>{libraryStrings.deleteFilesHint}</span>
-              </div>
-              <Button variant="danger" size="sm" icon={<Trash2 />} onClick={() => actions.askDelete(item)}>
-                {libraryStrings.deleteFiles}
-              </Button>
-            </div>
-          </section>
+          <ListGroup title={libraryStrings.infoHeading}>
+            <ListRow label={libraryStrings.factSource}>{item.sourceName ?? libraryStrings.localSource}</ListRow>
+            <ListRow label={libraryStrings.factFormats}>{formats.join(", ")}</ListRow>
+            {item.chapters ? <ListRow label={libraryStrings.factChapters}>{item.chapters.toLocaleString("pt-BR")}</ListRow> : null}
+            <ListRow label={libraryStrings.factSize}>{libraryStrings.size(item.sizeMb)}</ListRow>
+            <ListRow label={libraryStrings.factDownloaded}>{formatDownloadedAt(item)}</ListRow>
+            {item.outputDir ? (
+              <ListRow label={libraryStrings.factFolder} stacked>
+                <PathControl
+                  path={item.outputDir}
+                  onReveal={() => library.openLibraryItemFolder(item)}
+                  revealLabel={revealLabel}
+                  copyLabel={libraryStrings.copyPath}
+                  data-testid="library-path"
+                />
+              </ListRow>
+            ) : null}
+          </ListGroup>
         </aside>
       </div>
     </article>

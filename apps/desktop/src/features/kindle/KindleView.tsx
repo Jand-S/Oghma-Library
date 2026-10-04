@@ -4,7 +4,7 @@ import type { AppView } from "../../app/NavigationContext";
 import type { DownloadJob, KindleSendMethod, LibraryItem } from "../../core/types";
 import { kindlePageStrings as strings } from "../../strings/kindle";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Button, Chip, Cover, EmptyState, IconButton, ProgressBar, SegmentedControl, SelectionMark, SortableList, TextField, cx } from "../../ui";
+import { Badge, Button, Chip, Cover, EmptyState, IconButton, PathControl, ProgressBar, SegmentedControl, SelectionMark, SortableList, TextField, cx } from "../../ui";
 import { matchesQuery } from "../library/libraryModel";
 import type { LibraryController } from "../library/useLibraryController";
 import { readIntegrationPreferences } from "../settings/preferences";
@@ -63,7 +63,7 @@ function DeviceHero({ library }: { library: LibraryController }) {
             {status?.mountPath ? (
               <div className="kindle-hero__fact">
                 <dt>{strings.mountPath}</dt>
-                <dd><code>{status.mountPath}</code></dd>
+                <dd><PathControl path={status.mountPath} segments={2} /></dd>
               </div>
             ) : null}
             {connected ? (
