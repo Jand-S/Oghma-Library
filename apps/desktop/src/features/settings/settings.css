@@ -15,17 +15,16 @@
     flex: 1 1 auto;
     width: 100%;
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
     background: var(--surface-1);
-    box-shadow: var(--shadow-sm);
     overflow: hidden;
   }
 
   /* ---------- Category nav ---------- */
   .settings-nav {
     padding: var(--space-2) var(--space-1-5);
-    border-right: 1px solid var(--border);
-    background: rgb(var(--black-rgb) / 0.18);
+    border-right: 1px solid var(--separator);
+    background: var(--bg-sidebar);
   }
 
   .settings-nav__list {
@@ -43,16 +42,16 @@
     gap: var(--space-1-5);
     width: 100%;
     min-height: calc(var(--control-sm) + var(--space-0-5));
-    padding: 0 var(--space-1-5);
+    padding: 0 var(--space-1);
     border: 0;
-    border-radius: var(--radius-xs);
+    border-radius: var(--radius-md);
     background: transparent;
     color: var(--text-2);
     font-size: var(--fs-md);
     text-align: left;
     white-space: nowrap;
     cursor: pointer;
-    transition: all var(--dur-base) var(--ease);
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
   }
 
   .settings-nav__item:hover {
@@ -63,31 +62,33 @@
   .settings-nav__item.is-active {
     background: var(--active);
     color: var(--text);
-    font-weight: var(--fw-semibold);
+    font-weight: var(--fw-medium);
   }
 
-  .settings-nav__item.is-active::before {
-    content: "";
-    position: absolute;
-    top: var(--space-1);
-    bottom: var(--space-1);
-    left: 0;
-    width: calc(var(--space-0-5) - var(--hairline));
-    border-radius: var(--radius-pill);
-    background: var(--accent);
+  /* macOS System Settings: each category icon sits in a small rounded tile. */
+  .settings-nav__glyph {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: calc(var(--icon-md) + var(--space-0-5));
+    height: calc(var(--icon-md) + var(--space-0-5));
+    border-radius: var(--radius-sm);
+    background: var(--surface-3);
+    transition: background var(--dur-fast) var(--ease);
   }
 
   .settings-nav__icon {
-    flex: 0 0 auto;
-    width: var(--icon-sm);
-    height: var(--icon-sm);
-    color: var(--text-muted);
-    transition: color var(--dur-fast) var(--ease);
+    width: calc(var(--icon-sm) - var(--ring-width));
+    height: calc(var(--icon-sm) - var(--ring-width));
+    color: var(--text-2);
   }
 
-  .settings-nav__item:hover .settings-nav__icon,
+  .settings-nav__item.is-active .settings-nav__glyph {
+    background: var(--accent);
+  }
+
   .settings-nav__item.is-active .settings-nav__icon {
-    color: var(--accent-hover);
+    color: var(--accent-fg);
   }
 
   .settings-nav__label {
@@ -134,13 +135,12 @@
     display: flex;
     flex-direction: column;
     gap: calc(var(--space-0-5) / 2);
-    padding-bottom: var(--space-1);
-    border-bottom: 1px solid var(--border);
+    padding: 0 var(--space-0-5);
   }
 
   .settings-group__title {
     color: var(--text);
-    font-size: var(--fs-lg);
+    font-size: var(--fs-md);
     font-weight: var(--fw-semibold);
   }
 
@@ -149,9 +149,18 @@
     font-size: var(--fs-sm);
   }
 
+  /* Inset grouped rows, like macOS System Settings. */
   .settings-group__rows {
     display: flex;
     flex-direction: column;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-2);
+  }
+
+  .settings-pane .o-list-group__rows {
+    background: var(--surface-2);
   }
 
   .settings-row {
@@ -159,8 +168,8 @@
     grid-template-columns: minmax(0, 1fr) minmax(var(--settings-control-min), auto);
     align-items: center;
     gap: var(--space-1) var(--settings-row-gap);
-    padding: var(--space-2) 0;
-    border-bottom: 1px solid var(--border);
+    padding: var(--space-1-5) 0;
+    border-bottom: 1px solid var(--separator);
   }
 
   .settings-row:last-child {

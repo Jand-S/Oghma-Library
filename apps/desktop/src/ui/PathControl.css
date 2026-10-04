@@ -17,6 +17,11 @@
     text-align: left;
   }
 
+  /* Static paths sit on the text baseline like any value. */
+  .o-path:not(.o-path--interactive) {
+    padding: 0;
+  }
+
   .o-path--interactive {
     margin: calc(var(--space-0-5) * -1) calc(var(--space-1) * -1);
     cursor: pointer;

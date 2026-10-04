@@ -174,7 +174,7 @@ export function SettingsView(props: SettingsViewProps) {
                   onClick={() => setCategory(id)}
                   onKeyDown={onTabKeyDown}
                 >
-                  <Icon className="settings-nav__icon" aria-hidden="true" />
+                  <span className="settings-nav__glyph" aria-hidden="true"><Icon className="settings-nav__icon" /></span>
                   <span className="settings-nav__label">{settingsStrings.categories[id]}</span>
                 </button>
               );

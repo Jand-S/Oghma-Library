@@ -65,7 +65,7 @@
   }
 
   .sources-table__row + .sources-table__row {
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--separator);
   }
 
   .sources-table__row:hover {
