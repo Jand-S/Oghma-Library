@@ -35,6 +35,12 @@ export type SourcesViewProps = {
   onNotify?: (message: string) => void;
   /** Pedidos de fonte; injetável nos testes. */
   sourceRequests?: ReturnType<typeof useSourceRequests>;
+  /**
+   * "Solicitar nova fonte" dialog, controlled by the app (its button lives in the page header).
+   * Without these props the view shows its own button above the list.
+   */
+  requestOpen?: boolean;
+  onRequestOpenChange?: (open: boolean) => void;
 };
 
 /** Com pedidos injetados (testes), o hook próprio não busca nada. */
@@ -168,10 +174,15 @@ export function SourcesView({
   onAddSource,
   onPeekSources,
   onNotify,
-  sourceRequests
+  sourceRequests,
+  requestOpen: controlledRequestOpen,
+  onRequestOpenChange
 }: SourcesViewProps) {
   const [query, setQuery] = useState("");
-  const [requestOpen, setRequestOpen] = useState(false);
+  const [ownRequestOpen, setOwnRequestOpen] = useState(false);
+  const requestControlled = onRequestOpenChange !== undefined;
+  const requestOpen = requestControlled ? Boolean(controlledRequestOpen) : ownRequestOpen;
+  const setRequestOpen = requestControlled ? onRequestOpenChange : setOwnRequestOpen;
   const ownRequests = useSourceRequests(sourceRequests ? INJECTED_REQUESTS : undefined);
   const requests = sourceRequests ?? ownRequests;
   const knownIds = useMemo(() => new Set(sources.map((source) => source.id)), [sources]);
@@ -246,11 +257,13 @@ export function SourcesView({
 
   return (
     <div className="o-page o-page--narrow sources-page" data-testid="sources-page">
-      <div className="sources-toolbar">
-        <Button size="sm" variant="outline" icon={<Plus />} onClick={() => setRequestOpen(true)} data-testid="request-source-open">
-          {sourcesStrings.request.open}
-        </Button>
-      </div>
+      {requestControlled ? null : (
+        <div className="sources-toolbar">
+          <Button size="sm" variant="outline" icon={<Plus />} onClick={() => setRequestOpen(true)} data-testid="request-source-open">
+            {sourcesStrings.request.open}
+          </Button>
+        </div>
+      )}
       <RequestSourceDialog open={requestOpen} onClose={() => setRequestOpen(false)} onSubmit={requests.submit} onSent={onNotify} />
       {showSearch ? (
         <TextField

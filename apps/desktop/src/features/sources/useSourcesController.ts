@@ -28,6 +28,8 @@ export type ServerCheck = {
  */
 export function useSourcesController({ backend, sources, setSources, setAppConfig, notify }: SourcesControllerArgs) {
   const [syncing, setSyncing] = useState<string[]>([]);
+  /** "Solicitar nova fonte" dialog (its button is in the Fontes page header). */
+  const [requestOpen, setRequestOpen] = useState(false);
   const syncingRef = useRef<string[]>([]);
   syncingRef.current = syncing;
   const lastSyncedAt = useLastSync();
@@ -130,6 +132,8 @@ export function useSourcesController({ backend, sources, setSources, setAppConfi
   return {
     sources,
     syncing,
+    requestOpen,
+    setRequestOpen,
     setSyncing,
     syncSource,
     syncEnabledSources,

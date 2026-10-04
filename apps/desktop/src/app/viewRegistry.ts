@@ -204,7 +204,9 @@ function SourcesPage({ app }: ViewProps) {
     onAddSource: sources.addSource,
     onPeekSources: sources.peekIndexSources,
     onNotify: sources.notify,
-    onOpenSettings: () => app.navigate("settings", { section: "server" })
+    onOpenSettings: () => app.navigate("settings", { section: "server" }),
+    requestOpen: sources.requestOpen,
+    onRequestOpenChange: sources.setRequestOpen
   });
 }
 

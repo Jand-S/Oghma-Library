@@ -875,7 +875,7 @@
     position: sticky;
     top: 0;
     z-index: var(--z-sticky);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
   }
 
   .translation-review__layout {
@@ -892,7 +892,8 @@
   /* Chapter list: sticks while the chapter scrolls (the tab body is the scroller). */
   .translation-review__side {
     position: sticky;
-    top: var(--space-8);
+    /* Below the sticky review bar (its height plus the gap). */
+    top: calc(var(--space-8) + var(--space-2));
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
@@ -900,7 +901,7 @@
     padding: var(--space-1-5);
     overflow-y: auto;
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
     background: var(--surface-1);
   }
 
@@ -994,9 +995,9 @@
     scroll-margin-top: calc(var(--space-8) + var(--space-2));
   }
 
+  /* The problem chunk is marked by its border and the alert, not by tinting the whole text. */
   .translation-review__chunk--issue {
     border-color: var(--warning-line);
-    background: var(--warning-subtle);
   }
 
   .translation-review__alert {
@@ -1005,8 +1006,9 @@
     align-items: flex-start;
     gap: var(--space-1) var(--space-1-5);
     padding: var(--space-1) var(--space-1-5);
-    border-radius: var(--radius-sm);
-    background: var(--warning-soft);
+    border: 1px solid var(--warning-line);
+    border-radius: var(--radius-md);
+    background: var(--warning-subtle);
   }
 
   .translation-review__alert-icon {
