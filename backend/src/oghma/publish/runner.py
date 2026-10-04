@@ -205,3 +205,27 @@ async def _run_locked(source_id: str, *, out_dir, no_upload, dry_run, full, prog
         save_state(state_path, state)
 
     return summary
+
+
+def unpublish_source(source_id: str, *, dry_run: bool = False) -> dict:
+    """Tira a fonte do index.json (some do app). Sob a trava de publicacao.
+
+    O estado das versoes dos bundles (state["novels"]) fica: se a fonte voltar, a publicacao
+    continua as versoes em vez de regravar chaves imutaveis que o CDN ja guardou. Catalogos e
+    bundles antigos ficam no B2 ate o publish-prune.
+    """
+    from ..config import get_settings
+
+    root = Path(get_settings().storage_root)
+    with publish_lock(str(root / "publish.lock")):
+        state_path = str(root / "publish_state.json")
+        state = load_state(state_path)
+        site = state.get("sites", {}).pop(source_id, None)
+        if site is None:
+            return {"source": source_id, "removed": False, "reason": "nao estava publicada"}
+        index = json.dumps(_index_from_state(state), ensure_ascii=False, indent=2).encode("utf-8")
+        up = make_uploader(dry_run)
+        up.put_bytes(index, "index.json", "application/json")
+        if not dry_run:
+            save_state(state_path, state)
+        return {"source": source_id, "removed": True, "novels": site.get("novelCount"), "sites_left": len(state["sites"])}
