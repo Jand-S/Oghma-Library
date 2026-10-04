@@ -109,6 +109,12 @@ describe("discovery helpers", () => {
     expect(editionsOf(withList, withList.byId.get("lotm")!).map((n) => n.id)).toEqual(["lotm-pt"]);
   });
 
+  it("finds a novel by an old id after the site moved it", () => {
+    const moved = buildCatalogIndex([novel("central-novel:shadow-slave-20260913", { title: "Shadow Slave", aliases: ["central-novel:shadow-slave-20230928"] })]);
+    expect(moved.byId.get("central-novel:shadow-slave-20230928")?.id).toBe("central-novel:shadow-slave-20260913");
+    expect(moved.entries).toHaveLength(1);
+  });
+
   it("sorts by updates, arrivals, size, popularity and rating; missing data goes last", () => {
     const dated = [
       novel("old", { title: "B", lastChapterAt: "2026-01-01T00:00:00Z", views: 10, rating: 4.9, ratingVotes: 2 }),

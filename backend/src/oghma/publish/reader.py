@@ -48,7 +48,24 @@ async def read_source(session, source_id: str) -> tuple[SourceRecord, list[Novel
                 missing=missing_chapters(chs),
             )
         )
-    return source, novels
+    return source, merge_moved(novels)
+
+
+def merge_moved(novels: list[NovelRecord]) -> list[NovelRecord]:
+    """Tira as novels que mudaram de endereco (`extra.moved_to`) e passa a historia delas para a
+    nova: o id antigo vira apelido e a chegada fica a mais antiga (senao Shadow Slave apareceria
+    como recem-chegada no dia em que o site trocou o slug)."""
+    by_id = {n.id: n for n in novels}
+    kept = []
+    for novel in novels:
+        target = by_id.get((novel.extra or {}).get("moved_to") or "")
+        if target is None or target is novel:
+            kept.append(novel)
+            continue
+        target.aliases = sorted({*target.aliases, novel.id, *novel.aliases})
+        if novel.first_seen_at and (not target.first_seen_at or novel.first_seen_at < target.first_seen_at):
+            target.first_seen_at = novel.first_seen_at
+    return kept
 
 
 def _publishable(chapter) -> bool:

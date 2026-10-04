@@ -107,6 +107,11 @@ describe("catalog enrichment", () => {
     expect(found?.author).toBe("Id Match");
   });
 
+  it("matches a book downloaded under an old id after the site moved the novel", () => {
+    const moved = [...catalog, novel({ id: "cn:shadow-new", title: "Shadow Slave", author: "Moved", aliases: ["cn:shadow-old"] })];
+    expect(findCatalogNovel(entry({ title: "Shadow Slave", outputDir: "/o/s", novelId: "cn:shadow-old" }), moved)?.author).toBe("Moved");
+  });
+
   it("does not guess by title when the manifest id is unknown", () => {
     expect(findCatalogNovel(entry({ title: "Solo Leveling: Ragnarök", outputDir: "/o/a", novelId: "cn:999" }), catalog)).toBeUndefined();
   });

@@ -45,6 +45,8 @@ export function buildCatalogIndex(novels: Iterable<Novel>): CatalogIndex {
     });
     byId.set(novel.id, novel);
   }
+  // A book downloaded under an old id (the site moved the novel) still finds it.
+  for (const { novel } of entries) for (const alias of novel.aliases ?? []) if (!byId.has(alias)) byId.set(alias, novel);
   return { entries, byId };
 }
 

@@ -26,6 +26,7 @@ type CatalogChapter = { number: number; title: string };
 
 type CatalogNovel = {
   id: string;
+  aliases?: string[];
   slug: string;
   title: string;
   author: string;
@@ -223,6 +224,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
       status: mapStatus(cn.status),
       chapters: cn.chapterCount,
       ...(cn.sourceChapterCount && cn.sourceChapterCount > cn.chapterCount ? { sourceChapters: cn.sourceChapterCount } : {}),
+      ...(cn.aliases?.length ? { aliases: cn.aliases } : {}),
       ...(cn.rating ? { rating: cn.rating } : {}),
       ...(cn.ratingVotes ? { ratingVotes: cn.ratingVotes } : {}),
       ...(cn.views ? { views: cn.views } : {}),
@@ -241,7 +243,7 @@ export function createStaticBackendClient(serverUrl: string): BackendClient {
 
   function findNovel(novelId: string): { cn: CatalogNovel; source: SiteCache["source"] } | null {
     for (const sc of sites) {
-      const cn = sc.novels.get(novelId);
+      const cn = sc.novels.get(novelId) ?? [...sc.novels.values()].find((novel) => novel.aliases?.includes(novelId));
       if (cn) return { cn, source: sc.source };
     }
     return null;

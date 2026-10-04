@@ -26,13 +26,13 @@ async def read_novels(source_ids: list[str]) -> list[DiscoveryNovel]:
     async with SessionLocal() as session:
         rows = (await session.execute(
             select(Novel.id, Novel.source_id, Novel.title, Novel.author, Novel.language, Novel.description, Novel.tags,
-                   Novel.tag_keys)
+                   Novel.tag_keys, Novel.extra)
             .where(Novel.source_id.in_(source_ids)).order_by(Novel.id)
         )).all()
     return [DiscoveryNovel(id=r.id, source_id=r.source_id, title=r.title, author=r.author, language=r.language or "",
                            description=r.description, tags=list(r.tags or []),
                            tag_keys=list(r.tag_keys or []) or canonical_tag_keys(r.tags or []))
-            for r in rows]
+            for r in rows if not (r.extra or {}).get("moved_to")]
 
 
 async def published_novels(state: dict) -> list[DiscoveryNovel]:
