@@ -96,6 +96,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   } = bootstrap;
   // Books removed from the library stay in state ("Ocultos" in the Library) but nowhere else.
   const visibleLibrary = useMemo(() => library.filter((item) => !item.hidden), [library]);
+  // Translation reads the book's files: shelf books (no files here) are left out.
+  const downloadedLibrary = useMemo(() => visibleLibrary.filter((item) => item.availability !== "shelf"), [visibleLibrary]);
   const kindleConnected = kindleStatus?.connected ?? false;
 
   const { refresh: refreshLocalLibrary } = useLocalLibrary({ appConfig, loading, results: catalog, setLibrary });
@@ -142,7 +144,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   // Owns the ChatGPT account too (controllers.account). Also refreshes the library when a PT-BR book is exported (`translation://exported`).
   const translation = useTranslationController({
     client: translationClient,
-    library: visibleLibrary,
+    library: downloadedLibrary,
     toast,
     refreshLibrary: refreshLocalLibrary,
     navigate

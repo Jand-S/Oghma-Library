@@ -56,6 +56,7 @@ pub fn run() {
             oghma_account::oghma_account_status,
             oghma_account::oghma_account_request_code,
             oghma_account::oghma_account_verify,
+            oghma_account::oghma_account_poll,
             oghma_account::oghma_account_api,
             oghma_account::oghma_account_logout,
             oghma_account::oghma_account_forget,

@@ -35,7 +35,9 @@ export type ApiError = { error: string; retryAfter?: number; attemptsLeft?: numb
 export type AccountClient = {
   available: boolean;
   status(): Promise<{ signedIn: boolean; baseUrl?: string | null }>;
-  requestCode(baseUrl: string, email: string): Promise<ApiResult<Partial<ApiError> & { email?: string; resendIn?: number }>>;
+  requestCode(baseUrl: string, email: string): Promise<ApiResult<Partial<ApiError> & { email?: string; resendIn?: number; loginId?: string }>>;
+  /** The e-mail button was confirmed? 202 = still waiting, 200 = signed in (session kept in Rust). */
+  poll(baseUrl: string, email: string, loginId: string): Promise<ApiResult<Partial<ApiError> & { status?: string; user?: AccountUser; created?: boolean }>>;
   verify(baseUrl: string, email: string, code: string): Promise<ApiResult<Partial<ApiError> & { user?: AccountUser; created?: boolean }>>;
   api<T = unknown>(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<ApiResult<T>>;
   logout(): Promise<void>;
@@ -63,6 +65,7 @@ export function tauriAccountClient(): AccountClient {
     status: () => call("oghma_account_status"),
     requestCode: (baseUrl, email) => call("oghma_account_request_code", { baseUrl, email }),
     verify: (baseUrl, email, code) => call("oghma_account_verify", { baseUrl, email, code }),
+    poll: (baseUrl, email, loginId) => call("oghma_account_poll", { baseUrl, email, loginId }),
     api: (method, path, body) => call("oghma_account_api", { method, path, body: body ?? null }),
     logout: () => call("oghma_account_logout"),
     forget: () => call("oghma_account_forget")

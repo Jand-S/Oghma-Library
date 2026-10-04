@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.2" baseProfile="tiny-ps" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <title>Oghma</title>
+  <rect width="200" height="200" fill="#00897B"/>
+  <circle cx="100" cy="58" r="18" fill="#FFFFFF"/>
+  <path d="M48 78Q74 83 100 100Q126 83 152 78L152 144Q126 149 100 166Q74 149 48 144Z" fill="#FFFFFF"/>
+</svg>

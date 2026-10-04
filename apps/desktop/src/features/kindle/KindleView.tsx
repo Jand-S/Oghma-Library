@@ -115,12 +115,12 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
 
   const selected = useMemo(
     () => library.selectedLibraryIds
-      .map((id) => library.library.find((item) => item.id === id))
+      .map((id) => library.downloaded.find((item) => item.id === id))
       .filter((item): item is LibraryItem => Boolean(item)),
-    [library.library, library.selectedLibraryIds]
+    [library.downloaded, library.selectedLibraryIds]
   );
   const selectedIds = new Set(library.selectedLibraryIds);
-  const visible = library.library.filter((item) => matchesQuery(item, query));
+  const visible = library.downloaded.filter((item) => matchesQuery(item, query));
 
   const runIndex = sendingToKindle && conversion.converterCurrentItemId
     ? library.conversionIds.indexOf(conversion.converterCurrentItemId)
@@ -191,7 +191,7 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
             </div>
           </header>
 
-          {library.library.length === 0 ? (
+          {library.downloaded.length === 0 ? (
             <EmptyState
               icon={<BookOpenText />}
               title={strings.noBooksTitle}

@@ -23,6 +23,7 @@ export const oghmaAccountStrings = {
   codeLabel: "Código de 6 dígitos",
   codeDigit: (index: number) => `Dígito ${index} de 6`,
   verifying: "Conferindo…",
+  orTapButton: "Ou toque em “Entrar no Oghma” no e-mail: esta tela continua sozinha.",
   resend: "Reenviar código",
   resendIn: (seconds: number) => `Reenviar em ${seconds} s`,
   codeResent: "Enviamos um código novo.",

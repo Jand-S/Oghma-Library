@@ -180,31 +180,51 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
     };
   }, [runSync, status, user]);
 
-  const requestCode = useCallback(async (email: string): Promise<Outcome<{ email: string; resendIn: number }>> => {
+  const requestCode = useCallback(async (email: string): Promise<Outcome<{ email: string; resendIn: number; loginId: string | null }>> => {
     try {
       const result = await client.requestCode(serverUrl, email);
       if (!isOk(result)) return failure(result);
-      return { ok: true, email: result.body.email ?? email.trim().toLowerCase(), resendIn: result.body.resendIn ?? 60 };
+      return {
+        ok: true,
+        email: result.body.email ?? email.trim().toLowerCase(),
+        resendIn: result.body.resendIn ?? 60,
+        loginId: result.body.loginId ?? null
+      };
     } catch {
       return networkFailure();
     }
   }, [client, serverUrl]);
 
+  /** A successful sign-in (code or e-mail button): the books on this computer join the account. */
+  const signedInAs = useCallback((signedIn: AccountUser, created: boolean): Outcome<{ user: AccountUser; created: boolean }> => {
+    setUser(signedIn);
+    userRef.current = signedIn;
+    setStatus("signedIn");
+    void runSync(true);
+    return { ok: true, user: signedIn, created };
+  }, [runSync]);
+
   const verify = useCallback(async (email: string, code: string): Promise<Outcome<{ user: AccountUser; created: boolean }>> => {
     try {
       const result = await client.verify(serverUrl, email, code);
       if (!isOk(result) || !result.body.user) return failure(result);
-      const signedIn = result.body.user;
-      setUser(signedIn);
-      userRef.current = signedIn;
-      setStatus("signedIn");
-      // The books on this computer join the account; the account's books come down.
-      void runSync(true);
-      return { ok: true, user: signedIn, created: Boolean(result.body.created) };
+      return signedInAs(result.body.user, Boolean(result.body.created));
     } catch {
       return networkFailure();
     }
-  }, [client, runSync, serverUrl]);
+  }, [client, serverUrl, signedInAs]);
+
+  /** Was the "Entrar no Oghma" button in the e-mail confirmed? `pending` while waiting. */
+  const pollLogin = useCallback(async (email: string, loginId: string): Promise<Outcome<{ user: AccountUser; created: boolean }>> => {
+    try {
+      const result = await client.poll(serverUrl, email, loginId);
+      if (result.status === 202) return { ok: false, error: "pending" };
+      if (!isOk(result) || !result.body.user) return failure(result);
+      return signedInAs(result.body.user, Boolean(result.body.created));
+    } catch {
+      return { ok: false, error: "pending" };
+    }
+  }, [client, serverUrl, signedInAs]);
 
   const checkNickname = useCallback(async (nickname: string) => {
     try {
@@ -287,13 +307,14 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
     syncNow: () => runSync(),
     requestCode,
     verify,
+    pollLogin,
     checkNickname,
     updateProfile,
     listSessions,
     endSession,
     logout,
     deleteAccount
-  }), [checkNickname, client.available, deleteAccount, endSession, listSessions, logout, requestCode, runSync, serverUrl, setServerUrl, status, sync, updateProfile, user, verify]);
+  }), [checkNickname, client.available, deleteAccount, endSession, listSessions, logout, pollLogin, requestCode, runSync, serverUrl, setServerUrl, status, sync, updateProfile, user, verify]);
 }
 
 export type OghmaAccountController = ReturnType<typeof useOghmaAccount>;

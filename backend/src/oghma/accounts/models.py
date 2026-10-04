@@ -40,6 +40,12 @@ class AccountLoginCode(AccountBase):
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Login pelo botão do e-mail: o app espera com `login_id`; o link traz `link_hash`.
+    login_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    link_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    device_name: Mapped[str | None] = mapped_column(String(80))
+    platform: Mapped[str | None] = mapped_column(String(16))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AccountSession(AccountBase):

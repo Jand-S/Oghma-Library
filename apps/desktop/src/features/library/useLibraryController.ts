@@ -113,7 +113,7 @@ export function useLibraryController({
   const runItems = useMemo(
     () => run.ids
       .map((id) => library.find((item) => item.id === id))
-      .filter((item): item is LibraryItem => Boolean(item))
+      .filter((item): item is LibraryItem => Boolean(item) && item!.availability !== "shelf")
       .map((item) => libraryToQueueItems([item])[0]),
     [library, run.ids]
   );
@@ -146,9 +146,10 @@ export function useLibraryController({
     return true;
   };
 
+  // Shelf books have no files: never sent, converted or copied.
   const itemsById = (ids: string[]) => ids
     .map((id) => library.find((item) => item.id === id))
-    .filter((item): item is LibraryItem => Boolean(item));
+    .filter((item): item is LibraryItem => Boolean(item) && item!.availability !== "shelf");
 
   const offerSendToKindleInstall = () => showToast({
     message: libraryStrings.sendToKindleMissing,
@@ -408,6 +409,8 @@ export function useLibraryController({
   };
 
   const visibleLibrary = useMemo(() => library.filter((item) => !item.hidden), [library]);
+  /** Books with files on this computer: the only ones Kindle, iCloud and conversion can use. */
+  const downloadedLibrary = useMemo(() => visibleLibrary.filter((item) => item.availability !== "shelf"), [visibleLibrary]);
 
   const toggleLibrarySelect = (id: string) =>
     setSelectedLibraryIds((ids) => (ids.includes(id) ? ids.filter((itemId) => itemId !== id) : [...ids, id]));
@@ -415,8 +418,10 @@ export function useLibraryController({
     setSelectedLibraryIds((ids) => ids.filter((itemId) => itemId !== id));
 
   return {
-    /** Books shown everywhere (Kindle, counts...): the hidden ones are left out. */
+    /** Books shown everywhere (counts, Início...): the hidden ones are left out; shelf books included. */
     library: visibleLibrary,
+    /** Only the books with files on this computer (Kindle, iCloud, conversion, translation). */
+    downloaded: downloadedLibrary,
     /** Every scanned book, hidden ones included (Library page: "Ocultos" chip and details). */
     allLibrary: library,
     unhideLibraryItem,

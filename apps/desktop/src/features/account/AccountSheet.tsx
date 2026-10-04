@@ -36,6 +36,8 @@ export function AccountSheet({ account, open, onClose, initialStep = "email", on
   const [created, setCreated] = useState(false);
   const [draft, setDraft] = useState<{ value: ProfileDraft; valid: boolean } | null>(null);
   const [codeShake, setCodeShake] = useState(0);
+  /** The app's secret for this sign-in: with it, confirming the e-mail button finishes here. */
+  const [loginId, setLoginId] = useState<string | null>(null);
   const editing = initialStep === "profile";
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export function AccountSheet({ account, open, onClose, initialStep = "email", on
       return false;
     }
     setEmail(result.email);
+    setLoginId(result.loginId);
     setResendAt(Date.now() + result.resendIn * 1000);
     setNow(Date.now());
     return true;
@@ -91,14 +94,45 @@ export function AccountSheet({ account, open, onClose, initialStep = "email", on
       setCodeShake((value) => value + 1);
       return;
     }
-    setCreated(result.created);
-    if (result.user.needsProfile) {
+    afterSignIn(result.user, result.created);
+  };
+
+  const afterSignIn = (signedIn: { needsProfile: boolean; nickname: string | null }, isNew: boolean) => {
+    setCreated(isNew);
+    setLoginId(null);
+    if (signedIn.needsProfile) {
       setStep("profile");
     } else {
-      onDone?.({ created: result.created, nickname: result.user.nickname });
+      onDone?.({ created: isNew, nickname: signedIn.nickname });
       onClose();
     }
   };
+
+  // While the code screen is up, confirming "Entrar no Oghma" in the e-mail (on any device)
+  // signs this computer in: ask every 2 s.
+  const afterSignInRef = useRef(afterSignIn);
+  afterSignInRef.current = afterSignIn;
+  useEffect(() => {
+    if (!open || step !== "code" || !loginId) return;
+    let stopped = false;
+    const timer = window.setInterval(() => {
+      void account.pollLogin(email, loginId).then((result) => {
+        if (stopped) return;
+        if (result.ok) {
+          stopped = true;
+          window.clearInterval(timer);
+          afterSignInRef.current(result.user, result.created);
+        } else if (result.error !== "pending") {
+          stopped = true;
+          window.clearInterval(timer);
+        }
+      });
+    }, 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [account, email, loginId, open, step]);
 
   const saveProfile = async () => {
     if (!draft?.valid || busy) return;
@@ -188,7 +222,7 @@ export function AccountSheet({ account, open, onClose, initialStep = "email", on
           autoFocus
         />
         <p className={cx("account-sheet__message", error && "is-error")} role={error ? "alert" : "status"}>
-          {error ?? (busy ? s.verifying : "")}
+          {error ?? (busy ? s.verifying : loginId ? s.orTapButton : "")}
         </p>
         <div className="account-sheet__links">
           <Button size="sm" variant="ghost" icon={<ArrowLeft />} onClick={() => { setStep("email"); setError(null); }}>{s.changeEmail}</Button>

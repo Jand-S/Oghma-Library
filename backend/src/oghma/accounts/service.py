@@ -57,8 +57,25 @@ def normalize_email(raw: str) -> str:
 # ---------- Login por código ----------
 
 
-async def request_code(db: AsyncSession, settings: AccountSettings, raw_email: str, now: datetime | None = None) -> tuple[str, str]:
-    """Cria um código para o e-mail. Devolve (e-mail normalizado, código) para o envio."""
+@dataclass
+class LoginRequest:
+    email: str
+    code: str
+    # Segredo do app que pediu: ele consulta `poll_login` com isso enquanto espera.
+    login_id: str
+    # Vai no botão do e-mail.
+    link_token: str
+
+
+async def request_code(
+    db: AsyncSession,
+    settings: AccountSettings,
+    raw_email: str,
+    device_name: str = "",
+    platform: str = "",
+    now: datetime | None = None,
+) -> LoginRequest:
+    """Cria um código (e o link do botão) para o e-mail."""
     now = now or utcnow()
     email = normalize_email(raw_email)
     recent = (
@@ -76,6 +93,8 @@ async def request_code(db: AsyncSession, settings: AccountSettings, raw_email: s
     if len(recent) >= settings.codes_per_hour:
         raise AccountError("too_many_codes", 429, retryAfter=3600)
     code = f"{secrets.randbelow(1_000_000):06d}"
+    login_id = secrets.token_urlsafe(24)
+    link_token = secrets.token_urlsafe(32)
     # Um código vale por vez: os anteriores deixam de valer.
     for old in recent:
         if old.used_at is None:
@@ -87,10 +106,14 @@ async def request_code(db: AsyncSession, settings: AccountSettings, raw_email: s
             attempts=0,
             sent_at=now,
             expires_at=now + timedelta(seconds=settings.code_ttl_seconds),
+            login_id=digest(settings.secret, f"login:{login_id}"),
+            link_hash=digest(settings.secret, f"link:{link_token}"),
+            device_name=(device_name or "")[:80],
+            platform=(platform or "")[:16],
         )
     )
     await db.flush()
-    return email, code
+    return LoginRequest(email=email, code=code, login_id=login_id, link_token=link_token)
 
 
 def new_public_id() -> str:
@@ -137,7 +160,13 @@ async def verify_code(
         left = settings.code_max_attempts - pending.attempts
         raise AccountError("invalid_code" if left > 0 else "too_many_attempts", 400 if left > 0 else 429, attemptsLeft=max(0, left))
     pending.used_at = now
+    return await open_session(db, settings, email, device_name, platform, now)
 
+
+async def open_session(
+    db: AsyncSession, settings: AccountSettings, email: str, device_name: str, platform: str, now: datetime
+) -> LoginResult:
+    """Cria a conta no primeiro login e abre uma sessão para o dispositivo."""
     user = (await db.execute(select(AccountUser).where(AccountUser.email == email))).scalar_one_or_none()
     created = user is None
     if user is None:
@@ -158,6 +187,71 @@ async def verify_code(
     )
     await db.flush()
     return LoginResult(token=token, user=user, created=created)
+
+
+# ---------- Login pelo botão do e-mail ----------
+
+
+async def _code_for_link(db: AsyncSession, settings: AccountSettings, link_token: str) -> AccountLoginCode | None:
+    if not link_token or len(link_token) > 128:
+        return None
+    return (
+        await db.execute(select(AccountLoginCode).where(AccountLoginCode.link_hash == digest(settings.secret, f"link:{link_token}")))
+    ).scalar_one_or_none()
+
+
+def link_state(row: AccountLoginCode | None, now: datetime) -> str:
+    """"pending" (pode aprovar), "approved", "used" (login feito ou código trocado) ou "expired"."""
+    if row is None:
+        return "expired"
+    if row.approved_at is not None:
+        return "used" if row.used_at is not None else "approved"
+    if row.used_at is not None:
+        return "used"
+    if aware(row.expires_at) < now:
+        return "expired"
+    return "pending"
+
+
+async def link_info(db: AsyncSession, settings: AccountSettings, link_token: str, now: datetime | None = None) -> tuple[str, AccountLoginCode | None]:
+    row = await _code_for_link(db, settings, link_token)
+    return link_state(row, now or utcnow()), row
+
+
+async def approve_link(db: AsyncSession, settings: AccountSettings, link_token: str, now: datetime | None = None) -> tuple[str, AccountLoginCode | None]:
+    """O leitor confirmou no navegador: o app que está esperando entra no próximo `poll_login`."""
+    now = now or utcnow()
+    row = await _code_for_link(db, settings, link_token)
+    state = link_state(row, now)
+    if state == "pending" and row is not None:
+        row.approved_at = now
+        await db.flush()
+        state = "approved"
+    return state, row
+
+
+async def poll_login(
+    db: AsyncSession, settings: AccountSettings, raw_email: str, login_id: str, now: datetime | None = None
+) -> LoginResult | None:
+    """O app pergunta se o link do e-mail já foi aprovado. None = ainda esperando."""
+    now = now or utcnow()
+    email = normalize_email(raw_email)
+    if not login_id or len(login_id) > 128:
+        raise AccountError("invalid_login", 400)
+    row = (
+        await db.execute(
+            select(AccountLoginCode).where(
+                AccountLoginCode.email == email, AccountLoginCode.login_id == digest(settings.secret, f"login:{login_id}")
+            )
+        )
+    ).scalar_one_or_none()
+    state = link_state(row, now)
+    if state == "pending":
+        return None
+    if state != "approved" or row is None:
+        raise AccountError("expired_code" if state == "expired" else "invalid_login", 410)
+    row.used_at = now
+    return await open_session(db, settings, email, row.device_name or "", row.platform or "", now)
 
 
 async def session_for_token(db: AsyncSession, settings: AccountSettings, token: str, now: datetime | None = None) -> AccountSession:

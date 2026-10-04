@@ -11,13 +11,14 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from . import service
 from .config import AccountSettings, get_account_settings
+from .pages import BRAND_DIR, approval_page
 from .mailer import LogMailer, Mailer, ResendMailer
 from .models import AccountBase, AccountSession, AccountUser
 from .ratelimit import SlidingWindow
@@ -28,6 +29,13 @@ log = logging.getLogger("oghma.accounts")
 
 class CodeIn(BaseModel):
     email: str = Field(max_length=320)
+    deviceName: str = Field(default="", max_length=120)
+    platform: str = Field(default="", max_length=32)
+
+
+class PollIn(BaseModel):
+    email: str = Field(max_length=320)
+    loginId: str = Field(max_length=128)
 
 
 class VerifyIn(BaseModel):
@@ -49,13 +57,40 @@ class ChangesIn(BaseModel):
 
 def make_mailer(settings: AccountSettings) -> Mailer:
     if settings.mailer == "resend":
-        return ResendMailer(settings.resend_api_key, settings.mail_from)
+        return ResendMailer(settings.resend_api_key, settings.mail_from, f"{settings.public_url.rstrip('/')}/marca/oghma.png")
     return LogMailer()
+
+
+# Colunas acrescentadas depois da primeira versão (create_all não altera tabelas existentes).
+ADDED_COLUMNS = {
+    "account_login_code": {
+        "login_id": "VARCHAR(64)",
+        "link_hash": "VARCHAR(64)",
+        "device_name": "VARCHAR(80)",
+        "platform": "VARCHAR(16)",
+        "approved_at": "TIMESTAMP WITH TIME ZONE",
+    }
+}
+
+
+def _add_missing_columns(sync_conn: Any) -> None:
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(sync_conn)
+    for table, columns in ADDED_COLUMNS.items():
+        present = {column["name"] for column in inspector.get_columns(table)}
+        for name, kind in columns.items():
+            if name not in present:
+                sync_conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {kind}"))
+        if "link_hash" not in present:
+            sync_conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_link_hash ON {table} (link_hash)"))
+            sync_conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_login_id ON {table} (login_id)"))
 
 
 async def create_schema(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(AccountBase.metadata.create_all)
+        await conn.run_sync(_add_missing_columns)
 
 
 def create_app(
@@ -122,14 +157,48 @@ def create_app(
     @app.post("/v1/auth/code", status_code=202)
     async def send_code(body: CodeIn, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         limit_ip(request)
-        email, code = await service.request_code(db, settings, body.email)
+        login = await service.request_code(db, settings, body.email, body.deviceName, body.platform)
+        link = f"{settings.public_url.rstrip('/')}/entrar/{login.link_token}"
         # Envia antes de gravar: se o e-mail falhar, o código não fica valendo (nem bloqueia o reenvio).
         try:
-            await mailer.send_code(email, code)
+            await mailer.send_code(login.email, login.code, link)
         except Exception:
             log.exception("Falha ao enviar o código")
             raise AccountError("mail_failed", 502) from None
-        return {"email": email, "expiresIn": settings.code_ttl_seconds, "resendIn": settings.code_resend_seconds}
+        return {
+            "email": login.email,
+            "loginId": login.login_id,
+            "expiresIn": settings.code_ttl_seconds,
+            "resendIn": settings.code_resend_seconds,
+        }
+
+    @app.post("/v1/auth/poll")
+    async def poll(body: PollIn, db: AsyncSession = Depends(get_db)) -> JSONResponse:
+        # Sem limite por IP: o app pergunta a cada 2 s, e só quem pediu o código conhece o loginId.
+        result = await service.poll_login(db, settings, body.email, body.loginId)
+        if result is None:
+            return JSONResponse({"status": "pending"}, status_code=202)
+        return JSONResponse({"token": result.token, "user": service.user_out(result.user), "created": result.created})
+
+    @app.get("/entrar/{link_token}", response_class=HTMLResponse)
+    async def link_page(link_token: str, request: Request, db: AsyncSession = Depends(get_db)) -> HTMLResponse:
+        limit_ip(request)
+        state, row = await service.link_info(db, settings, link_token)
+        return approval_page(state, row, link_token)
+
+    @app.post("/entrar/{link_token}", response_class=HTMLResponse)
+    async def link_confirm(link_token: str, request: Request, db: AsyncSession = Depends(get_db)) -> HTMLResponse:
+        limit_ip(request)
+        state, row = await service.approve_link(db, settings, link_token)
+        return approval_page("done" if state == "approved" else state, row, link_token)
+
+    @app.get("/marca/oghma.png")
+    async def brand_logo() -> FileResponse:
+        return FileResponse(BRAND_DIR / "oghma.png", media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
+
+    @app.get("/marca/bimi.svg")
+    async def brand_bimi() -> FileResponse:
+        return FileResponse(BRAND_DIR / "bimi.svg", media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=604800"})
 
     @app.post("/v1/auth/verify")
     async def verify(body: VerifyIn, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:

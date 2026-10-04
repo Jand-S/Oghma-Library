@@ -92,11 +92,28 @@ async def test_expired_code(api):
     from sqlalchemy.ext.asyncio import AsyncSession
 
     async with AsyncSession(engine) as db:
-        email, code = await service.request_code(db, settings, "b@example.com")
+        login = await service.request_code(db, settings, "b@example.com")
         later = service.utcnow() + timedelta(seconds=settings.code_ttl_seconds + 1)
         with pytest.raises(service.AccountError) as error:
-            await service.verify_code(db, settings, email, code, now=later)
+            await service.verify_code(db, settings, login.email, login.code, now=later)
         assert error.value.code == "expired_code"
+    await engine.dispose()
+
+
+async def test_old_code_tables_gain_the_link_columns():
+    from sqlalchemy import inspect, text
+
+    engine = create_async_engine("sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "CREATE TABLE account_login_code (id INTEGER PRIMARY KEY, email VARCHAR(320), code_hash VARCHAR(64), "
+            "attempts INTEGER, sent_at DATETIME, expires_at DATETIME, used_at DATETIME)"
+        ))
+    await create_schema(engine)
+    await create_schema(engine)  # idempotent
+    async with engine.connect() as conn:
+        columns = await conn.run_sync(lambda sync: {c["name"] for c in inspect(sync).get_columns("account_login_code")})
+    assert {"login_id", "link_hash", "device_name", "platform", "approved_at"} <= columns
     await engine.dispose()
 
 
@@ -200,11 +217,58 @@ async def test_deleting_the_account_removes_everything(api):
     assert (await api.get("/v1/me/library", headers=auth(token2))).json()["entries"] == []
 
 
-def test_code_email_has_the_code_and_no_tracking():
-    subject, text, html = code_email("123456")
+def test_code_email_has_the_button_the_code_on_one_line_and_the_logo():
+    subject, text, html = code_email("123456", "https://conta.oghma.dev/entrar/abc", "https://conta.oghma.dev/marca/oghma.png")
     assert subject.startswith("123456")
-    assert "123456" in text and "1 2 3 4 5 6" in html
-    assert "<img" not in html
+    assert "123456" in text and "https://conta.oghma.dev/entrar/abc" in text
+    assert 'href="https://conta.oghma.dev/entrar/abc"' in html and "Entrar no Oghma" in html
+    # Digits joined by word joiners (no line break, no phone-number link), in two groups.
+    assert "1&#8288;2&#8288;3" in html and "4&#8288;5&#8288;6" in html
+    assert "white-space:nowrap" in html and 'name="format-detection"' in html
+    assert html.count("<img") == 1 and "/marca/oghma.png" in html
+
+
+async def test_the_email_button_signs_in_the_waiting_app_after_a_confirmation(api):
+    code = await api.post("/v1/auth/code", json={"email": "link@example.com", "deviceName": "MacBook", "platform": "macos"})
+    login_id = code.json()["loginId"]
+    link = api.mailer.sent[-1][2]
+    path = "/" + link.split("/", 3)[3]
+
+    waiting = await api.post("/v1/auth/poll", json={"email": "link@example.com", "loginId": login_id})
+    assert waiting.status_code == 202
+    # Opening the link (or a mail scanner prefetching it) approves nothing.
+    page = await api.get(path)
+    assert page.status_code == 200 and "Confirmar e entrar" in page.text and "MacBook" in page.text
+    assert (await api.post("/v1/auth/poll", json={"email": "link@example.com", "loginId": login_id})).status_code == 202
+    assert "default-src 'none'" in page.headers["content-security-policy"]
+
+    done = await api.post(path)
+    assert "Pronto" in done.text
+    signed = await api.post("/v1/auth/poll", json={"email": "link@example.com", "loginId": login_id})
+    assert signed.status_code == 200
+    token = signed.json()["token"]
+    assert signed.json()["created"] is True
+    sessions = (await api.get("/v1/me/sessions", headers=auth(token))).json()["sessions"]
+    assert sessions[0]["deviceName"] == "MacBook"
+
+    # One use: the link and the login are spent; the typed code no longer works either.
+    assert (await api.post("/v1/auth/poll", json={"email": "link@example.com", "loginId": login_id})).status_code == 410
+    assert "já foi usado" in (await api.get(path)).text
+    assert (await api.post("/v1/auth/verify", json={"email": "link@example.com", "code": api.mailer.sent[-1][1]})).status_code == 400
+
+
+async def test_a_wrong_login_id_or_link_gets_nothing(api):
+    await api.post("/v1/auth/code", json={"email": "x@example.com"})
+    assert (await api.post("/v1/auth/poll", json={"email": "x@example.com", "loginId": "chute"})).status_code == 410
+    page = await api.get("/entrar/nao-existe")
+    assert page.status_code == 410 and "expirou" in page.text
+
+
+async def test_brand_files_are_served(api):
+    logo = await api.get("/marca/oghma.png")
+    assert logo.status_code == 200 and logo.headers["content-type"] == "image/png"
+    bimi = await api.get("/marca/bimi.svg")
+    assert 'baseProfile="tiny-ps"' in bimi.text
 
 
 def test_the_app_needs_a_real_secret():

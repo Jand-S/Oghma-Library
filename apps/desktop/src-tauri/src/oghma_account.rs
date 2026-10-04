@@ -213,14 +213,41 @@ pub async fn oghma_account_request_code(
     email: String,
 ) -> Result<ApiResponse, String> {
     let base = normalize_base(&base_url)?;
-    send(
-        &state.http,
-        reqwest::Method::POST,
-        format!("{base}/v1/auth/code"),
-        None,
-        Some(serde_json::json!({ "email": email })),
-    )
-    .await
+    let body = serde_json::json!({ "email": email, "deviceName": device_name(), "platform": platform() });
+    send(&state.http, reqwest::Method::POST, format!("{base}/v1/auth/code"), None, Some(body)).await
+}
+
+/// Keeps the session from a successful sign-in response (200 with `token`) and strips the token
+/// from the body the UI receives.
+fn keep_session(app: &AppHandle, state: &OghmaAccount, base: String, response: &mut ApiResponse) -> Result<(), String> {
+    if response.status != 200 {
+        return Ok(());
+    }
+    let token = response.body.get("token").and_then(Value::as_str).unwrap_or_default().to_string();
+    if token.is_empty() {
+        return Err("Resposta inválida do servidor da conta.".into());
+    }
+    state.save(app, Some(StoredSession { base_url: base, token }))?;
+    if let Some(object) = response.body.as_object_mut() {
+        object.remove("token");
+    }
+    Ok(())
+}
+
+/// Asks whether the e-mail button was confirmed (202 = still waiting; 200 = signed in, session kept).
+#[tauri::command]
+pub async fn oghma_account_poll(
+    app: AppHandle,
+    state: tauri::State<'_, OghmaAccount>,
+    base_url: String,
+    email: String,
+    login_id: String,
+) -> Result<ApiResponse, String> {
+    let base = normalize_base(&base_url)?;
+    let body = serde_json::json!({ "email": email, "loginId": login_id });
+    let mut response = send(&state.http, reqwest::Method::POST, format!("{base}/v1/auth/poll"), None, Some(body)).await?;
+    keep_session(&app, &state, base, &mut response)?;
+    Ok(response)
 }
 
 /// Checks the code; on success keeps the session token here and returns the body without it.
@@ -240,16 +267,7 @@ pub async fn oghma_account_verify(
         "platform": platform(),
     });
     let mut response = send(&state.http, reqwest::Method::POST, format!("{base}/v1/auth/verify"), None, Some(body)).await?;
-    if response.status == 200 {
-        let token = response.body.get("token").and_then(Value::as_str).unwrap_or_default().to_string();
-        if token.is_empty() {
-            return Err("Resposta inválida do servidor da conta.".into());
-        }
-        state.save(&app, Some(StoredSession { base_url: base, token }))?;
-        if let Some(object) = response.body.as_object_mut() {
-            object.remove("token");
-        }
-    }
+    keep_session(&app, &state, base, &mut response)?;
     Ok(response)
 }
 

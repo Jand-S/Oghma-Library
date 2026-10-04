@@ -73,7 +73,8 @@ function fakeClient(overrides: Partial<AccountClient> = {}) {
     available: true,
     calls,
     status: vi.fn(async () => ({ signedIn: false })),
-    requestCode: vi.fn(async (_base: string, email: string) => ok({ email, resendIn: 60 }, 202)),
+    requestCode: vi.fn(async (_base: string, email: string) => ok({ email, resendIn: 60, loginId: "login-1" }, 202)),
+    poll: vi.fn(async () => ok({ status: "pending" }, 202)),
     verify: vi.fn(async (_base: string, _email: string, code: string) =>
       code === "123456" ? ok({ user: profile, created: true }) : ok({ error: "invalid_code", attemptsLeft: 4 }, 400)),
     api: vi.fn(async (method: string, path: string, body?: unknown) => {
@@ -147,6 +148,36 @@ describe("library sync", () => {
     const client = fakeClient({ api: vi.fn(async () => ({ status: 401, body: { error: "unauthorized" } })) as AccountClient["api"] });
     await expect(syncLibrary(client, 0)).rejects.toThrow("unauthorized");
   });
+});
+
+describe("account sign-in flow (e-mail button)", () => {
+  beforeEach(() => {
+    resetAppState();
+    invokeMock.mockReset();
+    invokeMock.mockImplementation(async (kind: string) => (kind === "pending" ? [] : 0));
+  });
+
+  it("finishes on its own once the button in the e-mail is confirmed", async () => {
+    const user = setupUser();
+    seedSetup();
+    let confirmed = false;
+    const client = fakeClient({ status: vi.fn(async () => ({ signedIn: false })) });
+    client.poll = vi.fn(async (_base: string, _email: string, loginId: string) => {
+      expect(loginId).toBe("login-1");
+      return confirmed
+        ? { status: 200, body: { user: { publicId: "p", email: "a@b.com", nickname: "leitor", avatarId: "cultivador", avatarColor: null, createdAt: "", needsProfile: false }, created: false } }
+        : { status: 202, body: { status: "pending" } };
+    });
+    render(<App backend={mockBackendClient} downloadQueue={createTestQueue()} accountClient={client} />);
+    await user.click(await screen.findByTestId("sidebar-account-sign-in"));
+    await user.type(await screen.findByLabelText(s.emailLabel), "a@b.com");
+    await user.click(screen.getByTestId("account-continue"));
+    expect(await screen.findByText(s.orTapButton)).toBeInTheDocument();
+
+    confirmed = true;
+    await waitFor(() => expect(screen.getByTestId("sidebar-account")).toHaveTextContent("leitor"), { timeout: 5000 });
+    expect(screen.queryByRole("dialog", { name: s.codeTitle })).not.toBeInTheDocument();
+  }, 15000);
 });
 
 describe("account sign-in flow", () => {

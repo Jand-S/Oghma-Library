@@ -14,6 +14,8 @@ class AccountSettings(BaseSettings):
     mailer: str = "log"
     resend_api_key: str = ""
     mail_from: str = "Oghma <noreply@oghma.dev>"
+    # Endereço público deste serviço (link do botão do e-mail e o logo).
+    public_url: str = "https://conta.oghma.dev"
     code_ttl_seconds: int = 600
     code_max_attempts: int = 5
     code_resend_seconds: int = 60
