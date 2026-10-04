@@ -35,6 +35,13 @@ async def read_novels(source_ids: list[str]) -> list[DiscoveryNovel]:
             for r in rows]
 
 
+async def published_novels(state: dict) -> list[DiscoveryNovel]:
+    """So o que esta no B2: uma novel coletada e ainda nao publicada ocuparia uma vaga nos
+    parecidos que o app nao consegue mostrar."""
+    published = set(state.get("novels", {}))
+    return [n for n in await read_novels(list(state.get("sites", {}))) if n.id in published]
+
+
 def _ts() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.gmtime())
 
@@ -46,8 +53,7 @@ async def run_fichas(*, limit: int | None = None) -> dict:
     from .fichas import generate
 
     root = Path(get_settings().storage_root)
-    sources = list(load_state(str(root / "publish_state.json")).get("sites", {}).keys())
-    novels = await read_novels(sources)
+    novels = await published_novels(load_state(str(root / "publish_state.json")))
     return await asyncio.to_thread(generate, novels, root / "discovery" / "fichas.json", limit=limit)
 
 
@@ -62,8 +68,7 @@ async def run(*, dry_run: bool = False, no_upload: bool = False) -> dict:
     work = root / "discovery"
     work.mkdir(parents=True, exist_ok=True)
     state_path = str(root / "publish_state.json")
-    sources = list(load_state(state_path).get("sites", {}).keys())
-    novels = await read_novels(sources)
+    novels = await published_novels(load_state(state_path))
     fichas = load_fichas(work / "fichas.json")
 
     started = time.time()
