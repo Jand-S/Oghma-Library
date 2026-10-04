@@ -57,6 +57,32 @@
     gap: var(--space-1);
   }
 
+  .account-sheet__typo {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .account-sheet__typo-fix {
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: none;
+    color: var(--accent-tint);
+    font: inherit;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+  }
+
+  .account-sheet__typo-fix:hover {
+    text-decoration: underline;
+  }
+
+  .account-sheet__typo-fix:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
   .account-sheet__code {
     display: flex;
     flex-direction: column;

@@ -2,6 +2,7 @@ import { ArrowLeft, Mail } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { oghmaAccountStrings as s, accountErrorMessage } from "../../strings/oghmaAccount";
 import { Button, CodeInput, Modal, TextField, cx } from "../../ui";
+import { suggestEmailFix } from "./emailTypos";
 import { ProfileEditor, type ProfileDraft } from "./ProfileEditor";
 import type { OghmaAccountController } from "./useOghmaAccount";
 import "./oghmaAccount.css";
@@ -129,6 +130,7 @@ export function AccountSheet({ account, open, onClose, initialStep = "email", on
   let footer = null;
 
   if (step === "email") {
+    const fix = suggestEmailFix(email);
     body = (
       <form id="account-email-form" className="account-sheet__form" onSubmit={submitEmail}>
         <TextField
@@ -147,6 +149,15 @@ export function AccountSheet({ account, open, onClose, initialStep = "email", on
           error={error ?? undefined}
           data-testid="account-email"
         />
+        {fix ? (
+          <p className="account-sheet__typo" role="status">
+            {s.didYouMean}{" "}
+            <button type="button" className="account-sheet__typo-fix" onClick={() => setEmail(fix)} data-testid="account-email-fix">
+              {fix}
+            </button>
+            ?
+          </p>
+        ) : null}
       </form>
     );
     footer = (

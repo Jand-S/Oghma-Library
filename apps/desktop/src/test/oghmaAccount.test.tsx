@@ -6,6 +6,7 @@ import type { AccountClient, AccountUser, ApiResult } from "../services/accountC
 import { mockBackendClient } from "../services/mockBackend";
 import { oghmaAccountStrings as s } from "../strings/oghmaAccount";
 import { localNicknameProblem } from "../features/account/ProfileEditor";
+import { suggestEmailFix } from "../features/account/emailTypos";
 import { createTestQueue, resetAppState, seedSetup, setupUser } from "./renderApp";
 
 const invokeMock = vi.fn();
@@ -99,6 +100,20 @@ function fakeClient(overrides: Partial<AccountClient> = {}) {
   };
   return client;
 }
+
+describe("e-mail typos", () => {
+  it("suggests the provider the reader meant, and leaves real domains alone", () => {
+    expect(suggestEmailFix("jandson.macedo2301@gmail.con")).toBe("jandson.macedo2301@gmail.com");
+    expect(suggestEmailFix("a@gmial.com")).toBe("a@gmail.com");
+    expect(suggestEmailFix("a@hotmial.com")).toBe("a@hotmail.com");
+    expect(suggestEmailFix("a@icloud.co")).toBe("a@icloud.com");
+    expect(suggestEmailFix("a@uol.con.br")).toBe("a@uol.com.br");
+    expect(suggestEmailFix("a@gmail.com")).toBeNull();
+    expect(suggestEmailFix("a@oghma.dev")).toBeNull();
+    expect(suggestEmailFix("a@empresa.co")).toBeNull();
+    expect(suggestEmailFix("a@")).toBeNull();
+  });
+});
 
 describe("library sync", () => {
   beforeEach(() => invokeMock.mockReset());

@@ -14,6 +14,7 @@ export const oghmaAccountStrings = {
   emailLabel: "E-mail",
   emailPlaceholder: "voce@exemplo.com",
   continue: "Continuar",
+  didYouMean: "Você quis dizer",
   sending: "Enviando…",
 
   // Sheet: code
