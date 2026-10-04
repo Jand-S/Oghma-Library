@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import type { LimitState, LogEvent, ProjectDetail, TranslationScope } from "../../services/translationClient";
 import { translationStrings as t } from "../../strings/translation";
 import { Button, ConfirmationModal, ProgressBar, SegmentedControl, TextField, cx } from "../../ui";
-import { limitMessage } from "./AccountStrip";
+import { limitMessage } from "./LimitBanner";
 import {
   formatClock,
   formatCredits,

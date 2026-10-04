@@ -7,6 +7,7 @@ export const settingsStrings = {
 
   categories: {
     general: "Geral",
+    account: "Conta",
     downloads: "Downloads",
     server: "Fontes e servidor",
     kindle: "Kindle e iCloud",
@@ -15,10 +16,11 @@ export const settingsStrings = {
   },
   descriptions: {
     general: "Idioma, tela inicial e aparência do app.",
+    account: "Sua conta do ChatGPT, usada na tradução e nas sugestões da busca.",
     downloads: "Onde os livros são salvos e como cada download começa.",
     server: "Servidor de índices, modo de indexação e sincronização das fontes.",
     kindle: "Envio para o Kindle por cabo ou Wi-Fi, e cópia dos livros para o iCloud Drive.",
-    audio: "Audiobook gerado a partir do texto (TTS) e atalhos de tradução.",
+    audio: "Modelo, esforço e paralelismo da tradução.",
     about: "Versão, links e configuração inicial."
   },
 

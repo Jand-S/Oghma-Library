@@ -1,10 +1,11 @@
 import {
   Download,
-  Headphones,
+  Languages,
   Info,
   Server,
   SlidersHorizontal,
   Tablet,
+  UserRound,
   type LucideIcon
 } from "lucide-react";
 import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
@@ -18,7 +19,9 @@ import { DownloadsSection } from "./DownloadsSection";
 import { GeneralSection } from "./GeneralSection";
 import { KindleSection } from "./KindleSection";
 import { ServerSection } from "./ServerSection";
-import { TranslationSection, type TranslationSettingsProps } from "./TranslationSection";
+import { TranslationSection } from "./TranslationSection";
+import type { AccountController } from "../../app/account";
+import { ChatGptAccountCard } from "../account/ChatGptAccount";
 import "./settings.css";
 
 import { settingsCategories, type SettingsCategory } from "./categories";
@@ -27,10 +30,11 @@ export { isSettingsCategory, settingsCategories, type SettingsCategory } from ".
 
 const categoryIcons: Record<SettingsCategory, LucideIcon> = {
   general: SlidersHorizontal,
+  account: UserRound,
   downloads: Download,
   server: Server,
   kindle: Tablet,
-  audio: Headphones,
+  audio: Languages,
   about: Info
 };
 
@@ -49,8 +53,9 @@ export type SettingsViewProps = {
   /** Full device status (cable transport, Send to Kindle installed). */
   kindleStatus?: KindleDeviceStatus | null;
   onNavigate: (view: AppView) => void;
-  /** ChatGPT account for the translation group of "Áudio e tradução". */
-  translation: TranslationSettingsProps;
+  /** ChatGPT account (Ajustes > Conta). */
+  account: AccountController;
+  onRetryAccount?: () => void;
   initialCategory?: SettingsCategory;
 };
 
@@ -103,6 +108,9 @@ export function SettingsView(props: SettingsViewProps) {
     case "general":
       body = <GeneralSection saved={saved} />;
       break;
+    case "account":
+      body = <ChatGptAccountCard account={props.account} onRetry={props.onRetryAccount} />;
+      break;
     case "downloads":
       body = <DownloadsSection config={props.config} save={save} saved={saved} onNavigate={props.onNavigate} />;
       break;
@@ -134,7 +142,7 @@ export function SettingsView(props: SettingsViewProps) {
       );
       break;
     case "audio":
-      body = <TranslationSection saved={saved} onNavigate={props.onNavigate} translation={props.translation} />;
+      body = <TranslationSection saved={saved} onNavigate={props.onNavigate} />;
       break;
     case "about":
       body = <AboutSection onOpenOnboarding={props.onOpenOnboarding} />;

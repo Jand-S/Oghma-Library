@@ -6,7 +6,7 @@ import { defaultFilters, defaultSelection } from "../../core/defaults";
 import type { AppConfig, ChapterSelection, EnqueueResult, Filters, LibraryItem, Novel, QueueItem, SourceSite, TagCatalogItem } from "../../core/types";
 import { getErrorMessage, type BackendClient } from "../../services/backendClient";
 import { editionsOf, similarNovels, type CatalogIndex } from "../../services/catalogIndex";
-import { chatGptAsker, chatGptLoggedIn, runSmartFilter, type SmartResult } from "../../services/smartFilter";
+import { chatGptAsker, runSmartFilter, type SmartResult } from "../../services/smartFilter";
 import type { SmartStageInfo } from "./SmartFilterStatus";
 import { discoverStrings } from "../../strings/discover";
 import { readUiPreferences } from "../settings/preferences";
@@ -30,6 +30,8 @@ type DiscoverControllerArgs = {
   /** Enqueues the shaped download and shows the added/duplicate/full feedback. */
   enqueueDownload: (item: QueueItem) => EnqueueResult;
   notify: (message: string, tone?: ToastTone) => void;
+  /** ChatGPT account connected (the app-wide account, see controllers.account). */
+  aiAvailable: boolean;
 };
 
 /**
@@ -50,7 +52,8 @@ export function useDiscoverController({
   library,
   isQueued,
   enqueueDownload,
-  notify
+  notify,
+  aiAvailable
 }: DiscoverControllerArgs) {
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
   /** Title order of the result grid (client-side). */
@@ -135,16 +138,8 @@ export function useDiscoverController({
   const [smart, setSmart] = useState<SmartResult | null>(null);
   const [smartBusy, setSmartBusy] = useState(false);
   const [smartStage, setSmartStage] = useState<SmartStageInfo | null>(null);
-  const [aiAvailable, setAiAvailable] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    void chatGptLoggedIn().then((value) => {
-      if (!cancelled) setAiAvailable(value);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [view]);
+  // A request typed while logged out runs as soon as the ChatGPT login completes.
+  const [pendingSmart, setPendingSmart] = useState<string | null>(null);
 
   // Catalog index for "Também em" (same work in other sources) and "Parecidos".
   const [catalogIndex, setCatalogIndex] = useState<CatalogIndex | null>(null);
@@ -252,8 +247,13 @@ export function useDiscoverController({
     })();
   };
 
-  /** "Sugerir parecidos" in the details panel: the curation with this novel as the reference. */
-  const suggestSimilar = (novel: Novel) => askSmart(discoverStrings.similarRequest(novel.title));
+  useEffect(() => {
+    if (!aiAvailable || !pendingSmart) return;
+    setPendingSmart(null);
+    askSmart(pendingSmart);
+    // askSmart reads the latest state; only the login and the pending request matter here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiAvailable, pendingSmart]);
 
   const clearSmart = () => {
     setSmart(null);
@@ -273,7 +273,9 @@ export function useDiscoverController({
     smartStage,
     aiAvailable,
     askSmart,
-    suggestSimilar,
+    /** Keeps a request to run once the ChatGPT login completes (null cancels). */
+    askSmartAfterLogin: setPendingSmart,
+    pendingSmart,
     clearSmart,
     /** Other editions and similar novels of the novel in the details panel. */
     related,

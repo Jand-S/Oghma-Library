@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
-import { LimitBanner } from "../../features/translation/AccountStrip";
+import { LimitBanner } from "../../features/translation/LimitBanner";
 import type {
   ChapterView,
   GlossaryEntry,
@@ -16,6 +16,7 @@ import type {
 } from "../../services/translationClient";
 import { navStrings } from "../../strings/common";
 import { translationStrings as t } from "../../strings/translation";
+import { accountStrings } from "../../strings/account";
 import { createTestQueue, findBookCardTitle, getToastRegion, resetAppState, seedSetup, setupUser, type TestUser } from "../renderApp";
 import { mockBackendClient } from "../../services/mockBackend";
 
@@ -228,17 +229,17 @@ describe("Translation", () => {
       expect(screen.queryByTestId("translation-page")).not.toBeInTheDocument();
     });
 
-    it("connects a logged-out account through the browser flow", async () => {
+    it("connects a logged-out account from the banner; the header then shows the account menu", async () => {
       const user = setupUser();
       const engine = createEngine({ account: { loggedIn: false } });
       await renderWithEngine(engine.client);
       await openTranslation(user);
 
-      const strip = await screen.findByTestId("translation-account");
-      expect(strip).toHaveTextContent(t.accountDisconnected);
-      expect(screen.queryByTestId("translation-local-usage")).not.toBeInTheDocument();
+      const banner = await screen.findByTestId("translation-connect");
+      expect(banner).toHaveTextContent(accountStrings.connectBannerTitle);
+      expect(screen.queryByTestId("account-menu")).not.toBeInTheDocument();
 
-      await user.click(within(strip).getByRole("button", { name: t.connect }));
+      await user.click(within(banner).getByRole("button", { name: t.connect }));
       expect(engine.calls("translation_login")).toHaveLength(1);
       expect(await screen.findByTestId("translation-connecting")).toHaveTextContent(t.connectWaiting);
 
@@ -246,8 +247,8 @@ describe("Translation", () => {
       engine.state.account = { loggedIn: true, email: "novo@example.com", planType: "plus" };
       engine.emit("translation://account", { loggedIn: true, email: "novo@example.com", planType: "plus" });
 
-      expect(await within(strip).findByText(t.usingPlan)).toBeInTheDocument();
-      expect(within(strip).getByTestId("translation-account-email")).toHaveTextContent("novo@example.com");
+      expect(await screen.findByTestId("account-menu")).toHaveAttribute("title", "novo@example.com");
+      expect(screen.queryByTestId("translation-connect")).not.toBeInTheDocument();
       expect(within(getToastRegion()).getByText(t.connectedToast("novo@example.com"))).toBeInTheDocument();
     });
 
@@ -257,36 +258,48 @@ describe("Translation", () => {
       await renderWithEngine(engine.client);
       await openTranslation(user);
 
-      const strip = await screen.findByTestId("translation-account");
-      await user.click(within(strip).getByRole("button", { name: t.connect }));
-      await user.click(await within(strip).findByRole("button", { name: t.connectCancel }));
+      const banner = await screen.findByTestId("translation-connect");
+      await user.click(within(banner).getByRole("button", { name: t.connect }));
+      await user.click(await within(banner).findByRole("button", { name: t.connectCancel }));
 
       expect(engine.calls("translation_login_cancel")).toHaveLength(1);
-      expect(within(strip).getByRole("button", { name: t.connect })).toBeInTheDocument();
+      expect(within(banner).getByRole("button", { name: t.connect })).toBeInTheDocument();
     });
 
-    it("shows the plan card, the local counters, Gerenciar uso and Sair when logged in", async () => {
+    it("the account menu shows the email and local usage, opens Gerenciar uso and logs out", async () => {
       const user = setupUser();
       const engine = createEngine();
       await renderWithEngine(engine.client);
       await openTranslation(user);
 
-      const strip = await screen.findByTestId("translation-account");
-      expect(within(strip).getByText(t.usingPlan)).toBeInTheDocument();
-      expect(within(strip).getByTestId("translation-account-email")).toHaveTextContent("leitor@example.com");
-      const local = await within(strip).findByTestId("translation-local-usage");
-      expect(local).toHaveTextContent("Traduzido nas últimas 5h: 3,2 mil palavras (~4,5 créditos)");
+      await user.click(await screen.findByTestId("account-menu"));
+      const menu = await screen.findByRole("menu");
+      expect(menu).toHaveTextContent("leitor@example.com");
+      await waitFor(() => expect(menu).toHaveTextContent("Últimas 5h: 3,2 mil palavras (~4,5 créditos)"));
       // No usage % anywhere: there is no API for it.
-      expect(strip.textContent).not.toMatch(/%/);
-      expect(screen.queryByTestId("translation-limit")).not.toBeInTheDocument();
+      expect(menu.textContent).not.toMatch(/%/);
 
-      await user.click(within(strip).getByRole("button", { name: t.manageUsage }));
+      await user.click(within(menu).getByRole("menuitem", { name: t.manageUsage }));
       expect(engine.openUrl).toHaveBeenCalledWith("https://chatgpt.com/settings/usage");
 
-      await user.click(within(strip).getByRole("button", { name: t.logout }));
+      await user.click(screen.getByTestId("account-menu"));
+      await user.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: t.logout }));
       expect(engine.calls("translation_logout")).toHaveLength(1);
-      expect(await within(strip).findByText(t.accountDisconnected)).toBeInTheDocument();
-      expect(within(strip).getByRole("button", { name: t.connect })).toBeInTheDocument();
+      expect(await screen.findByTestId("translation-connect")).toBeInTheDocument();
+      expect(screen.queryByTestId("account-menu")).not.toBeInTheDocument();
+    });
+
+    it("Ajustes > Conta shows the same account (one source of truth)", async () => {
+      const user = setupUser();
+      const engine = createEngine();
+      await renderWithEngine(engine.client);
+      await openTranslation(user);
+      await user.click(await screen.findByTestId("account-menu"));
+      await user.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: accountStrings.openSettings }));
+
+      const card = await screen.findByTestId("account-card");
+      expect(within(card).getByTestId("account-email")).toHaveTextContent("leitor@example.com");
+      expect(await within(card).findByTestId("account-local-usage")).toHaveTextContent("3,2 mil palavras · ~4,5 créditos");
     });
 
     it("shows the limit banner when the usage snapshot reports a limit", async () => {
@@ -294,7 +307,7 @@ describe("Translation", () => {
       const engine = createEngine();
       await renderWithEngine(engine.client);
       await openTranslation(user);
-      await screen.findByTestId("translation-local-usage");
+      await screen.findByTestId("account-menu");
       expect(screen.queryByTestId("translation-limit")).not.toBeInTheDocument();
 
       engine.emit("translation://usage", makeUsage({ limitReached: { at: NOW(), window: "weekly", nextRetryAt: NOW() + 12 * 60 + 30 } }));

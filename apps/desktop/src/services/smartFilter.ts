@@ -70,18 +70,6 @@ export type AskModel = (instructions: string, text: string, effort?: "none" | "l
 
 export type SmartStage = "understanding" | "reading";
 
-/** True when the translation login (ChatGPT) is active. False outside the app. */
-export async function chatGptLoggedIn(): Promise<boolean> {
-  if (!isTauriRuntime()) return false;
-  try {
-    const { invoke } = await import("@tauri-apps/api/core");
-    const account = await invoke<{ loggedIn?: boolean } | null>("translation_account");
-    return Boolean(account?.loggedIn);
-  } catch {
-    return false;
-  }
-}
-
 /** The user's ChatGPT plan through the translation login (Tauri only). Null outside the app. */
 export function chatGptAsker(): AskModel | null {
   if (!isTauriRuntime()) return null;

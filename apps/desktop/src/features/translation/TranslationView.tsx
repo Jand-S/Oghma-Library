@@ -1,8 +1,11 @@
-import { CloudOff, Languages, Monitor, MoreHorizontal, Plus, RefreshCcw, Settings2, Trash2 } from "lucide-react";
+import { CloudOff, KeyRound, Languages, Monitor, MoreHorizontal, Plus, RefreshCcw, Settings2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { modelLabel, translationStrings as t } from "../../strings/translation";
-import { Badge, Button, ConfirmationModal, Cover, DropdownMenu, EmptyState, IconButton, SegmentedControl, Skeleton } from "../../ui";
-import { AccountStrip, LimitBanner } from "./AccountStrip";
+import { Badge, Banner, Button, ConfirmationModal, Cover, DropdownMenu, EmptyState, IconButton, SegmentedControl, Skeleton } from "../../ui";
+import { LimitBanner } from "./LimitBanner";
+import { accountOf } from "../../app/account";
+import { accountStrings } from "../../strings/account";
+import { ChatGptConnectButton } from "../account/ChatGptAccount";
 import { BookPickerModal } from "./BookPickerModal";
 import { GlossaryTab } from "./GlossaryTab";
 import { PilotTab } from "./PilotTab";
@@ -103,10 +106,11 @@ function Workspace({ controller }: { controller: TranslationController }) {
   );
 }
 
-/** Tradução: ChatGPT account + usage strip, books in translation, and the selected project's tabs. */
+/** Tradução: books in translation and the selected project's tabs (the account lives in Ajustes > Conta and the header menu). */
 export function TranslationView({ controller, onBrowse }: TranslationViewProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const { account } = controller;
+  const accountController = accountOf(controller);
 
   if (account.status === "unavailable") {
     return (
@@ -135,16 +139,17 @@ export function TranslationView({ controller, onBrowse }: TranslationViewProps) 
 
   return (
     <div className="translation-view" data-testid="translation-page">
-      <AccountStrip
-        account={account}
-        connecting={controller.connecting}
-        loggingOut={controller.isBusy("logout")}
-        usage={controller.usage}
-        onConnect={() => void controller.connect()}
-        onCancelConnect={controller.cancelConnect}
-        onLogout={() => void controller.logout()}
-        onManageUsage={controller.openUsagePage}
-      />
+      {account.status === "logged_out" ? (
+        <Banner
+          tone="info"
+          icon={<KeyRound />}
+          title={accountStrings.connectBannerTitle}
+          actions={<ChatGptConnectButton account={accountController} size="sm" />}
+          data-testid="translation-connect"
+        >
+          {accountStrings.connectBannerText}
+        </Banner>
+      ) : null}
       {controller.usage?.limitReached && !(controller.tab === "progress" && controller.selected?.status === "waiting_limit") ? (
         <LimitBanner limit={controller.usage.limitReached} />
       ) : null}

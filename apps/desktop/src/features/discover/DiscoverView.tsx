@@ -43,9 +43,6 @@ export type DiscoverViewProps = {
   smartBusy?: boolean;
   /** What the smart filter is doing while busy (shown under the field). */
   smartStage?: SmartStageInfo | null;
-  aiAvailable?: boolean;
-  /** "Sugerir parecidos" in the details panel: curated suggestions with the novel as reference. */
-  onSuggestSimilar?: (novel: Novel) => void;
   onClearSmart?: () => void;
   onPreviewNovel: (novel: Novel) => void;
   onClearPreview: () => void;
@@ -84,8 +81,6 @@ export function DiscoverView({
   smart = null,
   smartBusy = false,
   smartStage = null,
-  aiAvailable = false,
-  onSuggestSimilar,
   onClearSmart,
   onClearPreview,
   onSelectionChange,
@@ -287,9 +282,6 @@ export function DiscoverView({
           editions={related?.editions}
           similar={related?.similar}
           onOpenNovel={onPreviewNovel}
-          onSuggestSimilar={onSuggestSimilar}
-          suggestAvailable={aiAvailable}
-          suggesting={smartBusy}
         />
       ) : null}
     </div>

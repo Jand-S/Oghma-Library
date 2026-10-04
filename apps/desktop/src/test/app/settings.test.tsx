@@ -33,9 +33,13 @@ describe("Settings", () => {
 
     screen.getByRole("tab", { name: settingsStrings.categories.general }).focus();
     await user.keyboard("{ArrowDown}");
+    const account = screen.getByRole("tab", { name: settingsStrings.categories.account });
+    expect(account).toHaveAttribute("aria-selected", "true");
+    expect(account).toHaveFocus();
+    expect(screen.getByTestId("settings-section-account")).toBeInTheDocument();
+    await user.keyboard("{ArrowDown}");
     const downloads = screen.getByRole("tab", { name: settingsStrings.categories.downloads });
     expect(downloads).toHaveAttribute("aria-selected", "true");
-    expect(downloads).toHaveFocus();
     expect(screen.getByTestId("settings-section-downloads")).toBeInTheDocument();
   });
 

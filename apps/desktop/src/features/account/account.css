@@ -1,0 +1,66 @@
+@import "../../styles/layers.css";
+
+@layer features {
+  .account-avatar {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: var(--control-sm);
+    height: var(--control-sm);
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+
+  .account-avatar--sm {
+    width: calc(var(--control-sm) - var(--space-1));
+    height: calc(var(--control-sm) - var(--space-1));
+    font-size: var(--fs-xs);
+  }
+
+  .account-avatar.is-off {
+    background: var(--surface-3);
+    color: var(--text-muted);
+  }
+
+  .account-avatar svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  /* Inside a ListRow the icon slot already draws a tile; the avatar replaces it. */
+  .o-list-row__icon:has(.account-avatar) {
+    background: none;
+  }
+
+  .account-connecting {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .account-menu-trigger {
+    display: inline-grid;
+    place-items: center;
+    width: var(--control-sm);
+    height: var(--control-sm);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    cursor: pointer;
+  }
+
+  .account-menu-trigger:hover .account-avatar {
+    filter: brightness(1.15);
+  }
+
+  .account-menu-trigger:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}

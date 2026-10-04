@@ -11,6 +11,7 @@ import type { LibraryController } from "../features/library/useLibraryController
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
 import type { TranslationController } from "../features/translation/useTranslationController";
+import type { AccountController } from "./account";
 import { navItems, settingsNavItem, type NavItem } from "../shell/nav";
 import type { ContentLayout, PageHeaderProps } from "../shell";
 import { pageTitleStrings } from "../strings/common";
@@ -65,6 +66,8 @@ export type AppControllers = {
   settings: SettingsController;
   sources: SourcesController;
   translation: TranslationController;
+  /** ChatGPT account (one source of truth for Tradução, Buscar and Ajustes). */
+  account: AccountController;
 };
 
 export type ViewProps = { app: AppControllers };
@@ -115,8 +118,6 @@ function DiscoverPage({ app }: ViewProps) {
     smart: discover.smart,
     smartBusy: discover.smartBusy,
     smartStage: discover.smartStage,
-    aiAvailable: discover.aiAvailable,
-    onSuggestSimilar: discover.suggestSimilar,
     onClearSmart: discover.clearSmart,
     onClearPreview: discover.clearPreviewNovel,
     onSelectionChange: discover.updateSelection,
@@ -214,14 +215,8 @@ function SettingsPage({ app }: ViewProps) {
     kindleConnected: app.library.kindleConnected,
     kindleStatus: app.library.kindleStatus,
     onNavigate: (view: AppView) => app.navigate(view),
-    translation: {
-      account: app.translation.account,
-      connecting: app.translation.connecting,
-      loggingOut: app.translation.isBusy("logout"),
-      onConnect: () => void app.translation.connect(),
-      onCancelConnect: app.translation.cancelConnect,
-      onLogout: () => void app.translation.logout()
-    },
+    account: app.account,
+    onRetryAccount: () => void app.translation.refreshAccount(),
     initialCategory: isSettingsCategory(params.section) ? params.section : undefined
   });
 }

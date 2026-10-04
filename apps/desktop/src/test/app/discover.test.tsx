@@ -263,17 +263,26 @@ describe("Discover", () => {
   });
 });
 
-describe("Sugerir parecidos", () => {
-  it("is a button in the details panel; without the ChatGPT login it is off and says why", async () => {
+describe("Pedir sugestões à IA (search field)", () => {
+  it("the details panel has no AI button; typing in the search offers the AI row and title shortcuts", async () => {
     const user = setupUser();
     await renderReadyApp();
-    // No request field above the grid any more.
     expect(screen.queryByTestId("smart-filter")).not.toBeInTheDocument();
 
     await user.click((await screen.findAllByTestId("book-card"))[0]);
-    const button = await screen.findByTestId("suggest-similar");
-    expect(button).toHaveTextContent(discoverStrings.suggestSimilar);
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute("title", discoverStrings.suggestSimilarTitle(false));
+    await waitFor(() => expect(getDetailPanel()).toBeInTheDocument());
+    expect(screen.queryByTestId("suggest-similar")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("discover-search"));
+    await user.keyboard("isekai com protagonista vilão");
+    const suggestions = await screen.findByTestId("discover-search-suggestions");
+    const askRow = within(suggestions).getByTestId("discover-ask-ai");
+    expect(askRow).toHaveTextContent(discoverStrings.askAi);
+    expect(askRow).toHaveTextContent("isekai com protagonista vilão");
+
+    // Outside the desktop app there is no ChatGPT engine: the request runs locally.
+    await user.click(askRow);
+    expect(await screen.findByTestId("smart-filter-result")).toHaveTextContent(discoverStrings.smartLocal);
+    expect(screen.queryByTestId("discover-search-suggestions")).not.toBeInTheDocument();
   });
 });

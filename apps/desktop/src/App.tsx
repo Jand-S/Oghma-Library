@@ -1,6 +1,7 @@
 import { CloudOff, RefreshCcw, Settings } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavigationProvider, useNavigation, type AppView } from "./app/NavigationContext";
+import { accountOf } from "./app/account";
 import { useBootstrapState } from "./app/useBootstrapState";
 import { useKindleDetection } from "./app/useKindleDetection";
 import { useLocalLibrary } from "./app/useLocalLibrary";
@@ -119,6 +120,15 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
       unsubscribe();
     };
   }, [queue, refreshLocalLibrary, toast]);
+  // Owns the ChatGPT account too (controllers.account). Also refreshes the library when a PT-BR book is exported (`translation://exported`).
+  const translation = useTranslationController({
+    client: translationClient,
+    library: visibleLibrary,
+    toast,
+    refreshLibrary: refreshLocalLibrary,
+    navigate
+  });
+  const account = accountOf(translation);
   const discover = useDiscoverController({
     backend,
     view,
@@ -133,7 +143,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     library: visibleLibrary,
     isQueued: downloads.isQueued,
     enqueueDownload: downloads.enqueueDownload,
-    notify
+    notify,
+    aiAvailable: account.loggedIn
   });
   const libraryController = useLibraryController({
     backend,
@@ -170,14 +181,6 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     onServerUrlChange
   });
   restartIfServerChangedRef.current = settings.restartIfServerChanged;
-  // Also refreshes the library when a PT-BR book is exported (`translation://exported`).
-  const translation = useTranslationController({
-    client: translationClient,
-    library: visibleLibrary,
-    toast,
-    refreshLibrary: refreshLocalLibrary,
-    navigate
-  });
 
   const controllers: AppControllers = {
     loading,
@@ -188,7 +191,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     library: libraryController,
     settings,
     sources: sourcesController,
-    translation
+    translation,
+    account
   };
 
   // Once boot settles, warm the lazily loaded view chunks so navigation stays instant.

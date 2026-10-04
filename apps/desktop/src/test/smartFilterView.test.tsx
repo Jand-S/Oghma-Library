@@ -34,8 +34,8 @@ function renderView(patch: Partial<DiscoverViewProps>) {
     searchError: null, detailFromPreview: false, sortDirection: "asc", adding: false, selectedInLibrary: false,
     selectedQueued: false, onFiltersChange: vi.fn(), onSelectNovel: vi.fn(), onClearSelection: vi.fn(),
     onPreviewNovel: vi.fn(), onClearPreview: vi.fn(), onSelectionChange: vi.fn(), onAddSelected: vi.fn(),
-    onRetrySearch: vi.fn(), onOpenSources: vi.fn(), onOpenSettings: vi.fn(), onSuggestSimilar: vi.fn(), onClearSmart: vi.fn(),
-    aiAvailable: true, ...patch
+    onRetrySearch: vi.fn(), onOpenSources: vi.fn(), onOpenSettings: vi.fn(), onClearSmart: vi.fn(),
+    ...patch
   };
   return render(<DiscoverView {...props} />);
 }

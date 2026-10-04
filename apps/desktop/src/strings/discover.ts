@@ -23,12 +23,14 @@ export const discoverStrings = {
   allSources: "Todas as fontes",
   alsoIn: "Também em",
   smartTitle: "Sugestões parecidas",
-  suggestSimilar: "Sugerir parecidos",
-  suggestSimilarTitle: (ai: boolean) =>
-    ai
-      ? "O ChatGPT (a sua conta da Tradução) lê esta história e as sinopses do catálogo e mostra só as que têm pontos em comum."
-      : "Entre em Tradução com a sua conta do ChatGPT para sugestões pela história, não só pelas tags.",
-  similarRequest: (title: string) => `novels parecidas com ${title}`,
+  askAi: "Pedir sugestões à IA",
+  askAiHint: "O ChatGPT entende o pedido e lê as sinopses do catálogo",
+  askAiConnect: "Conecte o ChatGPT para pedir sugestões",
+  askAiConnectAction: "Conectar",
+  askAiConnecting: "Aguardando o login…",
+  askAiShortcut: "⌘↵",
+  titlesHeading: "Títulos",
+  suggestionsLabel: "Sugestões da busca",
   smartFallback: "O ChatGPT não respondeu como esperado; usei a interpretação local.",
   smartFailed: "Não foi possível aplicar o filtro inteligente.",
   smartClear: "Limpar filtro inteligente",
