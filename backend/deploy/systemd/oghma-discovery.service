@@ -7,6 +7,8 @@ Type=oneshot
 User=oghma
 WorkingDirectory=/opt/oghma/app/backend
 EnvironmentFile=/opt/oghma/.env
+# Sem isto o print do Python fica no buffer e o progresso so aparece no journal no fim.
+Environment=PYTHONUNBUFFERED=1
 # Fichas das obras sem ficha (ou com sinopse nova), pelo Codex do usuario dos agentes; para
 # sozinho perto do limite do plano e continua na noite seguinte.
 ExecStart=/opt/oghma/venv/bin/oghma discovery-fichas
