@@ -6,8 +6,8 @@ solid colors, no outlines and no gradients. The background is NOT drawn here: th
 the circle in the color the reader picked (`Avatar` in `src/ui`). Everything sits in a
 120×120 box and reads well inside a circle of radius 60.
 
-    python3 scripts/avatars/generate.py            # writes public/avatars/*.svg
-    python3 scripts/avatars/generate.py --sheet out.svg   # contact sheet for review
+    python3 scripts/avatars/archetypes.py            # writes public/avatars/*.svg
+    python3 scripts/avatars/archetypes.py --sheet out.svg   # contact sheet for review
 """
 from __future__ import annotations
 

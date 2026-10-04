@@ -1,4 +1,4 @@
-import { avatarColorNames, avatarNames, avatarUrl, isAvatarColor, isAvatarId } from "../core/avatars";
+import { avatarColorNames, avatarNames, avatarUrl, isAvatarColor, isAvatarId, isCharacterAvatar } from "../core/avatars";
 import { cx } from "./cx";
 import "./Avatar.css";
 
@@ -17,7 +17,8 @@ export type AvatarProps = {
 
 /** Round profile picture: an archetype bust on a solid color, or the initial as a fallback. */
 export function Avatar({ avatarId, color, nickname, size = "md", label, className }: AvatarProps) {
-  const tone = isAvatarColor(color) ? color : "grafite";
+  // Characters bring their own background; archetypes sit on the chosen color.
+  const tone = isCharacterAvatar(avatarId) ? "art" : isAvatarColor(color) ? color : "grafite";
   const id = isAvatarId(avatarId) ? avatarId : null;
   const initial = (nickname?.trim()[0] ?? "?").toUpperCase();
   return (
@@ -37,6 +38,7 @@ export function Avatar({ avatarId, color, nickname, size = "md", label, classNam
 /** "Mago reencarnado em Anil", for pickers. */
 export function avatarDescription(avatarId: string, color: string) {
   const name = isAvatarId(avatarId) ? avatarNames[avatarId] : avatarId;
+  if (isCharacterAvatar(avatarId)) return name;
   const tone = isAvatarColor(color) ? avatarColorNames[color] : color;
   return `${name} em ${tone}`;
 }

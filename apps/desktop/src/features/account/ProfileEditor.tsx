@@ -1,10 +1,11 @@
 import { Check, Loader2, Shuffle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { avatarColorNames, avatarColors, avatarIds, avatarNames, randomAvatar, type AvatarColor, type AvatarId, isAvatarColor, isAvatarId } from "../../core/avatars";
+import { avatarIds, avatarNames, randomAvatar, type AvatarId, isAvatarId } from "../../core/avatars";
 import { oghmaAccountStrings as s } from "../../strings/oghmaAccount";
 import { Avatar, Button, TextField, cx } from "../../ui";
 
-export type ProfileDraft = { nickname: string; avatarId: AvatarId; avatarColor: AvatarColor };
+/** `avatarColor` only matters for an archived archetype a profile still uses (characters have their own background). */
+export type ProfileDraft = { nickname: string; avatarId: AvatarId; avatarColor?: string };
 
 type NicknameCheck = { available: boolean; reason: string | null; suggestions: string[] } | null;
 
@@ -29,14 +30,14 @@ type ProfileEditorProps = {
 };
 
 /**
- * Nickname with a live availability check, the avatar grid and the background palette, around a
- * large preview. A new profile starts with a random avatar and color already picked.
+ * Nickname with a live availability check and the character grid, around a large preview.
+ * A new profile starts with a random character already picked; "Sortear" draws another.
  */
 export function ProfileEditor({ initial, checkNickname, onChange, saveError }: ProfileEditorProps) {
   const [picked] = useState(() => randomAvatar());
   const [nickname, setNickname] = useState(initial?.nickname ?? "");
-  const [avatarId, setAvatarId] = useState<AvatarId>(isAvatarId(initial?.avatarId) ? initial!.avatarId as AvatarId : picked.avatarId);
-  const [avatarColor, setAvatarColor] = useState<AvatarColor>(isAvatarColor(initial?.avatarColor) ? initial!.avatarColor as AvatarColor : picked.avatarColor);
+  const [avatarId, setAvatarId] = useState<AvatarId>(isAvatarId(initial?.avatarId) ? initial!.avatarId as AvatarId : picked);
+  const avatarColor = initial?.avatarColor ?? undefined;
   const [check, setCheck] = useState<{ value: string; result: NicknameCheck } | null>(null);
   const [checking, setChecking] = useState(false);
   const seq = useRef(0);
@@ -73,9 +74,9 @@ export function ProfileEditor({ initial, checkNickname, onChange, saveError }: P
   }, [avatarColor, avatarId, onChange, trimmed, valid]);
 
   const shuffle = () => {
-    const next = randomAvatar();
-    setAvatarId(next.avatarId);
-    setAvatarColor(next.avatarColor);
+    let next = randomAvatar();
+    while (next === avatarId) next = randomAvatar();
+    setAvatarId(next);
   };
 
   let status = null;
@@ -122,25 +123,6 @@ export function ProfileEditor({ initial, checkNickname, onChange, saveError }: P
         </div>
       </div>
 
-      <section className="profile-picker" aria-label={s.colorLabel}>
-        <span className="profile-picker__title">{s.colorLabel}</span>
-        <div className="profile-colors" role="radiogroup" aria-label={s.colorLabel}>
-          {avatarColors.map((color) => (
-            <button
-              key={color}
-              type="button"
-              role="radio"
-              aria-checked={color === avatarColor}
-              aria-label={avatarColorNames[color]}
-              title={avatarColorNames[color]}
-              className={cx("profile-colors__swatch", `o-avatar--${color}`, color === avatarColor && "is-selected")}
-              onClick={() => setAvatarColor(color)}
-            >
-              {color === avatarColor ? <Check aria-hidden="true" /> : null}
-            </button>
-          ))}
-        </div>
-      </section>
 
       <section className="profile-picker" aria-label={s.avatarLabel}>
         <div className="profile-picker__head">
@@ -159,7 +141,7 @@ export function ProfileEditor({ initial, checkNickname, onChange, saveError }: P
               className={cx("profile-avatars__option", id === avatarId && "is-selected")}
               onClick={() => setAvatarId(id)}
             >
-              <Avatar avatarId={id} color={avatarColor} size="lg" />
+              <Avatar avatarId={id} size="lg" />
             </button>
           ))}
         </div>

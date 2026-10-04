@@ -74,7 +74,7 @@ const accountShim = (signedIn, meta) => `(() => {
   let signedIn = ${signedIn ? "true" : "false"};
   let user = {
     publicId: "pub-bench", email: "jandson@exemplo.com", nickname: ${signedIn ? '"jandson"' : "null"},
-    avatarId: ${signedIn ? '"mago-reencarnado"' : "null"}, avatarColor: ${signedIn ? '"anil"' : "null"},
+    avatarId: ${signedIn ? '"sung-jinwoo"' : "null"}, avatarColor: null,
     createdAt: "2026-10-04T12:00:00Z", needsProfile: ${signedIn ? "false" : "true"}
   };
   const ok = (body, status = 200) => ({ status, body });

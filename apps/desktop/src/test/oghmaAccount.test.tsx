@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
-import { avatarColors, avatarIds } from "../core/avatars";
+import { archetypeAvatarIds, avatarColors, avatarUrl, characterAvatarIds } from "../core/avatars";
 import type { AccountClient, AccountUser, ApiResult } from "../services/accountClient";
 import { mockBackendClient } from "../services/mockBackend";
 import { oghmaAccountStrings as s } from "../strings/oghmaAccount";
@@ -39,10 +39,11 @@ describe("avatars", () => {
   it("lists the same avatars and colors as the account API", () => {
     const python = readFileSync("../../backend/src/oghma/accounts/profile.py");
     const tuple = (name: string) => [...python.split(`${name}: tuple[str, ...] = (`)[1].split(")")[0].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-    expect(tuple("AVATAR_IDS")).toEqual([...avatarIds]);
+    expect(tuple("CHARACTER_AVATAR_IDS")).toEqual([...characterAvatarIds]);
+    expect(tuple("ARCHETYPE_AVATAR_IDS")).toEqual([...archetypeAvatarIds]);
     expect(tuple("AVATAR_COLORS")).toEqual([...avatarColors]);
-    for (const id of avatarIds) {
-      const svg = readFileSync(`public/avatars/${id}.svg`);
+    for (const id of [...characterAvatarIds, ...archetypeAvatarIds]) {
+      const svg = readFileSync(`public${avatarUrl(id)}`);
       expect(svg).toContain("<svg");
       expect(svg).not.toMatch(/gradient|<script|href=/i);
     }
@@ -208,8 +209,8 @@ describe("account sign-in flow", () => {
     await user.paste("123456");
 
     const profile = await screen.findByRole("dialog", { name: s.profileTitle });
-    // A random avatar is already picked.
-    expect(within(profile).getAllByRole("radio", { checked: true })).toHaveLength(2);
+    // A random character is already picked (no color to choose: each one has its background).
+    expect(within(profile).getAllByRole("radio", { checked: true })).toHaveLength(1);
     const nickname = within(profile).getByLabelText(s.nicknameLabel);
     await user.type(nickname, "Jandson");
     expect(await within(profile).findByText(s.errors.nickname_taken)).toBeInTheDocument();

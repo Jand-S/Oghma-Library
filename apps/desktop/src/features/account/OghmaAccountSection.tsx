@@ -62,9 +62,9 @@ export function OghmaAccountSection({ account, onOpenSheet }: Props) {
       <div className="oghma-account" data-testid="oghma-account-signed-out">
         <div className="oghma-account__hero">
           <div className="oghma-account__stack" aria-hidden="true">
-            <Avatar avatarId="mago-reencarnado" color="anil" size="lg" />
-            <Avatar avatarId="elfa-arqueira" color="menta" size="lg" />
-            <Avatar avatarId="detetive" color="tangerina" size="lg" />
+            <Avatar avatarId="sung-jinwoo" size="lg" />
+            <Avatar avatarId="megumin" size="lg" />
+            <Avatar avatarId="holo" size="lg" />
           </div>
           <h3 className="oghma-account__title">{s.signedOutTitle}</h3>
           <p className="oghma-account__text">{s.signedOutHint}</p>

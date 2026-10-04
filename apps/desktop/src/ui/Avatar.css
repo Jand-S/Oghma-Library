@@ -63,4 +63,5 @@
   .o-avatar--orquidea { --avatar-bg: var(--avatar-orquidea); }
   .o-avatar--rosa { --avatar-bg: var(--avatar-rosa); }
   .o-avatar--grafite { --avatar-bg: var(--avatar-grafite); }
+  .o-avatar--art { --avatar-bg: var(--surface-3); }
 }

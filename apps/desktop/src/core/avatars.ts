@@ -1,9 +1,67 @@
 /**
- * Profile avatars: 24 original genre archetypes (SVG in `public/avatars/`, made by
- * `scripts/avatars/generate.py`) on a background color. Same ids and order as the account API
- * (`backend/src/oghma/accounts/profile.py`); a test keeps them in step.
+ * Profile avatars. The picker offers the 24 characters (`public/avatars/personagens/`, made by
+ * `scripts/avatars/characters.py`), each with its own fixed background. The 24 original archetypes
+ * (`public/avatars/`, `scripts/avatars/archetypes.py`, drawn on a chosen color) are kept: profiles
+ * that already use one still show it, and they are the set for a public release.
+ * Same ids and order as the account API (`backend/src/oghma/accounts/profile.py`); a test keeps them in step.
  */
-export const avatarIds = [
+export const characterAvatarIds = [
+  "sung-jinwoo",
+  "emilia",
+  "subaru",
+  "rem",
+  "kirito",
+  "asuna",
+  "ainz",
+  "albedo",
+  "kim-dokja",
+  "holo",
+  "klein-moretti",
+  "megumin",
+  "naofumi",
+  "raphtalia",
+  "ayanokouji",
+  "horikita",
+  "wei-wuxian",
+  "roxy",
+  "shadow",
+  "elaina",
+  "betelgeuse",
+  "violet",
+  "sunny",
+  "mai"
+] as const;
+
+export type CharacterAvatarId = (typeof characterAvatarIds)[number];
+
+export const characterNames: Record<CharacterAvatarId, string> = {
+  "sung-jinwoo": "Sung Jinwoo",
+  emilia: "Emilia",
+  subaru: "Natsuki Subaru",
+  rem: "Rem",
+  kirito: "Kirito",
+  asuna: "Asuna",
+  ainz: "Ainz Ooal Gown",
+  albedo: "Albedo",
+  "kim-dokja": "Kim Dokja",
+  holo: "Holo",
+  "klein-moretti": "Klein Moretti",
+  megumin: "Megumin",
+  naofumi: "Naofumi Iwatani",
+  raphtalia: "Raphtalia",
+  ayanokouji: "Kiyotaka Ayanokouji",
+  horikita: "Suzune Horikita",
+  "wei-wuxian": "Wei Wuxian",
+  roxy: "Roxy Migurdia",
+  shadow: "Shadow",
+  elaina: "Elaina",
+  betelgeuse: "Betelgeuse",
+  violet: "Violet Evergarden",
+  sunny: "Sunless",
+  mai: "Mai Sakurajima"
+};
+
+export const archetypeAvatarIds = [
   "cultivador",
   "mestra-seita",
   "mago-reencarnado",
@@ -30,7 +88,11 @@ export const avatarIds = [
   "piloto-estelar"
 ] as const;
 
-export type AvatarId = (typeof avatarIds)[number];
+export type ArchetypeAvatarId = (typeof archetypeAvatarIds)[number];
+export type AvatarId = CharacterAvatarId | ArchetypeAvatarId;
+
+/** What the profile picker offers. */
+export const avatarIds = characterAvatarIds;
 
 export const avatarColors = [
   "coral",
@@ -49,7 +111,7 @@ export const avatarColors = [
 
 export type AvatarColor = (typeof avatarColors)[number];
 
-export const avatarNames: Record<AvatarId, string> = {
+const archetypeNames: Record<ArchetypeAvatarId, string> = {
   cultivador: "Cultivador",
   "mestra-seita": "Mestra de seita",
   "mago-reencarnado": "Mago reencarnado",
@@ -91,22 +153,25 @@ export const avatarColorNames: Record<AvatarColor, string> = {
   grafite: "Grafite"
 };
 
+export const avatarNames: Record<AvatarId, string> = { ...archetypeNames, ...characterNames };
+
+export function isCharacterAvatar(value: unknown): value is CharacterAvatarId {
+  return typeof value === "string" && (characterAvatarIds as readonly string[]).includes(value);
+}
+
 export function isAvatarId(value: unknown): value is AvatarId {
-  return typeof value === "string" && (avatarIds as readonly string[]).includes(value);
+  return isCharacterAvatar(value) || (typeof value === "string" && (archetypeAvatarIds as readonly string[]).includes(value));
 }
 
 export function isAvatarColor(value: unknown): value is AvatarColor {
   return typeof value === "string" && (avatarColors as readonly string[]).includes(value);
 }
 
-/** A random avatar and color: a new account starts with one already picked. */
-export function randomAvatar(random: () => number = Math.random): { avatarId: AvatarId; avatarColor: AvatarColor } {
-  return {
-    avatarId: avatarIds[Math.floor(random() * avatarIds.length)],
-    avatarColor: avatarColors[Math.floor(random() * avatarColors.length)]
-  };
+/** A random character: a new profile starts with one already picked. */
+export function randomAvatar(random: () => number = Math.random): CharacterAvatarId {
+  return characterAvatarIds[Math.floor(random() * characterAvatarIds.length)];
 }
 
 export function avatarUrl(id: AvatarId) {
-  return `/avatars/${id}.svg`;
+  return isCharacterAvatar(id) ? `/avatars/personagens/${id}.svg` : `/avatars/${id}.svg`;
 }

@@ -834,7 +834,7 @@ Nos cards, um livro sem nota só mostra as estrelas no hover/foco.
 ### Avatar
 
 Foto de perfil redonda: um dos 24 arquétipos (`public/avatars/<id>.svg`, gerados por
-`scripts/avatars/generate.py`) sobre a cor escolhida (`--avatar-<cor>`), ou a inicial do apelido.
+`scripts/avatars/archetypes.py`) sobre a cor escolhida (`--avatar-<cor>`), ou a inicial do apelido.
 `size` `xs`/`sm`/`md`/`lg`/`xl`; decorativo por padrão (passe `label` para anunciar). Arte própria do
 Oghma: personagens originais por gênero, formas simples e cores chapadas, sem contorno nem gradiente.
 

@@ -1,11 +1,41 @@
-"""Regras do perfil: apelido e avatar. A lista de avatares e cores é a mesma do app
-(`apps/desktop/src/core/avatars.ts`); um teste do app confere as duas."""
+"""Regras do perfil: apelido e avatar. As listas de avatares e cores são as mesmas do app
+(`apps/desktop/src/core/avatars.ts`); um teste do app confere as duas.
+
+O app oferece os personagens (cada um com fundo próprio); os arquétipos originais continuam
+válidos para perfis que já os usam."""
 from __future__ import annotations
 
 import re
 import unicodedata
 
-AVATAR_IDS: tuple[str, ...] = (
+CHARACTER_AVATAR_IDS: tuple[str, ...] = (
+    "sung-jinwoo",
+    "emilia",
+    "subaru",
+    "rem",
+    "kirito",
+    "asuna",
+    "ainz",
+    "albedo",
+    "kim-dokja",
+    "holo",
+    "klein-moretti",
+    "megumin",
+    "naofumi",
+    "raphtalia",
+    "ayanokouji",
+    "horikita",
+    "wei-wuxian",
+    "roxy",
+    "shadow",
+    "elaina",
+    "betelgeuse",
+    "violet",
+    "sunny",
+    "mai",
+)
+
+ARCHETYPE_AVATAR_IDS: tuple[str, ...] = (
     "cultivador",
     "mestra-seita",
     "mago-reencarnado",
@@ -31,6 +61,8 @@ AVATAR_IDS: tuple[str, ...] = (
     "vampira",
     "piloto-estelar",
 )
+
+AVATAR_IDS: tuple[str, ...] = CHARACTER_AVATAR_IDS + ARCHETYPE_AVATAR_IDS
 
 AVATAR_COLORS: tuple[str, ...] = (
     "coral",
