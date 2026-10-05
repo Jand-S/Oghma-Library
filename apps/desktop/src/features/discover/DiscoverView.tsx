@@ -1,5 +1,5 @@
 import { CloudOff, RefreshCcw, SearchX, Settings, Globe2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, useLayoutEffect } from "react";
 import type { ChapterSelection, Filters, Novel, SourceSite, TagCatalogItem } from "../../core/types";
 import { discoverStrings } from "../../strings/discover";
 import { Button, EmptyState, cx } from "../../ui";
@@ -99,6 +99,38 @@ export function DiscoverView({
 }: DiscoverViewProps) {
   const [visibleCount, setVisibleCount] = useState(DISCOVER_PAGE_SIZE);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Opening or closing the details panel changes the grid's column count, so every card moves.
+  // The card you clicked (or the one of the open novel) keeps its place on screen: its offset
+  // from the top is noted before the change and the scroll is corrected right after it.
+  const anchorRef = useRef<{ id: string; offset: number } | null>(null);
+  const cardOf = useCallback((id: string) => {
+    const root = scrollRef.current;
+    if (!root) return null;
+    return Array.from(root.querySelectorAll<HTMLElement>("[data-novel-ids]"))
+      .find((card) => (card.dataset.novelIds ?? "").split(" ").includes(id)) ?? null;
+  }, []);
+  const noteAnchor = useCallback((id: string, card?: HTMLElement | null) => {
+    const root = scrollRef.current;
+    const element = card ?? cardOf(id);
+    if (!root || !element) return;
+    anchorRef.current = { id, offset: element.getBoundingClientRect().top - root.getBoundingClientRect().top };
+  }, [cardOf]);
+  const detailOpen = Boolean(detailNovel);
+  useLayoutEffect(() => {
+    const root = scrollRef.current;
+    const anchor = anchorRef.current;
+    if (!root || !anchor) return;
+    const card = cardOf(detailNovel?.id ?? anchor.id) ?? cardOf(anchor.id);
+    if (!card) return;
+    root.scrollTop += card.getBoundingClientRect().top - root.getBoundingClientRect().top - anchor.offset;
+    noteAnchor(detailNovel?.id ?? anchor.id, card);
+    // Only the open/close of the panel reflows the grid (the other values are read, not watched).
+  }, [detailOpen]);
+  // While the panel is open, keep the note fresh (you may scroll before closing it).
+  useEffect(() => {
+    if (detailNovel) noteAnchor(detailNovel.id);
+  }, [detailNovel, noteAnchor]);
 
   // Curated smart filter: only the novels the model kept after reading the synopses, unless
   // the user asks to also see the ones that only share tags.
@@ -276,7 +308,15 @@ export function DiscoverView({
           className="discover__scroll"
           data-testid="content-area"
           ref={scrollRef}
-          onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 0)}
+          onScroll={(event) => {
+            setScrolled(event.currentTarget.scrollTop > 0);
+            if (detailNovel) noteAnchor(detailNovel.id);
+          }}
+          onClickCapture={(event) => {
+            const card = (event.target as HTMLElement).closest<HTMLElement>("[data-novel-ids]");
+            const id = card?.dataset.novelIds?.split(" ")[0];
+            if (card && id) noteAnchor(id, card);
+          }}
         >
           <section className="discover__results" aria-labelledby="discover-results-heading">
             <h2 className="sr-only" id="discover-results-heading">{discoverStrings.results}</h2>

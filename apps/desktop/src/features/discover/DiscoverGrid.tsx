@@ -103,6 +103,7 @@ export function DiscoverGrid({
             <NovelCard
               key={stack.key}
               novel={novel}
+              novelIds={stack.items.map((item) => item.id).join(" ")}
               editions={editions}
               reason={reasons?.[novel.id]}
               selected={stack.items.some((item) => item.id === selectedId)}
@@ -157,6 +158,7 @@ export function DiscoverGrid({
 
 function NovelCard({
   novel,
+  novelIds,
   editions,
   selected,
   focused,
@@ -169,6 +171,8 @@ function NovelCard({
 }: {
   reason?: string;
   novel: Novel;
+  /** Every novel this card stands for (a stack has several), space separated: the page finds the card of the open novel by it. */
+  novelIds: string;
   /** More than 1: the same work from several sources (a stack). */
   editions: number;
   selected: boolean;
@@ -200,6 +204,7 @@ function NovelCard({
       )}
       data-testid="book-card"
       data-discover-card=""
+      data-novel-ids={novelIds}
       data-editions={stack ? editions : undefined}
       role="listitem"
       onClick={(event) => onSelect(event.currentTarget)}
