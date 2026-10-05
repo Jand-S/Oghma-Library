@@ -73,8 +73,8 @@ const accountShim = (signedIn, meta) => `(() => {
   Object.assign(B.meta, ${JSON.stringify(meta)});
   let signedIn = ${signedIn ? "true" : "false"};
   let user = {
-    publicId: "pub-bench", email: "jandson@exemplo.com", nickname: ${signedIn ? '"jandson"' : "null"},
-    avatarId: ${signedIn ? '"sung-jinwoo"' : "null"}, avatarColor: null,
+    publicId: "pub-bench", email: "leitor@exemplo.com", nickname: ${signedIn ? '"leitor"' : "null"},
+    avatarId: null, avatarColor: null,
     createdAt: "2026-10-04T12:00:00Z", needsProfile: ${signedIn ? "false" : "true"}
   };
   const ok = (body, status = 200) => ({ status, body });
@@ -92,13 +92,13 @@ const accountShim = (signedIn, meta) => `(() => {
       const p = a.path;
       if (p.startsWith("/v1/nicknames/")) {
         const n = decodeURIComponent(p.split("/")[3]).toLowerCase();
-        return ok(n === "jandson" ? { available: false, reason: "taken", suggestions: ["jandson_br", "jandson.livros", "jandson2"] } : { available: true, reason: null, suggestions: [] });
+        return ok(n === "leitor" ? { available: false, reason: "taken", suggestions: ["leitor_br", "leitor.livros", "leitor2"] } : { available: true, reason: null, suggestions: [] });
       }
       if (p === "/v1/me" && a.method === "PATCH") { user = { ...user, ...a.body, needsProfile: false }; return ok(user); }
       if (p === "/v1/me") return ok(user);
       if (p === "/v1/me/sessions") return ok({ sessions: [
-        { id: 1, deviceName: "MacBook Pro de Jandson", platform: "macos", createdAt: "2026-10-04T12:00:00Z", lastSeenAt: new Date().toISOString(), current: true },
-        { id: 2, deviceName: "DESKTOP-JANDSON", platform: "windows", createdAt: "2026-10-01T12:00:00Z", lastSeenAt: new Date(Date.now() - 2 * 86400000).toISOString(), current: false }
+        { id: 1, deviceName: "MacBook Pro", platform: "macos", createdAt: "2026-10-04T12:00:00Z", lastSeenAt: new Date().toISOString(), current: true },
+        { id: 2, deviceName: "PC Windows", platform: "windows", createdAt: "2026-10-01T12:00:00Z", lastSeenAt: new Date(Date.now() - 2 * 86400000).toISOString(), current: false }
       ] });
       if (p.startsWith("/v1/me/library?")) return ok({ entries: [], cursor: 12, more: false });
       if (p === "/v1/me/library/changes") return ok({ accepted: [], rejected: [], cursor: 12 });
@@ -172,6 +172,8 @@ async function main() {
       await page.click('[data-testid="nav-settings"]');
       await page.getByRole("tab", { name: /Conta/ }).click();
       await page.waitForSelector('[data-testid="oghma-account"]');
+      // Let the "adicionado à biblioteca" toast from Buscar go away first.
+      await page.waitForFunction(() => !document.querySelector(".o-toast"), null, { timeout: 15000 }).catch(() => undefined);
       await shot(page, "11-settings-account");
       await page.click('[data-testid="sidebar-account"]');
       await shot(page, "12-sidebar-menu");
@@ -193,7 +195,7 @@ async function main() {
       await page.waitForSelector('[data-testid="oghma-account-signed-out"]');
       await shot(page, "15-settings-signed-out");
       await page.click('[data-testid="sidebar-account-sign-in"]');
-      await page.fill('[data-testid="account-email"]', "jandson@exemplo.com");
+      await page.fill('[data-testid="account-email"]', "leitor@exemplo.com");
       await shot(page, "16-sheet-email");
       await page.click('[data-testid="account-continue"]');
       await page.waitForSelector(".o-code");
@@ -208,7 +210,7 @@ async function main() {
       await page.locator('.o-modal__body').evaluate((node) => node.scrollTo(0, node.scrollHeight));
       await shot(page, "18b-sheet-originals");
       await page.getByRole("radio", { name: "Personagens" }).click();
-      await page.fill('[data-testid="profile-nickname"]', "Jandson");
+      await page.fill('[data-testid="profile-nickname"]', "Leitor");
       await sleep(900);
       await shot(page, "19-sheet-nickname-taken");
       await context.close();
