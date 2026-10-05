@@ -27,6 +27,8 @@ import { OnboardingWizard } from "./features/onboarding/OnboardingView";
 import { readUiPreferences } from "./features/settings/preferences";
 import { AccountSheet, type AccountSheetStep } from "./features/account/AccountSheet";
 import { SidebarAccount } from "./features/account/SidebarAccount";
+import { UpdateButton } from "./features/update/UpdateButton";
+import { useAppUpdate, type UpdaterApi } from "./features/update/useAppUpdate";
 import { useOghmaAccount } from "./features/account/useOghmaAccount";
 import { oghmaAccountStrings } from "./strings/oghmaAccount";
 import { tauriAccountClient, type AccountClient } from "./services/accountClient";
@@ -41,11 +43,13 @@ type AppProps = {
   onServerUrlChange?: () => void;
   /** Oghma account transport; defaults to Tauri IPC (tests inject a fake). */
   accountClient?: AccountClient;
+  /** App updates; defaults to the Tauri updater (tests inject a fake, `null` disables). */
+  updater?: UpdaterApi | null;
 };
 
 const ERROR_MESSAGE = /^n[aã]o foi poss[ií]vel/i;
 
-export function App({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient }: AppProps) {
+export function App({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient, updater }: AppProps) {
   return (
     <ToastProvider>
       <NavigationProvider initialView={readUiPreferences().startPage}>
@@ -55,13 +59,14 @@ export function App({ backend, downloadQueue, translationClient, onServerUrlChan
           translationClient={translationClient}
           onServerUrlChange={onServerUrlChange}
           accountClient={accountClient}
+          updater={updater}
         />
       </NavigationProvider>
     </ToastProvider>
   );
 }
 
-function AppContent({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient }: AppProps) {
+function AppContent({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient, updater }: AppProps) {
   const navigation = useNavigation();
   const { view, params, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
@@ -107,6 +112,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   const oghmaAccount = useOghmaAccount({ client: accountTransport, onLibraryChanged: refreshLocalLibrary, notify });
   const [accountSheet, setAccountSheet] = useState<{ open: boolean; step: AccountSheetStep }>({ open: false, step: "email" });
   const openAccountSheet = useCallback((step: AccountSheetStep = "email") => setAccountSheet({ open: true, step }), []);
+
+  const appUpdate = useAppUpdate(updater);
 
   const [queue] = useState(() => downloadQueue ?? getDownloadQueue());
   const downloads = useDownloadsController({ appConfig, queue, notify, toast });
@@ -291,7 +298,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
             onOpenSettings={() => navigate("settings", { section: "account" }, { root: true })}
           />
         )}
-        header={{ ...viewHeader, title: definition.title, onBack: canGoBack ? back : undefined }}
+        header={{ ...viewHeader, title: definition.title, onBack: canGoBack ? back : undefined, trailing: <UpdateButton update={appUpdate} /> }}
         bottomPanel={{
           active: downloads.active,
           queuedCount: downloads.queuedCount,

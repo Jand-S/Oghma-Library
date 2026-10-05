@@ -61,4 +61,10 @@
     align-items: center;
     gap: var(--space-1);
   }
+
+  .o-page-header__trailing {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+  }
 }

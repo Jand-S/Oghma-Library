@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Oghma Library",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "identifier": "com.oghmalibrary.desktop",
   "build": {
     "beforeDevCommand": "npm run dev:tauri",
@@ -42,6 +42,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM1QzlCRDY0NjhCMUU3NjYKUldSbTU3Rm9aTDNKTlRnWHpNQUI5L3VOR3RjWnRIZ2RPTHZaSnBVMXJKL29OaFRrSVQralN2NXMK",
+      "endpoints": [
+        "https://b2.jandson.me/atualizacoes/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -16,11 +16,13 @@ export type PageHeaderProps = {
   actions?: ReactNode;
   /** Called for clicks on the header background (not on a control), e.g. to dismiss a preview. */
   onBackgroundClick?: () => void;
+  /** App-wide control at the far right of every page (the "update available" button). */
+  trailing?: ReactNode;
 };
 
 const INTERACTIVE = "button, a, input, select, textarea, label, [role='radiogroup'], [role='group']";
 
-export function PageHeader({ title, onBack, badge, search, actions, onBackgroundClick }: PageHeaderProps) {
+export function PageHeader({ title, onBack, badge, search, actions, onBackgroundClick, trailing }: PageHeaderProps) {
   const onClick = onBackgroundClick
     ? (event: MouseEvent<HTMLElement>) => {
       const target = event.target;
@@ -36,6 +38,7 @@ export function PageHeader({ title, onBack, badge, search, actions, onBackground
       {search ? <div className="o-page-header__search">{search}</div> : null}
       <div className="o-page-header__spacer" data-tauri-drag-region />
       {actions ? <div className="o-page-header__actions">{actions}</div> : null}
+      {trailing ? <div className="o-page-header__trailing">{trailing}</div> : null}
     </header>
   );
 }
