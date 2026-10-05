@@ -1,0 +1,592 @@
+{
+ "arquetipos": [
+  {
+   "id": "cultivador",
+   "nome": "Cultivador",
+   "genero": "Xianxia / cultivo",
+   "variantes": [
+    {
+     "id": "cultivador-1",
+     "arquivo": "cultivador-1.webp",
+     "origem": "cultivador-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, long black hair, high ponytail, white chinese robe, hanfu, jade hair ornament, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "cultivador-2",
+     "arquivo": "cultivador-2.webp",
+     "origem": "cultivador-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, long black hair, hair down, black hanfu, red trim, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "cultivador-3",
+     "arquivo": "cultivador-3.webp",
+     "origem": "cultivador-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, long white hair, hair bun, light blue hanfu, wide sleeves, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "cultivador-4",
+     "arquivo": "cultivador-4.webp",
+     "origem": "cultivador-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, long black hair, high ponytail, red hanfu, gold crown, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "mestra-seita",
+   "nome": "Mestra de seita",
+   "genero": "Xianxia / cultivo",
+   "variantes": [
+    {
+     "id": "mestra-seita-1",
+     "arquivo": "mestra-seita-1.webp",
+     "origem": "mestra-seita-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long white hair, hair bun, hair stick, light blue hanfu, wide sleeves, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "mestra-seita-2",
+     "arquivo": "mestra-seita-2.webp",
+     "origem": "mestra-seita-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long black hair, hair bun, hair stick, red hanfu, wide sleeves, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "mestra-seita-3",
+     "arquivo": "mestra-seita-3.webp",
+     "origem": "mestra-seita-v3",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, long silver hair, half updo, purple hanfu, wide sleeves, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "mestra-seita-4",
+     "arquivo": "mestra-seita-4.webp",
+     "origem": "mestra-seita-v4",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, long black hair, high ponytail, white and gold hanfu, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "mago-reencarnado",
+   "nome": "Mago reencarnado",
+   "genero": "Isekai",
+   "variantes": [
+    {
+     "id": "mago-reencarnado-1",
+     "arquivo": "mago-reencarnado-1.webp",
+     "origem": "mago-reencarnado-v3",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1boy, short silver hair, red wizard robe, high collar, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "mago-reencarnado-2",
+     "arquivo": "mago-reencarnado-2.webp",
+     "origem": "mago-reencarnado-v4",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1boy, short blonde hair, green wizard robe, wizard hat, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "vila-otome",
+   "nome": "Vilã de otome",
+   "genero": "Otome isekai",
+   "variantes": [
+    {
+     "id": "vila-otome-1",
+     "arquivo": "vila-otome-1.webp",
+     "origem": "vila-otome-v1",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, blonde hair, drill hair, red victorian dress, high collar, folding fan, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "vila-otome-2",
+     "arquivo": "vila-otome-2.webp",
+     "origem": "vila-otome-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, black hair, drill hair, purple victorian dress, high collar, folding fan, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "vila-otome-3",
+     "arquivo": "vila-otome-3.webp",
+     "origem": "vila-otome-v3",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, red hair, drill hair, black victorian dress, high collar, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "vila-otome-4",
+     "arquivo": "vila-otome-4.webp",
+     "origem": "vila-otome-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, silver hair, drill hair, blue victorian dress, folding fan, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "cacadora",
+   "nome": "Caçadora",
+   "genero": "Caçadores de masmorra",
+   "variantes": [
+    {
+     "id": "cacadora-1",
+     "arquivo": "cacadora-1.webp",
+     "origem": "cacadora-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, short silver hair, leather armor, hunter, dagger, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "cacadora-2",
+     "arquivo": "cacadora-2.webp",
+     "origem": "cacadora-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, short black hair, dark skin, green hooded cloak, hunter, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "alquimista",
+   "nome": "Alquimista",
+   "genero": "Fantasia",
+   "variantes": [
+    {
+     "id": "alquimista-1",
+     "arquivo": "alquimista-1.webp",
+     "origem": "alquimista-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, green hair, round eyewear, white lab coat, potion bottle, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "alquimista-2",
+     "arquivo": "alquimista-2.webp",
+     "origem": "alquimista-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, short pink hair, round eyewear, white lab coat, potion bottle, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "alquimista-3",
+     "arquivo": "alquimista-3.webp",
+     "origem": "alquimista-v3",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, long purple hair, braid, brown leather apron, goggles on head, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "alquimista-4",
+     "arquivo": "alquimista-4.webp",
+     "origem": "alquimista-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, blonde hair, twintails, round eyewear, green alchemist robe, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "princesa-guerreira",
+   "nome": "Princesa guerreira",
+   "genero": "Fantasia",
+   "variantes": [
+    {
+     "id": "princesa-guerreira-1",
+     "arquivo": "princesa-guerreira-1.webp",
+     "origem": "princesa-guerreira-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long pink hair, tiara, silver armor, red cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "princesa-guerreira-2",
+     "arquivo": "princesa-guerreira-2.webp",
+     "origem": "princesa-guerreira-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long blonde hair, tiara, silver armor, blue cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "princesa-guerreira-3",
+     "arquivo": "princesa-guerreira-3.webp",
+     "origem": "princesa-guerreira-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long black hair, tiara, golden armor, white cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "princesa-guerreira-4",
+     "arquivo": "princesa-guerreira-4.webp",
+     "origem": "princesa-guerreira-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long red hair, tiara, silver armor, green cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "estudante-academia",
+   "nome": "Estudante da academia",
+   "genero": "Academia mágica",
+   "variantes": [
+    {
+     "id": "estudante-academia-1",
+     "arquivo": "estudante-academia-1.webp",
+     "origem": "estudante-academia-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, short brown hair, beret, school uniform, blazer, necktie, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "estudante-academia-2",
+     "arquivo": "estudante-academia-2.webp",
+     "origem": "estudante-academia-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long black hair, school uniform, navy blazer, red ribbon, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "estudante-academia-3",
+     "arquivo": "estudante-academia-3.webp",
+     "origem": "estudante-academia-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, pink hair, twintails, school uniform, white blazer, beret, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "espadachim",
+   "nome": "Espadachim errante",
+   "genero": "Aventura",
+   "variantes": [
+    {
+     "id": "espadachim-1",
+     "arquivo": "espadachim-1.webp",
+     "origem": "espadachim-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, red hair, white shirt, blue scarf, sword on back, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "espadachim-2",
+     "arquivo": "espadachim-2.webp",
+     "origem": "espadachim-v2",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1boy, black hair, white shirt, red scarf, sword on back, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "espadachim-3",
+     "arquivo": "espadachim-3.webp",
+     "origem": "espadachim-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, blonde hair, ponytail, green cloak, sword on back, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "espadachim-4",
+     "arquivo": "espadachim-4.webp",
+     "origem": "espadachim-v4",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1boy, silver hair, brown traveling coat, blue scarf, sword on back, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "rainha-demonio",
+   "nome": "Rainha demônio",
+   "genero": "Fantasia",
+   "variantes": [
+    {
+     "id": "rainha-demonio-1",
+     "arquivo": "rainha-demonio-1.webp",
+     "origem": "rainha-demonio-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long purple hair, demon horns, small crown, (dark red royal gown:1.2), high collar, black cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "rainha-demonio-2",
+     "arquivo": "rainha-demonio-2.webp",
+     "origem": "rainha-demonio-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long black hair, demon horns, small crown, dark purple royal gown, black cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "rainha-demonio-3",
+     "arquivo": "rainha-demonio-3.webp",
+     "origem": "rainha-demonio-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long white hair, demon horns, small crown, black royal gown, red cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "rainha-demonio-4",
+     "arquivo": "rainha-demonio-4.webp",
+     "origem": "rainha-demonio-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long red hair, demon horns, small crown, black and gold royal gown, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "elfa-arqueira",
+   "nome": "Elfa arqueira",
+   "genero": "Fantasia",
+   "variantes": [
+    {
+     "id": "elfa-arqueira-1",
+     "arquivo": "elfa-arqueira-1.webp",
+     "origem": "elfa-arqueira-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, elf, pointy ears, long blonde hair, green hood, quiver, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "elfa-arqueira-2",
+     "arquivo": "elfa-arqueira-2.webp",
+     "origem": "elfa-arqueira-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, elf, pointy ears, red braided hair, brown leather armor, bow, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "elfa-arqueira-3",
+     "arquivo": "elfa-arqueira-3.webp",
+     "origem": "elfa-arqueira-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, elf, pointy ears, short green hair, white tunic, quiver, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "hacker-vrmmo",
+   "nome": "Hacker de VRMMO",
+   "genero": "LitRPG / VRMMO",
+   "variantes": [
+    {
+     "id": "hacker-vrmmo-1",
+     "arquivo": "hacker-vrmmo-1.webp",
+     "origem": "hacker-vrmmo-v2",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, short purple hair, black hoodie, (headphones around neck:1.2), glowing pink circuit pattern, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "hacker-vrmmo-2",
+     "arquivo": "hacker-vrmmo-2.webp",
+     "origem": "hacker-vrmmo-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, blue hair, twintails, black hoodie, cat ear headphones, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "sacerdotisa",
+   "nome": "Sacerdotisa",
+   "genero": "Fantasia",
+   "variantes": [
+    {
+     "id": "sacerdotisa-1",
+     "arquivo": "sacerdotisa-1.webp",
+     "origem": "sacerdotisa-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long blonde hair, white nun veil, white habit, cross necklace, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "sacerdotisa-2",
+     "arquivo": "sacerdotisa-2.webp",
+     "origem": "sacerdotisa-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long silver hair, white nun veil, white habit, gold trim, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "sacerdotisa-3",
+     "arquivo": "sacerdotisa-3.webp",
+     "origem": "sacerdotisa-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long pink hair, white hood, white priestess robe, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "cavaleiro-negro",
+   "nome": "Cavaleiro negro",
+   "genero": "Fantasia sombria",
+   "variantes": [
+    {
+     "id": "cavaleiro-negro-1",
+     "arquivo": "cavaleiro-negro-1.webp",
+     "origem": "cavaleiro-negro-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, white hair, black plate armor, red cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "cavaleiro-negro-2",
+     "arquivo": "cavaleiro-negro-2.webp",
+     "origem": "cavaleiro-negro-v2",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1boy, black hair, black plate armor, purple cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "cavaleiro-negro-3",
+     "arquivo": "cavaleiro-negro-3.webp",
+     "origem": "cavaleiro-negro-v3",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1boy, silver hair, dark crimson armor, black cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "cavaleiro-negro-4",
+     "arquivo": "cavaleiro-negro-4.webp",
+     "origem": "cavaleiro-negro-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, long white hair, ponytail, black plate armor, blue cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "bruxa",
+   "nome": "Bruxa",
+   "genero": "Fantasia",
+   "variantes": [
+    {
+     "id": "bruxa-1",
+     "arquivo": "bruxa-1.webp",
+     "origem": "bruxa-v1",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, long red hair, black witch hat, black robe, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "bruxa-2",
+     "arquivo": "bruxa-2.webp",
+     "origem": "bruxa-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long silver hair, purple witch hat, purple robe, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "bruxa-3",
+     "arquivo": "bruxa-3.webp",
+     "origem": "bruxa-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, short blonde hair, blue witch hat, blue cape, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "bruxa-4",
+     "arquivo": "bruxa-4.webp",
+     "origem": "bruxa-v4",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, long black hair, braid, green witch hat, green robe, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "samurai",
+   "nome": "Samurai",
+   "genero": "Histórico japonês",
+   "variantes": [
+    {
+     "id": "samurai-1",
+     "arquivo": "samurai-1.webp",
+     "origem": "samurai-v4",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, black hair, high ponytail, purple kimono, (single katana at waist:1.2), safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "kunoichi",
+   "nome": "Kunoichi",
+   "genero": "Ninja",
+   "variantes": [
+    {
+     "id": "kunoichi-1",
+     "arquivo": "kunoichi-1.webp",
+     "origem": "kunoichi-v1",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, black hair, high ponytail, ninja, mouth mask, purple scarf, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "kunoichi-2",
+     "arquivo": "kunoichi-2.webp",
+     "origem": "kunoichi-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, red hair, high ponytail, ninja, mouth mask, black scarf, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "kunoichi-3",
+     "arquivo": "kunoichi-3.webp",
+     "origem": "kunoichi-v3",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, silver hair, high ponytail, ninja, mouth mask, red scarf, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "kunoichi-4",
+     "arquivo": "kunoichi-4.webp",
+     "origem": "kunoichi-v4",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, short black hair, ninja, mouth mask, blue scarf, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "monge",
+   "nome": "Monge",
+   "genero": "Artes marciais",
+   "variantes": [
+    {
+     "id": "monge-1",
+     "arquivo": "monge-1.webp",
+     "origem": "monge-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, short black hair, white martial arts uniform, prayer beads, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "vampira",
+   "nome": "Vampira",
+   "genero": "Horror gótico",
+   "variantes": [
+    {
+     "id": "vampira-1",
+     "arquivo": "vampira-1.webp",
+     "origem": "vampira-v1",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, long silver hair, pale skin, red gothic dress, high collar, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "vampira-2",
+     "arquivo": "vampira-2.webp",
+     "origem": "vampira-v2",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1girl, long black hair, pale skin, black gothic dress, red ribbon, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "vampira-3",
+     "arquivo": "vampira-3.webp",
+     "origem": "vampira-v3",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, short silver hair, pale skin, purple gothic dress, high collar, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    },
+    {
+     "id": "vampira-4",
+     "arquivo": "vampira-4.webp",
+     "origem": "vampira-v4",
+     "seed": 3303,
+     "prompt": "ChopioM1nimalist, 1boy, long silver hair, pale skin, black victorian coat, red cravat, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  },
+  {
+   "id": "piloto-estelar",
+   "nome": "Piloto estelar",
+   "genero": "Ficção científica",
+   "variantes": [
+    {
+     "id": "piloto-estelar-1",
+     "arquivo": "piloto-estelar-1.webp",
+     "origem": "piloto-estelar-v4",
+     "seed": 1101,
+     "prompt": "ChopioM1nimalist, 1girl, long blonde hair, ponytail, black and yellow pilot suit, headset, safe, (plain grey background:1.4), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres"
+    }
+   ]
+  }
+ ],
+ "cores": {
+  "coral": "#FF6B5E",
+  "tangerina": "#FF9F43",
+  "ambar": "#F5BE3C",
+  "lima": "#9ACD4F",
+  "menta": "#3CCB95",
+  "turquesa": "#22B8C2",
+  "celeste": "#4A9EFF",
+  "anil": "#5B67F0",
+  "lavanda": "#9B7BFF",
+  "orquidea": "#CF63E0",
+  "rosa": "#FF6FA4",
+  "grafite": "#5A616D"
+ }
+}
