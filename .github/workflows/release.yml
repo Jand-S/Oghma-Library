@@ -98,6 +98,7 @@ jobs:
           - os: windows-latest
             bundles: nsis
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       TAG: ${{ needs.prepare.outputs.tag }}
@@ -123,14 +124,18 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --bundles ${{ matrix.bundles }}
+        run: |
+          [[ -n "$TAURI_SIGNING_PRIVATE_KEY" ]] || { echo "::error::Secret TAURI_SIGNING_PRIVATE_KEY ausente (docs/RELEASE.md)."; exit 1; }
+          # The rust cache may bring back bundles of an older version: start clean.
+          rm -rf src-tauri/target/release/bundle
+          npx tauri build --bundles ${{ matrix.bundles }}
       - name: Arquivos com nomes fixos
         shell: bash
         run: |
           BUNDLE="$APP_DIR/src-tauri/target/release/bundle"
           mkdir -p out
           if [[ "$RUNNER_OS" == "macOS" ]]; then
-            cp "$BUNDLE"/dmg/*.dmg out/Oghma-Library-macOS.dmg
+            cp "$BUNDLE"/dmg/*"_${VERSION}_"*.dmg out/Oghma-Library-macOS.dmg
             cp "$BUNDLE/macos/Oghma Library.app.tar.gz" "out/Oghma-Library_${VERSION}_aarch64.app.tar.gz"
             cp "$BUNDLE/macos/Oghma Library.app.tar.gz.sig" "out/Oghma-Library_${VERSION}_aarch64.app.tar.gz.sig"
           else
@@ -138,6 +143,8 @@ jobs:
             cp "$SETUP" out/Oghma-Library-Windows.exe
             cp "$SETUP.sig" out/Oghma-Library-Windows.exe.sig
           fi
+          for sig in out/*.sig; do [[ -s "$sig" ]] || { echo "::error::Assinatura vazia: $sig"; exit 1; }; done
+          ls out/*.sig >/dev/null 2>&1 || { echo "::error::Nenhuma assinatura gerada (createUpdaterArtifacts/chave)."; exit 1; }
           ls -la out
       - name: Artefatos do run (teste)
         if: needs.prepare.outputs.dry_run == 'true'
@@ -180,14 +187,21 @@ jobs:
           mkdir sigs
           gh release download "$TAG" -R "$REPO" -p '*.sig' -D sigs
           BASE="https://github.com/$REPO/releases/download/$TAG"
+          MAC_SIG=$(cat "sigs/Oghma-Library_${VERSION}_aarch64.app.tar.gz.sig")
+          WIN_SIG=$(cat sigs/Oghma-Library-Windows.exe.sig)
+          [[ -n "$MAC_SIG" && -n "$WIN_SIG" ]] || { echo "::error::Assinatura vazia na release."; exit 1; }
+          # The packages must already answer publicly (the release left the draft above).
+          for name in "Oghma-Library_${VERSION}_aarch64.app.tar.gz" Oghma-Library-Windows.exe; do
+            curl -fsSIL -o /dev/null "$BASE/$name" || { echo "::error::$BASE/$name não responde."; exit 1; }
+          done
           jq -n \
             --arg version "$VERSION" \
             --arg notes "$(git tag -l --format='%(contents)' "$TAG" | sed '/-----BEGIN PGP/,$d')" \
             --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg mac_url "$BASE/Oghma-Library_${VERSION}_aarch64.app.tar.gz" \
-            --arg mac_sig "$(cat "sigs/Oghma-Library_${VERSION}_aarch64.app.tar.gz.sig")" \
+            --arg mac_sig "$MAC_SIG" \
             --arg win_url "$BASE/Oghma-Library-Windows.exe" \
-            --arg win_sig "$(cat sigs/Oghma-Library-Windows.exe.sig)" \
+            --arg win_sig "$WIN_SIG" \
             '{version: $version, notes: $notes, pub_date: $date, platforms: {
                 "darwin-aarch64": {signature: $mac_sig, url: $mac_url},
                 "windows-x86_64": {signature: $win_sig, url: $win_url}}}' > latest.json
