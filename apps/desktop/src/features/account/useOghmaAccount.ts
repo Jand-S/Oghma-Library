@@ -13,11 +13,16 @@ import { onLibraryMetaWrite } from "../../services/localFiles";
 
 const SERVER_KEY = "oghma.account.server";
 const CURSOR_PREFIX = "oghma.account.cursor.";
-/** Changes made in the app go up after this pause (several quick edits = one round). */
-const PUSH_DEBOUNCE_MS = 2500;
-/** Coming back to the window pulls what other devices changed, at most this often. */
-const FOCUS_MIN_INTERVAL_MS = 60_000;
-const PERIODIC_MS = 5 * 60_000;
+/** Changes made in the app go up after this short pause (a burst of edits = one round). */
+const PUSH_DEBOUNCE_MS = 800;
+/** Coming back to the window catches up at once (the long poll may have been cut by sleep). */
+const FOCUS_MIN_INTERVAL_MS = 5_000;
+/** How long the server holds a "wait for changes" request open. */
+const WAIT_SECONDS = 25;
+/** After a failure (offline, server down), wait this long before listening again. */
+const RETRY_MS = 10_000;
+
+const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 export type AccountStatus = "unavailable" | "loading" | "signedOut" | "signedIn";
 export type SyncState = { state: "idle" | "syncing" | "error"; lastSyncAt: number | null; error?: string };
@@ -159,7 +164,7 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
     };
   }, [client, runSync, signOutLocally]);
 
-  // Local edits go up (debounced); focus and a slow timer bring other devices' changes down.
+  // Local edits go up right away (short debounce); coming back to the window catches up.
   useEffect(() => {
     if (status !== "signedIn" || !user) return;
     let timer: number | undefined;
@@ -171,14 +176,45 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
       if (Date.now() - lastSyncAt.current >= FOCUS_MIN_INTERVAL_MS) void runSync();
     };
     window.addEventListener("focus", onFocus);
-    const periodic = window.setInterval(() => void runSync(), PERIODIC_MS);
     return () => {
       unsubscribe();
       window.removeEventListener("focus", onFocus);
       window.clearTimeout(timer);
-      window.clearInterval(periodic);
     };
   }, [runSync, status, user]);
+
+  // Other devices' changes come down as they happen: one "wait for changes" request is always
+  // open; the server answers within a second of a change (or after WAIT_SECONDS with nothing).
+  useEffect(() => {
+    if (status !== "signedIn" || !user) return;
+    let stopped = false;
+    const cursorKey = CURSOR_PREFIX + user.publicId;
+    void (async () => {
+      while (!stopped) {
+        const since = Number(readStorage(cursorKey) ?? 0) || 0;
+        const started = Date.now();
+        try {
+          const result = await client.api<{ changed: boolean; cursor: number }>("GET", `/v1/me/library/wait?since=${since}&timeout=${WAIT_SECONDS}`);
+          if (stopped) return;
+          if (result.status === 401) {
+            signOutLocally();
+            return;
+          }
+          if (isOk(result) && result.body?.changed) {
+            await runSync();
+            continue;
+          }
+          // A quick answer with no change (an older server, a proxy) must not spin.
+          if (!isOk(result) || Date.now() - started < 1000) await sleep(isOk(result) ? 5000 : RETRY_MS);
+        } catch {
+          if (!stopped) await sleep(RETRY_MS);
+        }
+      }
+    })();
+    return () => {
+      stopped = true;
+    };
+  }, [client, runSync, signOutLocally, status, user]);
 
   const requestCode = useCallback(async (email: string): Promise<Outcome<{ email: string; resendIn: number; loginId: string | null }>> => {
     try {

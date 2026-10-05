@@ -149,6 +149,40 @@ describe("library sync", () => {
   });
 });
 
+describe("automatic sync", () => {
+  beforeEach(() => {
+    resetAppState();
+    invokeMock.mockReset();
+    invokeMock.mockImplementation(async (kind: string) => (kind === "pending" ? [] : kind === "apply" ? 1 : 0));
+  });
+
+  it("pulls on its own as soon as the server says another device changed the library", async () => {
+    seedSetup();
+    let announced = false;
+    const pulls: string[] = [];
+    const client = fakeClient({ status: vi.fn(async () => ({ signedIn: true, baseUrl: "https://conta.oghma.dev" })) });
+    const user = { publicId: "pub1", email: "a@b.com", nickname: "leitor", avatarId: "rem", avatarColor: null, createdAt: "", needsProfile: false };
+    client.api = vi.fn(async (_method: string, path: string) => {
+      if (path === "/v1/me") return { status: 200, body: user };
+      if (path.startsWith("/v1/me/library/wait")) {
+        if (announced) return new Promise(() => undefined); // keeps waiting
+        announced = true;
+        return { status: 200, body: { changed: true, cursor: 7 } };
+      }
+      if (path.startsWith("/v1/me/library?")) {
+        pulls.push(path);
+        return { status: 200, body: { entries: pulls.length > 1 ? [{ key: "novel:cn:9", changedAt: 5, seq: 7 }] : [], cursor: 7, more: false } };
+      }
+      return { status: 200, body: {} };
+    }) as AccountClient["api"];
+    render(<App backend={mockBackendClient} downloadQueue={createTestQueue()} accountClient={client} />);
+    // Boot sync, then the pull the server's "changed" triggers, with no button anywhere.
+    await waitFor(() => expect(pulls.length).toBeGreaterThanOrEqual(2), { timeout: 5000 });
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("apply", [{ key: "novel:cn:9", changedAt: 5 }]));
+    expect(screen.queryByRole("button", { name: s.syncNow })).not.toBeInTheDocument();
+  }, 15000);
+});
+
 describe("account sign-in flow (e-mail button)", () => {
   beforeEach(() => {
     resetAppState();

@@ -444,6 +444,14 @@
     font-size: var(--fs-sm);
   }
 
+  .oghma-account__sync {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
   .oghma-account__danger {
     color: var(--danger-text);
   }

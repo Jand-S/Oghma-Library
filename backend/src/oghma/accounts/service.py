@@ -457,6 +457,11 @@ async def pull_library(db: AsyncSession, user: AccountUser, since: int = 0, limi
     return {"entries": [entry_out(row) for row in rows], "cursor": cursor, "more": more}
 
 
+async def library_cursor(db: AsyncSession, user_id: int) -> int:
+    seq = (await db.execute(select(AccountUser.library_seq).where(AccountUser.id == user_id))).scalar_one_or_none()
+    return int(seq or 0)
+
+
 async def push_library(
     db: AsyncSession, settings: AccountSettings, user: AccountUser, changes: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -490,7 +495,11 @@ async def push_library(
     for novel_id, data, changed_at, deleted_at in cleaned:
         key = f"{NOVEL_KEY_PREFIX}{novel_id}"
         row = existing.get(novel_id)
-        if row is not None and row.changed_at >= changed_at:
+        if row is not None and row.changed_at == changed_at:
+            # Already here (a resend after a lost reply): confirm it so the app stops resending.
+            accepted.append({"key": key, "changedAt": changed_at})
+            continue
+        if row is not None and row.changed_at > changed_at:
             rejected.append(key)
             continue
         user.library_seq = (user.library_seq or 0) + 1

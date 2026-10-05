@@ -1,4 +1,4 @@
-import { LogOut, RefreshCw, Settings2, UserRound } from "lucide-react";
+import { LogOut, Settings2, UserRound } from "lucide-react";
 import { oghmaAccountStrings as s } from "../../strings/oghmaAccount";
 import { Avatar, DropdownMenu, Spinner, cx } from "../../ui";
 import type { AccountSheetStep } from "./AccountSheet";
@@ -40,14 +40,7 @@ export function SidebarAccount({ account, collapsed, onOpenSheet, onOpenSettings
       align="start"
       items={[
         { label: user?.email ?? s.name, onSelect: () => undefined, disabled: true },
-        {
-          label: account.sync.state === "syncing" ? s.syncing : s.syncNow,
-          icon: <RefreshCw />,
-          onSelect: () => void account.syncNow(),
-          disabled: account.sync.state === "syncing",
-          separatorBefore: true
-        },
-        { label: user?.needsProfile ? s.profileTitle : s.editProfile, icon: <UserRound />, onSelect: () => onOpenSheet("profile") },
+        { label: user?.needsProfile ? s.profileTitle : s.editProfile, icon: <UserRound />, onSelect: () => onOpenSheet("profile"), separatorBefore: true },
         { label: s.openAccount, icon: <Settings2 />, onSelect: onOpenSettings },
         { label: s.signOut, icon: <LogOut />, onSelect: () => void account.logout(), separatorBefore: true }
       ]}

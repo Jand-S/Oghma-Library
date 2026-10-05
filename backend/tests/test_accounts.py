@@ -198,6 +198,23 @@ async def test_library_sync_newest_change_wins_with_tombstones_and_cursor(api):
     assert tomb["deletedAt"] == 300 and tomb["rating"] is None and tomb["onShelf"] is False
 
 
+async def test_resending_the_same_change_is_confirmed_not_rejected(api):
+    token, _ = await login(api)
+    first = (await api.post("/v1/me/library/changes", headers=auth(token), json={"changes": [entry("cn:1", 100)]})).json()
+    again = (await api.post("/v1/me/library/changes", headers=auth(token), json={"changes": [entry("cn:1", 100)]})).json()
+    assert again["accepted"] == [{"key": "novel:cn:1", "changedAt": 100}] and again["rejected"] == []
+    assert again["cursor"] == first["cursor"], "a resend does not create a new version"
+
+
+async def test_wait_answers_at_once_when_something_changed_and_times_out_otherwise(api):
+    token, _ = await login(api)
+    idle = (await api.get("/v1/me/library/wait", params={"since": 0, "timeout": 1}, headers=auth(token))).json()
+    assert idle == {"changed": False, "cursor": 0}
+    await api.post("/v1/me/library/changes", headers=auth(token), json={"changes": [entry("cn:1", 100)]})
+    changed = (await api.get("/v1/me/library/wait", params={"since": 0, "timeout": 5}, headers=auth(token))).json()
+    assert changed == {"changed": True, "cursor": 1}
+
+
 async def test_library_rejects_bad_keys_and_huge_batches(api):
     token, _ = await login(api)
     bad = await api.post("/v1/me/library/changes", headers=auth(token), json={"changes": [{"key": "/out/Livro", "changedAt": 1}]})

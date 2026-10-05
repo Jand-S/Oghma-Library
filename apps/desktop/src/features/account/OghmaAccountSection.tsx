@@ -1,4 +1,4 @@
-import { Laptop, LogOut, Monitor, Pencil, RefreshCw, Trash2, UserRound } from "lucide-react";
+import { Laptop, LogOut, Monitor, Pencil, Trash2, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AccountSessionInfo } from "../../services/accountClient";
 import { oghmaAccountStrings as s, accountErrorMessage } from "../../strings/oghmaAccount";
@@ -113,16 +113,10 @@ export function OghmaAccountSection({ account, onOpenSheet }: Props) {
 
       <ListGroup title={s.library} footer={s.syncFooter}>
         <ListRow label={s.syncLabel} description={syncDescription}>
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={<RefreshCw />}
-            loading={account.sync.state === "syncing"}
-            onClick={() => void account.syncNow()}
-            data-testid="oghma-account-sync"
-          >
-            {s.syncNow}
-          </Button>
+          <span className="oghma-account__sync" data-testid="oghma-account-sync">
+            {account.sync.state === "syncing" ? <Spinner size="sm" /> : null}
+            {s.syncAutomatic}
+          </span>
         </ListRow>
       </ListGroup>
 

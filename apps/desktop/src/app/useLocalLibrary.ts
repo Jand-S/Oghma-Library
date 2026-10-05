@@ -301,7 +301,9 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary, onMet
       preparedRoot.current = outputPath;
       void prepareExportRoot(outputPath).catch(() => undefined);
     }
-    void Promise.all([listLocalLibrary(outputPath), listLibraryMetadata()])
+    // A folder that cannot be read (not created yet, moved) must not hide the shelf books.
+    const scan = listLocalLibrary(outputPath).catch(() => [] as LocalLibraryEntry[]);
+    void Promise.all([scan, listLibraryMetadata()])
       .then(([entries, metaRows]) => {
         if (!entries || seq !== requestSeq.current) return;
         entriesRef.current = entries;

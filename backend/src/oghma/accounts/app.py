@@ -5,6 +5,7 @@ estas rotas pelo Rust, que guarda o token (ele nunca chega ao JavaScript).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -258,6 +259,23 @@ def create_app(
         since: int = Query(default=0, ge=0), user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)
     ) -> dict[str, Any]:
         return await service.pull_library(db, user, since)
+
+    @app.get("/v1/me/library/wait")
+    async def wait_for_changes(
+        since: int = Query(default=0, ge=0),
+        timeout: int = Query(default=25, ge=1, le=50),
+        user: AccountUser = Depends(current_user),
+    ) -> dict[str, Any]:
+        """Long poll: answers as soon as the library changes after `since` (or after `timeout` s).
+        The app keeps one open, so a change on one computer shows on the others within a second."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while True:
+            async with sessions() as db:
+                cursor = await service.library_cursor(db, user.id)
+            if cursor > since or loop.time() >= deadline:
+                return {"changed": cursor > since, "cursor": cursor}
+            await asyncio.sleep(1)
 
     @app.post("/v1/me/library/changes")
     async def push(body: ChangesIn, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> dict[str, Any]:

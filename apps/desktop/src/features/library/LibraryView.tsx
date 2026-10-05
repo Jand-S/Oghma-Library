@@ -106,7 +106,8 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
     );
   }
 
-  const noOutput = !library.outputPath.trim();
+  // No folder yet but books on the shelf (e.g. a new computer signed in to the account): show them.
+  const noOutput = !library.outputPath.trim() && !library.allLibrary.some((item) => item.availability === "shelf");
   /** Nothing to browse at all (no folder, or an empty library): the empty state centers in the page. */
   const pageEmpty = noOutput || (!loading && library.allLibrary.length === 0);
   let content;
