@@ -68,6 +68,17 @@
   /* Status chips and format/favorite chips are separate groups: a wider gap, no divider
      (a divider would dangle at the start of the line when the bar wraps). */
 
+  .library-bar__actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .library-bar__filters-button.is-active {
+    color: var(--accent);
+  }
+
   .library-bar__sort {
     flex: 0 0 auto;
     width: calc(var(--space-8) * 2);

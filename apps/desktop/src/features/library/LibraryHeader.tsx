@@ -1,7 +1,7 @@
-import { CloudDownload, EyeOff, Heart, Languages, Layers, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
+import { CloudDownload, EyeOff, Heart, Languages, Layers, LayoutGrid, List, ListFilter, RefreshCw, Search, X } from "lucide-react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Chip, IconButton, SegmentedControl, SelectField, TextField, cx } from "../../ui";
+import { Badge, Button, Chip, DropdownMenu, IconButton, SegmentedControl, SelectField, TextField, cx, type MenuItem } from "../../ui";
 import { statusFilters, type LibrarySort, type LibraryStatusFilter, type LibraryViewMode } from "./libraryModel";
 import { ReadingStatusIcon } from "./ReadingStatus";
 import type { LibraryBrowse } from "./useLibraryBrowse";
@@ -96,7 +96,59 @@ function StatusChipIcon({ status }: { status: LibraryStatusFilter }) {
   return <ReadingStatusIcon status={status} />;
 }
 
-/** Sub-bar under the header: reading-status chips, format and favorites chips, plus the sort order. */
+/**
+ * Formats, favorites, translated and hidden books: used less than the status chips, so they
+ * live in one "Filtros" menu (the bar stays on one line). The button shows how many are on.
+ */
+function FiltersMenu({ browse }: { browse: LibraryBrowse }) {
+  const active = browse.selectedFormats.size + Number(browse.favoritesOnly) + Number(browse.translatedOnly) + Number(browse.hiddenOnly);
+  const items: MenuItem[] = [
+    ...browse.formats.map((format, index): MenuItem => ({
+      label: format,
+      heading: index === 0 ? libraryStrings.formatFilterLabel : undefined,
+      checked: browse.selectedFormats.has(format),
+      multiple: true,
+      onSelect: () => browse.toggleFormat(format)
+    })),
+    {
+      label: libraryStrings.favoritesFilter,
+      icon: <Heart />,
+      heading: libraryStrings.showFilterLabel,
+      separatorBefore: browse.formats.length > 0,
+      checked: browse.favoritesOnly,
+      multiple: true,
+      onSelect: browse.toggleFavorites
+    },
+    ...(browse.hasTranslated || browse.translatedOnly
+      ? [{ label: libraryStrings.translatedFilter, icon: <Languages />, checked: browse.translatedOnly, multiple: true, onSelect: browse.toggleTranslated }]
+      : []),
+    ...(browse.hiddenCount > 0 || browse.hiddenOnly
+      ? [{ label: libraryStrings.hiddenFilter(browse.hiddenCount), icon: <EyeOff />, checked: browse.hiddenOnly, multiple: true, onSelect: browse.toggleHidden }]
+      : []),
+    ...(active > 0 ? [{ label: libraryStrings.clearFilterMenu, icon: <X />, separatorBefore: true, onSelect: browse.clearMenuFilters }] : [])
+  ];
+  return (
+    <DropdownMenu
+      label={libraryStrings.filtersMenu}
+      align="end"
+      items={items}
+      trigger={(
+        <Button
+          variant={active ? "outline" : "ghost"}
+          size="sm"
+          icon={<ListFilter />}
+          className={cx("library-bar__filters-button", active > 0 && "is-active")}
+          aria-label={active ? libraryStrings.filtersActive(active) : libraryStrings.filtersMenu}
+          data-testid="library-filters-menu"
+        >
+          {active ? libraryStrings.filtersActive(active) : libraryStrings.filtersMenu}
+        </Button>
+      )}
+    />
+  );
+}
+
+/** Sub-bar under the header: reading-status chips, the "Filtros" menu and the sort order. */
 export function LibraryFilterBar({ browse }: { browse: LibraryBrowse }) {
   // Statuses with no book stay out of the way (the selected one always shows).
   const shown = statusFilters.filter((status) => status === "all" || status === browse.status || browse.statusCounts[status] > 0);
@@ -117,35 +169,18 @@ export function LibraryFilterBar({ browse }: { browse: LibraryBrowse }) {
             ))}
           </div>
         ) : null}
-        <div className="library-bar__group" role="group" aria-label={libraryStrings.formatFilterLabel}>
-        {browse.formats.map((format) => (
-          <Chip key={format} selected={browse.selectedFormats.has(format)} onToggle={() => browse.toggleFormat(format)}>
-            {format}
-          </Chip>
-        ))}
-        <Chip selected={browse.favoritesOnly} onToggle={browse.toggleFavorites} icon={<Heart />}>
-          {libraryStrings.favoritesFilter}
-        </Chip>
-        {browse.hasTranslated || browse.translatedOnly ? (
-          <Chip selected={browse.translatedOnly} onToggle={browse.toggleTranslated} icon={<Languages />}>
-            {libraryStrings.translatedFilter}
-          </Chip>
-        ) : null}
-        {browse.hiddenCount > 0 || browse.hiddenOnly ? (
-          <Chip selected={browse.hiddenOnly} onToggle={browse.toggleHidden} icon={<EyeOff />}>
-            {libraryStrings.hiddenFilter(browse.hiddenCount)}
-          </Chip>
-        ) : null}
-        </div>
       </div>
-      <SelectField
-        label={libraryStrings.sortLabel}
-        hideLabel
-        options={sortOptions}
-        value={browse.sort}
-        onChange={(event) => browse.setSort(event.target.value as LibrarySort)}
-        fieldClassName="o-field--sm library-bar__sort"
-      />
+      <div className="library-bar__actions">
+        <FiltersMenu browse={browse} />
+        <SelectField
+          label={libraryStrings.sortLabel}
+          hideLabel
+          options={sortOptions}
+          value={browse.sort}
+          onChange={(event) => browse.setSort(event.target.value as LibrarySort)}
+          fieldClassName="o-field--sm library-bar__sort"
+        />
+      </div>
     </div>
   );
 }

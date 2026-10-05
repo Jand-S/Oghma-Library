@@ -112,6 +112,14 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     if (hiddenOnly && hiddenCount === 0) setHiddenOnly(false);
   }, [hiddenCount, hiddenOnly]);
 
+  /** Clears what the "Filtros" menu holds (formats, favorites, translated, hidden), not the status or search. */
+  const clearMenuFilters = useCallback(() => {
+    setSelectedFormats(new Set());
+    setFavoritesOnly(false);
+    setTranslatedOnly(false);
+    setHiddenOnly(false);
+  }, []);
+
   const clearFilters = useCallback(() => {
     setQuery("");
     setSelectedFormats(new Set());
@@ -150,7 +158,8 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     toggleSeparated,
     /** Library after search, chips and sort. */
     filtered,
-    clearFilters
+    clearFilters,
+    clearMenuFilters
   };
 }
 

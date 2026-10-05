@@ -30,6 +30,8 @@ export type MenuItem = {
   heading?: string;
   /** Checkmark state for choices inside a group (menuitemradio). */
   checked?: boolean;
+  /** With `checked`: an independent on/off choice (menuitemcheckbox), not one of a group. */
+  multiple?: boolean;
   /** Content after the label (e.g. stars), right-aligned. */
   trailing?: ReactNode;
 };
@@ -213,7 +215,7 @@ export function DropdownMenu({ items, label, align = "start", className, trigger
                 itemRefs.current[index] = node;
               }}
               type="button"
-              role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+              role={item.checked === undefined ? "menuitem" : item.multiple ? "menuitemcheckbox" : "menuitemradio"}
               aria-checked={item.checked === undefined ? undefined : item.checked}
               tabIndex={-1}
               disabled={item.disabled}

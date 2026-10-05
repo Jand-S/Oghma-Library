@@ -85,10 +85,12 @@ describe("Library browsing", () => {
     await user.click(screen.getByRole("button", { name: libraryStrings.clearFilters }));
     expect(cardTitles()).toHaveLength(2);
 
-    const filters = screen.getByRole("group", { name: libraryStrings.formatFilterLabel });
-    await user.click(within(filters).getByRole("button", { name: "PDF" }));
-    expect(within(filters).getByRole("button", { name: "PDF" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByTestId("library-filters-menu"));
+    await user.click(within(await screen.findByRole("menu")).getByRole("menuitemcheckbox", { name: "PDF" }));
     expect(cardTitles()).toEqual([LOST_TEMPLE]);
+    expect(screen.getByTestId("library-filters-menu")).toHaveTextContent(libraryStrings.filtersActive(1));
+    await user.click(screen.getByTestId("library-filters-menu"));
+    expect(within(await screen.findByRole("menu")).getByRole("menuitemcheckbox", { name: "PDF" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("sorts by title and switches to the list view", async () => {
@@ -203,23 +205,32 @@ describe("Library actions", () => {
     const user = setupUser();
     await renderReadyApp();
     await openLibrary(user);
-    const hiddenChip = () => screen.queryByRole("button", { name: /^Ocultos/ });
-    expect(hiddenChip()).not.toBeInTheDocument();
+    const hiddenItem = async () => {
+      await user.click(screen.getByTestId("library-filters-menu"));
+      const item = within(await screen.findByRole("menu")).queryByRole("menuitemcheckbox", { name: /^Ocultos/ });
+      return item;
+    };
+    expect(await hiddenItem()).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
 
     await user.click(within(openContextMenu(MOCKINGBIRD)).getByRole("menuitem", { name: libraryStrings.removeFromLibrary }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: libraryStrings.confirmRemove }));
     await waitFor(() => expect(cardTitles()).toEqual([LOST_TEMPLE]));
 
-    const chip = hiddenChip();
-    expect(chip).toHaveTextContent(libraryStrings.hiddenFilter(1));
-    await user.click(chip!);
+    const item = await hiddenItem();
+    expect(item).toHaveTextContent(libraryStrings.hiddenFilter(1));
+    await user.click(item!);
     await waitFor(() => expect(cardTitles()).toEqual([MOCKINGBIRD]));
 
     const details = await openDetails(user, MOCKINGBIRD);
     await user.click(within(details).getByTestId("library-unhide"));
     expect(within(getToastRegion()).getByText(libraryStrings.unhiddenToast(MOCKINGBIRD))).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Voltar" }));
-    await waitFor(() => expect(hiddenChip()).not.toBeInTheDocument());
+    await waitFor(async () => {
+      await user.click(screen.getByTestId("library-filters-menu"));
+      expect(within(await screen.findByRole("menu")).queryByRole("menuitemcheckbox", { name: /^Ocultos/ })).not.toBeInTheDocument();
+    });
+    await user.keyboard("{Escape}");
     await waitFor(() => expect(cardTitles().sort()).toEqual([LOST_TEMPLE, MOCKINGBIRD].sort()));
   });
 
