@@ -1,11 +1,24 @@
 import { Check, Loader2, Shuffle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { avatarIds, avatarNames, randomAvatar, type AvatarId, isAvatarId } from "../../core/avatars";
+import {
+  avatarColorNames,
+  avatarColors,
+  avatarName,
+  characterAvatars,
+  isAvatarColor,
+  isAvatarId,
+  isOriginalAvatar,
+  originalAvatars,
+  originalOfVariant,
+  randomAvatar
+} from "../../core/avatars";
 import { oghmaAccountStrings as s } from "../../strings/oghmaAccount";
-import { Avatar, Button, TextField, cx } from "../../ui";
+import { Avatar, Button, SegmentedControl, TextField, cx } from "../../ui";
 
-/** `avatarColor` only matters for an archived archetype a profile still uses (characters have their own background). */
-export type ProfileDraft = { nickname: string; avatarId: AvatarId; avatarColor?: string };
+/** `avatarColor` is the circle color of an original (characters have their own background). */
+export type ProfileDraft = { nickname: string; avatarId: string; avatarColor?: string };
+
+type PickerTab = "characters" | "originals";
 
 type NicknameCheck = { available: boolean; reason: string | null; suggestions: string[] } | null;
 
@@ -30,14 +43,21 @@ type ProfileEditorProps = {
 };
 
 /**
- * Nickname with a live availability check and the character grid, around a large preview.
- * A new profile starts with a random character already picked; "Sortear" draws another.
+ * Nickname with a live availability check and the avatar picker, around a large preview.
+ * Two tabs: characters (own background) and the Oghma's originals (archetype → variant → circle
+ * color). A new profile starts with a random avatar already picked; "Sortear" draws another.
  */
 export function ProfileEditor({ initial, checkNickname, onChange, saveError }: ProfileEditorProps) {
   const [picked] = useState(() => randomAvatar());
+  const startsOwn = isAvatarId(initial?.avatarId);
   const [nickname, setNickname] = useState(initial?.nickname ?? "");
-  const [avatarId, setAvatarId] = useState<AvatarId>(isAvatarId(initial?.avatarId) ? initial!.avatarId as AvatarId : picked);
-  const avatarColor = initial?.avatarColor ?? undefined;
+  const [avatarId, setAvatarId] = useState<string>(startsOwn ? initial!.avatarId! : picked.avatarId);
+  const [color, setColor] = useState<string>(
+    isAvatarColor(initial?.avatarColor) ? initial!.avatarColor! : picked.avatarColor ?? avatarColors[0]
+  );
+  const [tab, setTab] = useState<PickerTab>(isOriginalAvatar(avatarId) ? "originals" : "characters");
+  const original = originalOfVariant(avatarId);
+  const avatarColor = original ? color : undefined;
   const [check, setCheck] = useState<{ value: string; result: NicknameCheck } | null>(null);
   const [checking, setChecking] = useState(false);
   const seq = useRef(0);
@@ -75,8 +95,16 @@ export function ProfileEditor({ initial, checkNickname, onChange, saveError }: P
 
   const shuffle = () => {
     let next = randomAvatar();
-    while (next === avatarId) next = randomAvatar();
-    setAvatarId(next);
+    while (next.avatarId === avatarId) next = randomAvatar();
+    setAvatarId(next.avatarId);
+    if (next.avatarColor) setColor(next.avatarColor);
+    setTab(isOriginalAvatar(next.avatarId) ? "originals" : "characters");
+  };
+  /** Picking an archetype keeps its variant if one of its variants is already chosen. */
+  const pickOriginal = (arqId: string) => {
+    if (originalOfVariant(avatarId)?.id === arqId) return;
+    const arq = originalAvatars.find((item) => item.id === arqId);
+    if (arq) setAvatarId(arq.variants[0]);
   };
 
   let status = null;
@@ -126,27 +154,107 @@ export function ProfileEditor({ initial, checkNickname, onChange, saveError }: P
 
       <section className="profile-picker" aria-label={s.avatarLabel}>
         <div className="profile-picker__head">
-          <span className="profile-picker__title">{s.avatarLabel}</span>
+          <SegmentedControl<PickerTab>
+            aria-label={s.avatarLabel}
+            size="sm"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "characters", label: s.tabCharacters },
+              { value: "originals", label: s.tabOriginals }
+            ]}
+          />
           <Button size="sm" variant="ghost" icon={<Shuffle />} onClick={shuffle} data-testid="profile-shuffle">{s.shuffle}</Button>
         </div>
-        <div className="profile-avatars" role="radiogroup" aria-label={s.avatarLabel}>
-          {avatarIds.map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={id === avatarId}
-              aria-label={avatarNames[id]}
-              title={avatarNames[id]}
-              className={cx("profile-avatars__option", id === avatarId && "is-selected")}
-              onClick={() => setAvatarId(id)}
-            >
-              <Avatar avatarId={id} size="lg" />
-            </button>
-          ))}
-        </div>
-      </section>
 
+        {tab === "characters" ? (
+          <div className="profile-avatars" role="radiogroup" aria-label={s.tabCharacters} data-testid="profile-characters">
+            {characterAvatars.map((avatar) => (
+              <button
+                key={avatar.id}
+                type="button"
+                role="radio"
+                aria-checked={avatar.id === avatarId}
+                aria-label={avatar.name}
+                title={avatar.name}
+                className={cx("profile-avatars__option", avatar.id === avatarId && "is-selected")}
+                onClick={() => setAvatarId(avatar.id)}
+              >
+                <Avatar avatarId={avatar.id} size="lg" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="profile-avatars" role="radiogroup" aria-label={s.tabOriginals} data-testid="profile-originals">
+              {originalAvatars.map((arq) => {
+                const selected = original?.id === arq.id;
+                const shown = selected ? avatarId : arq.variants[0];
+                return (
+                  <button
+                    key={arq.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={arq.name}
+                    title={`${arq.name} · ${arq.genre}`}
+                    className={cx("profile-avatars__option", selected && "is-selected")}
+                    onClick={() => pickOriginal(arq.id)}
+                  >
+                    <Avatar avatarId={shown} color={color} size="lg" />
+                  </button>
+                );
+              })}
+            </div>
+            {original ? (
+              <div className="profile-original" data-testid="profile-original-options">
+                {original.variants.length > 1 ? (
+                  <div className="profile-picker__row">
+                    <span className="profile-picker__title">{s.variantLabel}</span>
+                    <div className="profile-variants" role="radiogroup" aria-label={s.variantLabel}>
+                      {original.variants.map((variant) => (
+                        <button
+                          key={variant}
+                          type="button"
+                          role="radio"
+                          aria-checked={variant === avatarId}
+                          aria-label={avatarName(variant)}
+                          title={avatarName(variant)}
+                          className={cx("profile-variants__option", variant === avatarId && "is-selected")}
+                          onClick={() => setAvatarId(variant)}
+                        >
+                          <Avatar avatarId={variant} color={color} size="md" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="profile-picker__row">
+                  <span className="profile-picker__title">{s.colorLabel}</span>
+                  <div className="profile-colors" role="radiogroup" aria-label={s.colorLabel}>
+                    {avatarColors.map((tone) => (
+                      <button
+                        key={tone}
+                        type="button"
+                        role="radio"
+                        aria-checked={tone === color}
+                        aria-label={avatarColorNames[tone] ?? tone}
+                        title={avatarColorNames[tone] ?? tone}
+                        className={cx("profile-colors__swatch", `o-avatar--${tone}`, tone === color && "is-selected")}
+                        onClick={() => setColor(tone)}
+                      >
+                        {tone === color ? <Check aria-hidden="true" /> : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="profile-picker__hint">{s.pickOriginalHint}</p>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

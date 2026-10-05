@@ -267,6 +267,61 @@
     box-shadow: var(--focus-ring);
   }
 
+  .profile-picker__row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+  }
+
+  .profile-picker__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .profile-original {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+    padding: var(--space-1-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+  }
+
+  .profile-variants {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .profile-variants__option {
+    display: grid;
+    place-items: center;
+    padding: calc(var(--space-0-5) / 2);
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .profile-variants__option:hover {
+    transform: scale(1.06);
+  }
+
+  .profile-variants__option.is-selected .o-avatar {
+    box-shadow: 0 0 0 var(--ring-width) var(--surface-1), 0 0 0 calc(var(--ring-width) * 2) var(--accent-tint);
+  }
+
+  .profile-variants__option:focus-visible {
+    outline: none;
+  }
+
+  .profile-variants__option:focus-visible .o-avatar {
+    box-shadow: var(--focus-ring);
+  }
+
   .profile-colors {
     display: flex;
     flex-wrap: wrap;

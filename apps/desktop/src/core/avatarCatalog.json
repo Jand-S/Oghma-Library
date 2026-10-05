@@ -1,0 +1,310 @@
+{
+  "characters": [
+    {
+      "id": "emilia",
+      "name": "Emilia"
+    },
+    {
+      "id": "rem",
+      "name": "Rem"
+    },
+    {
+      "id": "subaru",
+      "name": "Natsuki Subaru"
+    },
+    {
+      "id": "betelgeuse",
+      "name": "Betelgeuse"
+    },
+    {
+      "id": "megumin",
+      "name": "Megumin"
+    },
+    {
+      "id": "asuna",
+      "name": "Asuna"
+    },
+    {
+      "id": "kirito",
+      "name": "Kirito"
+    },
+    {
+      "id": "albedo",
+      "name": "Albedo"
+    },
+    {
+      "id": "holo",
+      "name": "Holo"
+    },
+    {
+      "id": "raphtalia",
+      "name": "Raphtalia"
+    },
+    {
+      "id": "naofumi",
+      "name": "Naofumi Iwatani"
+    },
+    {
+      "id": "roxy",
+      "name": "Roxy Migurdia"
+    },
+    {
+      "id": "elaina",
+      "name": "Elaina"
+    },
+    {
+      "id": "violet",
+      "name": "Violet Evergarden"
+    },
+    {
+      "id": "mai",
+      "name": "Mai Sakurajima"
+    },
+    {
+      "id": "kurumi",
+      "name": "Kurumi Tokisaki"
+    },
+    {
+      "id": "ayanokouji",
+      "name": "Kiyotaka Ayanokouji"
+    },
+    {
+      "id": "horikita",
+      "name": "Suzune Horikita"
+    },
+    {
+      "id": "wei-wuxian",
+      "name": "Wei Wuxian"
+    },
+    {
+      "id": "kim-dokja",
+      "name": "Kim Dokja"
+    },
+    {
+      "id": "klein-moretti",
+      "name": "Klein Moretti"
+    },
+    {
+      "id": "sung-jinwoo",
+      "name": "Sung Jinwoo"
+    }
+  ],
+  "originals": [
+    {
+      "id": "cultivador",
+      "name": "Cultivador",
+      "genre": "Xianxia / cultivo",
+      "variants": [
+        "cultivador-1",
+        "cultivador-2",
+        "cultivador-3",
+        "cultivador-4"
+      ]
+    },
+    {
+      "id": "mestra-seita",
+      "name": "Mestra de seita",
+      "genre": "Xianxia / cultivo",
+      "variants": [
+        "mestra-seita-1",
+        "mestra-seita-2",
+        "mestra-seita-3",
+        "mestra-seita-4"
+      ]
+    },
+    {
+      "id": "mago-reencarnado",
+      "name": "Mago reencarnado",
+      "genre": "Isekai",
+      "variants": [
+        "mago-reencarnado-1",
+        "mago-reencarnado-2"
+      ]
+    },
+    {
+      "id": "vila-otome",
+      "name": "Vilã de otome",
+      "genre": "Otome isekai",
+      "variants": [
+        "vila-otome-1",
+        "vila-otome-2",
+        "vila-otome-3",
+        "vila-otome-4"
+      ]
+    },
+    {
+      "id": "cacadora",
+      "name": "Caçadora",
+      "genre": "Caçadores de masmorra",
+      "variants": [
+        "cacadora-1",
+        "cacadora-2"
+      ]
+    },
+    {
+      "id": "alquimista",
+      "name": "Alquimista",
+      "genre": "Fantasia",
+      "variants": [
+        "alquimista-1",
+        "alquimista-2",
+        "alquimista-3",
+        "alquimista-4"
+      ]
+    },
+    {
+      "id": "princesa-guerreira",
+      "name": "Princesa guerreira",
+      "genre": "Fantasia",
+      "variants": [
+        "princesa-guerreira-1",
+        "princesa-guerreira-2",
+        "princesa-guerreira-3",
+        "princesa-guerreira-4"
+      ]
+    },
+    {
+      "id": "estudante-academia",
+      "name": "Estudante da academia",
+      "genre": "Academia mágica",
+      "variants": [
+        "estudante-academia-1",
+        "estudante-academia-2",
+        "estudante-academia-3"
+      ]
+    },
+    {
+      "id": "espadachim",
+      "name": "Espadachim errante",
+      "genre": "Aventura",
+      "variants": [
+        "espadachim-1",
+        "espadachim-2",
+        "espadachim-3",
+        "espadachim-4"
+      ]
+    },
+    {
+      "id": "rainha-demonio",
+      "name": "Rainha demônio",
+      "genre": "Fantasia",
+      "variants": [
+        "rainha-demonio-1",
+        "rainha-demonio-2",
+        "rainha-demonio-3",
+        "rainha-demonio-4"
+      ]
+    },
+    {
+      "id": "elfa-arqueira",
+      "name": "Elfa arqueira",
+      "genre": "Fantasia",
+      "variants": [
+        "elfa-arqueira-1",
+        "elfa-arqueira-2",
+        "elfa-arqueira-3"
+      ]
+    },
+    {
+      "id": "hacker-vrmmo",
+      "name": "Hacker de VRMMO",
+      "genre": "LitRPG / VRMMO",
+      "variants": [
+        "hacker-vrmmo-1",
+        "hacker-vrmmo-2"
+      ]
+    },
+    {
+      "id": "sacerdotisa",
+      "name": "Sacerdotisa",
+      "genre": "Fantasia",
+      "variants": [
+        "sacerdotisa-1",
+        "sacerdotisa-2",
+        "sacerdotisa-3"
+      ]
+    },
+    {
+      "id": "cavaleiro-negro",
+      "name": "Cavaleiro negro",
+      "genre": "Fantasia sombria",
+      "variants": [
+        "cavaleiro-negro-1",
+        "cavaleiro-negro-2",
+        "cavaleiro-negro-3",
+        "cavaleiro-negro-4"
+      ]
+    },
+    {
+      "id": "bruxa",
+      "name": "Bruxa",
+      "genre": "Fantasia",
+      "variants": [
+        "bruxa-1",
+        "bruxa-2",
+        "bruxa-3",
+        "bruxa-4"
+      ]
+    },
+    {
+      "id": "samurai",
+      "name": "Samurai",
+      "genre": "Histórico japonês",
+      "variants": [
+        "samurai-1"
+      ]
+    },
+    {
+      "id": "kunoichi",
+      "name": "Kunoichi",
+      "genre": "Ninja",
+      "variants": [
+        "kunoichi-1",
+        "kunoichi-2",
+        "kunoichi-3",
+        "kunoichi-4"
+      ]
+    },
+    {
+      "id": "monge",
+      "name": "Monge",
+      "genre": "Artes marciais",
+      "variants": [
+        "monge-1"
+      ]
+    },
+    {
+      "id": "vampira",
+      "name": "Vampira",
+      "genre": "Horror gótico",
+      "variants": [
+        "vampira-1",
+        "vampira-2",
+        "vampira-3",
+        "vampira-4"
+      ]
+    },
+    {
+      "id": "piloto-estelar",
+      "name": "Piloto estelar",
+      "genre": "Ficção científica",
+      "variants": [
+        "piloto-estelar-1"
+      ]
+    }
+  ],
+  "colors": [
+    "coral",
+    "tangerina",
+    "ambar",
+    "lima",
+    "menta",
+    "turquesa",
+    "celeste",
+    "anil",
+    "lavanda",
+    "orquidea",
+    "rosa",
+    "grafite"
+  ]
+}

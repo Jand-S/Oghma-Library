@@ -1,11 +1,11 @@
-import { avatarColorNames, avatarNames, avatarUrl, isAvatarColor, isAvatarId, isCharacterAvatar } from "../core/avatars";
+import { avatarColorNames, avatarName, avatarUrl, isAvatarColor, isAvatarId, isCharacterAvatar } from "../core/avatars";
 import { cx } from "./cx";
 import "./Avatar.css";
 
 export type AvatarProps = {
-  /** One of the 24 archetypes; without it the nickname's initial is shown. */
+  /** A character or an original variant (`core/avatars`); without it the nickname's initial is shown. */
   avatarId?: string | null;
-  /** Background color id ("coral", "anil"…). */
+  /** Circle color id ("coral", "anil"…) for the originals; characters bring their own background. */
   color?: string | null;
   /** Used for the initial fallback and the accessible name. */
   nickname?: string | null;
@@ -15,9 +15,9 @@ export type AvatarProps = {
   className?: string;
 };
 
-/** Round profile picture: an archetype bust on a solid color, or the initial as a fallback. */
+/** Round profile picture: a character, an original on the chosen color, or the initial as a fallback. */
 export function Avatar({ avatarId, color, nickname, size = "md", label, className }: AvatarProps) {
-  // Characters bring their own background; archetypes sit on the chosen color.
+  // Characters bring their own background; originals (transparent) sit on the chosen color.
   const tone = isCharacterAvatar(avatarId) ? "art" : isAvatarColor(color) ? color : "grafite";
   const id = isAvatarId(avatarId) ? avatarId : null;
   const initial = (nickname?.trim()[0] ?? "?").toUpperCase();
@@ -35,9 +35,9 @@ export function Avatar({ avatarId, color, nickname, size = "md", label, classNam
   );
 }
 
-/** "Mago reencarnado em Anil", for pickers. */
+/** "Cultivador (variante 2) em Anil", or just the character's name. */
 export function avatarDescription(avatarId: string, color: string) {
-  const name = isAvatarId(avatarId) ? avatarNames[avatarId] : avatarId;
+  const name = avatarName(avatarId);
   if (isCharacterAvatar(avatarId)) return name;
   const tone = isAvatarColor(color) ? avatarColorNames[color] : color;
   return `${name} em ${tone}`;

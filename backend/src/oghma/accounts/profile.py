@@ -1,83 +1,18 @@
-"""Regras do perfil: apelido e avatar. As listas de avatares e cores são as mesmas do app
-(`apps/desktop/src/core/avatars.ts`); um teste do app confere as duas.
+"""Regras do perfil: apelido e avatar.
 
-O app oferece os personagens (cada um com fundo próprio); os arquétipos originais continuam
-válidos para perfis que já os usam."""
+Os avatares válidos (personagens e variantes dos originais) e as cores vêm de `avatars.json`,
+gerado junto com o catálogo do app; um teste do app confere os dois."""
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
+from pathlib import Path
 
-CHARACTER_AVATAR_IDS: tuple[str, ...] = (
-    "sung-jinwoo",
-    "emilia",
-    "subaru",
-    "rem",
-    "kirito",
-    "asuna",
-    "ainz",
-    "albedo",
-    "kim-dokja",
-    "holo",
-    "klein-moretti",
-    "megumin",
-    "naofumi",
-    "raphtalia",
-    "ayanokouji",
-    "horikita",
-    "wei-wuxian",
-    "roxy",
-    "shadow",
-    "elaina",
-    "betelgeuse",
-    "violet",
-    "sunny",
-    "mai",
-)
-
-ARCHETYPE_AVATAR_IDS: tuple[str, ...] = (
-    "cultivador",
-    "mestra-seita",
-    "mago-reencarnado",
-    "vila-otome",
-    "regressor",
-    "cacadora",
-    "detetive",
-    "alquimista",
-    "princesa-guerreira",
-    "necromante",
-    "estudante-academia",
-    "espadachim",
-    "rainha-demonio",
-    "ferreiro-anao",
-    "elfa-arqueira",
-    "hacker-vrmmo",
-    "sacerdotisa",
-    "cavaleiro-negro",
-    "bruxa",
-    "samurai",
-    "kunoichi",
-    "monge",
-    "vampira",
-    "piloto-estelar",
-)
-
-AVATAR_IDS: tuple[str, ...] = CHARACTER_AVATAR_IDS + ARCHETYPE_AVATAR_IDS
-
-AVATAR_COLORS: tuple[str, ...] = (
-    "coral",
-    "tangerina",
-    "ambar",
-    "lima",
-    "menta",
-    "turquesa",
-    "celeste",
-    "anil",
-    "lavanda",
-    "orquidea",
-    "rosa",
-    "grafite",
-)
+# Gerado por `apps/desktop/scripts/avatars/build.py` (personagens + variantes dos originais e as cores).
+_AVATARS = json.loads((Path(__file__).parent / "avatars.json").read_text())
+AVATAR_IDS: tuple[str, ...] = tuple(_AVATARS["ids"])
+AVATAR_COLORS: tuple[str, ...] = tuple(_AVATARS["colors"])
 
 NICKNAME_MIN = 3
 NICKNAME_MAX = 20

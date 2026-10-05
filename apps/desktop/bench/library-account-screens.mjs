@@ -202,6 +202,12 @@ async function main() {
       await page.keyboard.type("3456");
       await page.waitForSelector(".profile-editor");
       await shot(page, "18-sheet-profile");
+      await page.getByRole("radio", { name: "Originais" }).click();
+      await page.locator('[data-testid="profile-originals"] button').first().click();
+      await page.locator('.profile-colors__swatch').nth(6).click();
+      await page.locator('.o-modal__body').evaluate((node) => node.scrollTo(0, node.scrollHeight));
+      await shot(page, "18b-sheet-originals");
+      await page.getByRole("radio", { name: "Personagens" }).click();
       await page.fill('[data-testid="profile-nickname"]', "Jandson");
       await sleep(900);
       await shot(page, "19-sheet-nickname-taken");

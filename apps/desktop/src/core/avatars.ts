@@ -1,144 +1,24 @@
+import catalog from "./avatarCatalog.json";
+
 /**
- * Profile avatars. The picker offers the 24 characters (`public/avatars/personagens/`, made by
- * `scripts/avatars/characters.py`), each with its own fixed background. The 24 original archetypes
- * (`public/avatars/`, `scripts/avatars/archetypes.py`, drawn on a chosen color) are kept: profiles
- * that already use one still show it, and they are the set for a public release.
- * Same ids and order as the account API (`backend/src/oghma/accounts/profile.py`); a test keeps them in step.
+ * Profile avatars, from `avatarCatalog.json` (written by `scripts/avatars/build.py` from the ComfyUI
+ * renders). Two sets:
+ * - **characters**: novel protagonists and antagonists, each with its own background
+ *   (`public/avatars/personagens/<id>.webp`). Fan art for personal use.
+ * - **originals**: the Oghma's own archetypes, each with 1–4 variants on a transparent background
+ *   (`public/avatars/originais/<arq>-<n>.webp`), drawn on the circle color the reader picks.
+ * The account API accepts the same ids (`backend/src/oghma/accounts/avatars.json`).
  */
-export const characterAvatarIds = [
-  "sung-jinwoo",
-  "emilia",
-  "subaru",
-  "rem",
-  "kirito",
-  "asuna",
-  "ainz",
-  "albedo",
-  "kim-dokja",
-  "holo",
-  "klein-moretti",
-  "megumin",
-  "naofumi",
-  "raphtalia",
-  "ayanokouji",
-  "horikita",
-  "wei-wuxian",
-  "roxy",
-  "shadow",
-  "elaina",
-  "betelgeuse",
-  "violet",
-  "sunny",
-  "mai"
-] as const;
+export type CharacterAvatar = { id: string; name: string };
+export type OriginalAvatar = { id: string; name: string; genre: string; variants: string[] };
 
-export type CharacterAvatarId = (typeof characterAvatarIds)[number];
+export const characterAvatars: CharacterAvatar[] = catalog.characters;
+export const originalAvatars: OriginalAvatar[] = catalog.originals;
 
-export const characterNames: Record<CharacterAvatarId, string> = {
-  "sung-jinwoo": "Sung Jinwoo",
-  emilia: "Emilia",
-  subaru: "Natsuki Subaru",
-  rem: "Rem",
-  kirito: "Kirito",
-  asuna: "Asuna",
-  ainz: "Ainz Ooal Gown",
-  albedo: "Albedo",
-  "kim-dokja": "Kim Dokja",
-  holo: "Holo",
-  "klein-moretti": "Klein Moretti",
-  megumin: "Megumin",
-  naofumi: "Naofumi Iwatani",
-  raphtalia: "Raphtalia",
-  ayanokouji: "Kiyotaka Ayanokouji",
-  horikita: "Suzune Horikita",
-  "wei-wuxian": "Wei Wuxian",
-  roxy: "Roxy Migurdia",
-  shadow: "Shadow",
-  elaina: "Elaina",
-  betelgeuse: "Betelgeuse",
-  violet: "Violet Evergarden",
-  sunny: "Sunless",
-  mai: "Mai Sakurajima"
-};
+export const avatarColors = catalog.colors as readonly string[];
+export type AvatarColor = string;
 
-export const archetypeAvatarIds = [
-  "cultivador",
-  "mestra-seita",
-  "mago-reencarnado",
-  "vila-otome",
-  "regressor",
-  "cacadora",
-  "detetive",
-  "alquimista",
-  "princesa-guerreira",
-  "necromante",
-  "estudante-academia",
-  "espadachim",
-  "rainha-demonio",
-  "ferreiro-anao",
-  "elfa-arqueira",
-  "hacker-vrmmo",
-  "sacerdotisa",
-  "cavaleiro-negro",
-  "bruxa",
-  "samurai",
-  "kunoichi",
-  "monge",
-  "vampira",
-  "piloto-estelar"
-] as const;
-
-export type ArchetypeAvatarId = (typeof archetypeAvatarIds)[number];
-export type AvatarId = CharacterAvatarId | ArchetypeAvatarId;
-
-/** What the profile picker offers. */
-export const avatarIds = characterAvatarIds;
-
-export const avatarColors = [
-  "coral",
-  "tangerina",
-  "ambar",
-  "lima",
-  "menta",
-  "turquesa",
-  "celeste",
-  "anil",
-  "lavanda",
-  "orquidea",
-  "rosa",
-  "grafite"
-] as const;
-
-export type AvatarColor = (typeof avatarColors)[number];
-
-const archetypeNames: Record<ArchetypeAvatarId, string> = {
-  cultivador: "Cultivador",
-  "mestra-seita": "Mestra de seita",
-  "mago-reencarnado": "Mago reencarnado",
-  "vila-otome": "Vilã de otome",
-  regressor: "Regressor",
-  cacadora: "Caçadora de masmorras",
-  detetive: "Detetive",
-  alquimista: "Alquimista",
-  "princesa-guerreira": "Princesa guerreira",
-  necromante: "Necromante",
-  "estudante-academia": "Estudante da academia",
-  espadachim: "Espadachim errante",
-  "rainha-demonio": "Rainha demônio",
-  "ferreiro-anao": "Ferreiro anão",
-  "elfa-arqueira": "Elfa arqueira",
-  "hacker-vrmmo": "Hacker de VRMMO",
-  sacerdotisa: "Sacerdotisa",
-  "cavaleiro-negro": "Cavaleiro negro",
-  bruxa: "Bruxa",
-  samurai: "Samurai",
-  kunoichi: "Kunoichi",
-  monge: "Monge",
-  vampira: "Vampira",
-  "piloto-estelar": "Piloto estelar"
-};
-
-export const avatarColorNames: Record<AvatarColor, string> = {
+export const avatarColorNames: Record<string, string> = {
   coral: "Coral",
   tangerina: "Tangerina",
   ambar: "Âmbar",
@@ -153,25 +33,48 @@ export const avatarColorNames: Record<AvatarColor, string> = {
   grafite: "Grafite"
 };
 
-export const avatarNames: Record<AvatarId, string> = { ...archetypeNames, ...characterNames };
+const characterIds = new Set(characterAvatars.map((avatar) => avatar.id));
+/** Variant id ("cultivador-2") → its archetype. */
+const originalOf = new Map(originalAvatars.flatMap((arq) => arq.variants.map((variant) => [variant, arq] as const)));
 
-export function isCharacterAvatar(value: unknown): value is CharacterAvatarId {
-  return typeof value === "string" && (characterAvatarIds as readonly string[]).includes(value);
+export function isCharacterAvatar(value: unknown): value is string {
+  return typeof value === "string" && characterIds.has(value);
 }
 
-export function isAvatarId(value: unknown): value is AvatarId {
-  return isCharacterAvatar(value) || (typeof value === "string" && (archetypeAvatarIds as readonly string[]).includes(value));
+export function isOriginalAvatar(value: unknown): value is string {
+  return typeof value === "string" && originalOf.has(value);
 }
 
-export function isAvatarColor(value: unknown): value is AvatarColor {
-  return typeof value === "string" && (avatarColors as readonly string[]).includes(value);
+export function isAvatarId(value: unknown): value is string {
+  return isCharacterAvatar(value) || isOriginalAvatar(value);
 }
 
-/** A random character: a new profile starts with one already picked. */
-export function randomAvatar(random: () => number = Math.random): CharacterAvatarId {
-  return characterAvatarIds[Math.floor(random() * characterAvatarIds.length)];
+export function isAvatarColor(value: unknown): value is string {
+  return typeof value === "string" && avatarColors.includes(value);
 }
 
-export function avatarUrl(id: AvatarId) {
-  return isCharacterAvatar(id) ? `/avatars/personagens/${id}.svg` : `/avatars/${id}.svg`;
+/** The archetype of a variant id ("cultivador-2" → Cultivador). */
+export function originalOfVariant(id: string): OriginalAvatar | undefined {
+  return originalOf.get(id);
+}
+
+/** "Megumin", or "Cultivador (variante 2)". */
+export function avatarName(id: string): string {
+  const character = characterAvatars.find((avatar) => avatar.id === id);
+  if (character) return character.name;
+  const arq = originalOf.get(id);
+  if (!arq) return id;
+  return arq.variants.length > 1 ? `${arq.name} (variante ${arq.variants.indexOf(id) + 1})` : arq.name;
+}
+
+export function avatarUrl(id: string) {
+  return isCharacterAvatar(id) ? `/avatars/personagens/${id}.webp` : `/avatars/originais/${id}.webp`;
+}
+
+/** A random avatar for a new profile: any character, or any original variant on any color. */
+export function randomAvatar(random: () => number = Math.random): { avatarId: string; avatarColor: string | null } {
+  const pick = <T,>(list: readonly T[]) => list[Math.floor(random() * list.length)];
+  const variants = originalAvatars.flatMap((arq) => arq.variants);
+  const id = pick([...characterAvatars.map((avatar) => avatar.id), ...variants]);
+  return { avatarId: id, avatarColor: isOriginalAvatar(id) ? pick(avatarColors) : null };
 }
