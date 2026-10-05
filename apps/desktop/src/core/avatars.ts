@@ -71,10 +71,16 @@ export function avatarUrl(id: string) {
   return isCharacterAvatar(id) ? `/avatars/personagens/${id}.webp` : `/avatars/originais/${id}.webp`;
 }
 
-/** A random avatar for a new profile: any character, or any original variant on any color. */
+/**
+ * Whether the profile picker offers the originals. Off for now: the picker shows only the characters;
+ * the images, the catalog and the server ids stay, so turning this on brings the tab back.
+ */
+export const ORIGINALS_IN_PICKER = false;
+
+/** A random avatar for a new profile: any character (or, when offered, any original variant on any color). */
 export function randomAvatar(random: () => number = Math.random): { avatarId: string; avatarColor: string | null } {
   const pick = <T,>(list: readonly T[]) => list[Math.floor(random() * list.length)];
-  const variants = originalAvatars.flatMap((arq) => arq.variants);
+  const variants = ORIGINALS_IN_PICKER ? originalAvatars.flatMap((arq) => arq.variants) : [];
   const id = pick([...characterAvatars.map((avatar) => avatar.id), ...variants]);
   return { avatarId: id, avatarColor: isOriginalAvatar(id) ? pick(avatarColors) : null };
 }

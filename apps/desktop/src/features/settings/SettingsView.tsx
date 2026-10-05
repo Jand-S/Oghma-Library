@@ -1,8 +1,8 @@
 import {
   Download,
+  Globe2,
   Languages,
   Info,
-  Server,
   SlidersHorizontal,
   Tablet,
   UserRound,
@@ -37,7 +37,7 @@ const categoryIcons: Record<SettingsCategory, LucideIcon> = {
   general: SlidersHorizontal,
   account: UserRound,
   downloads: Download,
-  server: Server,
+  server: Globe2,
   kindle: Tablet,
   audio: Languages,
   about: Info
@@ -58,6 +58,8 @@ export type SettingsViewProps = {
   /** Full device status (cable transport, Send to Kindle installed). */
   kindleStatus?: KindleDeviceStatus | null;
   onNavigate: (view: AppView) => void;
+  /** "Fontes": the sources table (with its toolbar), above the server and sync settings. */
+  sourcesPanel?: ReactNode;
   /** ChatGPT account (Ajustes > Conta). */
   account: AccountController;
   /** Conta Oghma (Ajustes > Conta, above the ChatGPT account). */
@@ -137,6 +139,8 @@ export function SettingsView(props: SettingsViewProps) {
       break;
     case "server":
       body = (
+        <>
+        {props.sourcesPanel}
         <ServerSection
           config={props.config}
           save={save}
@@ -146,8 +150,8 @@ export function SettingsView(props: SettingsViewProps) {
           onSyncSources={props.onSyncSources}
           serverCheck={props.serverCheck}
           onVerifyServer={props.onVerifyServer}
-          onNavigate={props.onNavigate}
         />
+        </>
       );
       break;
     case "kindle":

@@ -22,6 +22,7 @@ import { pageTitleStrings } from "../strings/common";
 import { translationHeader } from "../features/translation/TranslationHeader";
 import { isSettingsCategory } from "../features/settings/categories";
 import { sourcesHeader } from "../features/sources/SourcesHeader";
+import { SourcesPanel } from "../features/sources/SourcesPanel";
 import { useNavigation, type AppView, type NavParams } from "./NavigationContext";
 
 // Secondary views are split into their own chunks and prefetched after boot (see preloadViews).
@@ -131,7 +132,7 @@ function DiscoverPage({ app }: ViewProps) {
     onSelectionChange: discover.updateSelection,
     onAddSelected: discover.addSelectedToQueue,
     onRetrySearch: discover.retrySearch,
-    onOpenSources: () => app.navigate("sources"),
+    onOpenSources: () => app.navigate("settings", { section: "server" }),
     onOpenSettings: () => app.navigate("settings"),
     shelf: {
       find: (novel: Novel) => app.library.findByNovel(novel),
@@ -247,7 +248,13 @@ function SettingsPage({ app }: ViewProps) {
     oghmaAccount: app.oghmaAccount,
     onOpenAccountSheet: app.openAccountSheet,
     onRetryAccount: () => void app.translation.refreshAccount(),
-    initialCategory: isSettingsCategory(params.section) ? params.section : undefined
+    initialCategory: isSettingsCategory(params.section) ? params.section : undefined,
+    sourcesPanel: h(SourcesPanel, {
+      controller: sources,
+      novels: app.discover.results,
+      loading: app.loading,
+      onOpenSettings: () => undefined
+    })
   });
 }
 

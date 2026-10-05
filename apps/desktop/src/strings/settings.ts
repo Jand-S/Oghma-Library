@@ -9,7 +9,7 @@ export const settingsStrings = {
     general: "Geral",
     account: "Conta",
     downloads: "Downloads",
-    server: "Fontes e servidor",
+    server: "Fontes",
     kindle: "Kindle e iCloud",
     audio: "Tradução",
     about: "Sobre"
@@ -18,7 +18,7 @@ export const settingsStrings = {
     general: "Idioma, tela inicial e aparência do app.",
     account: "A conta Oghma leva sua biblioteca a qualquer computador. A do ChatGPT é usada na tradução e nas sugestões da busca.",
     downloads: "Onde os livros são salvos e como cada download começa.",
-    server: "Servidor de índices, modo de indexação e sincronização das fontes.",
+    server: "Os sites de onde vêm as novels, o servidor de índices e a sincronização.",
     kindle: "Envio para o Kindle por cabo ou Wi-Fi, e cópia dos livros para o iCloud Drive.",
     audio: "Modelo, esforço e paralelismo da tradução.",
     about: "Versão, links e configuração inicial."

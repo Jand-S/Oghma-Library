@@ -9,6 +9,12 @@ import { SourcesView } from "../../features/sources/SourcesView";
 import { sourcesStrings } from "../../strings/sources";
 import { renderReadyApp, resetAppState, setupUser } from "../renderApp";
 
+/** "Fontes" lives in Ajustes (category "Fontes"). */
+async function openSources(user: ReturnType<typeof setupUser>) {
+  await user.click(screen.getByTestId("nav-settings"));
+  await user.click(await screen.findByTestId("settings-tab-server"));
+}
+
 describe("Sources", () => {
   beforeEach(resetAppState);
   afterEach(() => vi.restoreAllMocks());
@@ -16,7 +22,7 @@ describe("Sources", () => {
   it("lists the sources in one table with icon, domain, count and a switch", async () => {
     const user = setupUser();
     await renderReadyApp();
-    await user.click(screen.getByTestId("nav-sources"));
+    await openSources(user);
 
     const rows = await screen.findAllByTestId("source-row");
     expect(rows).toHaveLength(3);
@@ -44,7 +50,7 @@ describe("Sources", () => {
   it("enables a source with its switch and saves it", async () => {
     const user = setupUser();
     await renderReadyApp();
-    await user.click(screen.getByTestId("nav-sources"));
+    await openSources(user);
 
     const local = (await screen.findAllByTestId("source-row"))[2];
     await user.click(within(local).getByRole("switch"));
@@ -57,7 +63,7 @@ describe("Sources", () => {
   it("syncs a single source", async () => {
     const user = setupUser();
     await renderReadyApp();
-    await user.click(screen.getByTestId("nav-sources"));
+    await openSources(user);
 
     const central = (await screen.findAllByTestId("source-row"))[0];
     await user.click(within(central).getByRole("button", { name: sourcesStrings.syncSource("Central Novel") }));
@@ -69,7 +75,7 @@ describe("Sources", () => {
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     const user = setupUser();
     await renderReadyApp();
-    await user.click(screen.getByTestId("nav-sources"));
+    await openSources(user);
 
     const central = (await screen.findAllByTestId("source-row"))[0];
     await user.click(within(central).getByRole("button", { name: sourcesStrings.openSiteOf("Central Novel") }));

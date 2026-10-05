@@ -1,4 +1,4 @@
-import { ArrowRight, Globe2, RefreshCcw } from "lucide-react";
+import { Globe2, RefreshCcw } from "lucide-react";
 import { useId } from "react";
 import type { AppConfig, IndexMode, SourceSite } from "../../core/types";
 import { onboardingStrings } from "../../strings/onboarding";
@@ -7,7 +7,7 @@ import { Button, TextField } from "../../ui";
 import { formatSyncTime } from "../sources/lastSync";
 import type { ServerCheck } from "../sources/useSourcesController";
 import { serverStateFor, ServerStatusBadge } from "./ServerStatusBadge";
-import { SettingsGroup, SettingsRow, useDraft, validateServerUrl, type Save, type Navigate } from "./settingsLayout";
+import { SettingsGroup, SettingsRow, useDraft, validateServerUrl, type Save } from "./settingsLayout";
 
 export function ServerSection({
   config,
@@ -17,8 +17,7 @@ export function ServerSection({
   lastSyncedAt,
   onSyncSources,
   serverCheck,
-  onVerifyServer,
-  onNavigate
+  onVerifyServer
 }: {
   config: AppConfig;
   save: Save;
@@ -28,7 +27,6 @@ export function ServerSection({
   onSyncSources: () => Promise<boolean>;
   serverCheck: ServerCheck;
   onVerifyServer: (serverUrl: string, indexMode: IndexMode) => void;
-  onNavigate: Navigate;
 }) {
   const urlId = useId();
   const server = useDraft(config.serverUrl, validateServerUrl, (serverUrl) => save({ serverUrl }));
@@ -94,11 +92,6 @@ export function ServerSection({
             </Button>
           </div>
         </SettingsRow>
-        <div className="settings-row settings-row--link">
-          <Button variant="ghost" size="sm" iconRight={<ArrowRight />} onClick={() => onNavigate("sources")}>
-            {settingsStrings.manageSources}
-          </Button>
-        </div>
       </SettingsGroup>
     </>
   );

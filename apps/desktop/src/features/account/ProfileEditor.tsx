@@ -10,6 +10,7 @@ import {
   isOriginalAvatar,
   originalAvatars,
   originalOfVariant,
+  ORIGINALS_IN_PICKER,
   randomAvatar
 } from "../../core/avatars";
 import { oghmaAccountStrings as s } from "../../strings/oghmaAccount";
@@ -154,6 +155,7 @@ export function ProfileEditor({ initial, checkNickname, onChange, saveError }: P
 
       <section className="profile-picker" aria-label={s.avatarLabel}>
         <div className="profile-picker__head">
+          {ORIGINALS_IN_PICKER ? (
           <SegmentedControl<PickerTab>
             aria-label={s.avatarLabel}
             size="sm"
@@ -164,10 +166,11 @@ export function ProfileEditor({ initial, checkNickname, onChange, saveError }: P
               { value: "originals", label: s.tabOriginals }
             ]}
           />
+          ) : <span className="profile-picker__title">{s.avatarLabel}</span>}
           <Button size="sm" variant="ghost" icon={<Shuffle />} onClick={shuffle} data-testid="profile-shuffle">{s.shuffle}</Button>
         </div>
 
-        {tab === "characters" ? (
+        {tab === "characters" || !ORIGINALS_IN_PICKER ? (
           <div className="profile-avatars" role="radiogroup" aria-label={s.tabCharacters} data-testid="profile-characters">
             {characterAvatars.map((avatar) => (
               <button

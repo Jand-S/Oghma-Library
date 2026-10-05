@@ -26,17 +26,23 @@ const NavigationContext = createContext<NavigationValue | null>(null);
 
 const MAX_HISTORY = 30;
 
+/** "Fontes" lives in Ajustes now: old links (and a saved start page) open that category. */
+function resolve(view: AppView, params: NavParams): NavEntry {
+  if (view === "sources") return { view: "settings", params: { section: "server", ...params } };
+  return { view, params };
+}
+
 type NavState = { current: NavEntry; history: NavEntry[] };
 
 export function NavigationProvider({ initialView = "discover", children }: { initialView?: AppView; children: ReactNode }) {
-  const [state, setState] = useState<NavState>({ current: { view: initialView, params: {} }, history: [] });
+  const [state, setState] = useState<NavState>({ current: resolve(initialView, {}), history: [] });
 
   const navigate = useCallback((view: AppView, params: NavParams = {}, options: NavigateOptions = {}) => {
     setState(({ current, history }) => {
-      const next = { view, params };
+      const next = resolve(view, params);
       if (options.root) return { current: next, history: [] };
       if (options.replace) return { current: next, history };
-      const same = current.view === view && JSON.stringify(current.params) === JSON.stringify(params);
+      const same = current.view === next.view && JSON.stringify(current.params) === JSON.stringify(next.params);
       if (same) return { current, history };
       return { current: next, history: [...history, current].slice(-MAX_HISTORY) };
     });

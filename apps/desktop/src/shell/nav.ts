@@ -1,4 +1,4 @@
-import { BookOpenText, Download, Globe2, House, Languages, Search, Settings, Tablet } from "lucide-react";
+import { BookOpenText, Download, House, Languages, Search, Settings, Tablet } from "lucide-react";
 import type { AppView } from "../app/NavigationContext";
 import { navGroupStrings, navStrings } from "../strings/common";
 
@@ -21,7 +21,8 @@ export type NavGroup = {
 export const navGroups: NavGroup[] = [
   { id: "discover", items: [item("home", House), item("discover", Search)] },
   { id: "library", label: navGroupStrings.library, items: [item("library", BookOpenText), item("downloads", Download), item("kindle", Tablet)] },
-  { id: "tools", label: navGroupStrings.tools, items: [item("translation", Languages), item("sources", Globe2)] }
+  // "Fontes" moved into Ajustes (category "Fontes").
+  { id: "tools", label: navGroupStrings.tools, items: [item("translation", Languages)] }
 ];
 
 /** Every sidebar entry in display order (without settings). */

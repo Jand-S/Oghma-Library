@@ -43,7 +43,7 @@ describe("App shell", () => {
     const user = setupUser();
     await renderReadyApp();
 
-    for (const id of ["discover", "downloads", "library", "kindle", "translation", "sources", "settings"]) {
+    for (const id of ["discover", "downloads", "library", "kindle", "translation", "settings"]) {
       expect(screen.getByTestId(`nav-${id}`)).toBeInTheDocument();
     }
     expect(screen.getByTestId("nav-discover")).toHaveAttribute("aria-current", "page");
