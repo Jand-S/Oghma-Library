@@ -359,11 +359,12 @@
   }
 
   /* ---------- Note ---------- */
+  /* Inside the group's card: the same gap above, below and on the sides. */
   .settings-note {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    margin-top: var(--space-1);
+    margin: var(--space-2) 0;
     padding: var(--space-2);
     border: 1px solid var(--accent-line);
     border-radius: var(--radius-md);
@@ -376,6 +377,11 @@
     flex-direction: column;
     gap: calc(var(--space-0-5) / 2);
     min-width: 0;
+  }
+
+  /* The action keeps its whole label ("Abrir Downloads" was cut). */
+  .settings-note > .o-button {
+    flex: none;
   }
 
   .settings-note__text strong {
