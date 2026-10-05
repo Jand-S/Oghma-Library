@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LibraryItem, LibraryMeta, Novel } from "../core/types";
 import type { LocalLibraryEntry } from "../services/localFiles";
-import { buildLibraryItems, enrichLibraryItems, shelfAdditions } from "../app/useLocalLibrary";
+import { aliasMerges, buildLibraryItems, enrichLibraryItems, shelfAdditions } from "../app/useLocalLibrary";
 import { filterLibrary, formatsOf, statusCounts } from "../features/library/libraryModel";
 import { homeSeeds, seedWeight } from "../features/home/HomeView";
 import { buildCatalogIndex, similarNovels } from "../services/catalogIndex";
@@ -82,6 +82,48 @@ describe("shelf (books without files)", () => {
     const added = shelfAdditions(disk, rows, catalog, 999);
     expect(added.map((row) => row.key)).toEqual(["novel:cn:1", "novel:cn:6"]);
     expect(added[0]).toMatchObject({ onShelf: true, addedAt: 100, snapshot: { novelId: "cn:1", title: "Shadow Slave", coverUrl: "https://c/1.jpg" } });
+  });
+});
+
+describe("a novel the site moved (old and current id)", () => {
+  const catalog = [novel({ id: "cn:lom-2026", title: "Lord of Mysteries", aliases: ["cn:lom-2024"] })];
+  const oldRow = meta({ key: "novel:cn:lom-2024", onShelf: true, favorite: true, addedAt: 5, changedAt: 100 });
+  const newRow = meta({ key: "novel:cn:lom-2026", onShelf: true, favorite: false, addedAt: 50, changedAt: 200 });
+
+  it("shows one shelf book even with rows under both ids", () => {
+    const items = buildLibraryItems([], [oldRow, newRow], catalog);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ novelId: "cn:lom-2026", title: "Lord of Mysteries" });
+  });
+
+  it("keys a download made before the move by the current id", () => {
+    const disk = [entry({ title: "Lord of Mysteries", outputDir: "/out/LoM", novelId: "cn:lom-2024" })];
+    const items = buildLibraryItems(disk, [newRow], catalog);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ availability: "local", novelId: "cn:lom-2026" });
+    expect(shelfAdditions(disk, [newRow], catalog)).toEqual([]);
+    expect(shelfAdditions(disk, [], catalog).map((row) => row.key)).toEqual(["novel:cn:lom-2026"]);
+  });
+
+  it("joins the rows under the current id: newest change wins, first addedAt stays, old key removed", () => {
+    expect(aliasMerges([oldRow, newRow], catalog)).toEqual({ save: [], remove: ["novel:cn:lom-2024"] });
+
+    const newerOld = { ...oldRow, changedAt: 300, rating: 4 };
+    const { save, remove } = aliasMerges([newerOld, newRow], catalog);
+    expect(remove).toEqual(["novel:cn:lom-2024"]);
+    expect(save).toEqual([expect.objectContaining({ key: "novel:cn:lom-2026", favorite: true, rating: 4, addedAt: 5, deletedAt: null })]);
+
+    expect(aliasMerges([oldRow], catalog).save[0]).toMatchObject({ key: "novel:cn:lom-2026", favorite: true });
+  });
+
+  it("keeps a removal when it was the last thing done, and leaves settled rows alone", () => {
+    const removedOld = { ...oldRow, onShelf: false, deletedAt: 400 };
+    expect(aliasMerges([removedOld, newRow], catalog)).toEqual({ save: [], remove: [] });
+    const removedCurrent = { ...newRow, onShelf: false, deletedAt: 250 };
+    expect(aliasMerges([{ ...oldRow, changedAt: 400 }, removedCurrent], catalog).save).toEqual([
+      expect.objectContaining({ key: "novel:cn:lom-2026", onShelf: true, deletedAt: null })
+    ]);
+    expect(aliasMerges([newRow], catalog)).toEqual({ save: [], remove: [] });
   });
 });
 

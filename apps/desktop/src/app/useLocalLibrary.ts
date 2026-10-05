@@ -3,6 +3,7 @@ import type { AppConfig, BookSnapshot, DownloadFormat, LibraryItem, LibraryMeta,
 import { downloadFormats } from "../core/types";
 import { sanitizeFileName } from "../services/downloadManager";
 import {
+  deleteLibraryMetadata,
   listLibraryMetadata,
   listLocalLibrary,
   novelMetaKey,
@@ -67,10 +68,18 @@ export function newChaptersFor(entry: LocalLibraryEntry, known: Novel | undefine
   return Math.max(0, known.chapters - entry.chapterCount);
 }
 
+/**
+ * The id a book of the catalog is known by: the catalog's current one, also for a download made
+ * before the site moved the novel (its manifest keeps the old id). Translations keep their own.
+ */
+export function canonicalNovelId(entry: LocalLibraryEntry, known: Novel | undefined): string | undefined {
+  return entry.language ? entry.novelId ?? known?.id : known?.id ?? entry.novelId;
+}
+
 function catalogFields(entry: LocalLibraryEntry, known: Novel | undefined) {
   return {
     newChapters: newChaptersFor(entry, known),
-    novelId: entry.novelId ?? known?.id,
+    novelId: canonicalNovelId(entry, known),
     author: known?.author ?? "",
     coverClass: known?.coverClass ?? "cover-c",
     bundleKey: known?.bundleKey,
@@ -85,10 +94,14 @@ function formatsOf(files: string[]): DownloadFormat[] {
     .filter((format): format is DownloadFormat => downloadFormats.includes(format as DownloadFormat));
 }
 
-/** Metadata row for an entry: the `novel:<id>` key wins over the legacy folder-path key. */
-export function metaForEntry(entry: LocalLibraryEntry, metaByKey: Map<string, LibraryMeta>): LibraryMeta {
+/**
+ * Metadata row for an entry: the `novel:<id>` key (the catalog's current id first, then the one in
+ * the manifest) wins over the legacy folder-path key.
+ */
+export function metaForEntry(entry: LocalLibraryEntry, metaByKey: Map<string, LibraryMeta>, novelId?: string): LibraryMeta {
   const live = (meta: LibraryMeta | undefined) => (meta && !meta.deletedAt ? meta : undefined);
-  return live(entry.novelId ? metaByKey.get(novelMetaKey(entry.novelId)) : undefined)
+  return live(novelId ? metaByKey.get(novelMetaKey(novelId)) : undefined)
+    ?? live(entry.novelId ? metaByKey.get(novelMetaKey(entry.novelId)) : undefined)
     ?? live(metaByKey.get(entry.outputDir))
     ?? { key: entry.outputDir, favorite: false, readingStatus: "unread", tags: [], hidden: false };
 }
@@ -174,7 +187,7 @@ export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: Librar
     const fields = catalogFields(entry, known);
     const removal = removalOf(entry, fields.novelId, metaByKey);
     // A removed book keeps what the reader marked (the tombstone has it) and is hidden here.
-    const meta = removal ? { ...removal, hidden: true } : metaForEntry(entry, metaByKey);
+    const meta = removal ? { ...removal, hidden: true } : metaForEntry(entry, metaByKey, fields.novelId);
     if (entry.novelId) onDisk.add(entry.novelId);
     if (fields.novelId) onDisk.add(fields.novelId);
     if (known) onDisk.add(known.id);
@@ -207,6 +220,8 @@ export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: Librar
     if (!novelId || !meta.onShelf || meta.deletedAt || onDisk.has(novelId)) continue;
     const known = catalogNovelById(catalog, novelId);
     if (known && onDisk.has(known.id)) continue;
+    // Rows under an old and the current id of a moved novel are one book (`aliasMerges` joins them).
+    onDisk.add(known?.id ?? novelId);
     shelf.push(shelfItem(meta, novelId, known));
   }
   return [...local, ...shelf];
@@ -223,7 +238,7 @@ export function shelfAdditions(entries: LocalLibraryEntry[], metaRows: LibraryMe
   for (const entry of entries) {
     if (entry.language) continue; // translations are this computer's own books
     const known = findCatalogNovel(entry, catalog);
-    const novelId = entry.novelId ?? known?.id;
+    const novelId = canonicalNovelId(entry, known);
     if (!novelId) continue;
     const key = novelMetaKey(novelId);
     const row = metaByKey.get(key);
@@ -245,6 +260,54 @@ export function shelfAdditions(entries: LocalLibraryEntry[], metaRows: LibraryMe
     });
   }
   return out;
+}
+
+/** When a row last changed, a removal included. */
+function stampOf(row: LibraryMeta): number {
+  return Math.max(row.changedAt ?? 0, row.deletedAt ?? 0);
+}
+
+/**
+ * A novel the site moved has rows under its old id (downloads made before the move) and its
+ * current one (marked from the catalog), so it would show twice. Joins them under the current
+ * id: the most recent change wins, the earliest `addedAt` stays, and the old keys become
+ * tombstones (synced, so other computers converge too).
+ */
+export function aliasMerges(rows: LibraryMeta[], catalog: Novel[]): { save: LibraryMeta[]; remove: string[] } {
+  const groups = new Map<string, LibraryMeta[]>();
+  for (const row of rows) {
+    const id = novelIdOfKey(row.key);
+    const known = id ? catalogNovelById(catalog, id) : undefined;
+    if (!known) continue;
+    groups.set(known.id, [...(groups.get(known.id) ?? []), row]);
+  }
+  const save: LibraryMeta[] = [];
+  const remove: string[] = [];
+  for (const [id, group] of groups) {
+    const key = novelMetaKey(id);
+    const liveAliases = group.filter((row) => row.key !== key && !row.deletedAt);
+    if (liveAliases.length === 0) continue;
+    const newest = group.reduce((best, row) => (stampOf(row) > stampOf(best) ? row : best));
+    remove.push(...liveAliases.map((row) => row.key));
+    const current = group.find((row) => row.key === key);
+    if (newest.deletedAt) {
+      // The last thing done to the book was removing it.
+      if (current && !current.deletedAt) remove.push(key);
+      continue;
+    }
+    if (newest === current) continue;
+    const added = group.map((row) => row.addedAt).filter((at): at is number => typeof at === "number");
+    const snapshot = newest.snapshot ?? group.find((row) => row.snapshot)?.snapshot;
+    save.push({
+      ...newest,
+      key,
+      deletedAt: null,
+      changedAt: null,
+      addedAt: added.length ? Math.min(...added) : newest.addedAt,
+      snapshot: snapshot ? { ...snapshot, novelId: id } : snapshot
+    });
+  }
+  return { save, remove };
 }
 
 /** Re-applies catalog enrichment to already-listed items without touching metadata fields. */
@@ -321,11 +384,23 @@ export function useLocalLibrary({ appConfig, loading, results, setLibrary, onMet
         if (!entries || seq !== requestSeq.current) return;
         entriesRef.current = entries;
         const catalog = resultsRef.current;
-        const additions = catalog.length ? shelfAdditions(entries, metaRows, catalog) : [];
-        const rows = additions.length ? mergeRows(metaRows, additions) : metaRows;
+        const merges = catalog.length ? aliasMerges(metaRows, catalog) : { save: [], remove: [] };
+        const now = Date.now();
+        const removed = new Set(merges.remove);
+        let rows = mergeRows(metaRows, merges.save)
+          .map((row) => (removed.has(row.key) ? { ...row, onShelf: false, hidden: false, deletedAt: now, changedAt: now } : row));
+        const additions = catalog.length ? shelfAdditions(entries, rows, catalog) : [];
+        if (additions.length) rows = mergeRows(rows, additions);
         metaRowsRef.current = rows;
         setLibrary(buildLibraryItems(entries, rows, catalog));
-        if (additions.length) void saveLibraryMetaRows(additions).then(() => onMetaChanged?.()).catch(() => undefined);
+        const toSave = mergeRows(merges.save, additions);
+        if (toSave.length || removed.size) {
+          void (async () => {
+            if (toSave.length) await saveLibraryMetaRows(toSave);
+            for (const key of removed) await deleteLibraryMetadata(key);
+            onMetaChanged?.();
+          })().catch(() => undefined);
+        }
       })
       .catch(() => undefined);
   }, [outputPath, setLibrary]);
