@@ -1,162 +1,199 @@
-# Renders dos avatares (Animagine XL 4.0)
+# Avatares do Oghma (estilo minimalista)
 
-Avatares dos 24 personagens gerados no ComfyUI do PC Windows (DESKTOP-2MAHMQM). Fan art, uso pessoal, só SFW.
-Cada personagem tem 4 variações (`<id>-1.webp` … `<id>-4.webp`, 512 px); `folha.png` mostra todas.
+22 avatares de personagens de light/web novels: formas de cor sólida, sem contorno e sem rosto, fundo liso. Fan art para uso pessoal, só SFW. Gerados no ComfyUI do PC Windows (DESKTOP-2MAHMQM).
 
-## Parâmetros
+- `<id>.webp`: 512 px, quadrado, pronto para recorte em círculo (rosto centralizado, mesmo tamanho em todos).
+- `folha.png`: todos lado a lado, já em círculo.
+- Saíram do conjunto: `ainz`, `shadow` (não ficaram bons) e `sunny` (o modelo não conhece; trocado por `kurumi`).
 
-- Modelo: `cagliostrolab/animagine-xl-4.0`, arquivo `animagine-xl-4.0-opt.safetensors`
-- 1024×1024, euler_ancestral (normal), 28 passos, CFG 5.0
-- Seeds (iguais para todos): #1 = 1101, #2 = 2202, #3 = 3303, #4 = 4404
+## Como foram feitos
+
+- Modelo: `cagliostrolab/animagine-xl-4.0` (`animagine-xl-4.0-opt.safetensors`), 1024×1024, euler_ancestral, 28 passos, CFG 5.
+- LoRA de estilo: Minimalist / Vector Art (Civitai 91880, `Minimalist-IL-v1-08.safetensors`), peso 0,8, gatilho `ChopioM1nimalist`.
+- Pose fixa de busto com ControlNet OpenPose SDXL (xinsir), força 1,0 até 90% da geração, nos marcados abaixo.
+- Enquadramento padronizado depois da geração: o rosto (mancha lisa cor de pele) é medido e a imagem é reescalada para o rosto ocupar 24% da largura com o centro a 46% da altura.
+- Gerador: `C:\Users\Jandson\Projects\oghma-avatares-gen` (`gerar.py`, `normaliza.py`, `exportar.py`).
 
 ## Negativo
 
 ```text
-lowres, bad anatomy, bad hands, extra digits, fewer digits, missing fingers, text, error, watermark, signature, username, logo, frame, border, multiple views, (close-up:1.4), (head out of frame:1.4), (cropped head:1.3), (hat out of frame:1.2), nsfw, nude, cleavage, blurry, jpeg artifacts, cropped, worst quality, low quality, low score, bad score, average score
+(lineart:1.4), (outline:1.3), (eyes:1.3), mouth, nose, (shading:1.3), gradient, (detailed:1.3), texture, highlights, cel shading, sketch, text, watermark, signature, logo, frame, border, multiple views, (close-up:1.4), (head out of frame:1.4), (cropped head:1.3), (hat out of frame:1.3), (from behind:1.4), (yellow skin:1.3), (white skin:1.2), grey skin, pink skin, colored skin, heart, (silhouette:1.2), backlighting, dark face, (scenery:1.3), (detailed background:1.4), (background pattern:1.3), snowflakes, stars, plants, particles, (intricate details:1.3), ornate, nsfw, nude, cleavage, blurry, worst quality, low quality, low score, bad score, average score
 ```
 
-## Prompt de cada personagem
+## Cada avatar
 
-### sung-jinwoo
+### albedo (Albedo, Overlord)
+
+Seed 3303.
 
 ```text
-1boy, sung jin-woo, ore dake level up na ken, safe, black hair, messy hair, purple eyes, glowing eyes, black coat, high collar, purple aura, cold smirk, navy blue background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, albedo \(overlord\), overlord \(maruyama\), safe, long hair, black hair, white horns, black wings, white dress, (plain purple background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### emilia
+### asuna (Asuna, Sword Art Online)
+
+Seed 3303.
 
 ```text
-1girl, emilia \(re:zero\), re:zero kara hajimeru isekai seikatsu, safe, long hair, grey hair, purple eyes, pointy ears, hair flower, white flower, gentle smile, lavender background, snowflakes, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, asuna \(sao\), sword art online, safe, long hair, orange hair, white and red outfit, (plain red background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### subaru
+### ayanokouji (Kiyotaka Ayanokouji, Classroom of the Elite)
+
+Seed 1101.
 
 ```text
-1boy, natsuki subaru, re:zero kara hajimeru isekai seikatsu, safe, black hair, short hair, small pupils, track jacket, black jacket, grin, teeth, determined, orange background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, ayanokouji kiyotaka, youkoso jitsuryoku shijou shugi no kyoushitsu e, safe, light brown hair, short hair, red school blazer, necktie, (plain light grey background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### rem
+### betelgeuse (Betelgeuse, Re:Zero)
+
+Seed 1101.
 
 ```text
-1girl, rem \(re:zero\), re:zero kara hajimeru isekai seikatsu, safe, blue hair, short hair, hair over one eye, blue eyes, maid headdress, x hair ornament, maid, smile, blush, pink background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, petelgeuse romaneeconti, re:zero kara hajimeru isekai seikatsu, safe, green hair, bob cut, black robe, hands up, head tilt, (plain lime green background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### kirito
+### elaina (Elaina, Wandering Witch)
+
+Seed 3303.
 
 ```text
-1boy, kirito, sword art online, safe, black hair, black eyes, black coat, sword on back, two swords, serious, closed mouth, dark teal background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, elaina \(majo no tabitabi\), majo no tabitabi, safe, long hair, grey hair, black witch hat, black robe, (plain sky blue background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### asuna
+### emilia (Emilia, Re:Zero)
+
+Seed 3303.
 
 ```text
-1girl, asuna \(sao\), sword art online, safe, long hair, orange hair, brown eyes, braid, knights of blood uniform \(sao\), confident smile, red background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, emilia \(re:zero\), re:zero kara hajimeru isekai seikatsu, safe, long hair, silver hair, pointy ears, white flower hair ornament, white and purple dress, (plain lavender background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### ainz
+### holo (Holo, Spice and Wolf)
+
+Seed 3303.
 
 ```text
-1boy, ainz ooal gown, overlord \(maruyama\), safe, skeleton, undead, no eyes, glowing red eyes, red pupils, dark purple robe, gold trim, high collar, red orb, ominous, black background, red glow, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, holo, spice and wolf, safe, long hair, brown hair, wolf ears, pouch necklace, (plain golden yellow background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### albedo
+### horikita (Suzune Horikita, Classroom of the Elite)
+
+Seed 1101.
 
 ```text
-1girl, albedo \(overlord\), overlord \(maruyama\), safe, long hair, black hair, yellow eyes, slit pupils, white horns, black wings, feathered wings, white dress, covered collarbone, sly smile, blush, dark purple background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, horikita suzune, youkoso jitsuryoku shijou shugi no kyoushitsu e, safe, long hair, black hair, side braid, red school blazer, (plain slate blue background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### kim-dokja
+### kim-dokja (Kim Dokja, Omniscient Reader's Viewpoint)
+
+Seed 4404; pose fixa, LoRA de personagem char-kimdokja.safetensors (Civitai 608497).
 
 ```text
-1boy, kim dokja, omniscient reader's viewpoint, safe, black hair, short hair, white coat, long coat, black shirt, holding phone, smartphone, glowing screen, gentle smile, sad smile, dark blue background, stars, constellation, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, kim dokja, omniscient reader's viewpoint, safe, black hair, short hair, white long coat, black shirt, (plain midnight blue background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### holo
+### kirito (Kirito, Sword Art Online)
+
+Seed 1101.
 
 ```text
-1girl, holo, spice and wolf, safe, long hair, brown hair, wolf ears, wolf girl, red eyes, fang, mischievous smile, pouch, necklace, yellow background, wheat, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, kirito, sword art online, safe, black hair, black coat, two swords on back, (plain teal background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### klein-moretti
+### klein-moretti (Klein Moretti, Lord of the Mysteries)
+
+Seed 3303.
 
 ```text
-1boy, klein moretti, lord of the mysteries, safe, short hair, black hair, brown eyes, black top hat, black coat, victorian, white shirt, mysterious smile, grey background, fog, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, klein moretti, lord of the mysteries, safe, black hair, black top hat, black coat, white shirt, (plain grey background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### megumin
+### kurumi (Kurumi Tokisaki, Date A Live)
+
+Seed 1101; pose fixa.
 
 ```text
-1girl, megumin, kono subarashii sekai ni shukufuku wo!, safe, short hair, brown hair, red eyes, eyepatch, witch hat, black headwear, red cape, open mouth, shouting, v-shaped eyebrows, orange background, explosion, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, tokisaki kurumi, date a live, safe, black hair, twintails, red and black gothic dress, (plain crimson background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### naofumi
+### mai (Mai Sakurajima, Bunny Girl Senpai)
+
+Seed 4404; pose fixa, LoRA de personagem char-mai.safetensors (Civitai 1189072).
 
 ```text
-1boy, iwatani naofumi, tate no yuusha no nariagari, safe, short hair, black hair, green eyes, frown, scowl, green cloak, shield, green gem, green background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, sakurajima mai, seishun buta yarou, safe, long hair, black hair, rabbit ears hairband, black dress, white collar, (plain dusk purple background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### raphtalia
+### megumin (Megumin, Konosuba)
+
+Seed 1101.
 
 ```text
-1girl, raphtalia, tate no yuusha no nariagari, safe, long hair, brown hair, raccoon ears, raccoon girl, red eyes, serious, determined, katana, weapon on back, orange background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, megumin, kono subarashii sekai ni shukufuku wo!, safe, short hair, brown hair, witch hat, eyepatch, red cape, (plain orange background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### ayanokouji
+### naofumi (Naofumi Iwatani, Shield Hero)
+
+Seed 3303.
 
 ```text
-1boy, ayanokouji kiyotaka, youkoso jitsuryoku shijou shugi no kyoushitsu e, safe, short hair, light brown hair, brown eyes, expressionless, half-closed eyes, school uniform, red jacket, white trim, necktie, light grey background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, iwatani naofumi, tate no yuusha no nariagari, safe, black hair, short hair, green cloak, round shield, (plain green background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### horikita
+### raphtalia (Raphtalia, Shield Hero)
+
+Seed 3303.
 
 ```text
-1girl, horikita suzune, youkoso jitsuryoku shijou shugi no kyoushitsu e, safe, long hair, black hair, straight hair, side braid, red eyes, serious, closed mouth, school uniform, red jacket, blue-grey background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, raphtalia, tate no yuusha no nariagari, safe, long hair, brown hair, raccoon ears, katana, (plain orange red background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### wei-wuxian
+### rem (Rem, Re:Zero)
+
+Seed 3303.
 
 ```text
-1boy, wei wuxian, mo dao zu shi, safe, long hair, black hair, high ponytail, red ribbon, hair ribbon, grey eyes, one eye closed, wink, grin, chinese clothes, black robe, flute, red tassel, red background, swirl, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, rem \(re:zero\), re:zero kara hajimeru isekai seikatsu, safe, blue hair, short hair, maid headdress, maid, (plain pink background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### roxy
+### roxy (Roxy Migurdia, Mushoku Tensei)
+
+Seed 1101.
 
 ```text
-1girl, roxy migurdia, mushoku tensei, safe, blue hair, long hair, twin braids, blue eyes, half-closed eyes, sleepy, witch hat, brown headwear, brown robe, light blue background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, roxy migurdia, mushoku tensei, safe, blue hair, twin braids, brown witch hat, brown robe, (plain sky blue background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### shadow
+### subaru (Natsuki Subaru, Re:Zero)
+
+Seed 3303.
 
 ```text
-1boy, cid kagenou, kage no jitsuryokusha ni naritakute!, safe, hood, hood up, black coat, long coat, mask, mouth mask, shadow over face, purple eyes, glowing eyes, purple trim, dark purple background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, natsuki subaru, re:zero kara hajimeru isekai seikatsu, safe, black hair, short hair, black track jacket, orange trim, (plain orange background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### elaina
+### sung-jinwoo (Sung Jinwoo, Solo Leveling)
+
+Seed 3303.
 
 ```text
-1girl, elaina \(majo no tabitabi\), majo no tabitabi, safe, long hair, grey hair, blue eyes, witch hat, black headwear, black robe, brooch, star brooch, cheerful smile, blue background, cloud, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, sung jin-woo, ore dake level up na ken, safe, black hair, messy hair, black long coat, high collar, (purple aura:1.3), (plain navy blue background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### betelgeuse
+### violet (Violet Evergarden, Violet Evergarden)
+
+Seed 1101.
 
 ```text
-1boy, petelgeuse romaneeconti, re:zero kara hajimeru isekai seikatsu, safe, green hair, bob cut, pale skin, wide-eyed, crazy eyes, crazy smile, tongue out, black robe, hands up, green background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1girl, violet evergarden, violet evergarden \(series\), safe, blonde hair, braided bun, red hair ribbon, blue jacket, green brooch, (plain steel blue background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
 
-### violet
+### wei-wuxian (Wei Wuxian, Mo Dao Zu Shi)
+
+Seed 3303.
 
 ```text
-1girl, violet evergarden, violet evergarden \(series\), safe, blonde hair, braided bun, red ribbon, hair ribbon, blue eyes, calm, closed mouth, blue jacket, white ascot, green brooch, blue background, envelope, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
-```
-
-### sunny
-
-```text
-1boy, sunny \(shadow slave\), shadow slave, safe, black hair, messy hair, pale skin, black eyes, smirk, black armor, dark shadow silhouette behind him, dark background, charcoal background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
-```
-
-### mai
-
-```text
-1girl, sakurajima mai, seishun buta yarou, safe, long hair, black hair, straight hair, purple eyes, fake animal ears, rabbit ears, hairband, confident smile, black dress, white collar, covered collarbone, purple background, (upper body:1.2), centered, (full head visible:1.2), headroom, looking at viewer, head tilt, flat color, cel shading, simple background, masterpiece, high score, great score, absurdres
+ChopioM1nimalist, 1boy, wei wuxian, mo dao zu shi, safe, long hair, black hair, high ponytail, red hair ribbon, black robe, black flute, (plain crimson background:1.3), (minimalism:1.4), (flat color:1.4), (no lineart:1.4), (faceless:1.3), no eyes, no mouth, (light skin:1.1), facing viewer, vector art, simple shapes, solid colors, (vibrant colors:1.2), (simple background:1.3), solid color background, (upper body:1.2), centered, (full head visible:1.2), headroom, head tilt, masterpiece, high score, absurdres
 ```
