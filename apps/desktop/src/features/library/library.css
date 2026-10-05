@@ -38,6 +38,9 @@
   /* ---------- Sub-bar (chips + sort; search/count/view live in the PageHeader) ---------- */
   .library-bar {
     display: flex;
+    /* Never squeezed by the grid below: when the chips wrap to two lines the bar grows
+       (it shrank to one line and the chips spilled under the header). */
+    flex: none;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
