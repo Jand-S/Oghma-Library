@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ProjectDetail, TranslationEffort } from "../../services/translationClient";
 import { modelLabel, translationStrings as t } from "../../strings/translation";
 import { Button, Modal, SegmentedControl, SelectField } from "../../ui";
-import { TRANSLATION_WORKERS_MAX, translationModels } from "../settings/preferences";
+import { TRANSLATION_WORKERS_MAX, translationModels, type WorkerCount } from "../settings/preferences";
 
 export const modelOptions = translationModels.map((model) => ({ value: model as string, label: `${modelLabel(model)} (${model})` }));
 export const effortOptions: { value: TranslationEffort; label: string }[] = [
@@ -10,7 +10,7 @@ export const effortOptions: { value: TranslationEffort; label: string }[] = [
   { value: "low", label: t.effortLabels.low }
 ];
 export const workerOptions = Array.from({ length: TRANSLATION_WORKERS_MAX }, (_, index) => {
-  const value = String(index + 1) as "1" | "2" | "3";
+  const value = String(index + 1) as WorkerCount;
   return { value, label: value };
 });
 
@@ -70,7 +70,7 @@ export function ProjectSettingsModal({ open, project, saving, onClose, onSave }:
           <SegmentedControl
             aria-label={t.workers}
             size="sm"
-            value={String(workers) as "1" | "2" | "3"}
+            value={String(workers) as WorkerCount}
             onChange={(value) => setWorkers(Number(value))}
             options={workerOptions}
           />

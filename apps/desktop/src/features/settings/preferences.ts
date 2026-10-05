@@ -71,7 +71,9 @@ export type TranslationPreferences = {
 export const translationPreferencesKey = "oghma.translation.prefs.v1";
 export const translationModels: TranslationModelId[] = ["gpt-6-luna", "gpt-6-sol"];
 export const translationEfforts: TranslationEffort[] = ["none", "low"];
-export const TRANSLATION_WORKERS_MAX = 3;
+/** Matches `MAX_WORKERS` in the Rust runner. */
+export const TRANSLATION_WORKERS_MAX = 6;
+export type WorkerCount = `${number}`;
 
 export const defaultTranslationPreferences: TranslationPreferences = {
   model: "gpt-6-luna",

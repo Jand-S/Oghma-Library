@@ -128,7 +128,7 @@ where
 
 #[cfg(test)]
 pub mod fake {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
 
     use super::*;
@@ -143,6 +143,9 @@ pub mod fake {
         /// Optional override: `(model, prompt) -> Some(result)`; `None` falls back to the default.
         pub responder: Mutex<Option<Responder>>,
         pub logged_in: AtomicBool,
+        /// Calls running right now, and the most seen at once (parallel workers).
+        pub in_flight: AtomicUsize,
+        pub max_in_flight: AtomicUsize,
     }
 
     impl FakeProvider {
@@ -152,6 +155,8 @@ pub mod fake {
                 delay: Mutex::new(Duration::ZERO),
                 responder: Mutex::new(None),
                 logged_in: AtomicBool::new(true),
+                in_flight: AtomicUsize::new(0),
+                max_in_flight: AtomicUsize::new(0),
             })
         }
 
@@ -221,9 +226,12 @@ pub mod fake {
         ) -> BoxFut<'a, Result<ChatOutput, ProviderError>> {
             Box::pin(async move {
                 let delay = *self.delay.lock().unwrap();
+                let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+                self.max_in_flight.fetch_max(now, Ordering::SeqCst);
                 if !delay.is_zero() {
                     tokio::time::sleep(delay).await;
                 }
+                self.in_flight.fetch_sub(1, Ordering::SeqCst);
                 self.calls.lock().unwrap().push((model.to_string(), text.to_string()));
                 let custom = self.responder.lock().unwrap().as_ref().and_then(|respond| respond(model, text));
                 let result = custom.unwrap_or_else(|| Ok(fake_translate_html(&fragment_of(text))));

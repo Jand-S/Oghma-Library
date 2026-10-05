@@ -278,7 +278,7 @@ impl Store {
                         cover_path: row.get(5)?,
                         model: row.get(6)?,
                         effort: row.get(7)?,
-                        workers: row.get::<_, i64>(8)?.clamp(1, 3) as u32,
+                        workers: row.get::<_, i64>(8)?.clamp(1, super::MAX_WORKERS as i64) as u32,
                         scope: serde_json::from_str(&scope_json).unwrap_or(Scope::All),
                         status: ProjectStatus::parse(&status),
                         glossary_status: row.get(11)?,

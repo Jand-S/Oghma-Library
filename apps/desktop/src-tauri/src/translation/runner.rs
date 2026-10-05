@@ -11,11 +11,12 @@ use std::time::Duration;
 use tokio::sync::watch;
 
 use super::glossary::check_misses;
+use super::keep_awake::KeepAwake;
 use super::pipeline::{tail_text, translate_fragment, TAIL_CHARS};
 use super::provider::ProviderError;
 use super::source::{find_epub, read_epub, text_of};
 use super::store::NewProject;
-use super::{now_secs, ChapterView, Engine, ProjectDetail, ProjectStatus, ProjectSummary, Scope, DEFAULT_MODEL};
+use super::{now_secs, ChapterView, Engine, ProjectDetail, ProjectStatus, ProjectSummary, Scope, DEFAULT_MODEL, MAX_WORKERS};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Signal {
@@ -127,14 +128,20 @@ impl Engine {
             }
             other => other,
         };
+        let before_workers = self.store.project(id)?.workers;
         self.store.update_settings(
             id,
             model.as_deref().filter(|m| !m.trim().is_empty()),
             effort.as_deref(),
-            workers.map(|w| w.clamp(1, 3)),
+            workers.map(|w| w.clamp(1, MAX_WORKERS)),
             scope.as_ref(),
         )?;
+        let before = before_workers;
         let row = self.store.project(id)?;
+        // A running project picks the new number up at the next chapter (see `run_workers`).
+        if workers.is_some() && before != row.workers && matches!(row.status, ProjectStatus::Running) {
+            self.log(id, "info", format!("Traduções simultâneas: {before} → {}.", row.workers));
+        }
         if scope.is_some() && matches!(row.status, ProjectStatus::Done | ProjectStatus::Exported) {
             let open = self.store.chapters_to_run(id, &row.scope)?;
             if !open.is_empty() {
@@ -264,7 +271,7 @@ impl Engine {
             let mut rx = rx;
             engine.run_project(&id, &mut rx, &active).await;
             if let Ok(mut runners) = engine.runners.lock() {
-                runners.remove(&id);
+            runners.remove(&id);
             }
             engine.emit_project(&id, true);
         });
@@ -281,8 +288,8 @@ impl Engine {
         if !sent {
             let row = self.store.project(id)?;
             if matches!(row.status, ProjectStatus::Running | ProjectStatus::WaitingLimit) {
-                self.store.set_status(id, ProjectStatus::Paused)?;
-                self.store.set_resume_at(id, None)?;
+            self.store.set_status(id, ProjectStatus::Paused)?;
+            self.store.set_resume_at(id, None)?;
             }
             self.emit_project(id, true);
         }
@@ -299,8 +306,8 @@ impl Engine {
         if !sent {
             let row = self.store.project(id)?;
             if matches!(row.status, ProjectStatus::Running | ProjectStatus::WaitingLimit | ProjectStatus::Paused) {
-                self.store.set_status(id, ProjectStatus::Ready)?;
-                self.store.set_resume_at(id, None)?;
+            self.store.set_status(id, ProjectStatus::Ready)?;
+            self.store.set_resume_at(id, None)?;
             }
             self.emit_project(id, true);
         }
@@ -321,59 +328,68 @@ impl Engine {
         }
         let _ = self.store.start_session(id);
         let mut announced = false;
+        let mut awake_logged = false;
 
         loop {
             let Ok(row) = self.store.project(id) else { return };
             let _ = self.store.set_resume_at(id, None);
             let _ = self.store.set_status(id, ProjectStatus::Running);
             let chapters = match self.store.chapters_to_run(id, &row.scope) {
-                Ok(chapters) => chapters,
-                Err(err) => {
-                    let _ = self.store.set_status(id, ProjectStatus::Error);
-                    self.log(id, "error", err);
-                    return;
-                }
+            Ok(chapters) => chapters,
+            Err(err) => {
+                let _ = self.store.set_status(id, ProjectStatus::Error);
+                self.log(id, "error", err);
+                return;
+            }
             };
             if !announced {
-                self.log(
-                    id,
-                    "info",
-                    format!(
-                        "Iniciando: modelo {}, {} capítulo(s) na fila, {} tradução(ões) simultânea(s).",
-                        row.model,
-                        chapters.len(),
-                        row.workers
-                    ),
-                );
-                announced = true;
+            self.log(
+                id,
+                "info",
+                format!(
+                    "Iniciando: modelo {}, {} capítulo(s) na fila, {} tradução(ões) simultânea(s).",
+                    row.model,
+                    chapters.len(),
+                    row.workers
+                ),
+            );
+            announced = true;
             }
             self.emit_project(id, true);
             if chapters.is_empty() {
+            self.finish(id).await;
+            return;
+            }
+
+            // A sleeping computer stops the requests: stay awake while chapters run.
+            let awake = KeepAwake::acquire();
+            if !awake_logged && KeepAwake::active() {
+            self.log(id, "info", "O computador fica acordado enquanto a tradução roda.");
+            awake_logged = true;
+            }
+            let outcome = self.run_workers(id, chapters, rx, active).await;
+            drop(awake);
+            match outcome {
+            Outcome::Completed => {
                 self.finish(id).await;
                 return;
             }
-
-            match self.run_workers(id, chapters, row.workers, rx, active).await {
-                Outcome::Completed => {
-                    self.finish(id).await;
+            Outcome::Stopped(signal) => {
+                self.apply_stop(id, signal);
+                return;
+            }
+            Outcome::Fatal(message) => {
+                let _ = self.store.set_status(id, ProjectStatus::Error);
+                self.log(id, "error", message);
+                return;
+            }
+            Outcome::Limit(message) => {
+                // The next real chunk is the probe: it is retried every 15 min.
+                let state = self.set_limit(&message);
+                if !self.wait_limit(id, state.next_retry_at, &state.window, rx).await {
                     return;
                 }
-                Outcome::Stopped(signal) => {
-                    self.apply_stop(id, signal);
-                    return;
-                }
-                Outcome::Fatal(message) => {
-                    let _ = self.store.set_status(id, ProjectStatus::Error);
-                    self.log(id, "error", message);
-                    return;
-                }
-                Outcome::Limit(message) => {
-                    // The next real chunk is the probe: it is retried every 15 min.
-                    let state = self.set_limit(&message);
-                    if !self.wait_limit(id, state.next_retry_at, &state.window, rx).await {
-                        return;
-                    }
-                }
+            }
             }
         }
     }
@@ -385,15 +401,15 @@ impl Engine {
         loop {
             let running = self.glossary_jobs.lock().map(|jobs| jobs.contains(id)).unwrap_or(false);
             if !running || tokio::time::Instant::now() >= deadline {
-                return true;
+            return true;
             }
             if !logged {
-                self.log(id, "info", "Aguardando o glossário automático terminar…");
-                logged = true;
+            self.log(id, "info", "Aguardando o glossário automático terminar…");
+            logged = true;
             }
             tokio::select! {
-                _ = tokio::time::sleep(Duration::from_millis(250)) => {}
-                _ = wait_stop(rx) => return false,
+            _ = tokio::time::sleep(Duration::from_millis(250)) => {}
+            _ = wait_stop(rx) => return false,
             }
         }
     }
@@ -417,12 +433,12 @@ impl Engine {
         let delay = Duration::from_secs((until - now_secs()).max(0) as u64);
         tokio::select! {
             _ = tokio::time::sleep(delay) => {
-                self.log(id, "info", "Tentando de novo após o limite…");
-                true
+            self.log(id, "info", "Tentando de novo após o limite…");
+            true
             }
             signal = wait_stop(rx) => {
-                self.apply_stop(id, signal);
-                false
+            self.apply_stop(id, signal);
+            false
             }
         }
     }
@@ -431,12 +447,12 @@ impl Engine {
         let _ = self.store.set_resume_at(id, None);
         match signal {
             Signal::Cancel => {
-                let _ = self.store.set_status(id, ProjectStatus::Ready);
-                self.log(id, "info", "Tradução cancelada. O que já foi traduzido fica salvo.");
+            let _ = self.store.set_status(id, ProjectStatus::Ready);
+            self.log(id, "info", "Tradução cancelada. O que já foi traduzido fica salvo.");
             }
             _ => {
-                let _ = self.store.set_status(id, ProjectStatus::Paused);
-                self.log(id, "info", "Tradução pausada.");
+            let _ = self.store.set_status(id, ProjectStatus::Paused);
+            self.log(id, "info", "Tradução pausada.");
             }
         }
     }
@@ -452,9 +468,9 @@ impl Engine {
         if detail.errors > 0 || !open.is_empty() {
             let _ = self.store.set_status(id, ProjectStatus::Error);
             self.log(
-                id,
-                "error",
-                format!("{} trecho(s) falharam. Clique em Retomar para tentar de novo.", detail.errors.max(1)),
+            id,
+            "error",
+            format!("{} trecho(s) falharam. Clique em Retomar para tentar de novo.", detail.errors.max(1)),
             );
             return;
         }
@@ -463,8 +479,8 @@ impl Engine {
             id,
             "info",
             format!(
-                "Tradução concluída: {} trechos ({} para revisar). Gerando o livro PT-BR…",
-                detail.summary.chunks_done, detail.needs_review
+            "Tradução concluída: {} trechos ({} para revisar). Gerando o livro PT-BR…",
+            detail.summary.chunks_done, detail.needs_review
             ),
         );
         self.emit_project(id, true);
@@ -472,47 +488,55 @@ impl Engine {
         let _ = self.export_book(id, false).await;
     }
 
+    /// Desired number of chapters at once, read again while running so a change applies.
+    fn desired_workers(&self, id: &str) -> usize {
+        self.store.project(id).map(|row| row.workers.clamp(1, MAX_WORKERS) as usize).unwrap_or(1)
+    }
+
+    /// Runs the chapters with as many workers as the project asks for. The number is checked
+    /// again every second: more workers start right away; fewer means the extra ones stop after
+    /// their current chapter (nothing is cut in half).
     async fn run_workers(
         self: &Arc<Self>,
         id: &str,
         chapters: Vec<u32>,
-        workers: u32,
         rx: &watch::Receiver<Signal>,
         active: &Arc<Mutex<BTreeSet<u32>>>,
     ) -> Outcome {
-        let workers = (workers.clamp(1, 3) as usize).min(chapters.len()).max(1);
         let queue = Arc::new(Mutex::new(chapters.into_iter().collect::<VecDeque<u32>>()));
         let stop: Arc<Mutex<Option<Outcome>>> = Arc::new(Mutex::new(None));
+        // Slots of the workers alive now (a worker leaves when its slot is past the desired count).
+        let live: Arc<Mutex<BTreeSet<usize>>> = Arc::new(Mutex::new(BTreeSet::new()));
         let mut handles = Vec::new();
-        for _ in 0..workers {
-            let engine = Arc::clone(self);
-            let id = id.to_string();
-            let queue = Arc::clone(&queue);
-            let stop = Arc::clone(&stop);
-            let active = Arc::clone(active);
-            let mut rx = rx.clone();
-            handles.push(tauri::async_runtime::spawn(async move {
-                loop {
-                    if stop.lock().map(|s| s.is_some()).unwrap_or(true) || *rx.borrow() != Signal::Run {
-                        break;
-                    }
-                    let Some(chapter) = queue.lock().ok().and_then(|mut q| q.pop_front()) else { break };
-                    if let Ok(mut set) = active.lock() {
-                        set.insert(chapter);
-                    }
-                    engine.emit_project(&id, false);
-                    let result = engine.translate_chapter(&id, chapter, &mut rx, &stop).await;
-                    if let Ok(mut set) = active.lock() {
-                        set.remove(&chapter);
-                    }
-                    if let Err(outcome) = result {
-                        if let Ok(mut slot) = stop.lock() {
-                            slot.get_or_insert(outcome);
-                        }
-                        break;
-                    }
+        let mut supervisor_rx = rx.clone();
+        loop {
+            let stopped = stop.lock().map(|s| s.is_some()).unwrap_or(true) || *supervisor_rx.borrow() != Signal::Run;
+            let pending = queue.lock().map(|q| q.len()).unwrap_or(0);
+            let running = live.lock().map(|l| l.clone()).unwrap_or_default();
+            if stopped || pending == 0 {
+            // Nothing new to start: wait for the workers still on a chapter.
+            if running.is_empty() {
+                break;
+            }
+            } else {
+            let desired = self.desired_workers(id);
+            let missing: Vec<usize> = (0..desired).filter(|slot| !running.contains(slot)).take(pending).collect();
+            for slot in missing {
+                if let Ok(mut l) = live.lock() {
+                    l.insert(slot);
                 }
-            }));
+                handles.push(self.spawn_worker(id, slot, &queue, &stop, &live, active, rx));
+            }
+            }
+            tokio::select! {
+            _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+            changed = supervisor_rx.changed() => {
+                if changed.is_err() {
+                    // The handle is gone (project deleted): the workers stop on their own.
+                    tokio::time::sleep(Duration::from_millis(250)).await;
+                }
+            }
+            }
         }
         for handle in handles {
             let _ = handle.await;
@@ -524,6 +548,54 @@ impl Engine {
             Signal::Run => Outcome::Completed,
             signal => Outcome::Stopped(signal),
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn spawn_worker(
+        self: &Arc<Self>,
+        id: &str,
+        slot: usize,
+        queue: &Arc<Mutex<VecDeque<u32>>>,
+        stop: &Arc<Mutex<Option<Outcome>>>,
+        live: &Arc<Mutex<BTreeSet<usize>>>,
+        active: &Arc<Mutex<BTreeSet<u32>>>,
+        rx: &watch::Receiver<Signal>,
+    ) -> tauri::async_runtime::JoinHandle<()> {
+        let engine = Arc::clone(self);
+        let id = id.to_string();
+        let queue = Arc::clone(queue);
+        let stop = Arc::clone(stop);
+        let live = Arc::clone(live);
+        let active = Arc::clone(active);
+        let mut rx = rx.clone();
+        tauri::async_runtime::spawn(async move {
+            loop {
+                if stop.lock().map(|s| s.is_some()).unwrap_or(true) || *rx.borrow() != Signal::Run {
+                    break;
+                }
+                if slot >= engine.desired_workers(&id) {
+                    break;
+                }
+                let Some(chapter) = queue.lock().ok().and_then(|mut q| q.pop_front()) else { break };
+                if let Ok(mut set) = active.lock() {
+                    set.insert(chapter);
+                }
+                engine.emit_project(&id, false);
+                let result = engine.translate_chapter(&id, chapter, &mut rx, &stop).await;
+                if let Ok(mut set) = active.lock() {
+                    set.remove(&chapter);
+                }
+                if let Err(outcome) = result {
+                    if let Ok(mut first) = stop.lock() {
+                        first.get_or_insert(outcome);
+                    }
+                    break;
+                }
+            }
+            if let Ok(mut l) = live.lock() {
+                l.remove(&slot);
+            }
+        })
     }
 
     async fn translate_chapter(
@@ -746,6 +818,36 @@ pub(crate) mod tests {
             assert_eq!(view.status, "done");
             assert!(view.translated_html.unwrap().contains("termo"));
             assert!(view.issues.is_empty(), "{:?}", view.issues);
+        });
+    }
+
+    #[test]
+    fn more_workers_while_running_start_right_away() {
+        tauri::async_runtime::block_on(async {
+            let f = fixture(20);
+            let id = create(&f);
+            glossary_settled(&f, &id).await;
+            f.engine.update_settings(&id, None, None, Some(1), None).unwrap();
+            *f.provider.delay.lock().unwrap() = Duration::from_millis(300);
+            f.engine.start(&id).unwrap();
+            let (engine, provider, pid) = (Arc::clone(&f.engine), Arc::clone(&f.provider), id.clone());
+            wait_until(move || {
+                engine.store.project(&pid).unwrap().status == ProjectStatus::Running
+                    && provider.in_flight.load(std::sync::atomic::Ordering::SeqCst) == 1
+            })
+            .await;
+            assert_eq!(f.provider.max_in_flight.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+            // Chapter one is still running (several chunks): the other two start in parallel.
+            f.engine.update_settings(&id, None, None, Some(MAX_WORKERS + 4), None).unwrap();
+            assert_eq!(f.engine.store.project(&id).unwrap().workers, MAX_WORKERS);
+            let provider = Arc::clone(&f.provider);
+            wait_until(move || provider.max_in_flight.load(std::sync::atomic::Ordering::SeqCst) >= 2).await;
+            let engine = Arc::clone(&f.engine);
+            let pid = id.clone();
+            wait_until(move || engine.store.project(&pid).unwrap().status == ProjectStatus::Exported).await;
+            let logged = f.engine.store.events(&id, 50).unwrap();
+            assert!(logged.iter().any(|event| event.message.contains("Traduções simultâneas: 1 → 6")), "{logged:?}");
         });
     }
 

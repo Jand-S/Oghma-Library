@@ -4,7 +4,7 @@ import { settingsStrings } from "../../strings/settings";
 import { modelLabel, translationSettingsStrings, translationStrings } from "../../strings/translation";
 import type { TranslationEffort, TranslationModelId } from "../../services/translationClient";
 import { Button, SegmentedControl, SelectField } from "../../ui";
-import { TRANSLATION_WORKERS_MAX, translationModels, useTranslationPreferences } from "./preferences";
+import { TRANSLATION_WORKERS_MAX, translationModels, useTranslationPreferences, type WorkerCount } from "./preferences";
 import { SettingsGroup, SettingsRow, type Navigate } from "./settingsLayout";
 
 /** "Tradução" category. Its id is still "audio" (the audiobook settings it used to hold are gone). */
@@ -51,12 +51,12 @@ function TranslationGroup({ onNavigate, saved }: { onNavigate: Navigate; saved: 
         />
       </SettingsRow>
       <SettingsRow label={ts.workers} description={ts.workersHint}>
-        <SegmentedControl<"1" | "2" | "3">
+        <SegmentedControl<WorkerCount>
           aria-label={ts.workers}
-          value={String(prefs.workers) as "1" | "2" | "3"}
+          value={String(prefs.workers) as WorkerCount}
           onChange={(value) => update({ workers: Number(value) })}
           options={Array.from({ length: TRANSLATION_WORKERS_MAX }, (_, index) => {
-            const value = String(index + 1) as "1" | "2" | "3";
+            const value = String(index + 1) as WorkerCount;
             return { value, label: value };
           })}
         />

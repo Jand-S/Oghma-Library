@@ -10,12 +10,17 @@
 //! - `pipeline`: chunking, prompt, validation, retry and block fallback.
 //! - `glossary`: candidate heuristics + one curation turn.
 //! - `runner`: workers, pause/cancel, `waiting_limit` with 15-min retries, ETA.
+//! - `keep_awake`: no idle sleep while a translation runs.
 //! - `pilot`, `verify`, `export`: pilot bake-off, QA report, PT-BR library book.
 //! - `commands`: Tauri commands.
+
+/// Most chapters translated at once (Ajustes and each project offer 1 to this).
+pub const MAX_WORKERS: u32 = 6;
 
 pub mod commands;
 pub mod export;
 pub mod glossary;
+pub mod keep_awake;
 pub mod pilot;
 pub mod pipeline;
 pub mod provider;

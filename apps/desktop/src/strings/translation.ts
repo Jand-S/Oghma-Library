@@ -101,7 +101,7 @@ export const translationStrings = {
   effort: "Raciocínio",
   effortHint: "Tradução não precisa “pensar”, e todo raciocínio gasta limite.",
   workers: "Traduções simultâneas",
-  workersHint: "Capítulos traduzidos ao mesmo tempo (1 a 3).",
+  workersHint: "Capítulos traduzidos ao mesmo tempo (1 a 6). Mudar durante a tradução vale na hora; mais de 3 gasta o limite do ChatGPT mais rápido.",
   save: "Salvar",
   cancel: "Cancelar",
   settingsSaved: "Ajustes do projeto salvos.",
@@ -333,7 +333,7 @@ export const translationSettingsStrings = {
   effort: "Raciocínio",
   effortHint: "Tradução não precisa “pensar”, e o raciocínio é cobrado como saída.",
   workers: "Traduções simultâneas",
-  workersHint: "Capítulos traduzidos ao mesmo tempo.",
+  workersHint: "Capítulos traduzidos ao mesmo tempo. Mais de 3 gasta o limite do ChatGPT mais rápido.",
   targetLanguage: "Idioma de destino",
   targetLanguageHint: "Por enquanto, só português do Brasil.",
   openTranslation: "Abrir Tradução"
