@@ -110,6 +110,8 @@ pub struct NewProject {
     pub source_epub: String,
     pub source_novel_id: Option<String>,
     pub cover_path: Option<String>,
+    /// Author of the original (from the catalog), written into the PT-BR book.
+    pub author: Option<String>,
     pub model: String,
     pub effort: String,
 }
@@ -122,6 +124,7 @@ pub struct ProjectRow {
     pub source_epub: String,
     pub source_novel_id: Option<String>,
     pub cover_path: Option<String>,
+    pub author: Option<String>,
     pub model: String,
     pub effort: String,
     pub workers: u32,
@@ -180,6 +183,7 @@ fn migrate(conn: &Connection) -> Result<(), String> {
         "ALTER TABLE projects ADD COLUMN translate_cover INTEGER NOT NULL DEFAULT 1",
         "ALTER TABLE projects ADD COLUMN cover_text_json TEXT",
         "ALTER TABLE projects ADD COLUMN last_preview_at REAL",
+        "ALTER TABLE projects ADD COLUMN author TEXT",
     ] {
         if let Err(e) = conn.execute(sql, []) {
             if !e.to_string().contains("duplicate column") {
@@ -222,9 +226,9 @@ impl Store {
         self.with(|conn| {
             let tx = conn.transaction()?;
             tx.execute(
-                "INSERT INTO projects (id, title, source_dir, source_epub, source_novel_id, cover_path, model, effort, status, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'ready', ?9, ?9)",
-                params![id, new.title, new.source_dir, new.source_epub, new.source_novel_id, new.cover_path, new.model, new.effort, now],
+                "INSERT INTO projects (id, title, source_dir, source_epub, source_novel_id, cover_path, model, effort, status, created_at, updated_at, author)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'ready', ?9, ?9, ?10)",
+                params![id, new.title, new.source_dir, new.source_epub, new.source_novel_id, new.cover_path, new.model, new.effort, now, new.author],
             )?;
             for chapter in &book.chapters {
                 tx.execute(
@@ -263,7 +267,7 @@ impl Store {
             conn.query_row(
                 "SELECT id, title, source_dir, source_epub, source_novel_id, cover_path, model, effort,
                         workers, scope_json, status, glossary_status, output_dir, session_started_at, resume_at,
-                        glossary_hide_at, last_preview_at
+                        glossary_hide_at, last_preview_at, author
                  FROM projects WHERE id = ?1",
                 params![id],
                 |row| {
@@ -287,12 +291,18 @@ impl Store {
                         resume_at: row.get(14)?,
                         glossary_hide_at: row.get::<_, i64>(15)?.clamp(0, 100) as u8,
                         last_preview_at: row.get(16)?,
+                        author: row.get(17)?,
                     })
                 },
             )
             .optional()
         })?;
         row.ok_or_else(|| "Projeto de tradução não encontrado".to_string())
+    }
+
+    /// Author of the original book (filled in later for projects created before it was kept).
+    pub fn set_author(&self, id: &str, author: &str) -> Result<(), String> {
+        self.set_field(id, "UPDATE projects SET author = ?1, updated_at = ?2 WHERE id = ?3", author.trim().to_string().into())
     }
 
     fn set_field(&self, id: &str, sql: &str, value: rusqlite::types::Value) -> Result<(), String> {
@@ -623,6 +633,7 @@ impl Store {
                 title: row.title.clone(),
                 cover_url: row.cover_path.clone(),
                 source_novel_id: row.source_novel_id.clone(),
+                author: row.author.clone(),
                 status: row.status,
                 chapters_total,
                 chapters_done,

@@ -35,6 +35,8 @@ pub struct ExportLibraryItem {
     language: Option<String>,
     /// Novel this book was translated from.
     source_novel_id: Option<String>,
+    /// Author written by the app (translated books carry the original's).
+    author: Option<String>,
     /// 0–100 while the book is a translation preview (only finished chapters); absent when final.
     translation_progress: Option<u8>,
     /// Downloaded as a chapter range (not the whole novel): "new chapters" do not apply.
@@ -67,6 +69,7 @@ pub(crate) struct LocalBookManifest {
     pub analysis_format: Option<String>,
     pub language: Option<String>,
     pub source_novel_id: Option<String>,
+    pub author: Option<String>,
     pub translation_progress: Option<u8>,
     pub range_start: Option<f64>,
     pub range_end: Option<f64>,
@@ -388,6 +391,7 @@ fn scan_book_dir(path: &Path, folder_name: String, include_cover_data: bool) -> 
         analysis_format: analysis.map(|item| item.format),
         language: manifest.language.clone().filter(|l| !l.trim().is_empty()),
         source_novel_id: manifest.source_novel_id.clone().filter(|id| !id.trim().is_empty()),
+        author: manifest.author.clone().filter(|a| !a.trim().is_empty()),
         translation_progress: manifest.translation_progress.map(|p| p.min(100)),
         partial_range: manifest.range_start.is_some() || manifest.range_end.is_some(),
     }))

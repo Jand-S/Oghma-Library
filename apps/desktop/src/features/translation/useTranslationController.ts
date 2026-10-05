@@ -152,6 +152,21 @@ export function useTranslationController({ client: injected, library, toast, ref
     void refreshAccount();
   }, [refreshAccount]);
 
+  // Projects created before the author was kept: fill it in from the original book in the
+  // library, so the next PT-BR export carries it (once per project and session).
+  const authorAsked = useRef(new Set<string>());
+  useEffect(() => {
+    for (const project of projects) {
+      if (project.author || !project.sourceNovelId || authorAsked.current.has(project.id)) continue;
+      const original = library.find((item) => item.novelId === project.sourceNovelId && !item.language && item.author);
+      if (!original) continue;
+      authorAsked.current.add(project.id);
+      void api.setAuthor(project.id, original.author)
+        .then((summary) => setProjects((list) => list.map((item) => (item.id === summary.id ? { ...item, author: summary.author } : item))))
+        .catch(() => undefined);
+    }
+  }, [api, library, projects]);
+
   // Engine events.
   useEffect(() => {
     if (!client.available) return;
@@ -300,7 +315,12 @@ export function useTranslationController({ client: injected, library, toast, ref
     if (!item.outputDir) return false;
     const outputDir = item.outputDir;
     const created = await withBusy("create", async () => {
-      const summary = await api.createProject({ sourceDir: outputDir, sourceNovelId: item.novelId, title: item.title });
+      const summary = await api.createProject({
+        sourceDir: outputDir,
+        sourceNovelId: item.novelId,
+        title: item.title,
+        author: item.author || undefined
+      });
       setProjects((current) => upsertSummary(current, summary));
       const prefs = readTranslationPreferences();
       const detail = await api.updateSettings(summary.id, { model: prefs.model, effort: prefs.effort, workers: prefs.workers });

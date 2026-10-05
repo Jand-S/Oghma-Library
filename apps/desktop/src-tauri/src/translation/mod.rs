@@ -162,6 +162,8 @@ pub struct ProjectSummary {
     pub cover_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_novel_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
     pub status: ProjectStatus,
     pub chapters_total: u32,
     pub chapters_done: u32,

@@ -44,6 +44,8 @@ export type ProjectSummary = {
   title: string;
   coverUrl?: string;
   sourceNovelId?: string;
+  /** Author of the original book (written into the PT-BR book). */
+  author?: string;
   status: ProjectStatus;
   chaptersTotal: number;
   chaptersDone: number;
@@ -232,8 +234,9 @@ export function translationApi(client: TranslationClient) {
     logout: () => call<void>("translation_logout"),
     usage: () => call<UsageSnapshot>("translation_usage"),
     listProjects: () => call<ProjectSummary[]>("translation_list_projects"),
-    createProject: (args: { sourceDir: string; sourceNovelId?: string; title: string; coverPath?: string }) =>
+    createProject: (args: { sourceDir: string; sourceNovelId?: string; title: string; coverPath?: string; author?: string }) =>
       call<ProjectSummary>("translation_create_project", args),
+    setAuthor: (projectId: string, author: string) => call<ProjectSummary>("translation_set_author", { projectId, author }),
     deleteProject: (projectId: string) => call<void>("translation_delete_project", { projectId }),
     getProject: (projectId: string) => call<ProjectDetail>("translation_get_project", { projectId }),
     updateSettings: (projectId: string, patch: ProjectSettingsPatch) =>

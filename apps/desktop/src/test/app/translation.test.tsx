@@ -375,7 +375,7 @@ describe("Translation", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog", { name: t.pickerTitle })).not.toBeInTheDocument());
     expect(engine.calls("translation_create_project")).toEqual([
-      { sourceDir: "~/Documents/Oghma Library/exports/To Kill a Mockingbird", sourceNovelId: "enchanter-forest", title: "To Kill a Mockingbird" }
+      { sourceDir: "~/Documents/Oghma Library/exports/To Kill a Mockingbird", sourceNovelId: "enchanter-forest", title: "To Kill a Mockingbird", author: "Harper Lee" }
     ]);
     expect(engine.calls("translation_update_settings")).toEqual([{ projectId: "p-new", model: "gpt-6-luna", effort: "none", workers: 2 }]);
 

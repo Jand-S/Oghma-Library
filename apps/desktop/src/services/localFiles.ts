@@ -24,6 +24,8 @@ export type LocalLibraryEntry = {
   /** "pt-BR" for books produced by the translation screen. */
   language?: string;
   sourceNovelId?: string;
+  /** Author from the manifest (translated books carry the original's). */
+  author?: string;
   /** 0–99 while the translated book is a preview (only finished chapters). */
   translationProgress?: number;
   /** Downloaded as a chapter range (new chapters do not apply). */
@@ -48,6 +50,7 @@ export type ExportLibraryRow = {
   analysisFormat?: string | null;
   language?: string | null;
   sourceNovelId?: string | null;
+  author?: string | null;
   translationProgress?: number | null;
   partialRange?: boolean | null;
 };
@@ -190,6 +193,7 @@ export function mapLibraryRow(row: ExportLibraryRow, convertFileSrc: ConvertFile
     analysisFormat: row.analysisFormat ?? undefined,
     language: row.language ?? undefined,
     sourceNovelId: row.sourceNovelId ?? undefined,
+    author: row.author ?? undefined,
     translationProgress: row.translationProgress ?? undefined,
     partialRange: row.partialRange ?? undefined
   };

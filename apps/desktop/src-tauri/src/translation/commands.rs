@@ -82,6 +82,7 @@ pub async fn translation_create_project(
     source_novel_id: Option<String>,
     title: String,
     cover_path: Option<String>,
+    author: Option<String>,
 ) -> Result<ProjectSummary, String> {
     // The source book and its cover come from the output folder.
     root.require_inside(std::path::Path::new(&source_dir))?;
@@ -89,9 +90,14 @@ pub async fn translation_create_project(
         root.require_inside(std::path::Path::new(cover))?;
     }
     blocking(engine(&state), move |engine| {
-        engine.create_project(&source_dir, source_novel_id, &title, cover_path)
+        engine.create_project(&source_dir, source_novel_id, &title, cover_path, author)
     })
     .await
+}
+
+#[tauri::command]
+pub async fn translation_set_author(state: EngineState<'_>, project_id: String, author: String) -> Result<ProjectSummary, String> {
+    blocking(engine(&state), move |engine| engine.set_author(&project_id, &author)).await
 }
 
 #[tauri::command]

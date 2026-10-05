@@ -85,6 +85,19 @@ describe("shelf (books without files)", () => {
   });
 });
 
+describe("translated books", () => {
+  it("show the original's author (the PT-BR book is not in the catalog)", () => {
+    const catalog = [novel({ id: "cn:orig", title: "Original", author: "Autora Original" })];
+    const disk = [
+      entry({ title: "Original (PT-BR)", outputDir: "/out/pt", novelId: "cn:orig:pt-BR", language: "pt-BR", sourceNovelId: "cn:orig" }),
+      entry({ title: "Solto (PT-BR)", outputDir: "/out/solto", novelId: "local:solto:pt-BR", language: "pt-BR", author: "Do Manifesto" })
+    ];
+    const [translated, loose] = buildLibraryItems(disk, [], catalog);
+    expect(translated.author).toBe("Autora Original");
+    expect(loose.author).toBe("Do Manifesto");
+  });
+});
+
 describe("a novel the site moved (old and current id)", () => {
   const catalog = [novel({ id: "cn:lom-2026", title: "Lord of Mysteries", aliases: ["cn:lom-2024"] })];
   const oldRow = meta({ key: "novel:cn:lom-2024", onShelf: true, favorite: true, addedAt: 5, changedAt: 100 });

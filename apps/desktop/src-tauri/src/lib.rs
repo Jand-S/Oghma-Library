@@ -73,6 +73,7 @@ pub fn run() {
             translation::commands::translation_delete_project,
             translation::commands::translation_get_project,
             translation::commands::translation_update_settings,
+            translation::commands::translation_set_author,
             translation::commands::translation_start,
             translation::commands::translation_pause,
             translation::commands::translation_cancel,

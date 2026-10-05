@@ -76,11 +76,13 @@ export function canonicalNovelId(entry: LocalLibraryEntry, known: Novel | undefi
   return entry.language ? entry.novelId ?? known?.id : known?.id ?? entry.novelId;
 }
 
-function catalogFields(entry: LocalLibraryEntry, known: Novel | undefined) {
+function catalogFields(entry: LocalLibraryEntry, known: Novel | undefined, catalog: Novel[]) {
+  // A translated book is not in the catalog itself: its author is the original's.
+  const original = entry.sourceNovelId ? catalogNovelById(catalog, entry.sourceNovelId) : undefined;
   return {
     newChapters: newChaptersFor(entry, known),
     novelId: canonicalNovelId(entry, known),
-    author: known?.author ?? "",
+    author: known?.author || original?.author || entry.author || "",
     coverClass: known?.coverClass ?? "cover-c",
     bundleKey: known?.bundleKey,
     description: known?.description,
@@ -184,7 +186,7 @@ export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: Librar
   const local = entries.map((entry): LibraryItem => {
     const formats = formatsOf(entry.files);
     const known = findCatalogNovel(entry, catalog);
-    const fields = catalogFields(entry, known);
+    const fields = catalogFields(entry, known, catalog);
     const removal = removalOf(entry, fields.novelId, metaByKey);
     // A removed book keeps what the reader marked (the tombstone has it) and is hidden here.
     const meta = removal ? { ...removal, hidden: true } : metaForEntry(entry, metaByKey, fields.novelId);
@@ -341,7 +343,7 @@ export function enrichLibraryItems(items: LibraryItem[], entries: LocalLibraryEn
     if (!entry) return item;
     const known = findCatalogNovel(entry, catalog);
     if (!known) return item;
-    const fields = catalogFields(entry, known);
+    const fields = catalogFields(entry, known, catalog);
     const chapters = entry.chapterCount ?? known.chapters ?? item.chapters;
     const same = item.novelId === fields.novelId && item.author === fields.author
       && item.coverClass === fields.coverClass && item.bundleKey === fields.bundleKey

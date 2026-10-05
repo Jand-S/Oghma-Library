@@ -192,6 +192,7 @@ pub fn rewrite_asset_refs(html: &str, chapter_href: &str, assets: &[String]) -> 
 /// Same layout as `buildEpub` in `downloadManager.ts`.
 pub fn build_epub(
     title: &str,
+    author: Option<&str>,
     novel_id: &str,
     chapters: &[EpubChapter],
     assets: &[EpubAsset],
@@ -250,6 +251,7 @@ pub fn build_epub(
     <dc:identifier id=\"book-id\">oghma:{}</dc:identifier>
     <dc:title>{}</dc:title>
     <dc:language>{LANGUAGE}</dc:language>
+    {}
     <dc:description>{}</dc:description>
     {cover_meta}
   </metadata>
@@ -267,6 +269,7 @@ pub fn build_epub(
 </package>",
         xml_escape(novel_id),
         xml_escape(title),
+        author.map(|a| format!("<dc:creator>{}</dc:creator>", xml_escape(a))).unwrap_or_default(),
         xml_escape(&description),
         manifest_items.join("\n    "),
         asset_items.join("\n    "),
@@ -484,7 +487,8 @@ impl Engine {
             });
         let novel_id = translated_novel_id(&source_id);
         let title = translated_title(&row.title);
-        let epub = build_epub(&title, &novel_id, &chapters, &assets, cover.as_ref())?;
+        let author = row.author.as_deref().map(str::trim).filter(|a| !a.is_empty());
+        let epub = build_epub(&title, author, &novel_id, &chapters, &assets, cover.as_ref())?;
 
         let root = source_dir
             .parent()
@@ -496,6 +500,7 @@ impl Engine {
             "schema_version": 1,
             "novel_id": novel_id,
             "title": title,
+            "author": author,
             "language": LANGUAGE,
             "source_novel_id": row.source_novel_id,
             "translation_project_id": id,
@@ -593,7 +598,16 @@ mod tests {
                 serde_json::from_slice(&fs::read(out.join(LOCAL_BOOK_MANIFEST)).unwrap()).unwrap();
             assert_eq!(manifest["language"], "pt-BR");
             assert_eq!(manifest["source_novel_id"], "cn:livro");
+            assert_eq!(manifest["author"], "Autora Original");
+            assert_eq!(book["author"], "Autora Original");
             assert_eq!(fs::read(out.join("cover.png")).unwrap(), b"\x89PNG cover");
+            let opf = {
+                let mut zip = zip::ZipArchive::new(fs::File::open(out.join("Livro (PT-BR).epub")).unwrap()).unwrap();
+                let mut text = String::new();
+                std::io::Read::read_to_string(&mut zip.by_name("OEBPS/content.opf").unwrap(), &mut text).unwrap();
+                text
+            };
+            assert!(opf.contains("<dc:creator>Autora Original</dc:creator>"), "{opf}");
 
             // The EPUB reads back with the translated blocks, the cover and the image.
             let epub = out.join("Livro (PT-BR).epub");

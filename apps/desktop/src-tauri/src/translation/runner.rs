@@ -62,8 +62,10 @@ impl Engine {
         source_novel_id: Option<String>,
         title: &str,
         cover_path: Option<String>,
+        author: Option<String>,
     ) -> Result<ProjectSummary, String> {
         let dir = crate::paths::expand_home(source_dir);
+        let author = author.map(|a| a.trim().to_string()).filter(|a| !a.is_empty());
         if let Some(existing) = self.store.find_by_source(&dir.to_string_lossy())? {
             return self.summary(&existing);
         }
@@ -82,6 +84,7 @@ impl Engine {
                 source_epub: epub.to_string_lossy().to_string(),
                 source_novel_id,
                 cover_path,
+                author,
                 model: DEFAULT_MODEL.to_string(),
                 effort: "none".to_string(),
             },
@@ -100,6 +103,15 @@ impl Engine {
         self.start_glossary(&id);
         self.emit_project(&id, true);
         Ok(detail.summary)
+    }
+
+    /// Fills in the original's author (projects created before it was kept); the next export uses it.
+    pub fn set_author(self: &Arc<Self>, id: &str, author: &str) -> Result<ProjectSummary, String> {
+        if !author.trim().is_empty() {
+            self.store.set_author(id, author)?;
+        }
+        self.emit_project(id, true);
+        self.summary(id)
     }
 
     pub fn delete_project(&self, id: &str) -> Result<(), String> {
@@ -775,7 +787,7 @@ pub(crate) mod tests {
     pub fn create(f: &Fixture) -> String {
         let summary = f
             .engine
-            .create_project(&f.book_dir.to_string_lossy(), None, "Livro", None)
+            .create_project(&f.book_dir.to_string_lossy(), None, "Livro", None, Some("Autora Original".into()))
             .unwrap();
         summary.id
     }
