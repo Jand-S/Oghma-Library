@@ -1,6 +1,7 @@
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import { discoverStrings } from "../../strings/discover";
-import { Badge, SelectField } from "../../ui";
+import { Layers } from "lucide-react";
+import { Badge, IconButton, SelectField, cx } from "../../ui";
 import { DiscoverSearchField } from "./DiscoverSearchField";
 
 /** Discover order: title A–Z/Z–A, or by recent chapter, arrival, size, views or rating. */
@@ -63,6 +64,16 @@ export function discoverHeader({ discover, sources, loading, account }: AppContr
           title={filters.query.trim() ? discoverStrings.sortByRelevance : undefined}
           options={discoverStrings.sortOptions}
           onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+        />
+        <IconButton
+          label={discover.stacks ? discoverStrings.stacksOff : discoverStrings.stacksOn}
+          icon={<Layers />}
+          size="sm"
+          variant="ghost"
+          className={cx("discover-stacks-toggle", discover.stacks && "is-on")}
+          aria-pressed={discover.stacks}
+          data-testid="discover-stacks-toggle"
+          onClick={discover.toggleStacks}
         />
       </>
     ),

@@ -7,7 +7,7 @@ import { DiscoverDetailPanel, type DiscoverShelf } from "./DiscoverDetailPanel";
 import { DiscoverFilterBar } from "./DiscoverFilters";
 import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
 import type { SortDirection } from "./DiscoverHeader";
-import { sortNovels } from "../../services/catalogIndex";
+import { sortNovels, stackNovels, type CatalogIndex } from "../../services/catalogIndex";
 import type { SmartResult } from "../../services/smartFilter";
 import { SmartFilterStatus, type SmartStageInfo } from "./SmartFilterStatus";
 import { activeFilters, clearedFilters } from "./filterModel";
@@ -18,6 +18,9 @@ export type DiscoverViewProps = {
   filters: Filters;
   tagCatalog: TagCatalogItem[];
   results: Novel[];
+  /** The same work from several sources as one card (needs the catalog index for synopsis matches). */
+  stacks?: boolean;
+  catalogIndex?: CatalogIndex | null;
   /** The single selected book (the configurator applies to it). */
   selectedNovel?: Novel;
   selection: ChapterSelection | null;
@@ -65,6 +68,8 @@ export function DiscoverView({
   filters,
   tagCatalog,
   results: allResults,
+  stacks: stacksOn = false,
+  catalogIndex = null,
   selectedNovel,
   selection,
   loading,
@@ -125,10 +130,14 @@ export function DiscoverView({
     if (sortDirection === "asc" || sortDirection === "desc") return sortNovels(results, "title", sortDirection);
     return sortNovels(results, sortDirection);
   }, [results, sortDirection, ranked, smart]);
+  // Stacks are paged like cards: a batch is 60 works, not 60 novels.
+  const stacks = useMemo(() => (stacksOn ? stackNovels(sortedResults, catalogIndex) : null), [catalogIndex, sortedResults, stacksOn]);
+  const cardCount = stacks ? stacks.length : sortedResults.length;
   const visibleResults = sortedResults.slice(0, visibleCount);
+  const visibleStacks = stacks ? stacks.slice(0, visibleCount) : null;
   const showMore = useCallback(
-    () => setVisibleCount((count) => Math.min(count + DISCOVER_PAGE_SIZE, results.length)),
-    [results.length]
+    () => setVisibleCount((count) => Math.min(count + DISCOVER_PAGE_SIZE, cardCount)),
+    [cardCount]
   );
 
   const enabledSources = sources.filter((source) => source.enabled);
@@ -221,8 +230,9 @@ export function DiscoverView({
     content = (
       <DiscoverGrid
         novels={visibleResults}
-        total={results.length}
-        visibleCount={Math.min(visibleCount, results.length)}
+        stacks={visibleStacks}
+        total={cardCount}
+        visibleCount={Math.min(visibleCount, cardCount)}
         selectedId={selectedNovel?.id}
         detailId={detailNovel?.id}
         scrollRoot={scrollRef}

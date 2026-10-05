@@ -308,8 +308,11 @@
   }
 
   .kindle-book__meta {
+    overflow: hidden;
     color: var(--text-muted);
     font-size: var(--fs-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* ---------- Send queue ---------- */

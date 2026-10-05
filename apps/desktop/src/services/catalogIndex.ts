@@ -128,6 +128,57 @@ export function editionsOf(index: CatalogIndex, novel: Novel): Novel[] {
   return [...unique.values()].sort((a, b) => b.chapters - a.chapters);
 }
 
+/** Editions of one work in a list of results (one card in Buscar); `main` is the most complete. */
+export type NovelStack = { key: string; main: Novel; items: Novel[] };
+
+/**
+ * Groups results by work, stricter than `editionsOf` (thousands of novels, generic titles):
+ * same title AND same author, or the server matched the synopses (translations under another
+ * name). Stacks keep the order of their first novel; the face is the edition with most chapters.
+ */
+export function stackNovels(novels: Novel[], index: CatalogIndex | null): NovelStack[] {
+  const parent = new Map<string, string>();
+  const find = (id: string): string => {
+    let root = id;
+    while (parent.get(root) !== root) root = parent.get(root)!;
+    parent.set(id, root);
+    return root;
+  };
+  const union = (a: string, b: string) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent.set(rb, ra);
+  };
+  for (const novel of novels) parent.set(novel.id, novel.id);
+  const byId = new Map(novels.map((novel) => [novel.id, novel]));
+  const byTitleAuthor = new Map<string, string>();
+  for (const novel of novels) {
+    const title = workKey(novel.title);
+    const author = workKey(novel.author ?? "");
+    if (title && author) {
+      const key = `${title}|${author}`;
+      const first = byTitleAuthor.get(key);
+      if (first && byId.get(first)?.sourceId !== novel.sourceId) union(first, novel.id);
+      else if (!first) byTitleAuthor.set(key, novel.id);
+    }
+    for (const other of index?.discovery?.editions.get(novel.id) ?? []) {
+      if (parent.has(other)) union(novel.id, other);
+    }
+  }
+  const stacks = new Map<string, NovelStack>();
+  for (const novel of novels) {
+    const root = find(novel.id);
+    const stack = stacks.get(root);
+    if (stack) {
+      stack.items.push(novel);
+      if (novel.chapters > stack.main.chapters) stack.main = novel;
+    } else {
+      stacks.set(root, { key: root, main: novel, items: [novel] });
+    }
+  }
+  return [...stacks.values()];
+}
+
 export type SimilarOptions = {
   limit?: number;
   exclude?: ReadonlySet<string>;

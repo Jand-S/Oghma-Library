@@ -86,7 +86,6 @@ export const libraryStrings = {
   stacksOff: "Separar as edições",
   editionsCount: (count: number) => `${count} edições`,
   editionsOf: (title: string, count: number) => `${title}: ${count} edições`,
-  editionsHint: "Original, tradução e outras fontes da mesma obra. Escolha uma para abrir.",
   translationEdition: (language: string) => `Tradução ${language}`,
   alwaysShowCover: "Sempre mostrar esta capa",
   statusMenu: "Leitura",

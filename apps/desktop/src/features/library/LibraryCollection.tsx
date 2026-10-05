@@ -2,8 +2,7 @@ import { AlertTriangle, CloudDownload, FolderOpen, Heart, Languages, Layers, Mor
 import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Cover, DropdownMenu, IconButton, Spinner, StarRating, cx, type MenuPoint } from "../../ui";
-import { EditionSpread } from "./EditionSpread";
+import { Badge, Cover, DropdownMenu, IconButton, Spinner, StackSpread, StarRating, cx, type MenuPoint } from "../../ui";
 import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, jobLabel, type BookJobState, type LibraryStack, type LibraryViewMode } from "./libraryModel";
 import { ReadingStatusLabel } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
@@ -91,6 +90,12 @@ function FavoriteToggle({ item, actions, className, variant }: { item: LibraryIt
   );
 }
 
+/** How an edition is named in a stack: its source, or "Tradução PT-BR". */
+function editionLabel(item: LibraryItem) {
+  if (item.language) return libraryStrings.translationEdition(item.language.toUpperCase());
+  return item.sourceName ?? libraryStrings.localSource;
+}
+
 /** Grid of covers or dense list, with a shared right-click menu. */
 export function LibraryCollection({ items, stacks, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
@@ -173,7 +178,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                     ) : null}
                     <FavoriteToggle item={item} actions={actions} className="library-tile__favorite" variant="glass" />
                     {editions > 1 ? (
-                      <span className="library-tile__editions" data-testid="library-stack-count">
+                      <span className="o-stack-count" data-testid="library-stack-count">
                         <Layers aria-hidden="true" />
                         {libraryStrings.editionsCount(editions)}
                       </span>
@@ -290,12 +295,27 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
         </div>
       )}
       {spread ? (
-        <EditionSpread
+        <StackSpread
           anchor={spread.anchor}
           title={spread.stack.items.find((edition) => !edition.language)?.title ?? spread.stack.main.title}
+          count={libraryStrings.editionsCount(spread.stack.items.length)}
           items={spread.stack.items}
+          itemKey={(edition) => edition.id}
+          card={(edition) => ({
+            cover: edition.coverUrl,
+            title: edition.title,
+            label: editionLabel(edition),
+            meta: (
+              <>
+                {isShelf(edition) ? <Badge>{libraryStrings.onShelfBadge}</Badge> : <Badge tone="accent">{formatSummary(edition)}</Badge>}
+                <ReadingStatusLabel status={edition.readingStatus} />
+              </>
+            )
+          })}
           onPick={onOpen}
           onClose={() => setSpread(null)}
+          returnFocus={spread.anchor.closest<HTMLElement>("[data-testid=library-card]")?.querySelector<HTMLElement>("[data-testid=card-title]")}
+          data-testid="edition-spread"
         />
       ) : null}
       <DropdownMenu

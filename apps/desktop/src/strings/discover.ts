@@ -55,6 +55,10 @@ export const discoverStrings = {
   smartNoPicksDescription: (read: number) =>
     `O ChatGPT leu ${read} sinopses e nenhuma tem pontos de história realmente em comum. Você pode ver as parecidas só por tags ou descrever o que quer de outro jeito.`,
   completeShort: "Completa",
+  sourcesCount: (count: number) => `${count} fontes`,
+  showSources: (title: string, count: number) => `${title}: ver as ${count} fontes`,
+  stacksOn: "Juntar a mesma obra de fontes diferentes",
+  stacksOff: "Separar as fontes",
   similar: "Parecidos",
 
   // Results

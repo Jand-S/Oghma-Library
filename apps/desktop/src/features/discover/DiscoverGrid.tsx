@@ -1,13 +1,17 @@
+import { Layers } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import type { Novel } from "../../core/types";
+import type { NovelStack } from "../../services/catalogIndex";
 import { discoverStrings } from "../../strings/discover";
-import { Button, Cover, SelectionMark, Skeleton, cx } from "../../ui";
+import { Button, Cover, SelectionMark, Skeleton, StackSpread, cx } from "../../ui";
 
 /** Cards rendered per batch; "Mostrar mais" (or scrolling to the end) adds another batch. */
 export const DISCOVER_PAGE_SIZE = 60;
 
 type DiscoverGridProps = {
   novels: Novel[];
+  /** The same work from several sources as one card (see `stackNovels`); `novels` is ignored then. */
+  stacks?: NovelStack[] | null;
   total: number;
   visibleCount: number;
   selectedId?: string;
@@ -29,6 +33,7 @@ function columnCount(hits: HTMLElement[]) {
 
 export function DiscoverGrid({
   novels,
+  stacks,
   total,
   visibleCount,
   selectedId,
@@ -42,11 +47,13 @@ export function DiscoverGrid({
   const gridRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [spread, setSpread] = useState<{ stack: NovelStack; anchor: HTMLElement; card: HTMLElement | null } | null>(null);
   const hasMore = visibleCount < total;
+  const cards: NovelStack[] = stacks ?? novels.map((novel) => ({ key: novel.id, main: novel, items: [novel] }));
 
   useEffect(() => {
-    if (activeIndex >= novels.length) setActiveIndex(0);
-  }, [activeIndex, novels.length]);
+    if (activeIndex >= cards.length) setActiveIndex(0);
+  }, [activeIndex, cards.length]);
 
   // Infinite scroll: load the next batch when the footer gets close to the viewport.
   // Re-observing after each batch re-checks a sentinel that is still visible.
@@ -89,20 +96,55 @@ export function DiscoverGrid({
   return (
     <>
       <div className="discover-grid" data-testid="book-grid" ref={gridRef} role="list" onKeyDown={onKeyDown}>
-        {novels.map((novel, index) => (
-          <NovelCard
-            key={novel.id}
-            novel={novel}
-            reason={reasons?.[novel.id]}
-            selected={novel.id === selectedId}
-            focused={novel.id === detailId}
-            tabbable={index === activeIndex}
-            onFocus={() => setActiveIndex(index)}
-            onSelect={() => onSelect(novel)}
-            onPreview={() => onPreview(novel)}
-          />
-        ))}
+        {cards.map((stack, index) => {
+          const novel = stack.main;
+          const editions = stack.items.length;
+          return (
+            <NovelCard
+              key={stack.key}
+              novel={novel}
+              editions={editions}
+              reason={reasons?.[novel.id]}
+              selected={stack.items.some((item) => item.id === selectedId)}
+              focused={stack.items.some((item) => item.id === detailId)}
+              spread={spread?.stack.key === stack.key}
+              tabbable={index === activeIndex}
+              onFocus={() => setActiveIndex(index)}
+              onSelect={(card) => {
+                if (editions < 2) return onSelect(novel);
+                const anchor = card.querySelector<HTMLElement>(".discover-card__media");
+                if (anchor) setSpread({ stack, anchor, card: card.querySelector<HTMLElement>("[data-card-hit]") });
+              }}
+              onPreview={() => onPreview(novel)}
+            />
+          );
+        })}
       </div>
+      {spread ? (
+        <StackSpread
+          anchor={spread.anchor}
+          title={spread.stack.main.title}
+          count={discoverStrings.sourcesCount(spread.stack.items.length)}
+          items={spread.stack.items}
+          itemKey={(novel) => novel.id}
+          card={(novel) => ({
+            cover: novel.coverUrl,
+            title: novel.title,
+            label: novel.sourceName,
+            meta: (
+              <>
+                <span>{novel.sourceChapters ? discoverStrings.chaptersShortOf(novel.chapters, novel.sourceChapters) : discoverStrings.chaptersShort(novel.chapters)}</span>
+                {novel.status === "complete" ? <span className="discover-card__complete">{discoverStrings.completeShort}</span> : null}
+                {novel.language && novel.language !== "pt-BR" ? <span>{novel.language.toUpperCase()}</span> : null}
+              </>
+            )
+          })}
+          onPick={onSelect}
+          onClose={() => setSpread(null)}
+          returnFocus={spread.card}
+          data-testid="discover-stack-spread"
+        />
+      ) : null}
       {hasMore ? (
         <div className="discover-more" ref={sentinelRef}>
           <span className="discover-more__count">{discoverStrings.resultCount(visibleCount, total)}</span>
@@ -115,8 +157,10 @@ export function DiscoverGrid({
 
 function NovelCard({
   novel,
+  editions,
   selected,
   focused,
+  spread,
   tabbable,
   onFocus,
   onSelect,
@@ -125,13 +169,18 @@ function NovelCard({
 }: {
   reason?: string;
   novel: Novel;
+  /** More than 1: the same work from several sources (a stack). */
+  editions: number;
   selected: boolean;
   focused: boolean;
+  /** Its editions are spread over the grid right now. */
+  spread: boolean;
   tabbable: boolean;
   onFocus: () => void;
-  onSelect: () => void;
+  onSelect: (card: HTMLElement) => void;
   onPreview: () => void;
 }) {
+  const stack = editions > 1;
   const onContextMenu = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
     onPreview();
@@ -141,21 +190,35 @@ function NovelCard({
     // The whole card is clickable; the overlay button gives keyboard and screen-reader access
     // and its click bubbles here, so selection happens exactly once.
     <article
-      className={cx("discover-card", selected && "is-selected", focused && !selected && "is-focused")}
+      className={cx(
+        "discover-card",
+        selected && "is-selected",
+        focused && !selected && "is-focused",
+        stack && "is-stack",
+        editions > 2 && "is-stack-deep",
+        spread && "is-spread"
+      )}
       data-testid="book-card"
       data-discover-card=""
+      data-editions={stack ? editions : undefined}
       role="listitem"
-      onClick={onSelect}
+      onClick={(event) => onSelect(event.currentTarget)}
       onContextMenu={onContextMenu}
     >
       <div className="discover-card__media">
         <Cover src={novel.coverUrl} title={novel.title} size="fill" sheen className="discover-card__cover" />
+        {stack ? (
+          <span className="o-stack-count" data-testid="discover-stack-count">
+            <Layers aria-hidden="true" />
+            {discoverStrings.sourcesCount(editions)}
+          </span>
+        ) : null}
         {selected ? <SelectionMark /> : null}
       </div>
       <div className="discover-card__body">
         <strong className="discover-card__title" data-testid="card-title" title={novel.title}>{novel.title}</strong>
         <span className="discover-card__meta">
-          <span className="discover-card__source">{novel.sourceName}</span>
+          <span className="discover-card__source">{stack ? discoverStrings.sourcesCount(editions) : novel.sourceName}</span>
           <span aria-hidden="true">·</span>
           <span>{novel.sourceChapters ? discoverStrings.chaptersShortOf(novel.chapters, novel.sourceChapters) : discoverStrings.chaptersShort(novel.chapters)}</span>
         </span>
@@ -173,7 +236,10 @@ function NovelCard({
         data-card-hit=""
         data-testid="card-select"
         tabIndex={tabbable ? 0 : -1}
-        aria-label={selected ? discoverStrings.removeFromQueue(novel.title) : discoverStrings.selectForQueue(novel.title)}
+        aria-label={stack
+          ? discoverStrings.showSources(novel.title, editions)
+          : selected ? discoverStrings.removeFromQueue(novel.title) : discoverStrings.selectForQueue(novel.title)}
+        aria-haspopup={stack ? "dialog" : undefined}
         onFocus={onFocus}
       />
     </article>

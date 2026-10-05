@@ -442,6 +442,44 @@
     box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) var(--accent-ring);
   }
 
+  /* Stack: the same work from several sources. The sheets behind the cover are shadows. */
+  .discover-card.is-stack .discover-card__media {
+    --sheet-x: var(--space-0-5);
+    --sheet-y: calc(var(--space-0-5) * -1);
+    --stack-sheets:
+      var(--sheet-x) var(--sheet-y) 0 -1px var(--surface-3),
+      var(--sheet-x) var(--sheet-y) 0 0 var(--border-strong);
+    box-shadow: var(--stack-sheets);
+    transition: box-shadow var(--dur-base) var(--ease), scale var(--dur-base) var(--ease);
+  }
+
+  .discover-card.is-stack-deep .discover-card__media {
+    --stack-sheets:
+      var(--sheet-x) var(--sheet-y) 0 -1px var(--surface-3),
+      var(--sheet-x) var(--sheet-y) 0 0 var(--border-strong),
+      calc(var(--sheet-x) * 2) calc(var(--sheet-y) * 2) 0 calc(var(--space-0-5) * -1 + 1px) var(--surface-2),
+      calc(var(--sheet-x) * 2) calc(var(--sheet-y) * 2) 0 calc(var(--space-0-5) * -0.5) var(--border);
+  }
+
+  .discover-card.is-stack:hover .discover-card__media,
+  .discover-card.is-stack:has(.discover-card__hit:focus-visible) .discover-card__media {
+    --sheet-x: var(--space-1);
+    --sheet-y: calc(var(--space-1) * -1);
+    box-shadow: var(--stack-sheets), var(--shadow-md);
+  }
+
+  .discover-card.is-stack.is-selected .discover-card__media {
+    box-shadow: 0 0 0 var(--ring-width) var(--accent), 0 0 0 calc(var(--ring-width) * 3) var(--accent-ring), var(--stack-sheets);
+  }
+
+  .discover-card.is-spread .discover-card__media {
+    opacity: 0;
+  }
+
+  .discover-stacks-toggle.is-on {
+    color: var(--accent);
+  }
+
 
   .discover-card__body {
     display: flex;

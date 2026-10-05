@@ -38,6 +38,8 @@ type DiscoverControllerArgs = {
  * State and handlers of the Discover view: search, filters and ONE selected book at a
  * time. The configurator applies to the selected book and "Baixar" enqueues it.
  */
+const STACKS_KEY = "oghma.discover.stacks";
+
 export function useDiscoverController({
   backend,
   view,
@@ -58,6 +60,24 @@ export function useDiscoverController({
   const [filters, setFilters] = useState<Filters>(() => defaultFilters());
   /** Title order of the result grid (client-side). */
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  // The same work from several sources as one card; on unless turned off (remembered).
+  const [stacks, setStacksState] = useState(() => {
+    try {
+      return window.localStorage.getItem(STACKS_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  });
+  const toggleStacks = useCallback(() => {
+    setStacksState((current) => {
+      try {
+        window.localStorage.setItem(STACKS_KEY, current ? "off" : "on");
+      } catch {
+        // Storage unavailable: the choice lasts for this session.
+      }
+      return !current;
+    });
+  }, []);
   const [tagCatalog, setTagCatalog] = useState<TagCatalogItem[]>([]);
   const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
   const [previewNovel, setPreviewNovel] = useState<Novel | null>(null);
@@ -286,6 +306,8 @@ export function useDiscoverController({
     setFilters,
     sortDirection,
     setSortDirection,
+    stacks,
+    toggleStacks,
     tagCatalog,
     searching,
     /** Message of the last failed search, or null once a search succeeds. */

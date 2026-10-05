@@ -4,7 +4,7 @@ import type { LocalLibraryEntry } from "../services/localFiles";
 import { aliasMerges, buildLibraryItems, enrichLibraryItems, shelfAdditions } from "../app/useLocalLibrary";
 import { filterLibrary, formatsOf, stackEditions, statusCounts } from "../features/library/libraryModel";
 import { homeSeeds, seedWeight } from "../features/home/HomeView";
-import { buildCatalogIndex, similarNovels } from "../services/catalogIndex";
+import { buildCatalogIndex, similarNovels, stackNovels } from "../services/catalogIndex";
 
 function novel(partial: Partial<Novel> & Pick<Novel, "id" | "title">): Novel {
   return {
@@ -96,6 +96,30 @@ describe("stacks (editions of one work)", () => {
       ["b", ["b"]],
       ["d", ["d"]],
       ["e", ["e"]]
+    ]);
+  });
+});
+
+describe("stacks in Buscar (same work from several sources)", () => {
+  it("joins same title and author across sources or a synopsis match; the face has most chapters", () => {
+    const n = (id: string, title: string, author: string, sourceId: string, chapters: number) =>
+      novel({ id, title, author, sourceId, chapters });
+    const list = [
+      n("cn:lom", "Lord of Mysteries", "Cuttlefish", "cn", 1400),
+      n("rs:solo", "Solo Leveling", "Chugong", "rs", 270),
+      n("nl:lom", "Lord of Mysteries (Novel)", "cuttlefish", "nl", 1430),
+      n("cn:lom-2", "Lord of Mysteries", "Cuttlefish", "cn", 10),
+      n("x:other", "Lord of Mysteries", "Outro Autor", "x", 50),
+      n("pt:senhor", "O Senhor dos Mistérios", "", "pt", 300)
+    ];
+    const index = buildCatalogIndex(list);
+    index.discovery = { similar: new Map(), editions: new Map([["pt:senhor", ["cn:lom"]]]) } as typeof index.discovery;
+    const stacks = stackNovels(list, index);
+    expect(stacks.map((stack) => [stack.main.id, stack.items.map((item) => item.id)])).toEqual([
+      ["nl:lom", ["cn:lom", "nl:lom", "pt:senhor"]],
+      ["rs:solo", ["rs:solo"]],
+      ["cn:lom-2", ["cn:lom-2"]],
+      ["x:other", ["x:other"]]
     ]);
   });
 });

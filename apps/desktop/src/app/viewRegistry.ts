@@ -108,6 +108,8 @@ function DiscoverPage({ app }: ViewProps) {
     filters: discover.filters,
     tagCatalog: discover.tagCatalog,
     results: discover.results,
+    stacks: discover.stacks,
+    catalogIndex: discover.catalogIndex,
     selectedNovel: discover.selectedNovel ?? undefined,
     selection: discover.selection,
     // Results already on screen stay while a new search runs (no skeleton flash on each keystroke).

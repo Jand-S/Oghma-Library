@@ -220,7 +220,12 @@ export function KindleView({ library, activeJob, navigate }: KindleViewProps) {
                         {checked ? <SelectionMark /> : null}
                       </span>
                       <span className="kindle-book__title" title={item.title}>{item.title}</span>
-                      <span className="kindle-book__meta">{libraryStrings.size(item.sizeMb)}</span>
+                      {/* Which edition this file is (source or translation): two of the same work look alike. */}
+                      <span className="kindle-book__meta">
+                        {[item.language ? libraryStrings.translationEdition(item.language.toUpperCase()) : item.sourceName, libraryStrings.size(item.sizeMb)]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
                     </label>
                   </li>
                 );

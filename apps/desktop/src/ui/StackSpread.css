@@ -1,0 +1,168 @@
+@import "../styles/layers.css";
+
+@layer components {
+  /* "3 edições" pill on a stack's cover. */
+  .o-stack-count {
+    position: absolute;
+    top: var(--space-1);
+    left: var(--space-1);
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    padding: calc(var(--space-0-5) / 2) var(--space-1);
+    border: 1px solid rgb(var(--white-rgb) / 0.18);
+    border-radius: var(--radius-pill);
+    background: rgb(var(--black-rgb) / 0.6);
+    color: rgb(var(--white-rgb) / 0.95);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    -webkit-backdrop-filter: blur(var(--space-1));
+    backdrop-filter: blur(var(--space-1));
+    pointer-events: none;
+  }
+
+  .o-stack-count svg {
+    width: var(--fs-xs);
+    height: var(--fs-xs);
+  }
+
+  /* ---------- Stack spread (over the page) ---------- */
+  .o-stack-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    background: var(--scrim);
+    -webkit-backdrop-filter: blur(var(--space-0-5));
+    backdrop-filter: blur(var(--space-0-5));
+    animation: stack-fade var(--dur-base) var(--ease);
+    transition: opacity var(--dur-base) var(--ease);
+  }
+
+  .o-stack-scrim.is-closing {
+    opacity: 0;
+  }
+
+  .o-stack-spread {
+    position: fixed;
+    z-index: var(--z-modal);
+    display: grid;
+    gap: var(--space-1-5);
+    padding: var(--space-1-5) var(--space-2) var(--space-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: scale(0.98);
+    transition: opacity var(--dur-fast) var(--ease), transform var(--dur-base) var(--ease);
+  }
+
+  .o-stack-spread.is-open {
+    opacity: 1;
+    transform: none;
+  }
+
+  .o-stack-spread.is-closing {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  .o-stack-spread__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+  }
+
+  .o-stack-spread__head strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+  }
+
+  .o-stack-spread__row {
+    display: flex;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .o-stack-spread__item {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-0-5);
+    width: var(--stack-card-width);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    opacity: 0;
+    transform: translate(var(--fx), var(--fy)) scale(0.96);
+    transition: transform var(--dur-slow) var(--ease), opacity var(--dur-fast) var(--ease);
+    transition-delay: calc(var(--i) * 30ms);
+  }
+
+  .o-stack-spread.is-open .o-stack-spread__item {
+    opacity: 1;
+    transform: none;
+  }
+
+  .o-stack-spread.is-closing .o-stack-spread__item {
+    opacity: 0;
+    transform: translate(var(--fx), var(--fy)) scale(0.96);
+    transition-delay: 0s;
+  }
+
+  .o-stack-spread__cover {
+    width: 100%;
+    transition: transform var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
+  }
+
+  .o-stack-spread__item:hover .o-stack-spread__cover,
+  .o-stack-spread__item:focus-visible .o-stack-spread__cover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(calc(var(--space-0-5) * -1));
+  }
+
+  .o-stack-spread__label {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .o-stack-spread__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-0-5) var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  @keyframes stack-fade {
+    from { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .o-stack-spread,
+    .o-stack-spread__item,
+    .o-stack-scrim {
+      transition: none;
+      animation: none;
+    }
+  }
+}
