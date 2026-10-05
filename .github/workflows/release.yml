@@ -143,8 +143,8 @@ jobs:
             cp "$SETUP" out/Oghma-Library-Windows.exe
             cp "$SETUP.sig" out/Oghma-Library-Windows.exe.sig
           fi
-          for sig in out/*.sig; do [[ -s "$sig" ]] || { echo "::error::Assinatura vazia: $sig"; exit 1; }; done
           ls out/*.sig >/dev/null 2>&1 || { echo "::error::Nenhuma assinatura gerada (createUpdaterArtifacts/chave)."; exit 1; }
+          for sig in out/*.sig; do [[ -s "$sig" ]] || { echo "::error::Assinatura vazia: $sig"; exit 1; }; done
           ls -la out
       - name: Artefatos do run (teste)
         if: needs.prepare.outputs.dry_run == 'true'
