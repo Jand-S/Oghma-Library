@@ -1,5 +1,5 @@
-import { AlertTriangle, CloudDownload, FolderOpen, Heart, Languages, Layers, MoreVertical } from "lucide-react";
-import { useState, type MouseEvent as ReactMouseEvent } from "react";
+import { AlertTriangle, ChevronRight, CloudDownload, FolderOpen, Heart, Languages, Layers, MoreVertical } from "lucide-react";
+import { Fragment, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 import { Badge, Cover, DropdownMenu, IconButton, Spinner, StackSpread, StarRating, cx, type MenuPoint } from "../../ui";
@@ -100,6 +100,14 @@ function editionLabel(item: LibraryItem) {
 export function LibraryCollection({ items, stacks, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
   const [spread, setSpread] = useState<SpreadState>(null);
+  // Stacks open in the list (their editions show as rows below).
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleExpanded = (key: string) => setExpanded((current) => {
+    const next = new Set(current);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
   const cards: LibraryStack[] = stacks ?? items.map((item) => ({ key: item.id, main: item, items: [item] }));
 
   const openContext = (item: LibraryItem) => (event: ReactMouseEvent<HTMLElement>) => {
@@ -131,6 +139,119 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
       />
     </span>
   );
+
+  /** One list row: a book, or (`edition`) one edition inside an open stack. */
+  const renderRow = (item: LibraryItem, edition = false) => {
+    const state = jobState(item);
+    return (
+      <li
+        key={item.id}
+        className={cx("library-row", state && "is-busy", isShelf(item) && "is-shelf", edition && "is-edition")}
+        data-testid="library-row"
+        onClick={openItem(item)}
+        onContextMenu={openContext(item)}
+      >
+        <Cover src={item.coverUrl} title={item.title} size="sm" />
+        <div className="library-row__title">
+          <button type="button" className="library-row__name" data-testid="card-title" aria-label={libraryStrings.openDetailsOf(item.title)}>
+            {item.title}
+          </button>
+          <span className="library-row__sub">
+            {state ? <JobBadge state={state} /> : null}
+            {edition ? editionLabel(item) : item.author || item.sourceName || libraryStrings.localSource}
+          </span>
+        </div>
+        <div className="library-row__status">
+          <ReadingStatusLabel status={item.readingStatus} />
+        </div>
+        <div className={cx("library-row__rating", Boolean(item.rating) && "is-rated")} data-card-control>
+          <StarRating
+            size="xs"
+            label={`${libraryStrings.ratingLabel}: ${item.title}`}
+            value={item.rating}
+            onChange={(value) => actions.rate(item, value)}
+          />
+        </div>
+        <div className="library-row__formats">
+          <TranslationBadge item={item} />
+          {isShelf(item) ? (
+            <Badge tone={item.unavailable ? "warning" : "neutral"} title={item.unavailable ? libraryStrings.unavailableHint : libraryStrings.onShelfHint}>
+              {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
+              {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
+            </Badge>
+          ) : formatsOf(item).map((format) => <Badge key={format}>{format}</Badge>)}
+        </div>
+        <span className="library-row__num">{isShelf(item) ? "—" : libraryStrings.size(item.sizeMb)}</span>
+        <span className="library-row__date">{formatDownloadedAt(item)}</span>
+        <div className="library-row__actions" data-card-control>
+          <FavoriteToggle item={item} actions={actions} className="library-row__favorite" variant="ghost" />
+          {isShelf(item) ? (
+            <IconButton
+              label={`${libraryStrings.download}: ${item.title}`}
+              icon={<CloudDownload />}
+              size="sm"
+              onClick={() => actions.download(item)}
+              disabled={Boolean(actions.redownloadDisabledReason(item))}
+            />
+          ) : (
+            <IconButton label={`${libraryStrings.openFolder}: ${item.title}`} icon={<FolderOpen />} size="sm" onClick={() => onOpenFolder(item)} />
+          )}
+          {moreMenu(item, "library-row__menu", "ghost")}
+        </div>
+      </li>
+    );
+  };
+
+  /** A stack in the list: one row for the work, with a chevron that shows its editions below. */
+  const renderStackRow = (stack: LibraryStack, open: boolean) => {
+    const item = stack.main;
+    const workTitle = stack.items.find((edition) => !edition.language)?.title ?? item.title;
+    const formats = [...new Set(stack.items.flatMap((edition) => formatsOf(edition)))];
+    const size = stack.items.filter((edition) => !isShelf(edition)).reduce((sum, edition) => sum + edition.sizeMb, 0);
+    return (
+      <li
+        key={stack.key}
+        className={cx("library-row", "is-stack-row", open && "is-open")}
+        data-testid="library-row"
+        data-editions={stack.items.length}
+        onClick={(event) => {
+          if (!fromInside(event) || (event.target as HTMLElement).closest("[data-card-control]")) return;
+          toggleExpanded(stack.key);
+        }}
+        onContextMenu={openContext(item)}
+      >
+        <Cover src={item.coverUrl} title={workTitle} size="sm" />
+        <div className="library-row__title">
+          <button
+            type="button"
+            className="library-row__name"
+            data-testid="card-title"
+            aria-expanded={open}
+            aria-label={libraryStrings.editionsOf(workTitle, stack.items.length)}
+          >
+            <ChevronRight className="library-row__chevron" aria-hidden="true" />
+            <span className="library-row__name-text">{workTitle}</span>
+          </button>
+          <span className="library-row__sub">
+            <Layers aria-hidden="true" />
+            {[libraryStrings.editionsCount(stack.items.length), item.author].filter(Boolean).join(" · ")}
+          </span>
+        </div>
+        <div className="library-row__status">
+          <ReadingStatusLabel status={item.readingStatus} />
+        </div>
+        <div className={cx("library-row__rating", Boolean(item.rating) && "is-rated")}>
+          <StarRating size="xs" value={item.rating} compact />
+        </div>
+        <div className="library-row__formats">
+          {formats.map((format) => <Badge key={format}>{format}</Badge>)}
+        </div>
+        <span className="library-row__num">{size ? libraryStrings.size(size) : "—"}</span>
+        <span className="library-row__date">{formatDownloadedAt(item)}</span>
+        <div className="library-row__actions" />
+      </li>
+    );
+  };
 
   return (
     <>
@@ -231,64 +352,14 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
             <span className="library-list__actions-head">{libraryStrings.listActions}</span>
           </div>
           <ul className="library-list__rows">
-            {items.map((item) => {
-              const state = jobState(item);
+            {cards.map((stack) => {
+              if (stack.items.length < 2) return renderRow(stack.main);
+              const open = expanded.has(stack.key);
               return (
-                <li
-                  key={item.id}
-                  className={cx("library-row", state && "is-busy", isShelf(item) && "is-shelf")}
-                  data-testid="library-row"
-                  onClick={openItem(item)}
-                  onContextMenu={openContext(item)}
-                >
-                  <Cover src={item.coverUrl} title={item.title} size="sm" />
-                  <div className="library-row__title">
-                    <button type="button" className="library-row__name" data-testid="card-title" aria-label={libraryStrings.openDetailsOf(item.title)}>
-                      {item.title}
-                    </button>
-                    <span className="library-row__sub">
-                      {state ? <JobBadge state={state} /> : null}
-                      {item.author || item.sourceName || libraryStrings.localSource}
-                    </span>
-                  </div>
-                  <div className="library-row__status">
-                    <ReadingStatusLabel status={item.readingStatus} />
-                  </div>
-                  <div className={cx("library-row__rating", Boolean(item.rating) && "is-rated")} data-card-control>
-                    <StarRating
-                      size="xs"
-                      label={`${libraryStrings.ratingLabel}: ${item.title}`}
-                      value={item.rating}
-                      onChange={(value) => actions.rate(item, value)}
-                    />
-                  </div>
-                  <div className="library-row__formats">
-                    <TranslationBadge item={item} />
-                    {isShelf(item) ? (
-                      <Badge tone={item.unavailable ? "warning" : "neutral"} title={item.unavailable ? libraryStrings.unavailableHint : libraryStrings.onShelfHint}>
-                        {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
-                        {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
-                      </Badge>
-                    ) : formatsOf(item).map((format) => <Badge key={format}>{format}</Badge>)}
-                  </div>
-                  <span className="library-row__num">{isShelf(item) ? "—" : libraryStrings.size(item.sizeMb)}</span>
-                  <span className="library-row__date">{formatDownloadedAt(item)}</span>
-                  <div className="library-row__actions" data-card-control>
-                    <FavoriteToggle item={item} actions={actions} className="library-row__favorite" variant="ghost" />
-                    {isShelf(item) ? (
-                      <IconButton
-                        label={`${libraryStrings.download}: ${item.title}`}
-                        icon={<CloudDownload />}
-                        size="sm"
-                        onClick={() => actions.download(item)}
-                        disabled={Boolean(actions.redownloadDisabledReason(item))}
-                      />
-                    ) : (
-                      <IconButton label={`${libraryStrings.openFolder}: ${item.title}`} icon={<FolderOpen />} size="sm" onClick={() => onOpenFolder(item)} />
-                    )}
-                    {moreMenu(item, "library-row__menu", "ghost")}
-                  </div>
-                </li>
+                <Fragment key={stack.key}>
+                  {renderStackRow(stack, open)}
+                  {open ? stack.items.map((edition) => renderRow(edition, true)) : null}
+                </Fragment>
               );
             })}
           </ul>

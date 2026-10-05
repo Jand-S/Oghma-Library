@@ -77,7 +77,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
   // stay alone.
   const separated = browse.separated;
   const stacks = useMemo(() => {
-    if (!browse.stacks || browse.view !== "grid") return null;
+    if (!browse.stacks) return null;
     const keysOf = (item: LibraryItem): string[] => {
       if (separated.has(item.id)) return [];
       const base = item.language ? item.translatedFrom : item.novelId;
@@ -89,7 +89,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
       return [...(title ? [`t:${title}`] : []), ...linked.map((id) => `n:${id}`)];
     };
     return stackEditions(filtered, keysOf);
-  }, [browse.stacks, browse.view, catalogIndex, filtered, separated]);
+  }, [browse.stacks, catalogIndex, filtered, separated]);
 
   /** "Separar desta pilha" on an edition of a stack; "Voltar para a pilha" once separated. */
   const stackMenuItem = useCallback((item: LibraryItem): MenuItem | null => {

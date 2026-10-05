@@ -66,7 +66,7 @@ export function libraryHeader(app: AppControllers): ViewHeader {
             { value: "list", label: <span className="sr-only">{libraryStrings.viewList}</span>, icon: <List /> }
           ]}
         />
-        {browse.view === "grid" ? (
+        {(
           <IconButton
             label={browse.stacks ? libraryStrings.stacksOff : libraryStrings.stacksOn}
             icon={<Layers />}
@@ -77,7 +77,7 @@ export function libraryHeader(app: AppControllers): ViewHeader {
             data-testid="library-stacks-toggle"
             onClick={browse.toggleStacks}
           />
-        ) : null}
+        )}
         <IconButton label={libraryStrings.refresh} icon={<RefreshCw />} size="sm" variant="ghost" onClick={library.refresh} />
       </>
     )
