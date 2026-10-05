@@ -146,7 +146,8 @@
     position: absolute;
     bottom: var(--space-1);
     left: var(--space-1);
-    max-width: calc(100% - var(--space-2));
+    /* Leaves room for the favorite heart in the other corner. */
+    max-width: calc(100% - var(--space-2) - var(--space-4) - var(--space-0-5));
     overflow: hidden;
     padding: calc(var(--space-0-5) / 2) var(--space-1);
     border: 1px solid var(--border-strong);
@@ -225,18 +226,38 @@
     position: absolute;
     right: var(--space-1);
     bottom: var(--space-1);
-    display: grid;
-    place-items: center;
-    width: var(--space-3);
-    height: var(--space-3);
-    border-radius: 50%;
-    background: rgb(var(--black-rgb) / 0.55);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .library-row__favorite {
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .library-tile:hover .library-tile__favorite,
+  .library-tile__favorite:focus-within,
+  .library-row:hover .library-row__favorite,
+  .library-row__favorite:focus-within,
+  .is-on.library-tile__favorite,
+  .is-on.library-row__favorite {
+    opacity: 1;
+  }
+
+  .library-tile__favorite .o-icon-button:active,
+  .library-row__favorite .o-icon-button:active {
+    transform: scale(0.88);
+  }
+
+  .is-on.library-tile__favorite .o-icon-button,
+  .is-on.library-row__favorite .o-icon-button,
+  .library-actions__favorite.is-on {
     color: var(--danger-text);
   }
 
-  .library-tile__favorite svg {
-    width: var(--fs-sm);
-    height: var(--fs-sm);
+  .is-on.library-tile__favorite svg,
+  .is-on.library-row__favorite svg,
+  .library-actions__favorite.is-on svg {
     fill: currentColor;
   }
 
@@ -304,7 +325,7 @@
   .library-list {
     --library-list-cols:
       var(--space-6) minmax(0, 1fr) calc(var(--space-8) * 1.5) calc(var(--space-8) * 1.25)
-      calc(var(--space-8) * 2) calc(var(--space-8) * 1) calc(var(--space-8) * 1.5) calc(var(--space-8) * 1.25);
+      calc(var(--space-8) * 2) calc(var(--space-8) * 1) calc(var(--space-8) * 1.5) calc(var(--space-8) * 1.75);
     display: flex;
     flex-direction: column;
     border: 1px solid var(--border);

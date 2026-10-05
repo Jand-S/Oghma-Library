@@ -70,6 +70,23 @@ function ShelfBadge({ item }: { item: LibraryItem }) {
   );
 }
 
+/** One-click favorite: a heart that shows on hover and stays (filled) on favorite books. */
+function FavoriteToggle({ item, actions, className, variant }: { item: LibraryItem; actions: BookActions; className: string; variant: "glass" | "ghost" }) {
+  return (
+    <span className={cx(className, item.favorite && "is-on")} data-card-control>
+      <IconButton
+        label={`${item.favorite ? libraryStrings.removeFavorite : libraryStrings.addFavorite}: ${item.title}`}
+        icon={<Heart />}
+        size="sm"
+        variant={variant}
+        aria-pressed={Boolean(item.favorite)}
+        data-testid="library-favorite-toggle"
+        onClick={() => actions.toggleFavorite(item)}
+      />
+    </span>
+  );
+}
+
 /** Grid of covers or dense list, with a shared right-click menu. */
 export function LibraryCollection({ items, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
@@ -127,12 +144,7 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                         ) : null}
                       </div>
                     ) : null}
-                    {item.favorite ? (
-                      <span className="library-tile__favorite" title={libraryStrings.favorite}>
-                        <Heart aria-hidden="true" />
-                        <span className="sr-only">{libraryStrings.favorite}</span>
-                      </span>
-                    ) : null}
+                    <FavoriteToggle item={item} actions={actions} className="library-tile__favorite" variant="glass" />
                     {moreMenu(item, "library-tile__menu", "glass")}
                   </div>
                   <div className="library-tile__body">
@@ -223,6 +235,7 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                   <span className="library-row__num">{isShelf(item) ? "—" : libraryStrings.size(item.sizeMb)}</span>
                   <span className="library-row__date">{formatDownloadedAt(item)}</span>
                   <div className="library-row__actions" data-card-control>
+                    <FavoriteToggle item={item} actions={actions} className="library-row__favorite" variant="ghost" />
                     {isShelf(item) ? (
                       <IconButton
                         label={`${libraryStrings.download}: ${item.title}`}

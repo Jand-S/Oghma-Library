@@ -44,14 +44,9 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
   };
 
   const overflow: MenuItem[] = [
-    {
-      label: item.favorite ? libraryStrings.removeFavorite : libraryStrings.addFavorite,
-      icon: <Heart />,
-      onSelect: () => actions.toggleFavorite(item)
-    },
     item.hidden
-      ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item), separatorBefore: true }
-      : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => actions.askRemove(item), separatorBefore: true },
+      ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item) }
+      : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => actions.askRemove(item) },
     ...(shelf ? [] : [{ label: libraryStrings.deleteFilesMenu, icon: <Trash2 />, onSelect: () => actions.askDelete(item), danger: true, separatorBefore: true }])
   ];
   const revealLabel = getPlatform() === "macos" ? libraryStrings.showInFinder : libraryStrings.openFolder;
@@ -77,7 +72,6 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                 {shelf && !item.unavailable ? (
                   <Badge><CloudDownload aria-hidden="true" />{libraryStrings.onShelfBadge}</Badge>
                 ) : null}
-                {item.favorite ? <Badge><Heart aria-hidden="true" />{libraryStrings.favorite}</Badge> : null}
               </div>
               {item.rating || (item.readingStatus && item.readingStatus !== "unread") ? (
                 <div className="library-hero__reading">
@@ -155,6 +149,15 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                     {libraryStrings.icloudShort}
                   </Button>
                 ) : null}
+                <IconButton
+                  label={item.favorite ? libraryStrings.removeFavorite : libraryStrings.addFavorite}
+                  icon={<Heart />}
+                  variant="outline"
+                  className={cx("library-actions__favorite", item.favorite && "is-on")}
+                  aria-pressed={Boolean(item.favorite)}
+                  data-testid="library-detail-favorite"
+                  onClick={() => actions.toggleFavorite(item)}
+                />
                 <DropdownMenu
                   label={libraryStrings.moreActions}
                   align="start"
