@@ -1,7 +1,7 @@
-import { CloudDownload, EyeOff, Heart, Languages, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
+import { CloudDownload, EyeOff, Heart, Languages, Layers, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Chip, IconButton, SegmentedControl, SelectField, TextField } from "../../ui";
+import { Badge, Chip, IconButton, SegmentedControl, SelectField, TextField, cx } from "../../ui";
 import { statusFilters, type LibrarySort, type LibraryStatusFilter, type LibraryViewMode } from "./libraryModel";
 import { ReadingStatusIcon } from "./ReadingStatus";
 import type { LibraryBrowse } from "./useLibraryBrowse";
@@ -66,6 +66,18 @@ export function libraryHeader(app: AppControllers): ViewHeader {
             { value: "list", label: <span className="sr-only">{libraryStrings.viewList}</span>, icon: <List /> }
           ]}
         />
+        {browse.view === "grid" ? (
+          <IconButton
+            label={browse.stacks ? libraryStrings.stacksOff : libraryStrings.stacksOn}
+            icon={<Layers />}
+            size="sm"
+            variant="ghost"
+            className={cx("library-stacks-toggle", browse.stacks && "is-on")}
+            aria-pressed={browse.stacks}
+            data-testid="library-stacks-toggle"
+            onClick={browse.toggleStacks}
+          />
+        ) : null}
         <IconButton label={libraryStrings.refresh} icon={<RefreshCw />} size="sm" variant="ghost" onClick={library.refresh} />
       </>
     )

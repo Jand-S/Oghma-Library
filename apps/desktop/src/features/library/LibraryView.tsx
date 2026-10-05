@@ -1,14 +1,14 @@
 import { BookOpenText, FolderCog, SearchX } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useNavigation, type AppView } from "../../app/NavigationContext";
 import type { DownloadJob, LibraryItem, Novel } from "../../core/types";
-import { editionsOf, type CatalogIndex } from "../../services/catalogIndex";
+import { editionsOf, workKey, type CatalogIndex } from "../../services/catalogIndex";
 import { libraryStrings } from "../../strings/library";
 import { Button, EmptyState, Skeleton, cx } from "../../ui";
 import { LibraryCollection } from "./LibraryCollection";
 import { LibraryDetails } from "./LibraryDetails";
 import { LibraryFilterBar } from "./LibraryHeader";
-import { bookJobState } from "./libraryModel";
+import { bookJobState, stackEditions } from "./libraryModel";
 import { useBookActions } from "./useBookActions";
 import { canRedownload, type LibraryController } from "./useLibraryController";
 import "./library.css";
@@ -70,6 +70,21 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
     const probe = known ?? ({ id: item.novelId ?? item.id, title: item.title, sourceId: item.sourceId ?? "" } as Novel);
     return editionsOf(catalogIndex, probe);
   }, [catalogIndex]);
+
+  // Grid stacks: a translation goes with the book it came from, and the same novel from other
+  // sources goes with it when the catalog titles match (accents, case and "(Novel)" ignored).
+  const stacks = useMemo(() => {
+    if (!browse.stacks || browse.view !== "grid") return null;
+    const workKeyOf = (item: LibraryItem): string | null => {
+      const base = item.language ? item.translatedFrom : item.novelId;
+      const known = base && catalogIndex
+        ? catalogIndex.byId.get(base) ?? catalogIndex.entries.find((entry) => entry.novel.aliases?.includes(base))?.novel
+        : undefined;
+      const title = known?.title ?? (item.language ? item.title.replace(/\s*\([^)]*\)\s*$/, "") : item.title);
+      return workKey(title) || null;
+    };
+    return stackEditions(filtered, workKeyOf);
+  }, [browse.stacks, browse.view, catalogIndex, filtered]);
 
   const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions });
 
@@ -144,6 +159,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
     content = (
       <LibraryCollection
         items={filtered}
+        stacks={stacks}
         view={browse.view}
         jobState={jobState}
         actions={actions}

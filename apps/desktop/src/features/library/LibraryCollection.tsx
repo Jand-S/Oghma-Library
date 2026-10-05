@@ -1,14 +1,17 @@
-import { AlertTriangle, CloudDownload, FolderOpen, Heart, Languages, MoreVertical } from "lucide-react";
+import { AlertTriangle, CloudDownload, FolderOpen, Heart, Languages, Layers, MoreVertical } from "lucide-react";
 import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 import { Badge, Cover, DropdownMenu, IconButton, Spinner, StarRating, cx, type MenuPoint } from "../../ui";
-import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, jobLabel, type BookJobState, type LibraryViewMode } from "./libraryModel";
+import { EditionSpread } from "./EditionSpread";
+import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, jobLabel, type BookJobState, type LibraryStack, type LibraryViewMode } from "./libraryModel";
 import { ReadingStatusLabel } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
 
 type CollectionProps = {
   items: LibraryItem[];
+  /** Grid only: editions of the same work as one card (see `stackEditions`). */
+  stacks?: LibraryStack[] | null;
   view: LibraryViewMode;
   jobState: (item: LibraryItem) => BookJobState | null;
   actions: BookActions;
@@ -17,6 +20,7 @@ type CollectionProps = {
 };
 
 type ContextState = { item: LibraryItem; position: MenuPoint } | null;
+type SpreadState = { stack: LibraryStack; anchor: HTMLElement } | null;
 
 /** Clicks that bubble through React portals (menus, dialogs) must not open the book. */
 function fromInside(event: ReactMouseEvent<HTMLElement>) {
@@ -88,8 +92,10 @@ function FavoriteToggle({ item, actions, className, variant }: { item: LibraryIt
 }
 
 /** Grid of covers or dense list, with a shared right-click menu. */
-export function LibraryCollection({ items, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
+export function LibraryCollection({ items, stacks, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
+  const [spread, setSpread] = useState<SpreadState>(null);
+  const cards: LibraryStack[] = stacks ?? items.map((item) => ({ key: item.id, main: item, items: [item] }));
 
   const openContext = (item: LibraryItem) => (event: ReactMouseEvent<HTMLElement>) => {
     event.preventDefault();
@@ -100,6 +106,14 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
     if (!fromInside(event)) return;
     if ((event.target as HTMLElement).closest("[data-card-control]")) return;
     onOpen(item);
+  };
+  /** A stack opens its editions over the grid; a single book opens its details. */
+  const openCard = (stack: LibraryStack) => (event: ReactMouseEvent<HTMLElement>) => {
+    if (stack.items.length < 2) return openItem(stack.main)(event);
+    if (!fromInside(event)) return;
+    if ((event.target as HTMLElement).closest("[data-card-control]")) return;
+    const anchor = event.currentTarget.querySelector<HTMLElement>(".library-tile__media");
+    if (anchor) setSpread({ stack, anchor });
   };
 
   const moreMenu = (item: LibraryItem, className: string, variant: "glass" | "ghost") => (
@@ -117,14 +131,27 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
     <>
       {view === "grid" ? (
         <ul className="library-grid" data-testid="library-grid">
-          {items.map((item) => {
+          {cards.map((stack) => {
+            const item = stack.main;
             const state = jobState(item);
+            const editions = stack.items.length;
+            // A stack is named after the work (the original's title, not "… (PT-BR)").
+            const workTitle = editions > 1 ? stack.items.find((edition) => !edition.language)?.title ?? item.title : item.title;
             return (
-              <li key={item.id} className="library-grid__cell">
+              <li key={stack.key} className="library-grid__cell">
                 <article
-                  className={cx("library-tile", state && "is-busy", isShelf(item) && "is-shelf", item.unavailable && "is-unavailable")}
+                  className={cx(
+                    "library-tile",
+                    state && "is-busy",
+                    isShelf(item) && "is-shelf",
+                    item.unavailable && "is-unavailable",
+                    editions > 1 && "is-stack",
+                    editions > 2 && "is-stack-deep",
+                    spread?.stack.key === stack.key && "is-spread"
+                  )}
                   data-testid="library-card"
-                  onClick={openItem(item)}
+                  data-editions={editions > 1 ? editions : undefined}
+                  onClick={openCard(stack)}
                   onContextMenu={openContext(item)}
                 >
                   <div className="library-tile__media">
@@ -145,6 +172,12 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                       </div>
                     ) : null}
                     <FavoriteToggle item={item} actions={actions} className="library-tile__favorite" variant="glass" />
+                    {editions > 1 ? (
+                      <span className="library-tile__editions" data-testid="library-stack-count">
+                        <Layers aria-hidden="true" />
+                        {libraryStrings.editionsCount(editions)}
+                      </span>
+                    ) : null}
                     {moreMenu(item, "library-tile__menu", "glass")}
                   </div>
                   <div className="library-tile__body">
@@ -152,10 +185,11 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
                       type="button"
                       className="library-tile__title"
                       data-testid="card-title"
-                      title={item.title}
-                      aria-label={libraryStrings.openDetailsOf(item.title)}
+                      title={workTitle}
+                      aria-label={editions > 1 ? libraryStrings.editionsOf(workTitle, editions) : libraryStrings.openDetailsOf(item.title)}
+                      aria-haspopup={editions > 1 ? "dialog" : undefined}
                     >
-                      {item.title}
+                      {workTitle}
                     </button>
                     <span className="library-tile__meta">
                       {[item.author, item.chapters ? libraryStrings.chapters(item.chapters) : isShelf(item) ? "" : libraryStrings.size(item.sizeMb)]
@@ -255,6 +289,15 @@ export function LibraryCollection({ items, view, jobState, actions, onOpen, onOp
           </ul>
         </div>
       )}
+      {spread ? (
+        <EditionSpread
+          anchor={spread.anchor}
+          title={spread.stack.items.find((edition) => !edition.language)?.title ?? spread.stack.main.title}
+          items={spread.stack.items}
+          onPick={onOpen}
+          onClose={() => setSpread(null)}
+        />
+      ) : null}
       <DropdownMenu
         label={context ? libraryStrings.cardActions(context.item.title) : undefined}
         items={context ? actions.menuItems(context.item) : []}

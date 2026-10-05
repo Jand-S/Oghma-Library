@@ -4,6 +4,7 @@ import { availableFormats, filterLibrary, statusCounts, type LibrarySort, type L
 
 const VIEW_KEY = "oghma.library.view";
 const SORT_KEY = "oghma.library.sort";
+const STACKS_KEY = "oghma.library.stacks";
 
 function readPref<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
@@ -36,6 +37,8 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const [hiddenOnly, setHiddenOnly] = useState(false);
   const [sort, setSortState] = useState<LibrarySort>(() => readPref(SORT_KEY, ["recent", "title", "size", "rating"], "recent"));
   const [view, setViewState] = useState<LibraryViewMode>(() => readPref(VIEW_KEY, ["grid", "list"], "grid"));
+  // Editions of the same work as one card (grid only); on unless turned off.
+  const [stacks, setStacksState] = useState(() => readPref(STACKS_KEY, ["on", "off"], "on") === "on");
 
   const formats = useMemo(() => availableFormats(library), [library]);
   const filtered = useMemo(
@@ -54,6 +57,13 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const setView = useCallback((value: LibraryViewMode) => {
     setViewState(value);
     writePref(VIEW_KEY, value);
+  }, []);
+
+  const toggleStacks = useCallback(() => {
+    setStacksState((current) => {
+      writePref(STACKS_KEY, current ? "off" : "on");
+      return !current;
+    });
   }, []);
 
   const toggleFormat = useCallback((format: DownloadFormat) => {
@@ -112,6 +122,8 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     setSort,
     view,
     setView,
+    stacks,
+    toggleStacks,
     /** Library after search, chips and sort. */
     filtered,
     clearFilters

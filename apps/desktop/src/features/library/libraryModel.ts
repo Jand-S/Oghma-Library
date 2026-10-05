@@ -142,3 +142,28 @@ export function jobLabel(state: BookJobState) {
   if (state.kind === "convert") return state.percent > 0 ? libraryStrings.convertingPercent(state.percent) : libraryStrings.converting;
   return state.percent > 0 ? libraryStrings.updatingPercent(state.percent) : libraryStrings.updating;
 }
+
+/** Editions of one work shown as one card (a stack); `main` is the face of the card. */
+export type LibraryStack = { key: string; main: LibraryItem; items: LibraryItem[] };
+
+/**
+ * Groups the (already filtered and sorted) books by work: the original, its PT-BR translation
+ * and the same novel from other sources become one stack. Order follows the first edition of
+ * each work, which is also its face. `workKeyOf` returns null for a book that stays alone.
+ */
+export function stackEditions(items: LibraryItem[], workKeyOf: (item: LibraryItem) => string | null): LibraryStack[] {
+  const stacks: LibraryStack[] = [];
+  const byKey = new Map<string, LibraryStack>();
+  for (const item of items) {
+    const key = workKeyOf(item);
+    const stack = key ? byKey.get(key) : undefined;
+    if (stack) {
+      stack.items.push(item);
+      continue;
+    }
+    const created = { key: key ?? `item:${item.id}`, main: item, items: [item] };
+    stacks.push(created);
+    if (key) byKey.set(key, created);
+  }
+  return stacks;
+}

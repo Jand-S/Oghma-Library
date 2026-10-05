@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LibraryItem, LibraryMeta, Novel } from "../core/types";
 import type { LocalLibraryEntry } from "../services/localFiles";
 import { aliasMerges, buildLibraryItems, enrichLibraryItems, shelfAdditions } from "../app/useLocalLibrary";
-import { filterLibrary, formatsOf, statusCounts } from "../features/library/libraryModel";
+import { filterLibrary, formatsOf, stackEditions, statusCounts } from "../features/library/libraryModel";
 import { homeSeeds, seedWeight } from "../features/home/HomeView";
 import { buildCatalogIndex, similarNovels } from "../services/catalogIndex";
 
@@ -82,6 +82,21 @@ describe("shelf (books without files)", () => {
     const added = shelfAdditions(disk, rows, catalog, 999);
     expect(added.map((row) => row.key)).toEqual(["novel:cn:1", "novel:cn:6"]);
     expect(added[0]).toMatchObject({ onShelf: true, addedAt: 100, snapshot: { novelId: "cn:1", title: "Shadow Slave", coverUrl: "https://c/1.jpg" } });
+  });
+});
+
+describe("stacks (editions of one work)", () => {
+  it("groups by work in the given order, the first edition is the face, books without a key stay alone", () => {
+    const book = (id: string, title: string) => ({ id, title } as LibraryItem);
+    const items = [book("a", "Unsheathed (PT-BR)"), book("b", "Shadow Slave"), book("c", "Unsheathed"), book("d", "Solto"), book("e", "Solto")];
+    const key = (item: LibraryItem) => (item.id === "d" || item.id === "e" ? null : item.title.replace(" (PT-BR)", ""));
+    const stacks = stackEditions(items, key);
+    expect(stacks.map((stack) => [stack.main.id, stack.items.map((item) => item.id)])).toEqual([
+      ["a", ["a", "c"]],
+      ["b", ["b"]],
+      ["d", ["d"]],
+      ["e", ["e"]]
+    ]);
   });
 });
 
