@@ -132,7 +132,7 @@ export const libraryStrings = {
   updateWithNew: (count: number) => `Atualizar (+${count.toLocaleString("pt-BR")})`,
   hiddenFilter: (count: number) => `Ocultos (${count.toLocaleString("pt-BR")})`,
   showInLibrary: "Mostrar na biblioteca",
-  showInLibraryHint: "Este livro foi removido da biblioteca; os arquivos continuam no disco.",
+  showInLibraryHint: "Este livro foi removido da biblioteca; os arquivos continuam no disco. Mostrar na biblioteca o traz de volta em todos os seus computadores.",
   unhiddenToast: (title: string) => `${title} voltou para a biblioteca`,
   deleteFilesHint: "Apaga a pasta do livro (EPUB, AZW3, capa…) do disco. Não dá para desfazer.",
   redownloadHint: "Baixa de novo todos os capítulos e substitui a pasta atual quando terminar.",
@@ -143,7 +143,7 @@ export const libraryStrings = {
   // Confirmations
   confirmRemoveTitle: (title: string) => `Remover “${title}” da biblioteca?`,
   confirmRemoveDescription:
-    "O livro deixa de aparecer aqui, mas a pasta e os arquivos continuam no disco. Baixar novamente o traz de volta.",
+    "O livro sai da sua biblioteca em todos os seus computadores, com a nota e o status guardados. Aqui, a pasta e os arquivos continuam no disco, em Ocultos, de onde ele pode voltar.",
   confirmRemove: "Remover da biblioteca",
   confirmDeleteTitle: (title: string) => `Excluir os arquivos de “${title}”?`,
   confirmDeleteDescription:
@@ -199,7 +199,13 @@ export const libraryStrings = {
   conversionFailed: (count: number) => `${count} livro(s) não puderam ser convertidos.`,
   metaSaveFailed: "Não foi possível salvar os metadados da biblioteca.",
   hiddenToast: (count: number) =>
-    count === 1 ? "Livro removido da biblioteca. Os arquivos foram mantidos." : `${count} livros removidos da biblioteca. Os arquivos foram mantidos.`,
+    count === 1
+      ? "Livro removido da biblioteca. Os arquivos continuam neste computador, em Ocultos."
+      : `${count} livros removidos da biblioteca. Os arquivos continuam neste computador, em Ocultos.`,
+  removedElsewhere: (title: string) => `${title} foi removido da biblioteca em outro computador. Os arquivos continuam neste computador.`,
+  removedElsewhereMany: (count: number) => `${count} livros foram removidos da biblioteca em outro computador. Os arquivos continuam neste computador.`,
+  deleteFilesAction: "Apagar arquivos",
+  seeHidden: "Ver em Ocultos",
   folderNotFound: "Não foi possível localizar a pasta do livro.",
   deleteDesktopOnly: "Não foi possível excluir: a exclusão de arquivos só está disponível no app desktop.",
   deletedToast: (count: number) => (count === 1 ? "Livro e arquivos excluídos." : `${count} livros e arquivos excluídos.`),

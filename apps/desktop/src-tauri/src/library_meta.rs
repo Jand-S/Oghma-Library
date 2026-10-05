@@ -264,8 +264,9 @@ fn mark_downloaded_in(conn: &Connection, keys: &[String], now: i64) -> Result<us
     Ok(changed)
 }
 
-/// Removes a row. `novel:` rows become tombstones (synced); folder-path rows are local
-/// only and are deleted outright.
+/// Removes a book from the library. `novel:` rows become tombstones (synced to every device);
+/// status, rating, favorite, tags and the snapshot stay in the row, so bringing the book back
+/// restores them. Folder-path rows are local only and are deleted outright.
 #[tauri::command(async)]
 pub fn delete_library_meta(app: AppHandle, key: String) -> Result<(), String> {
     delete_meta_in(&open_db(&app)?, &key, now_ms())
@@ -276,9 +277,8 @@ fn delete_meta_in(conn: &Connection, key: &str, now: i64) -> Result<(), String> 
     if key.starts_with(NOVEL_PREFIX) {
         conn.execute(
             "INSERT INTO library_meta (key, deleted_at, changed_at, dirty) VALUES (?1, ?2, ?2, 1)
-             ON CONFLICT(key) DO UPDATE SET favorite = 0, reading_status = 'unread', tags_json = '[]',
-                hidden = 0, rating = NULL, on_shelf = 0, deleted_at = ?2, changed_at = ?2, dirty = 1,
-                updated_at = CURRENT_TIMESTAMP",
+             ON CONFLICT(key) DO UPDATE SET hidden = 0, on_shelf = 0, deleted_at = ?2, changed_at = ?2,
+                dirty = 1, updated_at = CURRENT_TIMESTAMP",
             params![key, now],
         )
         .map_err(err)?;
@@ -337,18 +337,18 @@ fn mark_clean_in(conn: &Connection, entries: &[SyncedKey]) -> Result<usize, Stri
 
 /// Applies rows from the account: the newest `changedAt` wins, per book. A local row
 /// that changed later (still dirty) is kept and goes up on the next push.
-/// Returns how many rows changed.
+/// Returns the keys that changed here (the app tells the reader about books removed elsewhere).
 #[tauri::command(async)]
-pub fn library_sync_apply(app: AppHandle, rows: Vec<LibraryMeta>) -> Result<usize, String> {
+pub fn library_sync_apply(app: AppHandle, rows: Vec<LibraryMeta>) -> Result<Vec<String>, String> {
     let mut conn = open_db(&app)?;
     apply_in(&mut conn, &rows)
 }
 
-fn apply_in(conn: &mut Connection, rows: &[LibraryMeta]) -> Result<usize, String> {
+fn apply_in(conn: &mut Connection, rows: &[LibraryMeta]) -> Result<Vec<String>, String> {
     let tx = conn
         .transaction()
         .map_err(|err| format!("Não foi possível aplicar a sincronização: {err}"))?;
-    let mut applied = 0;
+    let mut applied = Vec::new();
     for remote in rows.iter().filter(|row| row.key.starts_with(NOVEL_PREFIX)) {
         let remote_changed = remote.changed_at.unwrap_or(0);
         let local: Option<(i64, i64)> = tx
@@ -368,7 +368,7 @@ fn apply_in(conn: &mut Connection, rows: &[LibraryMeta]) -> Result<usize, String
         let hidden = local.map(|(_, hidden)| hidden != 0).unwrap_or(false);
         let row = LibraryMeta { hidden, ..remote.clone() };
         write_row(&tx, &row, remote_changed, false)?;
-        applied += 1;
+        applied.push(remote.key.clone());
     }
     tx.commit()
         .map_err(|err| format!("Não foi possível aplicar a sincronização: {err}"))?;
@@ -499,7 +499,10 @@ mod tests {
         assert_eq!(rows.len(), 1);
         let tomb = &rows[0];
         assert_eq!(tomb.deleted_at, Some(500));
-        assert!(!tomb.on_shelf && !tomb.favorite);
+        assert!(!tomb.on_shelf);
+        // What the reader marked stays, so bringing the book back restores it.
+        assert!(tomb.favorite);
+        assert_eq!(tomb.reading_status, "reading");
         assert_eq!(pending_in(&conn).unwrap().len(), 1);
 
         save_meta_in(&mut conn, &LibraryMeta { on_shelf: true, changed_at: Some(600), ..meta("novel:t", false) }, None).unwrap();
@@ -526,7 +529,7 @@ mod tests {
             &[remote("novel:local-newer", 150), remote("novel:remote-newer", 300), remote("novel:new", 50), remote("/out/x", 999)],
         )
         .unwrap();
-        assert_eq!(applied, 2);
+        assert_eq!(applied, vec!["novel:remote-newer".to_string(), "novel:new".to_string()]);
 
         let kept = row(&conn, "novel:local-newer");
         assert!(kept.favorite && kept.rating.is_none());

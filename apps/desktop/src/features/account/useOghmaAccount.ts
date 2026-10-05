@@ -58,8 +58,9 @@ function networkFailure(): Outcome<never> {
 
 type Options = {
   client: AccountClient;
-  /** The account changed this computer's library (rows pulled): rescan it. */
-  onLibraryChanged: () => void;
+  /** The account changed this computer's library (rows pulled): rescan it. `removed` lists the
+   *  novel ids another computer took out of the library. */
+  onLibraryChanged: (change: { removed: string[] }) => void;
   /** Toasts for background events (session expired). */
   notify?: (message: string, tone?: "info" | "success" | "warning" | "danger") => void;
 };
@@ -108,7 +109,7 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
         writeStorage(cursorKey, String(result.cursor));
         lastSyncAt.current = Date.now();
         setSync({ state: "idle", lastSyncAt: lastSyncAt.current });
-        if (result.applied > 0) onChangedRef.current();
+        if (result.applied > 0) onChangedRef.current({ removed: result.removed });
       } catch (error) {
         if (error instanceof AccountUnauthorized) {
           signOutLocally();

@@ -192,10 +192,11 @@ async def test_library_sync_newest_change_wins_with_tombstones_and_cursor(api):
     assert delta["entries"][0]["rating"] == 4 and delta["entries"][0]["snapshot"]["title"] == "X"
     assert delta["cursor"] == 3
 
-    # Removal = tombstone (personal fields cleared), reaches the other devices by cursor.
+    # Removal = tombstone (off the shelf, what the reader marked kept for a later restore),
+    # reaches the other devices by cursor.
     await api.post("/v1/me/library/changes", headers=auth(token), json={"changes": [entry("cn:1", 300, deletedAt=300, rating=5)]})
     tomb = (await api.get("/v1/me/library", params={"since": 3}, headers=auth(token))).json()["entries"][0]
-    assert tomb["deletedAt"] == 300 and tomb["rating"] is None and tomb["onShelf"] is False
+    assert tomb["deletedAt"] == 300 and tomb["rating"] == 5 and tomb["onShelf"] is False
 
 
 async def test_resending_the_same_change_is_confirmed_not_rejected(api):

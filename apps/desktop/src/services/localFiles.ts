@@ -303,10 +303,11 @@ export async function librarySyncMarkClean(entries: { key: string; changedAt: nu
   return invoke<number>("library_sync_mark_clean", { entries });
 }
 
-export async function librarySyncApply(rows: LibraryMeta[]): Promise<number> {
+/** Applies rows from the account; returns the keys that changed on this computer. */
+export async function librarySyncApply(rows: LibraryMeta[]): Promise<string[]> {
   const invoke = await loadInvoke();
-  if (!invoke || rows.length === 0) return 0;
-  return invoke<number>("library_sync_apply", { rows });
+  if (!invoke || rows.length === 0) return [];
+  return invoke<string[]>("library_sync_apply", { rows });
 }
 
 export async function librarySyncMarkAllDirty(): Promise<number> {

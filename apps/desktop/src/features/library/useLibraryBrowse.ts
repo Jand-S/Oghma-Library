@@ -69,6 +69,11 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const toggleTranslated = useCallback(() => setTranslatedOnly((value) => !value), []);
   const hasTranslated = useMemo(() => library.some(isTranslated), [library]);
   const toggleHidden = useCallback(() => setHiddenOnly((value) => !value), []);
+  /** Opens the "Ocultos" view (books removed from the library whose files are still here). */
+  const showHidden = useCallback(() => {
+    setStatusState("all");
+    setHiddenOnly(true);
+  }, []);
   const hiddenCount = useMemo(() => library.filter((item) => item.hidden).length, [library]);
   // Last hidden book brought back: leave the (now empty) "Ocultos" view.
   useEffect(() => {
@@ -101,6 +106,7 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     hasTranslated,
     hiddenOnly,
     toggleHidden,
+    showHidden,
     hiddenCount,
     sort,
     setSort,

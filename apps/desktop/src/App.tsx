@@ -22,6 +22,7 @@ import { openLocalPath } from "./services/localFiles";
 import { AppShell, SplashScreen, type BootStep } from "./shell";
 import { bootStrings, shellStrings } from "./strings/common";
 import { downloadsStrings } from "./strings/downloads";
+import { libraryStrings } from "./strings/library";
 import { Button, EmptyState, ToastProvider, useToast, type ToastTone } from "./ui";
 import { OnboardingWizard } from "./features/onboarding/OnboardingView";
 import { readUiPreferences } from "./features/settings/preferences";
@@ -109,7 +110,14 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
 
   // Conta Oghma: the library syncs with the account; pulled changes rescan the library.
   const [accountTransport] = useState(() => accountClient ?? tauriAccountClient());
-  const oghmaAccount = useOghmaAccount({ client: accountTransport, onLibraryChanged: refreshLocalLibrary, notify });
+  // Novel ids another computer removed from the library: when one of them is downloaded here,
+  // the reader is told (the files stay; see the effect below).
+  const [removedElsewhere, setRemovedElsewhere] = useState<string[]>([]);
+  const onAccountLibraryChanged = useCallback(({ removed }: { removed: string[] }) => {
+    refreshLocalLibrary();
+    if (removed.length) setRemovedElsewhere((current) => [...new Set([...current, ...removed])]);
+  }, [refreshLocalLibrary]);
+  const oghmaAccount = useOghmaAccount({ client: accountTransport, onLibraryChanged: onAccountLibraryChanged, notify });
   const [accountSheet, setAccountSheet] = useState<{ open: boolean; step: AccountSheetStep }>({ open: false, step: "email" });
   const openAccountSheet = useCallback((step: AccountSheetStep = "email") => setAccountSheet({ open: true, step }), []);
 
@@ -188,6 +196,41 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     toast
   });
   const sourcesController = useSourcesController({ backend, sources, setSources, setAppConfig, notify });
+
+  // A book removed on another computer but downloaded here leaves this library too (it goes to
+  // "Ocultos"; the files stay). Say so once, with a way to free the space.
+  useEffect(() => {
+    if (!removedElsewhere.length) return;
+    const pending = new Set(removedElsewhere);
+    const downloaded = library.filter((item) => item.availability === "local" && item.novelId && pending.has(item.novelId));
+    const hidden = downloaded.filter((item) => item.hidden);
+    // Keep waiting only for downloaded books the rescan has not hidden yet.
+    const waiting = downloaded.filter((item) => !item.hidden).map((item) => item.novelId!);
+    setRemovedElsewhere((current) => (current.length === waiting.length && current.every((id) => waiting.includes(id)) ? current : waiting));
+    if (!hidden.length) return;
+    if (hidden.length === 1) {
+      const [item] = hidden;
+      toast({
+        message: libraryStrings.removedElsewhere(item.title),
+        tone: "info",
+        duration: 12000,
+        action: { label: libraryStrings.deleteFilesAction, onClick: () => libraryController.deleteLibraryItems([item], true, false) }
+      });
+    } else {
+      toast({
+        message: libraryStrings.removedElsewhereMany(hidden.length),
+        tone: "info",
+        duration: 12000,
+        action: {
+          label: libraryStrings.seeHidden,
+          onClick: () => {
+            libraryController.browse.showHidden();
+            navigate("library", undefined, { root: true });
+          }
+        }
+      });
+    }
+  }, [library, libraryController, navigate, removedElsewhere, toast]);
   // Settings is created after onboarding (it needs onboarding.resetServerProbe): a ref links them.
   const restartIfServerChangedRef = useRef<() => void>(() => undefined);
   const onboarding = useOnboardingController({

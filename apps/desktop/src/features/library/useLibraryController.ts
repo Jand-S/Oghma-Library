@@ -231,9 +231,11 @@ export function useLibraryController({
   const openLibraryItemFolder = (item: LibraryItem) =>
     openOutputFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`, notify);
 
-  /** Disk books keep their folder path as key (localFiles maps it to `novel:<id>`); shelf books use the novel key. */
+  /** Books of the catalog are keyed by the work (`novel:<id>`, synced); local-only books (translations,
+   *  unknown folders) by their folder path. */
+  const syncsAsNovel = (item: LibraryItem) => Boolean(item.novelId) && !item.language;
   const libraryMetaKey = (item: LibraryItem) =>
-    item.availability === "shelf" && item.novelId ? novelMetaKey(item.novelId) : item.outputDir ?? item.id;
+    syncsAsNovel(item) ? novelMetaKey(item.novelId!) : item.outputDir ?? item.id;
   const metadataFromItem = (item: LibraryItem): LibraryMeta => ({
     key: libraryMetaKey(item),
     favorite: Boolean(item.favorite),
@@ -258,6 +260,8 @@ export function useLibraryController({
 
   const updateLibraryMeta = (item: LibraryItem, patch: Partial<Omit<LibraryMeta, "key">>) => {
     const nextMeta = { ...metadataFromItem(item), ...patch };
+    // Showing or hiding a catalog book puts it back on (or takes it off) the shelf everywhere.
+    if (patch.hidden !== undefined && patch.onShelf === undefined && syncsAsNovel(item)) nextMeta.onShelf = !patch.hidden;
     setLibrary((items) => items.map((entry) => {
       if (libraryMetaKey(entry) !== nextMeta.key) return entry;
       return {
@@ -355,11 +359,15 @@ export function useLibraryController({
     const keys = new Set(items.map(libraryMetaKey));
     const ids = new Set(items.map((item) => item.id));
     if (!deleteFiles) {
-      const hiddenRows = items.map((item) => ({ ...metadataFromItem(item), hidden: true, onShelf: false }));
       // Stays in state as hidden: the "Ocultos" chip lists it and it can be brought back.
       setLibrary((current) => current.map((entry) => keys.has(libraryMetaKey(entry)) ? { ...entry, hidden: true } : entry));
       setSelectedLibraryIds((current) => current.filter((id) => !ids.has(id)));
-      void Promise.all(hiddenRows.map((meta) => saveLibraryMetadata(meta))).catch((error: unknown) => {
+      // Catalog books leave the library on every computer (a tombstone that keeps what the reader
+      // marked); the files stay on this disk. Local-only books are just hidden here.
+      const removals = items.map((item) => syncsAsNovel(item)
+        ? saveLibraryMetadata(metadataFromItem(item)).then(() => deleteLibraryMetadata(libraryMetaKey(item)))
+        : saveLibraryMetadata({ ...metadataFromItem(item), hidden: true, onShelf: false }));
+      void Promise.all(removals).catch((error: unknown) => {
         notify(getErrorMessage(error, libraryStrings.metaSaveFailed), "danger");
       });
       notify(libraryStrings.hiddenToast(items.length));

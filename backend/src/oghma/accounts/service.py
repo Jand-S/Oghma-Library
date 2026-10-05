@@ -411,11 +411,12 @@ def clean_entry(raw: dict[str, Any]) -> tuple[str, dict[str, Any], int, int | No
         }
         snapshot = {k: v for k, v in snapshot.items() if v is not None}
     added_at = raw.get("addedAt")
+    # A removed book keeps what the reader marked: bringing it back restores status, rating and tags.
     data = {
-        "favorite": bool(raw.get("favorite")) and deleted_at is None,
-        "readingStatus": status if deleted_at is None else "unread",
-        "rating": rating if deleted_at is None else None,
-        "tags": tags if deleted_at is None else [],
+        "favorite": bool(raw.get("favorite")),
+        "readingStatus": status,
+        "rating": rating,
+        "tags": tags,
         "onShelf": bool(raw.get("onShelf")) and deleted_at is None,
         "addedAt": int(added_at) if isinstance(added_at, (int, float)) and added_at > 0 else None,
         "snapshot": snapshot,

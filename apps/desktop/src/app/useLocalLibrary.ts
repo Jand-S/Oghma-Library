@@ -154,14 +154,27 @@ export function shelfItem(meta: LibraryMeta, novelId: string, known: Novel | und
   };
 }
 
+/**
+ * A downloaded book taken out of the library (on this computer or another) after it was
+ * downloaded: its tombstone. It stays on disk but leaves the library (shown in "Ocultos").
+ * Downloading it again (newer files) brings it back.
+ */
+export function removalOf(entry: LocalLibraryEntry, novelId: string | undefined, metaByKey: Map<string, LibraryMeta>): LibraryMeta | undefined {
+  if (!novelId || entry.language) return undefined;
+  const row = metaByKey.get(novelMetaKey(novelId));
+  return row?.deletedAt && (entry.mtimeMs ?? 0) <= row.deletedAt ? row : undefined;
+}
+
 export function buildLibraryItems(entries: LocalLibraryEntry[], metaRows: LibraryMeta[], catalog: Novel[]): LibraryItem[] {
   const metaByKey = new Map(metaRows.map((meta) => [meta.key, meta]));
   const onDisk = new Set<string>();
   const local = entries.map((entry): LibraryItem => {
     const formats = formatsOf(entry.files);
     const known = findCatalogNovel(entry, catalog);
-    const meta = metaForEntry(entry, metaByKey);
     const fields = catalogFields(entry, known);
+    const removal = removalOf(entry, fields.novelId, metaByKey);
+    // A removed book keeps what the reader marked (the tombstone has it) and is hidden here.
+    const meta = removal ? { ...removal, hidden: true } : metaForEntry(entry, metaByKey);
     if (entry.novelId) onDisk.add(entry.novelId);
     if (fields.novelId) onDisk.add(fields.novelId);
     if (known) onDisk.add(known.id);

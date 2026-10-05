@@ -120,10 +120,10 @@ describe("library sync", () => {
 
   it("pushes pending rows, marks the accepted ones clean and applies the pull in pages", async () => {
     const pending = [{ key: "novel:a", changedAt: 5 }, { key: "novel:b", changedAt: 6 }];
-    invokeMock.mockImplementation(async (kind: string) => (kind === "pending" ? pending : kind === "apply" ? 1 : 0));
+    invokeMock.mockImplementation(async (kind: string, rows?: { key: string }[]) => (kind === "pending" ? pending : kind === "apply" ? (rows ?? []).map((row) => row.key) : 0));
     const pages = [
       { entries: [{ key: "novel:c", changedAt: 9, seq: 3 }], cursor: 3, more: true },
-      { entries: [{ key: "novel:d", changedAt: 9, seq: 4 }], cursor: 4, more: false }
+      { entries: [{ key: "novel:d", changedAt: 9, deletedAt: 9, seq: 4 }], cursor: 4, more: false }
     ];
     const client = fakeClient({
       api: vi.fn(async (_method: string, path: string) => {
@@ -139,7 +139,8 @@ describe("library sync", () => {
     expect(client.api).toHaveBeenCalledWith("GET", "/v1/me/library?since=3");
     // `seq` is the server's; the local rows never get it.
     expect(invokeMock).toHaveBeenCalledWith("apply", [{ key: "novel:c", changedAt: 9 }]);
-    expect(result).toEqual({ cursor: 4, pushed: 1, applied: 2 });
+    // "d" came removed from another computer: the app is told, to warn if it is downloaded here.
+    expect(result).toEqual({ cursor: 4, pushed: 1, applied: 2, removed: ["d"] });
   });
 
   it("stops on an expired session", async () => {
@@ -153,7 +154,7 @@ describe("automatic sync", () => {
   beforeEach(() => {
     resetAppState();
     invokeMock.mockReset();
-    invokeMock.mockImplementation(async (kind: string) => (kind === "pending" ? [] : kind === "apply" ? 1 : 0));
+    invokeMock.mockImplementation(async (kind: string, rows?: { key: string }[]) => (kind === "pending" ? [] : kind === "apply" ? (rows ?? []).map((row) => row.key) : 0));
   });
 
   it("pulls on its own as soon as the server says another device changed the library", async () => {

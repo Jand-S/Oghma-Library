@@ -85,6 +85,27 @@ describe("shelf (books without files)", () => {
   });
 });
 
+describe("removing a downloaded book", () => {
+  const catalog = [novel({ id: "cn:1", title: "Shadow Slave" })];
+
+  it("hides it here (files kept, in Ocultos) with what the reader marked, until it is downloaded again", () => {
+    const disk = [entry({ title: "Shadow Slave", outputDir: "/out/Shadow Slave", novelId: "cn:1", mtimeMs: 100 })];
+    const tomb = meta({ key: "novel:cn:1", deletedAt: 200, rating: 5, readingStatus: "completed", favorite: true });
+    const [removed] = buildLibraryItems(disk, [tomb], catalog);
+    expect(removed).toMatchObject({ availability: "local", hidden: true, rating: 5, readingStatus: "completed", favorite: true });
+    // Downloaded again after the removal: back in the library (and re-added to the account).
+    const again = [entry({ title: "Shadow Slave", outputDir: "/out/Shadow Slave", novelId: "cn:1", mtimeMs: 300 })];
+    expect(buildLibraryItems(again, [tomb], catalog)[0].hidden).toBe(false);
+    expect(shelfAdditions(again, [tomb], catalog).map((row) => row.key)).toEqual(["novel:cn:1"]);
+    expect(shelfAdditions(disk, [tomb], catalog)).toEqual([]);
+  });
+
+  it("also hides a book matched to the catalog by title (no id in its folder)", () => {
+    const disk = [entry({ title: "Shadow Slave", outputDir: "/out/Shadow Slave", mtimeMs: 100 })];
+    expect(buildLibraryItems(disk, [meta({ key: "novel:cn:1", deletedAt: 200 })], catalog)[0].hidden).toBe(true);
+  });
+});
+
 describe("library filters", () => {
   const items = [
     { id: "a", title: "A", rating: 3, readingStatus: "reading", availability: "local" },

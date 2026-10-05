@@ -19,6 +19,8 @@ export type SyncResult = {
   pushed: number;
   /** Rows from the account that changed this computer's library. */
   applied: number;
+  /** Novel ids removed from the library on another computer (and applied here). */
+  removed: string[];
 };
 
 type PushBody = { accepted: { key: string; changedAt: number }[]; rejected: string[]; cursor: number };
@@ -47,14 +49,21 @@ export async function syncLibrary(client: AccountClient, cursor: number, options
     pushed += result.body.accepted.length;
   }
   let applied = 0;
+  const removed: string[] = [];
   let since = cursor;
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const result = await client.api<PullBody>("GET", `/v1/me/library?since=${since}`);
     check(result);
     const { entries, cursor: next, more } = result.body;
-    if (entries.length) applied += await librarySyncApply(entries.map(({ seq: _seq, ...row }) => row));
+    if (entries.length) {
+      const changed = new Set(await librarySyncApply(entries.map(({ seq: _seq, ...row }) => row)));
+      applied += changed.size;
+      for (const entry of entries) {
+        if (entry.deletedAt && changed.has(entry.key)) removed.push(entry.key.slice("novel:".length));
+      }
+    }
     since = next;
     if (!more) break;
   }
-  return { cursor: since, pushed, applied };
+  return { cursor: since, pushed, applied, removed };
 }
