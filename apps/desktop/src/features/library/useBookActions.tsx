@@ -1,4 +1,4 @@
-import { CloudDownload, Download, FileCog, FolderOpen, Heart, HeartOff, Image, ImageOff, Info, Search, Trash2, EyeOff } from "lucide-react";
+import { CloudDownload, Download, Eye, FileCog, FolderOpen, Heart, HeartOff, Image, ImageOff, Info, Search, Trash2, EyeOff } from "lucide-react";
 import { useCoverControls } from "../../app/coverPrivacy";
 import { useRef, useState, type ReactNode } from "react";
 import type { LibraryItem, LibraryReadingStatus, Novel } from "../../core/types";
@@ -125,7 +125,9 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     items.push(...statusItems(item));
     const cover = coverItem(item);
     if (cover) items.push(cover);
-    items.push({ label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => askRemove(item), separatorBefore: true });
+    items.push(item.hidden
+      ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item), separatorBefore: true }
+      : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => askRemove(item), separatorBefore: true });
     if (!shelf) items.push({ label: libraryStrings.deleteFiles, icon: <Trash2 />, onSelect: () => askDelete(item), danger: true });
     return items;
   };
