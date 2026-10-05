@@ -1,6 +1,6 @@
 [package]
 name = "oghma-library"
-version = "2.0.6"
+version = "2.0.7"
 description = "Oghma Library desktop app"
 authors = ["Oghma Library"]
 edition = "2021"
