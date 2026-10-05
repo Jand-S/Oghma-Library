@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 /**
- * Publishes an over-the-air update of the desktop app (Tauri updater). See docs/RELEASE.md.
+ * Publishes a new version of the desktop app. See docs/RELEASE.md.
  *
- *   node scripts/release.mjs --notes "Novidades desta versão"        # build, sign, upload, publish
- *   node scripts/release.mjs --skip-build --notes "..."                # reuse the last signed build
+ *   node scripts/release.mjs 2.0.4 --notes "O que mudou"      # bump, commit, tag, push → CI does the rest
+ *   node scripts/release.mjs 2.0.4 --notes-file notas.md
  *
- * 1. Builds with the signing key (~/.config/oghma/updater.key + .password; never in the repo).
- * 2. Uploads the signed package to the public bucket (`oghma-acervo/atualizacoes/<version>/`), served
- *    through Cloudflare at https://b2.jandson.me/atualizacoes/ like the catalog. The upload runs on the
- *    VPS with the bucket credentials of /opt/oghma/.env (they never leave the server).
- * 3. Rewrites latest.json for this platform. Entries of other platforms that are not at this version
- *    are dropped, so no app is offered a package of another version.
+ * The push of tag `v<versão>` starts .github/workflows/release.yml: it builds Mac and Windows,
+ * signs the update packages, publishes the GitHub release (oghma.dev downloads from it) and the
+ * updater's latest.json with both platforms. The tag message becomes the release notes.
  *
- * Bump the version first (tauri.conf.json, package.json, src-tauri/Cargo.toml): the updater only
- * offers versions greater than the installed one.
+ * Emergency path (no CI; this computer's platform only, through the VPS):
+ *   node scripts/release.mjs --local --notes "..."   [--skip-build]
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -28,6 +25,7 @@ const BUCKET_PREFIX = "atualizacoes";
 const SSH_HOST = process.env.OGHMA_RELEASE_SSH ?? "vps";
 
 const args = process.argv.slice(2);
+const ROOT = path.resolve(APP, "..", "..");
 const flag = (name) => args.includes(name);
 const option = (name) => {
   const index = args.indexOf(name);
@@ -102,7 +100,41 @@ async function currentManifest() {
   }
 }
 
-async function main() {
+/** Bumps the version everywhere, commits, tags and pushes; the release workflow builds and publishes. */
+function ciRelease(next) {
+  if (!/^\d+\.\d+\.\d+$/.test(next ?? "")) throw new Error("Informe a versão nova: node scripts/release.mjs 2.0.4 --notes \"...\"");
+  if (!notes.trim()) throw new Error("Escreva as novidades com --notes ou --notes-file (viram as notas da release e do botão Atualizar).");
+  const git = (...gitArgs) => execFileSync("git", gitArgs, { cwd: ROOT, encoding: "utf8" }).trim();
+  if (git("status", "--porcelain")) throw new Error("Há mudanças não commitadas. Faça o commit antes de lançar uma versão.");
+  const current = version;
+  const [a, b] = [next, current].map((v) => v.split(".").map(Number));
+  const newer = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  if (newer <= 0) throw new Error(`A versão nova (${next}) precisa ser maior que a atual (${current}).`);
+
+  const edits = [
+    ["src-tauri/tauri.conf.json", (text) => text.replace(`"version": "${current}"`, `"version": "${next}"`)],
+    ["package.json", (text) => text.replace(`"version": "${current}"`, `"version": "${next}"`)],
+    ["src-tauri/Cargo.toml", (text) => text.replace(`version = "${current}"`, `version = "${next}"`)],
+    // The lock carries the package's own version too (the build would rewrite it otherwise).
+    ["src-tauri/Cargo.lock", (text) => text.replace(/(name = "oghma-library"\nversion = ")[^"]+"/, `$1${next}"`)]
+  ];
+  for (const [file, edit] of edits) {
+    const full = path.join(APP, file);
+    const before = fs.readFileSync(full, "utf8");
+    const after = edit(before);
+    if (after === before) throw new Error(`Não achei a versão ${current} em ${file}.`);
+    fs.writeFileSync(full, after);
+  }
+  const branch = git("rev-parse", "--abbrev-ref", "HEAD");
+  git("add", ...edits.map(([file]) => path.join("apps", "desktop", file)));
+  git("commit", "-m", `Versão ${next}`);
+  git("tag", "-a", `v${next}`, "-m", notes.trim());
+  run("git", ["push", "origin", branch], { cwd: ROOT });
+  run("git", ["push", "origin", `v${next}`], { cwd: ROOT });
+  console.log(`Tag v${next} enviada. Acompanhe: https://github.com/Jand-S/Oghma-Library/actions`);
+}
+
+async function localRelease() {
   if (!flag("--skip-build")) build();
   const { file, remoteName } = artifact();
   const signature = fs.readFileSync(`${file}.sig`, "utf8").trim();
@@ -142,6 +174,8 @@ async function main() {
   if (check?.version !== version || !check.platforms?.[key]) throw new Error("latest.json publicado não confere.");
   console.log(`Publicado ${version} (${key}): ${url}`);
 }
+
+const main = async () => (flag("--local") ? localRelease() : ciRelease(args.find((arg) => /^\d/.test(arg))));
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);

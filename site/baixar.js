@@ -40,8 +40,12 @@
       const version = String(release.tag_name || "").replace(/^v/, "");
       const names = new Set((release.assets || []).map((asset) => asset.name));
       if (version) {
-        document.querySelector("[data-versao]").textContent = `versão ${version}`;
-        document.querySelector("[data-meta]").textContent = `Versão ${version} · Grátis · macOS (Apple Silicon) e Windows 10/11`;
+        const published = release.published_at
+          ? new Date(release.published_at).toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: "numeric" })
+          : "";
+        document.querySelector("[data-versao]").textContent = `versão ${version}${published ? ` · ${published}` : ""}`;
+        document.querySelector("[data-meta]").textContent =
+          `Versão ${version}${published ? `, de ${published}` : ""} · Grátis · macOS (Apple Silicon) e Windows 10/11`;
       }
       // A platform without a build in this release: button greyed out with "Em breve".
       document.querySelectorAll("[data-plataforma]").forEach((link) => {

@@ -1,0 +1,207 @@
+# Release of the desktop app: a tag `v<versão>` builds Mac and Windows, signs the update packages,
+# publishes the GitHub release (oghma.dev downloads from it) and the updater's latest.json.
+# See docs/RELEASE.md. Secrets: TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD,
+# B2_KEY_ID, B2_APPLICATION_KEY (application key restricted to oghma-acervo/atualizacoes/).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag ou branch a compilar"
+        required: true
+        default: "feature/library-account"
+      dry_run:
+        description: "Só compilar (arquivos ficam nos artefatos do run; nada é publicado)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_DIR: apps/desktop
+  REPO: ${{ github.repository }}
+  B2_ENDPOINT: https://s3.us-east-005.backblazeb2.com
+  B2_BUCKET: oghma-acervo
+  UPDATES_URL: https://b2.jandson.me/atualizacoes/latest.json
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      dry_run: ${{ steps.version.outputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - name: Versão e tag
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./$APP_DIR/src-tauri/tauri.conf.json').version")
+          TAG="v$VERSION"
+          DRY="${{ inputs.dry_run || 'false' }}"
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF_NAME" != "$TAG" ]]; then
+            echo "::error::A tag $GITHUB_REF_NAME não bate com a versão do tauri.conf.json ($VERSION)."
+            exit 1
+          fi
+          for file in "$APP_DIR/package.json" "$APP_DIR/src-tauri/Cargo.toml"; do
+            grep -q "\"version\": \"$VERSION\"\|^version = \"$VERSION\"" "$file" || { echo "::error::$file não está na versão $VERSION."; exit 1; }
+          done
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY" >> "$GITHUB_OUTPUT"
+      - name: Rascunho da release
+        if: steps.version.outputs.dry_run != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git fetch --force --tags origin
+          NOTES=$(git tag -l --format='%(contents)' "$TAG" | sed '/-----BEGIN PGP/,$d')
+          {
+            echo "## Oghma $VERSION"
+            echo
+            echo "**Downloads:** [oghma.dev](https://oghma.dev) · Mac (Apple Silicon): \`Oghma-Library-macOS.dmg\` · Windows 10/11: \`Oghma-Library-Windows.exe\`"
+            echo
+            echo "### Novidades"
+            echo "$NOTES"
+            echo
+            echo "Quem já tem o Oghma instalado recebe esta versão pelo botão **Atualizar** no app."
+          } > body.md
+          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            gh release edit "$TAG" -R "$REPO" --notes-file body.md
+          else
+            gh release create "$TAG" -R "$REPO" --draft --verify-tag --title "Oghma $VERSION" --notes-file body.md
+          fi
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-14
+            bundles: app,dmg
+          - os: windows-latest
+            bundles: nsis
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ env.APP_DIR }}/src-tauri -> target
+      - name: Dependências
+        working-directory: ${{ env.APP_DIR }}
+        run: npm ci
+      - name: Build assinado
+        working-directory: ${{ env.APP_DIR }}
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build --bundles ${{ matrix.bundles }}
+      - name: Arquivos com nomes fixos
+        shell: bash
+        run: |
+          BUNDLE="$APP_DIR/src-tauri/target/release/bundle"
+          mkdir -p out
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            cp "$BUNDLE"/dmg/*.dmg out/Oghma-Library-macOS.dmg
+            cp "$BUNDLE/macos/Oghma Library.app.tar.gz" "out/Oghma-Library_${VERSION}_aarch64.app.tar.gz"
+            cp "$BUNDLE/macos/Oghma Library.app.tar.gz.sig" "out/Oghma-Library_${VERSION}_aarch64.app.tar.gz.sig"
+          else
+            SETUP=$(ls "$BUNDLE"/nsis/*"$VERSION"*-setup.exe | head -1)
+            cp "$SETUP" out/Oghma-Library-Windows.exe
+            cp "$SETUP.sig" out/Oghma-Library-Windows.exe.sig
+          fi
+          ls -la out
+      - name: Artefatos do run (teste)
+        if: needs.prepare.outputs.dry_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: oghma-${{ runner.os }}
+          path: out/*
+      - name: Enviar para o rascunho da release
+        if: needs.prepare.outputs.dry_run != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" out/* -R "$REPO" --clobber
+
+  publish:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Conferir os arquivos e publicar a release
+        shell: bash
+        run: |
+          EXPECTED="Oghma-Library-macOS.dmg Oghma-Library-Windows.exe Oghma-Library-Windows.exe.sig Oghma-Library_${VERSION}_aarch64.app.tar.gz Oghma-Library_${VERSION}_aarch64.app.tar.gz.sig"
+          ASSETS=$(gh release view "$TAG" -R "$REPO" --json assets -q '.assets[].name')
+          for name in $EXPECTED; do
+            grep -qx "$name" <<< "$ASSETS" || { echo "::error::Falta $name na release $TAG."; exit 1; }
+          done
+          gh release edit "$TAG" -R "$REPO" --draft=false --latest
+      - name: latest.json do updater
+        shell: bash
+        run: |
+          git fetch --force --tags origin
+          mkdir sigs
+          gh release download "$TAG" -R "$REPO" -p '*.sig' -D sigs
+          BASE="https://github.com/$REPO/releases/download/$TAG"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg notes "$(git tag -l --format='%(contents)' "$TAG" | sed '/-----BEGIN PGP/,$d')" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg mac_url "$BASE/Oghma-Library_${VERSION}_aarch64.app.tar.gz" \
+            --arg mac_sig "$(cat "sigs/Oghma-Library_${VERSION}_aarch64.app.tar.gz.sig")" \
+            --arg win_url "$BASE/Oghma-Library-Windows.exe" \
+            --arg win_sig "$(cat sigs/Oghma-Library-Windows.exe.sig)" \
+            '{version: $version, notes: $notes, pub_date: $date, platforms: {
+                "darwin-aarch64": {signature: $mac_sig, url: $mac_url},
+                "windows-x86_64": {signature: $win_sig, url: $win_url}}}' > latest.json
+          cat latest.json
+      - name: Publicar o latest.json no bucket
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+        run: |
+          aws s3 cp latest.json "s3://$B2_BUCKET/atualizacoes/latest.json" \
+            --endpoint-url "$B2_ENDPOINT" --content-type application/json --cache-control no-cache
+          sleep 5
+          PUBLISHED=$(curl -fsS -H 'Cache-Control: no-cache' "$UPDATES_URL?ci=$GITHUB_RUN_ID" | jq -r .version)
+          [[ "$PUBLISHED" == "$VERSION" ]] || { echo "::error::latest.json publicado está em $PUBLISHED, esperado $VERSION."; exit 1; }
+          echo "Publicado $VERSION para Mac e Windows."

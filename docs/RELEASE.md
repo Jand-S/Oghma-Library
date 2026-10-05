@@ -1,46 +1,54 @@
-# Publicar uma versão do app (atualização automática)
+# Publicar uma versão do app
 
-O app desktop se atualiza sozinho pelo updater do Tauri. A cada poucas horas ele consulta
-`https://b2.jandson.me/atualizacoes/latest.json` (bucket `oghma-acervo`, servido pela Cloudflare como
-o catálogo). Se houver uma versão maior que a instalada, aparece o botão **Atualizar** no canto
-superior direito, e um clique baixa, instala e reabre o app.
+Uma versão nova sai para **Mac e Windows** de uma vez: um comando no Mac cria a tag, e o GitHub
+Actions (`.github/workflows/release.yml`) faz o resto.
+- compila e assina as duas plataformas;
+- publica a release no GitHub (a página `https://oghma.dev` baixa dela);
+- atualiza o `latest.json` do updater, e os apps instalados mostram o botão **Atualizar**.
 
-## Chave de assinatura
-
-- O app só aceita pacotes assinados com a chave do Oghma. A **chave pública** está em
-  `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`).
-- A **chave privada** e a senha ficam fora do repo, em `~/.config/oghma/updater.key` e
-  `updater.key.password` (0600).
-- **Faça backup das duas** (gerenciador de senhas). Sem elas, os apps instalados não aceitam mais
-  atualizações e cada um teria de ser reinstalado à mão.
-
-## Publicar
-
-1. Suba a versão (semver) em `src-tauri/tauri.conf.json`, `package.json` e `src-tauri/Cargo.toml`.
-2. Rode, no computador da plataforma (o Mac publica macOS; o Windows publica Windows):
+## Lançar uma versão
 
 ```bash
 cd apps/desktop
-export CARGO_TARGET_DIR=$HOME/Documents/Oghma-wt/cargo-target   # opcional
-node scripts/release.mjs --notes "O que mudou nesta versão"
+node scripts/release.mjs 2.0.4 --notes "O que mudou nesta versão"
 ```
 
-O script compila assinando, envia o pacote para `atualizacoes/<versão>/` no bucket (pela VPS, com as
-credenciais de `/opt/oghma/.env`) e reescreve o `latest.json`. Uma plataforma que ainda não tem a
-versão nova sai do `latest.json` até ser publicada, para nenhum app receber o pacote de outra versão.
+- O script exige a árvore limpa e uma versão maior que a atual.
+- Ele sobe a versão em `tauri.conf.json`, `package.json`, `Cargo.toml` e `Cargo.lock`, faz o commit `Versão X`, cria a tag anotada `vX` (a mensagem vira as notas da release e do botão Atualizar) e envia o branch e a tag.
+- Acompanhe em `https://github.com/Jand-S/Oghma-Library/actions`. Leva ~15 min a frio e ~6 min com cache.
 
-- `--skip-build`: reaproveita o último build assinado.
-- `--notes-file notas.md`: lê as novidades de um arquivo.
+**O que o workflow faz:**
 
-**Build sem publicar:** como o bundle gera os artefatos de atualização, o `tauri build` precisa da chave:
+1. `prepare`: confere se a tag bate com a versão dos arquivos e cria o rascunho da release.
+2. `build` (macos-14 e windows-latest): `tauri build` assinado. Os arquivos sobem com nomes fixos:
+   - `Oghma-Library-macOS.dmg`
+   - `Oghma-Library_X_aarch64.app.tar.gz` + `.sig`
+   - `Oghma-Library-Windows.exe` + `.sig`
+3. `publish`: confere os arquivos, tira a release do rascunho (vira a "Latest") e **só depois** sobe o `latest.json` no bucket (`oghma-acervo/atualizacoes/latest.json`, lido pelos apps em `https://b2.jandson.me/atualizacoes/latest.json`). As URLs dos pacotes apontam para a release versionada.
+
+**Testar sem publicar:** Actions → Release → *Run workflow*, com o branch e `dry_run` marcado. Compila e deixa os arquivos nos artefatos do run, sem release nem `latest.json`.
+
+## Segredos do repositório (uma vez)
+
+Postos pelo Jandson; ninguém passa chaves por chat ou nota.
 
 ```bash
-TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.config/oghma/updater.key)" \
-TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat ~/.config/oghma/updater.key.password)" npm run tauri:build
+gh secret set TAURI_SIGNING_PRIVATE_KEY -R Jand-S/Oghma-Library < ~/.config/oghma/updater.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD -R Jand-S/Oghma-Library < ~/.config/oghma/updater.key.password
+gh secret set B2_KEY_ID -R Jand-S/Oghma-Library            # pede o valor
+gh secret set B2_APPLICATION_KEY -R Jand-S/Oghma-Library   # pede o valor
 ```
 
-## Windows
+A chave do B2: Backblaze → *Application Keys* → *Add a New Application Key*, só no bucket
+`oghma-acervo`, com *File name prefix* `atualizacoes/` e *Read and Write*.
 
-- Copie `updater.key` e `updater.key.password` para `%USERPROFILE%\.config\oghma\`.
-- Rode o mesmo comando. O pacote é o instalador NSIS (`*-setup.exe` + `.sig`), instalado em modo
-  `passive` (só a barra de progresso).
+## Chave de assinatura
+
+- A **pública** está em `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`).
+- A **privada** e a senha ficam em `~/.config/oghma/updater.key` e `updater.key.password`, e nos segredos do GitHub.
+- **Faça backup das duas** (gerenciador de senhas). Sem elas, os apps instalados não aceitam mais atualizações.
+
+## Emergência (sem CI)
+
+`node scripts/release.mjs --local --notes "..."` compila neste computador, envia o pacote pela VPS
+(credenciais do bucket em `/opt/oghma/.env`) e publica só a plataforma local no `latest.json`.

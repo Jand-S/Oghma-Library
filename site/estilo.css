@@ -230,6 +230,7 @@ h2 {
 }
 
 .rodape a { text-decoration: none; }
+.rodape__links { display: flex; gap: 20px; }
 .rodape a:hover { color: var(--texto); }
 
 @media (max-width: 860px) {
