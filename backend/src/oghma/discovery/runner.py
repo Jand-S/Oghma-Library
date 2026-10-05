@@ -26,12 +26,13 @@ async def read_novels(source_ids: list[str]) -> list[DiscoveryNovel]:
     async with SessionLocal() as session:
         rows = (await session.execute(
             select(Novel.id, Novel.source_id, Novel.title, Novel.author, Novel.language, Novel.description, Novel.tags,
-                   Novel.tag_keys, Novel.extra)
+                   Novel.tag_keys, Novel.extra, Novel.chapter_count)
             .where(Novel.source_id.in_(source_ids)).order_by(Novel.id)
         )).all()
     return [DiscoveryNovel(id=r.id, source_id=r.source_id, title=r.title, author=r.author, language=r.language or "",
                            description=r.description, tags=list(r.tags or []),
-                           tag_keys=list(r.tag_keys or []) or canonical_tag_keys(r.tags or []))
+                           tag_keys=list(r.tag_keys or []) or canonical_tag_keys(r.tags or []),
+                           chapters=r.chapter_count or 0)
             for r in rows if not (r.extra or {}).get("moved_to")]
 
 
@@ -79,8 +80,10 @@ async def run(*, dry_run: bool = False, no_upload: bool = False) -> dict:
         embed, [novel_text(n, fichas.get(n.id)) for n in novels], MODEL, cache, None, models)
     synopsis_vecs, synopsis_keys = await asyncio.to_thread(
         embed, [synopsis_text(n) for n in novels], MODEL, cache, None, models)
-    data = await asyncio.to_thread(build_discovery, novels, story_vecs, synopsis_vecs)
-    cache.save(story_keys | synopsis_keys)
+    # Titulos: reconhecem a mesma obra traduzida quando a sinopse e de outra traducao.
+    title_vecs, title_keys = await asyncio.to_thread(embed, [n.title for n in novels], MODEL, cache, None, models)
+    data = await asyncio.to_thread(build_discovery, novels, story_vecs, synopsis_vecs, title_vecs=title_vecs)
+    cache.save(story_keys | synopsis_keys | title_keys)
 
     payload = {"schema": 1, "builtAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "model": MODEL,
                "novels": len(novels), "withFicha": sum(1 for n in novels if n.id in fichas), **data}

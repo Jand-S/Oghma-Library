@@ -1,15 +1,15 @@
 import numpy as np
 import pytest
 
-from oghma.discovery.similar import (DiscoveryNovel, EmbeddingCache, build_discovery, embed, ficha_text, novel_text,
-                                     series_key, work_key)
+from oghma.discovery.similar import (DiscoveryNovel, EmbeddingCache, author_names, build_discovery, embed, ficha_text,
+                                     novel_text, series_key, work_key)
 from oghma.publish.runner import _index_from_state
 from oghma.publish.uploader import IMMUTABLE, cache_control_for
 
 
-def nv(id, title, source="central-novel", tags=(), description="x" * 250):
+def nv(id, title, source="central-novel", tags=(), description="x" * 250, author=None, chapters=0):
     return DiscoveryNovel(id=id, source_id=source, title=title, language="pt-BR", description=description,
-                          tag_keys=list(tags))
+                          tag_keys=list(tags), author=author, chapters=chapters)
 
 
 def unit(*rows):
@@ -46,6 +46,34 @@ def test_same_work_in_another_language_is_an_edition_not_a_suggestion():
     # Short synopses match by chance: they never make an edition.
     short = [nv("p", "Um", description="curta"), nv("q", "Dois", source="novel-mania", description="curta")]
     assert build_discovery(short, unit([1, 0], [1, 0]), unit([1, 0], [1, 0]))["editions"] == {}
+
+
+def test_author_names_compare_across_sources():
+    assert author_names("Entrail_JI") & author_names("Entrail_Jl, Gehrman")
+    assert author_names("耳根, Er Gen") == author_names("Er Gen")
+    assert not author_names("Er") and not author_names(None)
+
+
+def test_translated_title_needs_a_second_signal_and_close_chapter_counts():
+    novels = [
+        nv("ac", "Advent of the Three Calamities", source="rolia-scan", author="Entrail_JI", chapters=767),
+        nv("ac-pt", "Advento das Três Calamidades", source="mahou-reader", author="Entrail_Jl, Gehrman", chapters=876),
+        nv("we", "The World After the Bad Ending", source="rolia-scan", author="Muhwaggocran", chapters=276),
+        nv("we2", "The World After the End", source="central-novel", chapters=247),
+        nv("short", "Advento das Calamidades", source="golden-novel", author="Entrail_JI", chapters=40),
+    ]
+    # Synopses: the two Advents only on the same topic (0.64), the two Worlds apart (0.45).
+    synopsis = unit([1, 0, 0, 0], [1, 1.2, 0, 0], [0, 0, 1, 0], [0, 0, 0.5, 1], [1, 0, 1.5, 0])
+    titles = unit([1, 0.1, 0], [1, 0.12, 0], [0, 1, 0.45], [0, 1, 0.5], [1, 0.12, 0])
+    editions = build_discovery(novels, synopsis, synopsis, title_vecs=titles)["editions"]
+    # Same author, translated title, chapters close: one work despite a different synopsis.
+    assert editions["ac"] == ["ac-pt"]
+    # Near-identical titles but different stories and no shared author: two works.
+    assert "we" not in editions and "we2" not in editions
+    # A much shorter edition stays apart (the title alone could be a coincidence).
+    assert "short" not in editions.get("ac-pt", [])
+    # Without title vectors only the old rules apply.
+    assert build_discovery(novels, synopsis, synopsis)["editions"] == {}
 
 
 def test_other_books_of_the_same_series_are_not_suggestions():
