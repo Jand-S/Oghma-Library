@@ -184,6 +184,48 @@ describe("automatic sync", () => {
   }, 15000);
 });
 
+describe("pending changes", () => {
+  beforeEach(() => {
+    resetAppState();
+    invokeMock.mockReset();
+  });
+
+  it("go up within a wait cycle even when nothing announced them (a finished download)", async () => {
+    seedSetup();
+    // The download marked the book in Rust: pending, and no JS event fired.
+    let pending = [{ key: "novel:cn:7", changedAt: 50, onShelf: true }];
+    invokeMock.mockImplementation(async (kind: string, rows?: unknown) => {
+      if (kind === "pending") return pending;
+      if (kind === "markClean") {
+        pending = [];
+        return 1;
+      }
+      return kind === "apply" ? [] : 0;
+    });
+    const pushes: unknown[] = [];
+    const client = fakeClient({ status: vi.fn(async () => ({ signedIn: true, baseUrl: "https://conta.oghma.dev" })) });
+    const user = { publicId: "pub1", email: "a@b.com", nickname: "leitor", avatarId: "rem", avatarColor: null, createdAt: "", needsProfile: false };
+    let waits = 0;
+    client.api = vi.fn(async (_method: string, path: string, body?: unknown) => {
+      if (path === "/v1/me") return { status: 200, body: user };
+      if (path.startsWith("/v1/me/library/wait")) {
+        waits += 1;
+        // The boot sync fails to push (offline for a moment); then the server says "nothing new".
+        return waits > 2 ? new Promise(() => undefined) : { status: 200, body: { changed: false, cursor: 0 } };
+      }
+      if (path === "/v1/me/library/changes") {
+        pushes.push(body);
+        return pushes.length === 1 ? { status: 503, body: {} } : { status: 200, body: { accepted: [{ key: "novel:cn:7", changedAt: 50 }], rejected: [], cursor: 1 } };
+      }
+      if (path.startsWith("/v1/me/library?")) return { status: 200, body: { entries: [], cursor: 1, more: false } };
+      return { status: 200, body: {} };
+    }) as AccountClient["api"];
+    render(<App backend={mockBackendClient} downloadQueue={createTestQueue()} accountClient={client} />);
+    await waitFor(() => expect(pushes.length).toBeGreaterThanOrEqual(2), { timeout: 8000 });
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("markClean", [{ key: "novel:cn:7", changedAt: 50 }]));
+  }, 15000);
+});
+
 describe("account sign-in flow (e-mail button)", () => {
   beforeEach(() => {
     resetAppState();

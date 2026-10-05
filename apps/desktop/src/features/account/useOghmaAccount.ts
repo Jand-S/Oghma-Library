@@ -9,7 +9,7 @@ import {
   type ApiError
 } from "../../services/accountClient";
 import { AccountUnauthorized, syncLibrary } from "../../services/librarySync";
-import { onLibraryMetaWrite } from "../../services/localFiles";
+import { librarySyncPending, onLibraryMetaWrite } from "../../services/localFiles";
 
 const SERVER_KEY = "oghma.account.server";
 const CURSOR_PREFIX = "oghma.account.cursor.";
@@ -202,6 +202,12 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
             return;
           }
           if (isOk(result) && result.body?.changed) {
+            await runSync();
+            continue;
+          }
+          // Safety net: anything written here that did not announce itself (a download marks the
+          // book in Rust) goes up within one wait cycle.
+          if (isOk(result) && (await librarySyncPending()).length > 0) {
             await runSync();
             continue;
           }

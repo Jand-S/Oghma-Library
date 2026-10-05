@@ -118,6 +118,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     if (removed.length) setRemovedElsewhere((current) => [...new Set([...current, ...removed])]);
   }, [refreshLocalLibrary]);
   const oghmaAccount = useOghmaAccount({ client: accountTransport, onLibraryChanged: onAccountLibraryChanged, notify });
+  const syncAccountRef = useRef(oghmaAccount.syncNow);
+  syncAccountRef.current = oghmaAccount.syncNow;
   const [accountSheet, setAccountSheet] = useState<{ open: boolean; step: AccountSheetStep }>({ open: false, step: "email" });
   const openAccountSheet = useCallback((step: AccountSheetStep = "email") => setAccountSheet({ open: true, step }), []);
 
@@ -135,7 +137,11 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   // the library's conversion flow instead.
   useEffect(() => {
     const unsubscribe = queue.onEvent(({ type, job }) => {
-      if (type === "committed") refreshLocalLibrary();
+      if (type === "committed") {
+        refreshLocalLibrary();
+        // The download put the book on the shelf (in Rust): send it to the account right away.
+        void syncAccountRef.current();
+      }
       if (job.kind !== "download") return;
       if (type === "committed") {
         const finalDir = job.finalDir;

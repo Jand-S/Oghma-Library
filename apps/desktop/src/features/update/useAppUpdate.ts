@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isTauriRuntime } from "../../core/windowControls";
 
-/** First check a little after launch (the app is busy booting), then every few hours. */
+/** First check a little after launch (the app is busy booting), then every hour, and when the
+ *  reader comes back to the window if the last check is older than FOCUS_RECHECK_MS. */
 const FIRST_CHECK_MS = 15_000;
-const RECHECK_MS = 6 * 60 * 60 * 1000;
+const RECHECK_MS = 60 * 60 * 1000;
+const FOCUS_RECHECK_MS = 30 * 60 * 1000;
 
 export type AppUpdateState =
   | { status: "idle" }
@@ -36,7 +38,7 @@ async function tauriUpdater(): Promise<UpdaterApi | null> {
 
 /**
  * Over-the-air updates (Tauri updater, signed with the Oghma key). Checks quietly a little after
- * launch and every few hours; when a newer version exists the header shows a button. Installing
+ * launch, every hour and on coming back to the window (at most every 30 min); when a newer version exists the header shows a button. Installing
  * downloads the signed package, swaps the app and relaunches it. Failed checks stay silent.
  */
 export function useAppUpdate(api?: UpdaterApi | null) {
@@ -44,9 +46,12 @@ export function useAppUpdate(api?: UpdaterApi | null) {
   const update = useRef<UpdateHandle | null>(null);
   const apiRef = useRef<Promise<UpdaterApi | null>>(api !== undefined ? Promise.resolve(api) : tauriUpdater());
 
+  const lastCheck = useRef(0);
+
   const checkNow = useCallback(async () => {
     const updater = await apiRef.current;
     if (!updater) return;
+    lastCheck.current = Date.now();
     try {
       const found = await updater.check();
       if (!found) return;
@@ -62,9 +67,14 @@ export function useAppUpdate(api?: UpdaterApi | null) {
   useEffect(() => {
     const first = window.setTimeout(() => void checkNow(), FIRST_CHECK_MS);
     const again = window.setInterval(() => void checkNow(), RECHECK_MS);
+    const onFocus = () => {
+      if (lastCheck.current && Date.now() - lastCheck.current >= FOCUS_RECHECK_MS) void checkNow();
+    };
+    window.addEventListener("focus", onFocus);
     return () => {
       window.clearTimeout(first);
       window.clearInterval(again);
+      window.removeEventListener("focus", onFocus);
     };
   }, [checkNow]);
 
