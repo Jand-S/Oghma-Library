@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oghma: sua biblioteca de light novels</title>
+<meta name="description" content="Busque light novels em várias fontes, baixe em EPUB ou AZW3, organize sua estante com status e nota e envie ao Kindle. Para Mac e Windows.">
+<meta name="theme-color" content="#19191b">
+<meta property="og:title" content="Oghma">
+<meta property="og:description" content="Sua biblioteca de light novels, no Mac e no Windows.">
+<meta property="og:image" content="https://oghma.dev/img/biblioteca.webp">
+<link rel="icon" href="img/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icone.png">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header class="topo">
+  <a class="marca" href="/"><img src="img/icone.svg" alt="" width="28" height="28">Oghma</a>
+  <nav class="topo__links">
+    <a href="#recursos">Recursos</a>
+    <a href="#instalar">Instalar</a>
+    <a href="https://github.com/Jand-S/Oghma-Library/releases" rel="noopener">Versões</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <img class="hero__icone" src="img/icone.svg" alt="" width="88" height="88">
+    <h1>Sua biblioteca de<br>light novels.</h1>
+    <p class="hero__lead">Busque em várias fontes, baixe em EPUB ou AZW3, organize a estante com status e nota e mande para o Kindle. Tudo num app só, no Mac e no Windows.</p>
+
+    <div class="baixar" data-baixar>
+      <a class="botao botao--principal" data-principal href="https://github.com/Jand-S/Oghma-Library/releases/latest">
+        <span class="botao__icone" data-icone-principal aria-hidden="true"></span>
+        <span data-rotulo-principal>Baixar o Oghma</span>
+      </a>
+      <a class="botao botao--secundario" data-secundario href="https://github.com/Jand-S/Oghma-Library/releases/latest">Outras versões</a>
+    </div>
+    <p class="hero__meta" data-meta>Grátis · macOS (Apple Silicon) e Windows 10/11</p>
+  </section>
+
+  <figure class="janela">
+    <div class="janela__barra" aria-hidden="true"><i></i><i></i><i></i></div>
+    <img src="img/biblioteca.webp" alt="A Biblioteca do Oghma: livros com status de leitura, notas e a estante" width="1600" height="1000">
+  </figure>
+
+  <section class="recursos" id="recursos">
+    <h2>Feito para quem lê muito.</h2>
+    <div class="grade">
+      <article class="cartao">
+        <span class="cartao__icone" aria-hidden="true">⌕</span>
+        <h3>Busca em várias fontes</h3>
+        <p>Um catálogo único com filtros de gênero, status e capítulos, e sugestões de obras parecidas.</p>
+      </article>
+      <article class="cartao">
+        <span class="cartao__icone" aria-hidden="true">★</span>
+        <h3>Estante com status e nota</h3>
+        <p>Lendo, pausado, concluído, abandonado. Dê estrelas e guarde livros na estante sem baixar.</p>
+      </article>
+      <article class="cartao">
+        <span class="cartao__icone" aria-hidden="true">⇄</span>
+        <h3>Sua conta em qualquer computador</h3>
+        <p>Entre com o e-mail e sua biblioteca, notas e status aparecem no Mac e no Windows.</p>
+      </article>
+      <article class="cartao">
+        <span class="cartao__icone" aria-hidden="true">▤</span>
+        <h3>Kindle e iCloud</h3>
+        <p>Converte para AZW3 e envia pelo cabo ou por Wi-Fi. No Mac, salva direto no iCloud Drive.</p>
+      </article>
+      <article class="cartao">
+        <span class="cartao__icone" aria-hidden="true">↻</span>
+        <h3>Sempre atualizado</h3>
+        <p>Quando sai uma versão nova, um botão aparece no app. Um clique e pronto.</p>
+      </article>
+      <article class="cartao">
+        <span class="cartao__icone" aria-hidden="true">✦</span>
+        <h3>Feito com cuidado</h3>
+        <p>Visual limpo, rápido e pensado para longas sessões de leitura e organização.</p>
+      </article>
+    </div>
+    <div class="vitrine">
+      <figure class="janela janela--pequena">
+        <div class="janela__barra" aria-hidden="true"><i></i><i></i><i></i></div>
+        <img src="img/buscar.webp" alt="Buscar: uma novel com Adicionar à biblioteca e Já li" width="1600" height="1000" loading="lazy">
+      </figure>
+      <figure class="janela janela--pequena">
+        <div class="janela__barra" aria-hidden="true"><i></i><i></i><i></i></div>
+        <img src="img/conta.webp" alt="Ajustes da conta Oghma: perfil, sincronização e dispositivos" width="1600" height="1000" loading="lazy">
+      </figure>
+    </div>
+  </section>
+
+  <section class="instalar" id="instalar">
+    <h2>Primeira vez abrindo?</h2>
+    <p class="instalar__lead">O Oghma ainda não tem assinatura de desenvolvedor da Apple nem da Microsoft, então o sistema pede uma confirmação na primeira vez. Depois disso abre normalmente, e as atualizações chegam sozinhas.</p>
+    <div class="grade grade--2">
+      <article class="cartao cartao--passos" id="mac">
+        <h3>Mac</h3>
+        <ol>
+          <li>Abra o <b>.dmg</b> e arraste o <b>Oghma Library</b> para <b>Aplicativos</b>.</li>
+          <li>Abra o app. Se aparecer um aviso dizendo que ele não pode ser verificado, clique em <b>OK</b>.</li>
+          <li>Vá em <b>Ajustes do Sistema → Privacidade e Segurança</b> e clique em <b>Abrir mesmo assim</b>.</li>
+        </ol>
+        <p class="nota">Precisa de um Mac com Apple Silicon (M1 ou mais novo).</p>
+        <a class="botao botao--linha" data-mac href="https://github.com/Jand-S/Oghma-Library/releases/latest">Baixar para Mac</a>
+      </article>
+      <article class="cartao cartao--passos" id="windows">
+        <h3>Windows</h3>
+        <ol>
+          <li>Abra o instalador <b>.exe</b>.</li>
+          <li>Se o Windows mostrar <b>"O Windows protegeu o computador"</b>, clique em <b>Mais informações</b>.</li>
+          <li>Clique em <b>Executar assim mesmo</b> e siga a instalação.</li>
+        </ol>
+        <p class="nota">Windows 10 ou 11, 64 bits.</p>
+        <a class="botao botao--linha" data-windows href="https://github.com/Jand-S/Oghma-Library/releases/latest">Baixar para Windows</a>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <span>Oghma · <span data-versao>versão mais recente</span></span>
+  <a href="https://github.com/Jand-S/Oghma-Library" rel="noopener">GitHub</a>
+</footer>
+
+<script src="baixar.js" defer></script>
+</body>
+</html>
