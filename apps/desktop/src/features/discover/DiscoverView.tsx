@@ -177,6 +177,36 @@ export function DiscoverView({
     [cardCount]
   );
 
+  // A novel opened from elsewhere (Início, "Também em", a search suggestion) shows in the panel;
+  // the grid goes to its card too: the batch that has it is loaded, then the card is centered.
+  // Once per novel and list, so scrolling away with the panel open is not undone.
+  const detailId = detailNovel?.id;
+  const cardIndex = useMemo(() => {
+    if (!detailId) return -1;
+    return stacks
+      ? stacks.findIndex((stack) => stack.items.some((novel) => novel.id === detailId))
+      : sortedResults.findIndex((novel) => novel.id === detailId);
+  }, [detailId, sortedResults, stacks]);
+  const revealedRef = useRef("");
+  useEffect(() => {
+    if (!detailId || cardIndex < 0) return;
+    const key = `${detailId}\n${resultsKey}`;
+    if (revealedRef.current === key) return;
+    if (cardIndex >= visibleCount) {
+      setVisibleCount(Math.ceil((cardIndex + 1) / DISCOVER_PAGE_SIZE) * DISCOVER_PAGE_SIZE);
+      return;
+    }
+    const root = scrollRef.current;
+    const card = cardOf(detailId);
+    if (!root || !card) return;
+    revealedRef.current = key;
+    const box = card.getBoundingClientRect();
+    const view = root.getBoundingClientRect();
+    if (box.top >= view.top && box.bottom <= view.bottom) return;
+    root.scrollTop += box.top - view.top - (view.height - box.height) / 2;
+    noteAnchor(detailId, card);
+  }, [cardIndex, cardOf, detailId, noteAnchor, resultsKey, visibleCount]);
+
   const enabledSources = sources.filter((source) => source.enabled);
   const currentSource = enabledSources.find((source) => source.id === filters.sourceId);
   const clearable = activeFilters(filters, tagCatalog).length > 0;
