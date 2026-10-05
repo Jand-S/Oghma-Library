@@ -148,22 +148,37 @@ export type LibraryStack = { key: string; main: LibraryItem; items: LibraryItem[
 
 /**
  * Groups the (already filtered and sorted) books by work: the original, its PT-BR translation
- * and the same novel from other sources become one stack. Order follows the first edition of
- * each work, which is also its face. `workKeyOf` returns null for a book that stays alone.
+ * and the same novel from other sources become one stack. Books sharing any key join (a
+ * title, a catalog id the server linked); no keys keeps a book alone. Order follows the first
+ * edition of each work, which is also its face.
  */
-export function stackEditions(items: LibraryItem[], workKeyOf: (item: LibraryItem) => string | null): LibraryStack[] {
-  const stacks: LibraryStack[] = [];
-  const byKey = new Map<string, LibraryStack>();
-  for (const item of items) {
-    const key = workKeyOf(item);
-    const stack = key ? byKey.get(key) : undefined;
-    if (stack) {
-      stack.items.push(item);
-      continue;
+export function stackEditions(items: LibraryItem[], keysOf: (item: LibraryItem) => string[]): LibraryStack[] {
+  const parent = items.map((_, index) => index);
+  const find = (index: number): number => {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
     }
-    const created = { key: key ?? `item:${item.id}`, main: item, items: [item] };
-    stacks.push(created);
-    if (key) byKey.set(key, created);
-  }
-  return stacks;
+    return index;
+  };
+  const owner = new Map<string, number>();
+  items.forEach((item, index) => {
+    for (const key of keysOf(item)) {
+      const other = owner.get(key);
+      if (other === undefined) owner.set(key, index);
+      else {
+        const [a, b] = [find(other), find(index)];
+        // The earlier book stays the root, so the stack keeps its place and face.
+        if (a !== b) parent[Math.max(a, b)] = Math.min(a, b);
+      }
+    }
+  });
+  const stacks = new Map<number, LibraryStack>();
+  items.forEach((item, index) => {
+    const root = find(index);
+    const stack = stacks.get(root);
+    if (stack) stack.items.push(item);
+    else stacks.set(root, { key: `item:${items[root].id}`, main: items[root], items: [item] });
+  });
+  return [...stacks.values()];
 }

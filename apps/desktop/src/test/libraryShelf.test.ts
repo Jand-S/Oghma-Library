@@ -4,7 +4,8 @@ import type { LocalLibraryEntry } from "../services/localFiles";
 import { aliasMerges, buildLibraryItems, enrichLibraryItems, shelfAdditions } from "../app/useLocalLibrary";
 import { filterLibrary, formatsOf, stackEditions, statusCounts } from "../features/library/libraryModel";
 import { homeSeeds, seedWeight } from "../features/home/HomeView";
-import { buildCatalogIndex, similarNovels, stackNovels } from "../services/catalogIndex";
+import { buildCatalogIndex, similarNovels, stackNovels, withEditions } from "../services/catalogIndex";
+import { defaultFilters } from "../core/defaults";
 
 function novel(partial: Partial<Novel> & Pick<Novel, "id" | "title">): Novel {
   return {
@@ -89,7 +90,7 @@ describe("stacks (editions of one work)", () => {
   it("groups by work in the given order, the first edition is the face, books without a key stay alone", () => {
     const book = (id: string, title: string) => ({ id, title } as LibraryItem);
     const items = [book("a", "Unsheathed (PT-BR)"), book("b", "Shadow Slave"), book("c", "Unsheathed"), book("d", "Solto"), book("e", "Solto")];
-    const key = (item: LibraryItem) => (item.id === "d" || item.id === "e" ? null : item.title.replace(" (PT-BR)", ""));
+    const key = (item: LibraryItem) => (item.id === "d" || item.id === "e" ? [] : [item.title.replace(" (PT-BR)", "")]);
     const stacks = stackEditions(items, key);
     expect(stacks.map((stack) => [stack.main.id, stack.items.map((item) => item.id)])).toEqual([
       ["a", ["a", "c"]],
@@ -98,10 +99,18 @@ describe("stacks (editions of one work)", () => {
       ["e", ["e"]]
     ]);
   });
+
+  it("joins through any shared key (a title or a server link), keeping the first book as the face", () => {
+    const book = (id: string, title: string) => ({ id, title } as LibraryItem);
+    const items = [book("tales", "Tales of Demons and Gods"), book("x", "Outro"), book("contos", "Contos de Demônios e Deuses")];
+    const keys: Record<string, string[]> = { tales: ["t:tales", "n:cn:tdg", "n:hs:contos"], x: ["t:outro"], contos: ["t:contos", "n:hs:contos"] };
+    const stacks = stackEditions(items, (item) => keys[item.id]);
+    expect(stacks.map((stack) => [stack.main.id, stack.items.map((item) => item.id)])).toEqual([["tales", ["tales", "contos"]], ["x", ["x"]]]);
+  });
 });
 
 describe("stacks in Buscar (same work from several sources)", () => {
-  it("joins same title and author across sources or a synopsis match; the face has most chapters", () => {
+  it("joins same title and author across sources or a synopsis match; the first in order is the face", () => {
     const n = (id: string, title: string, author: string, sourceId: string, chapters: number) =>
       novel({ id, title, author, sourceId, chapters });
     const list = [
@@ -116,11 +125,27 @@ describe("stacks in Buscar (same work from several sources)", () => {
     index.discovery = { similar: new Map(), editions: new Map([["pt:senhor", ["cn:lom"]]]) } as typeof index.discovery;
     const stacks = stackNovels(list, index);
     expect(stacks.map((stack) => [stack.main.id, stack.items.map((item) => item.id)])).toEqual([
-      ["nl:lom", ["cn:lom", "nl:lom", "pt:senhor"]],
+      ["cn:lom", ["cn:lom", "nl:lom", "pt:senhor"]],
       ["rs:solo", ["rs:solo"]],
       ["cn:lom-2", ["cn:lom-2"]],
       ["x:other", ["x:other"]]
     ]);
+  });
+});
+
+describe("a text search in Buscar with stacks", () => {
+  it("brings the other editions of each match, after the matches, only when they pass the filters", () => {
+    const tdg = novel({ id: "cn:tdg", title: "Tales of Demons and Gods", author: "", sourceId: "cn", chapters: 507 });
+    const contos = novel({ id: "hs:contos", title: "Contos de Demônios e Deuses", author: "Mad Snail", sourceId: "hs", chapters: 507 });
+    const off = novel({ id: "off:contos", title: "Contos de Demônios e Deuses", author: "Mad Snail", sourceId: "off", chapters: 507 });
+    const index = buildCatalogIndex([tdg, contos, off]);
+    index.discovery = { similar: new Map(), editions: new Map([["hs:contos", ["cn:tdg"]]]) };
+    const filters = { ...defaultFilters("all"), query: "Demônios e Deuses" };
+    const found = withEditions([contos], index, filters, ["cn", "hs"]);
+    expect(found.map((item) => item.id)).toEqual(["hs:contos", "cn:tdg"]);
+    expect(stackNovels(found, index)[0]).toMatchObject({ main: { id: "hs:contos" }, items: [contos, tdg] });
+    // A source turned off (or filtered out) stays out.
+    expect(withEditions([contos], index, { ...filters, sourceId: "hs" }, ["cn", "hs"]).map((item) => item.id)).toEqual(["hs:contos"]);
   });
 });
 

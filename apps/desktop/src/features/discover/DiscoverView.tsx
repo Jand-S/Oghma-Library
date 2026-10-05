@@ -7,7 +7,7 @@ import { DiscoverDetailPanel, type DiscoverShelf } from "./DiscoverDetailPanel";
 import { DiscoverFilterBar } from "./DiscoverFilters";
 import { DISCOVER_PAGE_SIZE, DiscoverGrid, DiscoverGridSkeleton } from "./DiscoverGrid";
 import type { SortDirection } from "./DiscoverHeader";
-import { sortNovels, stackNovels, type CatalogIndex } from "../../services/catalogIndex";
+import { sortNovels, stackNovels, withEditions, type CatalogIndex } from "../../services/catalogIndex";
 import type { SmartResult } from "../../services/smartFilter";
 import { SmartFilterStatus, type SmartStageInfo } from "./SmartFilterStatus";
 import { activeFilters, clearedFilters } from "./filterModel";
@@ -131,7 +131,12 @@ export function DiscoverView({
     return sortNovels(results, sortDirection);
   }, [results, sortDirection, ranked, smart]);
   // Stacks are paged like cards: a batch is 60 works, not 60 novels.
-  const stacks = useMemo(() => (stacksOn ? stackNovels(sortedResults, catalogIndex) : null), [catalogIndex, sortedResults, stacksOn]);
+  // A text search brings the other editions of each match into its stack (they miss the text).
+  const stacks = useMemo(() => {
+    if (!stacksOn) return null;
+    const list = ranked && !curated ? withEditions(sortedResults, catalogIndex, filters, filters.sourceIds) : sortedResults;
+    return stackNovels(list, catalogIndex);
+  }, [catalogIndex, curated, filters, ranked, sortedResults, stacksOn]);
   const cardCount = stacks ? stacks.length : sortedResults.length;
   const visibleResults = sortedResults.slice(0, visibleCount);
   const visibleStacks = stacks ? stacks.slice(0, visibleCount) : null;

@@ -1,10 +1,10 @@
-import { BookOpenText, FolderCog, SearchX } from "lucide-react";
+import { BookOpenText, FolderCog, Group, SearchX, Ungroup } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useNavigation, type AppView } from "../../app/NavigationContext";
 import type { DownloadJob, LibraryItem, Novel } from "../../core/types";
 import { editionsOf, workKey, type CatalogIndex } from "../../services/catalogIndex";
 import { libraryStrings } from "../../strings/library";
-import { Button, EmptyState, Skeleton, cx } from "../../ui";
+import { Button, EmptyState, Skeleton, cx, type MenuItem } from "../../ui";
 import { LibraryCollection } from "./LibraryCollection";
 import { LibraryDetails } from "./LibraryDetails";
 import { LibraryFilterBar } from "./LibraryHeader";
@@ -71,22 +71,38 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
     return editionsOf(catalogIndex, probe);
   }, [catalogIndex]);
 
-  // Grid stacks: a translation goes with the book it came from, and the same novel from other
-  // sources goes with it when the catalog titles match (accents, case and "(Novel)" ignored).
+  // Grid stacks: a translation goes with the book it came from; the same novel from other
+  // sources goes with it when the catalog titles match (accents, case and "(Novel)" ignored)
+  // or the server linked the two (synopsis, translated title). Books the reader separated
+  // stay alone.
+  const separated = browse.separated;
   const stacks = useMemo(() => {
     if (!browse.stacks || browse.view !== "grid") return null;
-    const workKeyOf = (item: LibraryItem): string | null => {
+    const keysOf = (item: LibraryItem): string[] => {
+      if (separated.has(item.id)) return [];
       const base = item.language ? item.translatedFrom : item.novelId;
       const known = base && catalogIndex
         ? catalogIndex.byId.get(base) ?? catalogIndex.entries.find((entry) => entry.novel.aliases?.includes(base))?.novel
         : undefined;
-      const title = known?.title ?? (item.language ? item.title.replace(/\s*\([^)]*\)\s*$/, "") : item.title);
-      return workKey(title) || null;
+      const title = workKey(known?.title ?? (item.language ? item.title.replace(/\s*\([^)]*\)\s*$/, "") : item.title));
+      const linked = known ? [known.id, ...(catalogIndex?.discovery?.editions.get(known.id) ?? [])] : [];
+      return [...(title ? [`t:${title}`] : []), ...linked.map((id) => `n:${id}`)];
     };
-    return stackEditions(filtered, workKeyOf);
-  }, [browse.stacks, browse.view, catalogIndex, filtered]);
+    return stackEditions(filtered, keysOf);
+  }, [browse.stacks, browse.view, catalogIndex, filtered, separated]);
 
-  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions });
+  /** "Separar desta pilha" on an edition of a stack; "Voltar para a pilha" once separated. */
+  const stackMenuItem = useCallback((item: LibraryItem): MenuItem | null => {
+    if (separated.has(item.id)) {
+      return { label: libraryStrings.backToStack, icon: <Group />, onSelect: () => browse.toggleSeparated(item.id), separatorBefore: true };
+    }
+    const inStack = stacks?.some((stack) => stack.items.length > 1 && stack.items.some((edition) => edition.id === item.id));
+    return inStack
+      ? { label: libraryStrings.separateFromStack, icon: <Ungroup />, onSelect: () => browse.toggleSeparated(item.id), separatorBefore: true }
+      : null;
+  }, [browse, separated, stacks]);
+
+  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions, stackMenuItem });
 
   // The book left the library (removed or deleted): go back to the grid.
   useEffect(() => {

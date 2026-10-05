@@ -20,13 +20,15 @@ type BookActionsArgs = {
   onOpenDetails: (item: LibraryItem) => void;
   /** The same work in other sources (catalog "Também em"); empty without a catalog. */
   editionsOf?: (item: LibraryItem) => Novel[];
+  /** "Separar desta pilha" / "Voltar para a pilha" for this book, when it applies. */
+  stackMenuItem?: (item: LibraryItem) => MenuItem | null;
 };
 
 /**
  * Every per-book action of the library in one place: the context/⋮ menu items and the
  * dialogs they open (remove, delete, convert, rate, other editions). Grid, list and details share it.
  */
-export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, editionsOf }: BookActionsArgs) {
+export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, editionsOf, stackMenuItem }: BookActionsArgs) {
   const covers = useCoverControls();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
@@ -125,6 +127,8 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     items.push(...statusItems(item));
     const cover = coverItem(item);
     if (cover) items.push(cover);
+    const stack = stackMenuItem?.(item);
+    if (stack) items.push(stack);
     items.push(item.hidden
       ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item), separatorBefore: true }
       : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => askRemove(item), separatorBefore: true });
@@ -254,6 +258,8 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     askDelete,
     toggleFavorite,
     coverItem,
+    /** "Separar desta pilha" / "Voltar para a pilha" (null when the book is in no stack). */
+    stackItem: (item: LibraryItem) => stackMenuItem?.(item) ?? null,
     rate,
     askRating,
     setStatus,

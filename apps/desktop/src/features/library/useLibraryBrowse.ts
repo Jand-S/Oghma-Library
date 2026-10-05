@@ -5,6 +5,16 @@ import { availableFormats, filterLibrary, statusCounts, type LibrarySort, type L
 const VIEW_KEY = "oghma.library.view";
 const SORT_KEY = "oghma.library.sort";
 const STACKS_KEY = "oghma.library.stacks";
+const SEPARATED_KEY = "oghma.library.separated";
+
+function readSeparated(): ReadonlySet<string> {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(SEPARATED_KEY) ?? "[]");
+    return new Set(Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
 
 function readPref<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
@@ -57,6 +67,18 @@ export function useLibraryBrowse(library: LibraryItem[]) {
   const setView = useCallback((value: LibraryViewMode) => {
     setViewState(value);
     writePref(VIEW_KEY, value);
+  }, []);
+
+  // Books the reader took out of their stack ("Separar desta pilha"), by library item id.
+  const [separated, setSeparated] = useState<ReadonlySet<string>>(readSeparated);
+  const toggleSeparated = useCallback((id: string) => {
+    setSeparated((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      writePref(SEPARATED_KEY, JSON.stringify([...next]));
+      return next;
+    });
   }, []);
 
   const toggleStacks = useCallback(() => {
@@ -124,6 +146,8 @@ export function useLibraryBrowse(library: LibraryItem[]) {
     setView,
     stacks,
     toggleStacks,
+    separated,
+    toggleSeparated,
     /** Library after search, chips and sort. */
     filtered,
     clearFilters

@@ -76,6 +76,18 @@ function score(entry: Entry, tokens: string[], phrase: string): number {
  * Novels matching `filters`. `sourceIds` limits "all" to the enabled sources; a specific
  * `filters.sourceId` wins over it. Without a query the catalog order is kept (the grid sorts).
  */
+/** Every filter but the text: source, status, language, chapters, tags and content rating. */
+function passesFilters(entry: Entry, filters: Filters, allowed: ReadonlySet<string> | null): boolean {
+  const { novel } = entry;
+  if (allowed && !allowed.has(novel.sourceId)) return false;
+  if (filters.status !== "any" && novel.status !== filters.status) return false;
+  if (filters.language !== "all" && novel.language.toLowerCase() !== filters.language) return false;
+  if (novel.chapters < filters.minChapters || novel.chapters > filters.maxChapters) return false;
+  if (!filters.includeTags.every((key) => entry.tagKeys.has(key))) return false;
+  if (filters.excludeTags.some((key) => entry.tagKeys.has(key))) return false;
+  return matchesContentRating(novel, filters.contentRating);
+}
+
 export function searchCatalog(index: CatalogIndex, filters: Filters, sourceIds?: readonly string[]): Novel[] {
   const phrase = normalizeSearchText(filters.query);
   const tokens = phrase ? phrase.split(" ") : [];
@@ -83,13 +95,7 @@ export function searchCatalog(index: CatalogIndex, filters: Filters, sourceIds?:
   const ranked: Array<{ novel: Novel; score: number }> = [];
   for (const entry of index.entries) {
     const { novel } = entry;
-    if (allowed && !allowed.has(novel.sourceId)) continue;
-    if (filters.status !== "any" && novel.status !== filters.status) continue;
-    if (filters.language !== "all" && novel.language.toLowerCase() !== filters.language) continue;
-    if (novel.chapters < filters.minChapters || novel.chapters > filters.maxChapters) continue;
-    if (!filters.includeTags.every((key) => entry.tagKeys.has(key))) continue;
-    if (filters.excludeTags.some((key) => entry.tagKeys.has(key))) continue;
-    if (!matchesContentRating(novel, filters.contentRating)) continue;
+    if (!passesFilters(entry, filters, allowed)) continue;
     const s = tokens.length ? score(entry, tokens, phrase) : 1;
     if (s > 0) ranked.push({ novel, score: s });
   }
@@ -133,8 +139,9 @@ export type NovelStack = { key: string; main: Novel; items: Novel[] };
 
 /**
  * Groups results by work, stricter than `editionsOf` (thousands of novels, generic titles):
- * same title AND same author, or the server matched the synopses (translations under another
- * name). Stacks keep the order of their first novel; the face is the edition with most chapters.
+ * same title AND same author, or the server matched them (synopsis, translated title). A
+ * stack sits where its first novel is in the current order, and that novel is its face: the
+ * edition that earned the place (the title in A–Z, the one that matched the search…).
  */
 export function stackNovels(novels: Novel[], index: CatalogIndex | null): NovelStack[] {
   const parent = new Map<string, string>();
@@ -171,12 +178,67 @@ export function stackNovels(novels: Novel[], index: CatalogIndex | null): NovelS
     const stack = stacks.get(root);
     if (stack) {
       stack.items.push(novel);
-      if (novel.chapters > stack.main.chapters) stack.main = novel;
     } else {
       stacks.set(root, { key: root, main: novel, items: [novel] });
     }
   }
   return [...stacks.values()];
+}
+
+/**
+ * A text search finds one edition by its own title ("Demônios e Deuses" misses "Tales of Demons
+ * and Gods"). With stacks on, the other editions of each match come along (after the matches,
+ * so the match stays the face), as long as they pass the other filters.
+ */
+export function withEditions(results: Novel[], index: CatalogIndex | null, filters: Filters, sourceIds?: readonly string[]): Novel[] {
+  if (!index || results.length === 0) return results;
+  const allowed = filters.sourceId !== "all" ? new Set([filters.sourceId]) : sourceIds ? new Set(sourceIds) : null;
+  const byTitleAuthor = titleAuthorIndex(index);
+  const entries = entryIndex(index);
+  const present = new Set(results.map((novel) => novel.id));
+  const extra: Novel[] = [];
+  const add = (id: string) => {
+    if (present.has(id)) return;
+    const entry = entries.get(id);
+    if (!entry || !passesFilters(entry, filters, allowed)) return;
+    present.add(id);
+    extra.push(entry.novel);
+  };
+  for (const novel of results) {
+    for (const id of index.discovery?.editions.get(novel.id) ?? []) add(id);
+    for (const other of byTitleAuthor.get(titleAuthorKey(novel)) ?? []) add(other.id);
+  }
+  return extra.length ? [...results, ...extra] : results;
+}
+
+function titleAuthorKey(novel: Novel): string {
+  const title = workKey(novel.title);
+  const author = workKey(novel.author ?? "");
+  return title && author ? `${title}|${author}` : "";
+}
+
+const entryCache = new WeakMap<CatalogIndex, Map<string, Entry>>();
+function entryIndex(index: CatalogIndex): Map<string, Entry> {
+  let map = entryCache.get(index);
+  if (!map) {
+    map = new Map(index.entries.map((entry) => [entry.novel.id, entry]));
+    entryCache.set(index, map);
+  }
+  return map;
+}
+
+const titleAuthorCache = new WeakMap<CatalogIndex, Map<string, Novel[]>>();
+function titleAuthorIndex(index: CatalogIndex): Map<string, Novel[]> {
+  let map = titleAuthorCache.get(index);
+  if (!map) {
+    map = new Map();
+    for (const { novel } of index.entries) {
+      const key = titleAuthorKey(novel);
+      if (key) map.set(key, [...(map.get(key) ?? []), novel]);
+    }
+    titleAuthorCache.set(index, map);
+  }
+  return map;
 }
 
 export type SimilarOptions = {

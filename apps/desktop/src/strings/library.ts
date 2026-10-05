@@ -83,6 +83,8 @@ export const libraryStrings = {
   removeFavorite: "Remover dos favoritos",
   hideCover: "Ocultar esta capa",
   stacksOn: "Juntar edições da mesma obra",
+  separateFromStack: "Separar desta pilha",
+  backToStack: "Voltar para a pilha",
   stacksOff: "Separar as edições",
   editionsCount: (count: number) => `${count} edições`,
   editionsOf: (title: string, count: number) => `${title}: ${count} edições`,
