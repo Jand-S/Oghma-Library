@@ -83,7 +83,11 @@ export const uiStrings = {
   remove: (label: string) => `Remover ${label}`,
   dragHandle: (label: string) => `Reordenar ${label}. Use Alt + seta para cima ou para baixo.`,
   moved: (label: string, position: number, total: number) => `${label} movido para a posição ${position} de ${total}.`,
-  moreActions: "Mais ações"
+  moreActions: "Mais ações",
+  adultCover: "+18",
+  showCover: (title: string) => `Mostrar a capa de ${title}`,
+  showCoverHint: "Capa +18 coberta. Clique para ver.",
+  concealedCover: (title: string) => `Capa coberta de ${title}`
 } as const;
 
 export const kindleStrings = {

@@ -53,6 +53,66 @@
     font-size: var(--fs-xs);
   }
 
+  /* Concealed (+18): the image blurred under a veil, with an eye that shows it. */
+  .o-cover.is-concealed .o-cover__img {
+    filter: blur(var(--space-2)) saturate(0.6);
+    transform: scale(1.15);
+  }
+
+  .o-cover--sm.is-concealed .o-cover__img {
+    filter: blur(var(--space-1)) saturate(0.6);
+  }
+
+  .o-cover__veil {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    background: rgb(var(--black-rgb) / 0.35);
+  }
+
+  .o-cover__reveal {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    padding: var(--space-0-5) var(--space-1-5);
+    border: 1px solid rgb(var(--white-rgb) / 0.18);
+    border-radius: var(--radius-pill);
+    background: rgb(var(--black-rgb) / 0.45);
+    color: rgb(var(--white-rgb) / 0.92);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(var(--space-1-5));
+    backdrop-filter: blur(var(--space-1-5));
+    transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  }
+
+  .o-cover__reveal:hover {
+    background: rgb(var(--black-rgb) / 0.65);
+  }
+
+  .o-cover__reveal:active {
+    transform: scale(0.94);
+  }
+
+  .o-cover__reveal svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  .o-cover--sm .o-cover__reveal {
+    padding: calc(var(--space-0-5) / 2);
+    border: 0;
+  }
+
+  .o-cover--sm .o-cover__reveal svg {
+    width: var(--fs-xs);
+    height: var(--fs-xs);
+  }
+
   .o-cover--sheen::after {
     content: "";
     position: absolute;

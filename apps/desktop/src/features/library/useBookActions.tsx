@@ -1,4 +1,5 @@
-import { CloudDownload, Download, FileCog, FolderOpen, Heart, HeartOff, Info, Search, Trash2, EyeOff } from "lucide-react";
+import { CloudDownload, Download, FileCog, FolderOpen, Heart, HeartOff, Image, ImageOff, Info, Search, Trash2, EyeOff } from "lucide-react";
+import { useCoverControls } from "../../app/coverPrivacy";
 import { useRef, useState, type ReactNode } from "react";
 import type { LibraryItem, LibraryReadingStatus, Novel } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
@@ -26,6 +27,7 @@ type BookActionsArgs = {
  * dialogs they open (remove, delete, convert, rate, other editions). Grid, list and details share it.
  */
 export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, editionsOf }: BookActionsArgs) {
+  const covers = useCoverControls();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
   const [rateId, setRateId] = useState<string | null>(null);
@@ -72,6 +74,18 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
   }));
 
   /** Full menu for the grid/list context menu and ⋮ buttons. */
+  /** "Ocultar esta capa" / "Sempre mostrar esta capa" (catalog books only). */
+  const coverItem = (item: LibraryItem): MenuItem | null => {
+    if (!item.novelId || item.language || !item.coverUrl) return null;
+    const hidden = covers.isHidden(item.novelId);
+    return {
+      label: hidden ? libraryStrings.alwaysShowCover : libraryStrings.hideCover,
+      icon: hidden ? <Image /> : <ImageOff />,
+      onSelect: () => covers.toggle(item.novelId!),
+      separatorBefore: true
+    };
+  };
+
   const menuItems = (item: LibraryItem, options: { includeDetails?: boolean } = {}): MenuItem[] => {
     const items: MenuItem[] = [];
     const shelf = isShelf(item);
@@ -109,6 +123,8 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
       onSelect: () => toggleFavorite(item)
     });
     items.push(...statusItems(item));
+    const cover = coverItem(item);
+    if (cover) items.push(cover);
     items.push({ label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => askRemove(item), separatorBefore: true });
     if (!shelf) items.push({ label: libraryStrings.deleteFiles, icon: <Trash2 />, onSelect: () => askDelete(item), danger: true });
     return items;
@@ -235,6 +251,7 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     askRemove,
     askDelete,
     toggleFavorite,
+    coverItem,
     rate,
     askRating,
     setStatus,

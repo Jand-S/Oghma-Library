@@ -3,10 +3,12 @@ import { navStrings } from "../../strings/common";
 import { settingsStrings } from "../../strings/settings";
 import { SelectField } from "../../ui";
 import { startPages, useUiPreferences, type StartPage } from "./preferences";
-import { SettingsGroup, SettingsRow } from "./settingsLayout";
+import { SettingsGroup, SettingsRow, SwitchRow } from "./settingsLayout";
+import { updateCoverSettings, useCoverSettings } from "../../app/coverPrivacy";
 
 export function GeneralSection({ saved }: { saved: () => void }) {
   const [preferences, updatePreferences] = useUiPreferences();
+  const covers = useCoverSettings();
   const languageId = useId();
   const startId = useId();
   const themeId = useId();
@@ -55,6 +57,17 @@ export function GeneralSection({ saved }: { saved: () => void }) {
             onChange={() => undefined}
           />
         </SettingsRow>
+      </SettingsGroup>
+      <SettingsGroup {...settingsStrings.groups.content}>
+        <SwitchRow
+          label={settingsStrings.hideAdultCovers}
+          description={settingsStrings.hideAdultCoversHint}
+          checked={covers.hideAdult}
+          onChange={(hideAdult) => {
+            updateCoverSettings((state) => ({ ...state, hideAdult }));
+            saved();
+          }}
+        />
       </SettingsGroup>
     </>
   );

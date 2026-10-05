@@ -27,6 +27,7 @@ export const settingsStrings = {
   groups: {
     locale: { title: "Idioma e início", description: "Como o app fala com você e onde ele abre." },
     appearance: { title: "Aparência", description: "Cores e contraste da interface." },
+    content: { title: "Conteúdo", description: "O que aparece nas capas." },
     folder: { title: "Pasta da biblioteca", description: "Os livros baixados ficam aqui e aparecem na Biblioteca." },
     downloadDefaults: { title: "Padrões do download", description: "O que vem marcado ao baixar um livro novo." },
     queue: { title: "Fila", description: "Como os downloads são processados." },
@@ -45,6 +46,8 @@ export const settingsStrings = {
   languagePtBr: "Português (Brasil)",
   startPage: "Tela inicial",
   startPageHint: "A tela aberta quando o app inicia.",
+  hideAdultCovers: "Cobrir capas +18",
+  hideAdultCoversHint: "Capas de obras +18 ficam desfocadas, com um olho para ver. No menu ⋯ de cada livro dá para mudar só aquela capa.",
   theme: "Tema",
   themeDark: "Escuro",
   themeHint: "Tema claro em breve.",

@@ -5,6 +5,7 @@ export { CheckboxField, type CheckboxFieldProps } from "./CheckboxField";
 export { Chip, type ChipProps, type ChipTone } from "./Chip";
 export { ConfirmationModal, type ConfirmationModalProps } from "./ConfirmationModal";
 export { Cover, coverInitials, type CoverProps } from "./Cover";
+export { CoverPrivacyContext, useCoverPrivacy, type CoverPrivacy } from "./CoverPrivacy";
 export { cx } from "./cx";
 export { DropdownMenu, useContextMenu, type DropdownMenuProps, type MenuItem, type MenuPoint } from "./DropdownMenu";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";

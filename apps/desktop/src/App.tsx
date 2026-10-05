@@ -1,6 +1,7 @@
 import { CloudOff, RefreshCcw, Settings } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavigationProvider, useNavigation, type AppView } from "./app/NavigationContext";
+import { CoverPrivacyProvider } from "./app/coverPrivacy";
 import { accountOf } from "./app/account";
 import { useBootstrapState } from "./app/useBootstrapState";
 import { useKindleDetection } from "./app/useKindleDetection";
@@ -333,7 +334,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   }, []);
 
   return (
-    <>
+    <CoverPrivacyProvider catalog={catalog} library={library}>
       {splashMounted ? <SplashScreen steps={bootSteps} leaving={!showSplash} /> : null}
       <AppShell
         active={view}
@@ -423,6 +424,6 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
           </Suspense>
         )}
       </AppShell>
-    </>
+    </CoverPrivacyProvider>
   );
 }

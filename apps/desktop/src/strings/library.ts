@@ -81,6 +81,8 @@ export const libraryStrings = {
   moreActions: "Mais ações",
   addFavorite: "Favoritar",
   removeFavorite: "Remover dos favoritos",
+  hideCover: "Ocultar esta capa",
+  alwaysShowCover: "Sempre mostrar esta capa",
   statusMenu: "Leitura",
   ratingMenu: "Nota",
   download: "Baixar",
