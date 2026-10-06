@@ -9,11 +9,20 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import AccountSettings
-from .models import AccountLibraryEntry, AccountLoginCode, AccountSession, AccountUser
+from .models import (
+    AccountActivity,
+    AccountBlock,
+    AccountFriendship,
+    AccountLibraryEntry,
+    AccountLoginCode,
+    AccountMessage,
+    AccountSession,
+    AccountUser,
+)
 from .profile import AVATAR_COLORS, AVATAR_IDS, nickname_key, nickname_problem, nickname_suggestions
 
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
@@ -22,6 +31,9 @@ MAX_TAGS = 30
 MAX_TAG_LEN = 40
 MAX_SNAPSHOT_TEXT = 600
 NOVEL_KEY_PREFIX = "novel:"
+ACTIVITY_DAYS = 90
+# Mudanças mais velhas que isso (a primeira sincronização de uma biblioteca, por exemplo) não viram atividade.
+ACTIVITY_FRESH_MS = 48 * 3600 * 1000
 
 
 class AccountError(Exception):
@@ -283,6 +295,9 @@ def user_out(user: AccountUser) -> dict[str, Any]:
         "createdAt": aware(user.created_at).isoformat(),
         # Conta criada agora: o app pede apelido e avatar.
         "needsProfile": not user.nickname or not user.avatar_id,
+        "libraryVisible": user.library_visible is not False,
+        "activityVisible": user.activity_visible is not False,
+        "socialCursor": int(user.social_seq or 0),
     }
 
 
@@ -334,6 +349,10 @@ async def update_profile(
         if patch["avatarColor"] not in AVATAR_COLORS:
             raise AccountError("invalid_avatar_color")
         user.avatar_color = patch["avatarColor"]
+    if patch.get("libraryVisible") is not None:
+        user.library_visible = bool(patch["libraryVisible"])
+    if patch.get("activityVisible") is not None:
+        user.activity_visible = bool(patch["activityVisible"])
     await db.flush()
     return user
 
@@ -358,12 +377,37 @@ async def list_sessions(db: AsyncSession, user: AccountUser, current: AccountSes
 
 
 async def delete_account(db: AsyncSession, user: AccountUser) -> None:
-    """Apaga tudo da pessoa (LGPD): biblioteca, sessões, códigos e a conta."""
+    """Apaga tudo da pessoa (LGPD): biblioteca, rede social, sessões, códigos e a conta."""
+    # Os amigos e quem tinha pedido pendente veem a pessoa sumir da lista na hora.
+    pairs = (
+        await db.execute(
+            select(AccountFriendship.user_low, AccountFriendship.user_high).where(
+                or_(AccountFriendship.user_low == user.id, AccountFriendship.user_high == user.id)
+            )
+        )
+    ).all()
+    others = {low if high == user.id else high for low, high in pairs}
+    if others:
+        await bump_social(db, *others)
+    await db.execute(delete(AccountFriendship).where(or_(AccountFriendship.user_low == user.id, AccountFriendship.user_high == user.id)))
+    await db.execute(delete(AccountBlock).where(or_(AccountBlock.user_id == user.id, AccountBlock.blocked_id == user.id)))
+    await db.execute(delete(AccountMessage).where(or_(AccountMessage.sender_id == user.id, AccountMessage.recipient_id == user.id)))
+    await db.execute(delete(AccountActivity).where(AccountActivity.user_id == user.id))
     await db.execute(delete(AccountLibraryEntry).where(AccountLibraryEntry.user_id == user.id))
     await db.execute(delete(AccountSession).where(AccountSession.user_id == user.id))
     await db.execute(delete(AccountLoginCode).where(AccountLoginCode.email == user.email))
     await db.delete(user)
     await db.flush()
+
+
+async def bump_social(db: AsyncSession, *user_ids: int) -> None:
+    """Avança o cursor social (a `wait` dessas pessoas responde e o app recarrega amigos e conversas)."""
+    await db.execute(
+        update(AccountUser)
+        .where(AccountUser.id.in_(set(user_ids)))
+        .values(social_seq=AccountUser.social_seq + 1)
+        .execution_options(synchronize_session="fetch")
+    )
 
 
 # ---------- Biblioteca ----------
@@ -396,20 +440,7 @@ def clean_entry(raw: dict[str, Any]) -> tuple[str, dict[str, Any], int, int | No
     rating = raw.get("rating")
     rating = int(rating) if isinstance(rating, (int, float)) and 1 <= int(rating) <= 5 else None
     tags = [str(tag).strip()[:MAX_TAG_LEN] for tag in (raw.get("tags") or []) if str(tag).strip()][:MAX_TAGS]
-    snapshot_raw = raw.get("snapshot") if isinstance(raw.get("snapshot"), dict) else None
-    snapshot = None
-    if snapshot_raw:
-        snapshot = {
-            "novelId": novel_id,
-            "title": _clean_text(snapshot_raw.get("title"), 300) or novel_id,
-            "author": _clean_text(snapshot_raw.get("author"), 200),
-            "sourceId": _clean_text(snapshot_raw.get("sourceId"), 64),
-            "sourceName": _clean_text(snapshot_raw.get("sourceName"), 120),
-            "coverUrl": _clean_text(snapshot_raw.get("coverUrl"), 700) if str(snapshot_raw.get("coverUrl") or "").startswith("https://") else None,
-            "chapters": int(snapshot_raw["chapters"]) if isinstance(snapshot_raw.get("chapters"), (int, float)) else None,
-            "description": _clean_text(snapshot_raw.get("description"), MAX_SNAPSHOT_TEXT),
-        }
-        snapshot = {k: v for k, v in snapshot.items() if v is not None}
+    snapshot = clean_snapshot(novel_id, raw.get("snapshot"))
     added_at = raw.get("addedAt")
     # A removed book keeps what the reader marked: bringing it back restores status, rating and tags.
     data = {
@@ -420,8 +451,27 @@ def clean_entry(raw: dict[str, Any]) -> tuple[str, dict[str, Any], int, int | No
         "onShelf": bool(raw.get("onShelf")) and deleted_at is None,
         "addedAt": int(added_at) if isinstance(added_at, (int, float)) and added_at > 0 else None,
         "snapshot": snapshot,
+        # "Só eu vejo": fora do perfil e da atividade que os amigos veem.
+        "private": bool(raw.get("private")),
     }
     return novel_id, data, changed_at, deleted_at
+
+
+def clean_snapshot(novel_id: str, snapshot_raw: Any) -> dict[str, Any] | None:
+    """Título, autor, fonte e capa do livro (o que o app mostra sem ter o livro no catálogo)."""
+    if not isinstance(snapshot_raw, dict) or not snapshot_raw:
+        return None
+    snapshot = {
+        "novelId": novel_id,
+        "title": _clean_text(snapshot_raw.get("title"), 300) or novel_id,
+        "author": _clean_text(snapshot_raw.get("author"), 200),
+        "sourceId": _clean_text(snapshot_raw.get("sourceId"), 64),
+        "sourceName": _clean_text(snapshot_raw.get("sourceName"), 120),
+        "coverUrl": _clean_text(snapshot_raw.get("coverUrl"), 700) if str(snapshot_raw.get("coverUrl") or "").startswith("https://") else None,
+        "chapters": int(snapshot_raw["chapters"]) if isinstance(snapshot_raw.get("chapters"), (int, float)) else None,
+        "description": _clean_text(snapshot_raw.get("description"), MAX_SNAPSHOT_TEXT),
+    }
+    return {k: v for k, v in snapshot.items() if v is not None}
 
 
 def entry_out(entry: AccountLibraryEntry) -> dict[str, Any]:
@@ -437,6 +487,7 @@ def entry_out(entry: AccountLibraryEntry) -> dict[str, Any]:
         "onShelf": bool(data.get("onShelf")),
         "addedAt": data.get("addedAt"),
         "snapshot": data.get("snapshot"),
+        "private": bool(data.get("private")),
         "changedAt": entry.changed_at,
         "deletedAt": entry.deleted_at,
         "seq": entry.seq,
@@ -461,6 +512,22 @@ async def pull_library(db: AsyncSession, user: AccountUser, since: int = 0, limi
 async def library_cursor(db: AsyncSession, user_id: int) -> int:
     seq = (await db.execute(select(AccountUser.library_seq).where(AccountUser.id == user_id))).scalar_one_or_none()
     return int(seq or 0)
+
+
+def activity_events(old: dict[str, Any] | None, new: dict[str, Any]) -> list[tuple[str, int | None]]:
+    """O que mudou num livro e vale aparecer no feed dos amigos: (tipo, nota)."""
+    events: list[tuple[str, int | None]] = []
+    if new.get("onShelf") and not (old and old.get("onShelf")):
+        events.append(("added", None))
+    status = new.get("readingStatus")
+    if status != (old or {}).get("readingStatus"):
+        kind = {"reading": "started", "completed": "finished", "dropped": "dropped"}.get(status or "")
+        if kind:
+            events.append((kind, None))
+    rating = new.get("rating")
+    if rating is not None and rating != (old or {}).get("rating"):
+        events.append(("rated", rating))
+    return events
 
 
 async def push_library(
@@ -493,6 +560,9 @@ async def push_library(
             raise AccountError("library_full", 413)
     accepted: list[dict[str, Any]] = []
     rejected: list[str] = []
+    now = utcnow()
+    now_ms = int(now.timestamp() * 1000)
+    hidden_now: set[str] = set()
     for novel_id, data, changed_at, deleted_at in cleaned:
         key = f"{NOVEL_KEY_PREFIX}{novel_id}"
         row = existing.get(novel_id)
@@ -512,10 +582,24 @@ async def push_library(
             data = {**data, "snapshot": row.data["snapshot"]}
         if data.get("addedAt") is None and row.data and row.data.get("addedAt"):
             data = {**data, "addedAt": row.data["addedAt"]}
+        old = None if row.data is None or row.deleted_at is not None else row.data
+        if data.get("private"):
+            # Ficou "Só eu vejo": some também do que os amigos já tinham visto.
+            hidden_now.add(novel_id)
+        elif user.activity_visible is not False and deleted_at is None and now_ms - changed_at < ACTIVITY_FRESH_MS:
+            for kind, rating in activity_events(old, data):
+                db.add(AccountActivity(user_id=user.id, kind=kind, novel_id=novel_id, snapshot=data.get("snapshot"), rating=rating, at=now))
         row.data = data
         row.changed_at = changed_at
         row.deleted_at = deleted_at
         row.seq = user.library_seq
         accepted.append({"key": key, "changedAt": changed_at})
+    if hidden_now:
+        await db.execute(
+            delete(AccountActivity).where(AccountActivity.user_id == user.id, AccountActivity.novel_id.in_(hidden_now))
+        )
+    await db.execute(
+        delete(AccountActivity).where(AccountActivity.user_id == user.id, AccountActivity.at < now - timedelta(days=ACTIVITY_DAYS))
+    )
     await db.flush()
     return {"accepted": accepted, "rejected": rejected, "cursor": user.library_seq}

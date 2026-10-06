@@ -14,10 +14,10 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from . import service
+from . import service, social
 from .config import AccountSettings, get_account_settings
 from .pages import BRAND_DIR, approval_page
 from .mailer import LogMailer, Mailer, ResendMailer
@@ -50,10 +50,27 @@ class ProfileIn(BaseModel):
     nickname: str | None = Field(default=None, max_length=64)
     avatarId: str | None = Field(default=None, max_length=32)
     avatarColor: str | None = Field(default=None, max_length=16)
+    libraryVisible: bool | None = None
+    activityVisible: bool | None = None
 
 
 class ChangesIn(BaseModel):
     changes: list[dict[str, Any]]
+
+
+class FriendRequestIn(BaseModel):
+    nickname: str = Field(max_length=64)
+
+
+class MessageIn(BaseModel):
+    # O limite de 2000 caracteres é conferido no serviço (com erro próprio); aqui só barra o absurdo.
+    body: str | None = Field(default=None, max_length=20000)
+    novelId: str | None = Field(default=None, max_length=400)
+    snapshot: dict[str, Any] | None = None
+
+
+class NoteStatusIn(BaseModel):
+    noteStatus: str = Field(max_length=16)
 
 
 def make_mailer(settings: AccountSettings) -> Mailer:
@@ -70,7 +87,12 @@ ADDED_COLUMNS = {
         "device_name": "VARCHAR(80)",
         "platform": "VARCHAR(16)",
         "approved_at": "TIMESTAMP WITH TIME ZONE",
-    }
+    },
+    "account_user": {
+        "social_seq": "BIGINT NOT NULL DEFAULT 0",
+        "library_visible": "BOOLEAN NOT NULL DEFAULT TRUE",
+        "activity_visible": "BOOLEAN NOT NULL DEFAULT TRUE",
+    },
 }
 
 
@@ -83,7 +105,7 @@ def _add_missing_columns(sync_conn: Any) -> None:
         for name, kind in columns.items():
             if name not in present:
                 sync_conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {kind}"))
-        if "link_hash" not in present:
+        if table == "account_login_code" and "link_hash" not in present:
             sync_conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_link_hash ON {table} (link_hash)"))
             sync_conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_login_id ON {table} (login_id)"))
 
@@ -106,6 +128,9 @@ def create_app(
     sessions = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     mailer = mailer or make_mailer(settings)
     ip_limit = SlidingWindow(settings.ip_requests_per_10min, 600)
+    lookup_limit = SlidingWindow(settings.user_lookups_per_10min, 600)
+    request_limit = SlidingWindow(settings.friend_requests_per_day, 86400)
+    message_limit = SlidingWindow(settings.messages_per_minute, 60)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -138,6 +163,10 @@ def create_app(
     def limit_ip(request: Request) -> None:
         if not ip_limit.allow(client_ip(request)):
             raise AccountError("rate_limited", 429, retryAfter=600)
+
+    def limit_user(window: SlidingWindow, user: AccountUser) -> None:
+        if not window.allow(str(user.id)):
+            raise AccountError("rate_limited", 429, retryAfter=int(window.window))
 
     async def current_session(
         authorization: str = Header(default=""), db: AsyncSession = Depends(get_db)
@@ -280,6 +309,120 @@ def create_app(
     @app.post("/v1/me/library/changes")
     async def push(body: ChangesIn, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         return await service.push_library(db, settings, user, body.changes)
+
+    @app.get("/v1/me/wait")
+    async def wait_for_anything(
+        library: int = Query(default=0, ge=0),
+        social_since: int = Query(default=0, ge=0, alias="social"),
+        timeout: int = Query(default=25, ge=1, le=50),
+        user: AccountUser = Depends(current_user),
+    ) -> dict[str, Any]:
+        """Long poll for the library and the social side together: answers as soon as either cursor
+        moves past the one the app has (or after `timeout` s)."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while True:
+            async with sessions() as db:
+                library_cursor, social_cursor = (
+                    await db.execute(select(AccountUser.library_seq, AccountUser.social_seq).where(AccountUser.id == user.id))
+                ).one()
+            library_cursor, social_cursor = int(library_cursor or 0), int(social_cursor or 0)
+            if library_cursor > library or social_cursor > social_since or loop.time() >= deadline:
+                return {
+                    "library": {"changed": library_cursor > library, "cursor": library_cursor},
+                    "social": {"changed": social_cursor > social_since, "cursor": social_cursor},
+                }
+            await asyncio.sleep(1)
+
+    # ---------- Rede social ----------
+
+    @app.get("/v1/users/{nickname}")
+    async def find_user(nickname: str, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+        limit_user(lookup_limit, user)
+        return social.card(await social.find_by_nickname(db, user, nickname))
+
+    @app.get("/v1/friends")
+    async def friends(user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+        return await social.list_friends(db, user)
+
+    @app.post("/v1/friends/requests")
+    async def request_friend(
+        body: FriendRequestIn, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)
+    ) -> dict[str, str]:
+        limit_user(request_limit, user)
+        return await social.request_friend(db, user, body.nickname)
+
+    @app.post("/v1/friends/{public_id}/accept")
+    async def accept_friend(public_id: str, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+        return await social.accept_friend(db, user, public_id)
+
+    @app.delete("/v1/friends/{public_id}", status_code=204)
+    async def remove_friend(public_id: str, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> None:
+        await social.remove_friend(db, user, public_id)
+
+    @app.get("/v1/friends/{public_id}/library")
+    async def friend_library(public_id: str, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+        return await social.friend_library(db, user, public_id)
+
+    @app.get("/v1/blocks")
+    async def blocks(user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
+        return await social.list_blocks(db, user)
+
+    @app.post("/v1/blocks/{public_id}", status_code=204)
+    async def block(public_id: str, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> None:
+        await social.block(db, user, public_id)
+
+    @app.delete("/v1/blocks/{public_id}", status_code=204)
+    async def unblock(public_id: str, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> None:
+        await social.unblock(db, user, public_id)
+
+    @app.get("/v1/conversations")
+    async def conversations(user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
+        return await social.conversations(db, user)
+
+    @app.get("/v1/conversations/{public_id}/messages")
+    async def conversation_messages(
+        public_id: str,
+        before: int | None = Query(default=None, ge=1),
+        limit: int = Query(default=50, ge=1, le=100),
+        user: AccountUser = Depends(current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> dict[str, Any]:
+        return await social.messages(db, user, public_id, before, limit)
+
+    @app.post("/v1/conversations/{public_id}/messages")
+    async def send_message(
+        public_id: str, body: MessageIn, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)
+    ) -> dict[str, Any]:
+        limit_user(message_limit, user)
+        return await social.send_message(db, user, public_id, body.model_dump())
+
+    @app.post("/v1/conversations/{public_id}/read")
+    async def mark_read(public_id: str, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)) -> dict[str, int]:
+        return await social.mark_read(db, user, public_id)
+
+    @app.get("/v1/recommendations")
+    async def recommendations(
+        status: str = Query(default="all", pattern="^(new|all)$"),
+        user: AccountUser = Depends(current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> list[dict[str, Any]]:
+        return await social.recommendations(db, user, status == "new")
+
+    @app.patch("/v1/messages/{message_id}")
+    async def update_message(
+        message_id: int, body: NoteStatusIn, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)
+    ) -> dict[str, Any]:
+        return await social.set_note_status(db, user, message_id, body.noteStatus)
+
+    @app.get("/v1/feed")
+    async def feed(
+        before: int | None = Query(default=None, ge=1),
+        limit: int = Query(default=30, ge=1, le=100),
+        user: AccountUser = Depends(current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> dict[str, Any]:
+        return await social.feed(db, user, before, limit)
 
     return app
 

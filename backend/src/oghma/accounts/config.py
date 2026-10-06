@@ -26,6 +26,10 @@ class AccountSettings(BaseSettings):
     nickname_change_days: int = 30
     max_library_entries: int = 10000
     max_batch: int = 500
+    # Rede social, por pessoa.
+    friend_requests_per_day: int = 30
+    user_lookups_per_10min: int = 60
+    messages_per_minute: int = 30
 
 
 @lru_cache
