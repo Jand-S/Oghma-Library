@@ -457,13 +457,74 @@
   }
 
   /* ---------- Sidebar ---------- */
+  /* Bottom of the sidebar: the reader's photo and nickname, opening the profile menu. */
+  .sidebar-profile {
+    display: flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    min-width: 0;
+  }
+
+  .sidebar-profile .sidebar-account {
+    min-height: var(--control-md);
+  }
+
   .sidebar-account__avatar {
     position: relative;
     display: inline-grid;
     flex: none;
     place-items: center;
-    width: var(--icon-lg);
-    height: var(--icon-lg);
+    width: var(--control-sm);
+    height: var(--control-sm);
+  }
+
+  /* Amigos, on the profile row (Discord's user panel): one click, with the count. */
+  .sidebar-friends {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-0-5);
+    height: var(--control-sm);
+    padding: 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), scale var(--dur-fast) var(--ease);
+  }
+
+  .sidebar-friends svg {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
+
+  .sidebar-friends:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  .sidebar-friends:active {
+    scale: 0.94;
+  }
+
+  .sidebar-friends.has-news {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+
+  .sidebar-friends.is-active {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .sidebar-friends__count {
+    min-width: var(--space-1);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    font-variant-numeric: tabular-nums;
+    animation: sidebar-account-bump var(--dur-slow) var(--ease);
   }
 
   .sidebar-account__sync {
@@ -472,6 +533,42 @@
     bottom: calc(var(--space-0-5) * -1);
     width: var(--fs-xs);
     height: var(--fs-xs);
+  }
+
+  /* "Someone wrote": a count on the photo, like an app icon badge. */
+  .sidebar-account__badge {
+    position: absolute;
+    top: calc(var(--space-0-5) * -1.5);
+    right: calc(var(--space-1) * -1);
+    display: grid;
+    place-items: center;
+    min-width: var(--space-2);
+    height: var(--space-2);
+    padding: 0 calc(var(--space-0-5) * 0.75);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    box-shadow: 0 0 0 var(--ring-width) var(--bg-sidebar);
+    color: var(--accent-fg);
+    font-size: calc(var(--fs-xs) * 0.85);
+    font-weight: var(--fw-bold);
+    font-variant-numeric: tabular-nums;
+    animation: sidebar-account-bump var(--dur-slow) var(--ease);
+  }
+
+  @keyframes sidebar-account-bump {
+    0% {
+      opacity: 0;
+      scale: 0.5;
+    }
+
+    60% {
+      opacity: 1;
+      scale: 1.2;
+    }
+
+    100% {
+      scale: 1;
+    }
   }
 
   .sidebar-account__name {
@@ -483,7 +580,31 @@
 
   .o-menu-anchor:has(.sidebar-account) {
     display: flex;
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .sidebar-account-menu {
+    min-width: calc(var(--space-8) * 3.5);
+  }
+
+  .sidebar-account__count {
+    display: grid;
+    place-items: center;
+    min-width: calc(var(--space-2) + var(--space-0-5));
+    height: calc(var(--space-2) + var(--space-0-5));
+    padding: 0 var(--space-0-5);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+  }
+
+  .sidebar-account__kbd {
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: var(--fs-xs);
   }
 
   /* Privacy switches inside a ListGroup: same inset as a ListRow. */

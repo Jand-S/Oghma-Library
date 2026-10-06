@@ -87,6 +87,7 @@ export const oghmaAccountStrings = {
   chatGptHeading: "ChatGPT (tradução e IA)",
   oghmaHeading: "Conta Oghma",
   menuLabel: (nickname: string) => `Conta de ${nickname}`,
+  settings: "Ajustes",
   openAccount: "Abrir conta",
 
   // Errors (API codes)

@@ -95,3 +95,19 @@ describe("useSocial", () => {
     expect(result.current.available).toBe(false);
   });
 });
+
+describe("readingNow (Início › Amigos estão lendo)", () => {
+  const at = (minutes: number) => new Date(Date.UTC(2026, 9, 5, 12, minutes)).toISOString();
+  const bia = { publicId: "bia", nickname: "bia", avatarId: null, avatarColor: null };
+  it("keeps a book while the friend's latest event on it is a start, and groups readers", async () => {
+    const { readingNow } = await import("../features/home/HomeView");
+    const books = readingNow([
+      { id: 1, user: ana, kind: "started", novelId: "x", snapshot: { novelId: "x", title: "X" }, at: at(1) },
+      { id: 2, user: bia, kind: "started", novelId: "x", snapshot: { novelId: "x", title: "X" }, at: at(5) },
+      { id: 3, user: ana, kind: "started", novelId: "y", snapshot: { novelId: "y", title: "Y" }, at: at(2) },
+      { id: 4, user: ana, kind: "finished", novelId: "y", snapshot: { novelId: "y", title: "Y" }, at: at(9) }
+    ]);
+    expect(books.map((book) => book.novelId)).toEqual(["x"]);
+    expect(books[0].readers.map((reader) => reader.nickname).sort()).toEqual(["ana", "bia"]);
+  });
+});

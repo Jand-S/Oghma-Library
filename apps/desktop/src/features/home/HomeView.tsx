@@ -4,7 +4,7 @@ import type { LibraryItem, Novel } from "../../core/types";
 import { similarNovels, sortNovels, type CatalogIndex, type NovelSort } from "../../services/catalogIndex";
 import { homeStrings } from "../../strings/home";
 import { Avatar, Cover, SectionHeader, Skeleton } from "../../ui";
-import type { ActivityItem } from "../../services/socialClient";
+import type { ActivityItem, UserCard } from "../../services/socialClient";
 import { socialStrings } from "../../strings/social";
 import { shortWhen } from "../social/socialEnv";
 import "../social/social.css";
@@ -41,7 +41,33 @@ export type HomeFriends = {
   /** The catalog novel for an id (opens its panel in Buscar). */
   resolve: (novelId: string) => Novel | undefined;
   onSeeRecommendations: () => void;
+  onOpenFriends: () => void;
 };
+
+type FriendsBook = { novelId: string; title: string; cover?: string; readers: UserCard[] };
+
+/**
+ * What friends are reading now, from their activity: a book counts while its latest event per
+ * friend is "started" (finishing or dropping it takes it off). Most recent first.
+ */
+export function readingNow(activity: ActivityItem[]): FriendsBook[] {
+  const latest = new Map<string, ActivityItem>();
+  for (const item of activity) {
+    const key = `${item.user.publicId} ${item.novelId}`;
+    const seen = latest.get(key);
+    if (!seen || new Date(item.at).getTime() > new Date(seen.at).getTime()) latest.set(key, item);
+  }
+  const books = new Map<string, FriendsBook & { at: number }>();
+  for (const item of latest.values()) {
+    if (item.kind !== "started") continue;
+    const at = new Date(item.at).getTime();
+    const book = books.get(item.novelId) ?? { novelId: item.novelId, title: item.snapshot?.title ?? item.novelId, cover: item.snapshot?.coverUrl, readers: [], at };
+    book.readers.push(item.user);
+    book.at = Math.max(book.at, at);
+    books.set(item.novelId, book);
+  }
+  return [...books.values()].sort((a, b) => b.at - a.at).slice(0, 14);
+}
 
 const SHELF = 14;
 const FEATURED = 5;
@@ -152,6 +178,7 @@ export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNove
   }
 
   const { shelves, featured, featuredFromLibrary, genres } = model;
+  const friendsReading = friends ? readingNow(friends.activity) : [];
   const bookShelves = shelves.filter((shelf): shelf is Extract<Shelf, { kind: "book" }> => shelf.kind === "book");
   const novelShelves = shelves.filter((shelf): shelf is Extract<Shelf, { kind: "novel" }> => shelf.kind === "novel");
   // Personal rows and the first catalog row, then genres, then the remaining catalog rows.
@@ -190,6 +217,25 @@ export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNove
           ))}
         </HomeShelf>
       ))}
+      {friendsReading.length && friends ? (
+        <HomeShelf id="friends-reading" title={socialStrings.friendsReadingTitle} onSeeAll={friends.onOpenFriends}>
+          {friendsReading.map((book) => {
+            const novel = friends.resolve(book.novelId);
+            return (
+              <HomeTile
+                key={book.novelId}
+                title={novel?.title ?? book.title}
+                cover={novel?.coverUrl ?? book.cover}
+                meta={socialStrings.friendsReadingMeta(book.readers.map((reader) => reader.nickname))}
+                badge={book.readers.slice(0, 2).map((reader) => (
+                  <Avatar key={reader.publicId} avatarId={reader.avatarId} color={reader.avatarColor} nickname={reader.nickname} size="sm" />
+                ))}
+                onClick={() => (novel ? onOpenNovel(novel) : friends.onOpenFriends())}
+              />
+            );
+          })}
+        </HomeShelf>
+      ) : null}
       {friends?.recommended.length ? (
         <HomeShelf id="from-friends" title={socialStrings.fromFriendsTitle} onSeeAll={friends.onSeeRecommendations}>
           {friends.recommended.map((rec) => {

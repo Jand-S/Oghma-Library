@@ -3,7 +3,8 @@ import { BookOpenText } from "lucide-react";
 import { defaultFilters } from "../core/defaults";
 import type { BookSnapshot, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import type { SocialController } from "../features/social/useSocial";
-import { snapshotOfNovel, type SocialEnv, type SocialPlace, type SocialTab } from "../features/social/socialEnv";
+import { snapshotOfNovel, type SharedBook, type SocialEnv, type SocialPlace } from "../features/social/socialEnv";
+import { searchCatalog } from "../services/catalogIndex";
 import type { HomeSeeAll } from "../features/home/HomeView";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
 import { DiscoverView } from "../features/discover/DiscoverView";
@@ -66,7 +67,7 @@ export function preloadViews() {
 /** Everything a view needs, assembled by App from the feature controllers. */
 export type AppControllers = {
   loading: boolean;
-  navigate: (view: AppView, params?: NavParams) => void;
+  navigate: (view: AppView, params?: NavParams, options?: { replace?: boolean }) => void;
   /** Params of the current navigation entry (e.g. `{ book }` on the Library details). */
   params: NavParams;
   discover: DiscoverController;
@@ -188,7 +189,8 @@ function HomePage({ app }: ViewProps) {
           .map((rec) => ({ id: rec.id, novelId: rec.novelId!, title: rec.snapshot?.title ?? rec.novelId!, cover: rec.snapshot?.coverUrl, from: rec.fromUser.nickname })),
         activity: app.social.feed,
         resolve: (novelId: string) => discover.catalogIndex?.byId.get(novelId),
-        onSeeRecommendations: () => navigate("social", { tab: "recommendations" })
+        onSeeRecommendations: () => navigate("social", { pane: "recommendations" }),
+        onOpenFriends: () => navigate("social")
       }
       : undefined
   });
@@ -303,14 +305,13 @@ function SocialPage({ app }: ViewProps) {
   const { social, library, discover, navigate, params } = app;
   const resolve = (novelId: string) => discover.catalogIndex?.byId.get(novelId);
   const owned = new Set(library.library.filter((item) => item.novelId && !item.language).map((item) => item.novelId!));
+  const text = (value: unknown) => (typeof value === "string" && value ? value : undefined);
   const place: SocialPlace = {
-    tab: (["chats", "recommendations", "friends"] as SocialTab[]).includes(params.tab as SocialTab)
-      ? (params.tab as SocialTab)
-      : social.unreadMessages || !social.newRecommendations ? "chats" : "recommendations",
-    friend: typeof params.friend === "string" ? params.friend : undefined,
-    chat: typeof params.chat === "string" ? params.chat : undefined
+    pane: params.pane === "recommendations" ? "recommendations" : undefined,
+    friend: text(params.friend),
+    chat: text(params.chat)
   };
-  const env: SocialEnv = {
+  const env: Omit<SocialEnv, "place"> = {
     social,
     resolve,
     inLibrary: (novelId) => owned.has(novelId) || owned.has(resolve(novelId)?.id ?? ""),
@@ -319,11 +320,16 @@ function SocialPage({ app }: ViewProps) {
       navigate("discover");
       discover.openPreviewNovel(novel);
     },
-    go: (next) => {
-      const merged = { ...place, ...next };
-      navigate("social", { tab: merged.tab, friend: merged.friend, chat: merged.chat });
-    },
+    // Each call names the whole place: what it leaves out closes.
+    go: (next, options) => navigate("social", { pane: next.pane, friend: next.friend, chat: next.chat }, options),
     recommend: app.recommendBook,
+    searchCatalog: (query): SharedBook[] => {
+      const index = discover.catalogIndex;
+      if (!index || !query.trim()) return [];
+      return searchCatalog(index, { ...defaultFilters(), query }, app.sources.sources.filter((source) => source.enabled).map((source) => source.id))
+        .slice(0, 40)
+        .map((novel) => ({ novelId: novel.id, snapshot: snapshotOfNovel(novel) }));
+    },
     libraryBooks: () => library.library
       .filter((item) => item.novelId && !item.language && !item.hidden)
       .map((item) => {

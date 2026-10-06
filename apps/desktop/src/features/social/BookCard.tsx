@@ -1,47 +1,57 @@
-import { BookmarkPlus, Check, ExternalLink, Send } from "lucide-react";
+import { Check, Plus, Send } from "lucide-react";
 import type { BookSnapshot } from "../../core/types";
 import { socialStrings as t } from "../../strings/social";
 import { Button, Cover, cx } from "../../ui";
-import { useSocialEnv } from "./socialEnv";
+import { chapterCount, useSocialEnv } from "./socialEnv";
 
 type BookCardProps = {
   novelId: string;
   snapshot?: BookSnapshot | null;
-  /** "row": wide (recommendations, profile); "bubble": inside a chat message. */
+  /** "bubble": inside a chat message; "row": a plain wide card. */
   variant?: "row" | "bubble";
+  /** Small caption above the title ("Indicação"). */
+  eyebrow?: string;
   /** Extra actions after the defaults (e.g. "Dispensar"). */
   children?: React.ReactNode;
-  /** Shows "Indicar" too (the friend's profile). */
+  /** Shows "Indicar" too. */
   canRecommend?: boolean;
   onAdded?: () => void;
 };
 
-/** A book in the social screens: cover, title, source, and Abrir / Adicionar à biblioteca. */
-export function BookCard({ novelId, snapshot, variant = "row", children, canRecommend = false, onAdded }: BookCardProps) {
+/** A book in the social screens: cover, title, author · source, and Adicionar à biblioteca / Abrir. */
+export function BookCard({ novelId, snapshot, variant = "row", eyebrow, children, canRecommend = false, onAdded }: BookCardProps) {
   const env = useSocialEnv();
   const novel = env.resolve(novelId);
   const title = novel?.title ?? snapshot?.title ?? novelId;
   const cover = novel?.coverUrl ?? snapshot?.coverUrl;
   const source = novel?.sourceName ?? snapshot?.sourceName;
   const author = novel?.author || snapshot?.author;
+  const chapters = novel?.chapters ?? chapterCount(snapshot?.chapters);
   const owned = env.inLibrary(novel?.id ?? novelId);
   return (
     <div className={cx("social-book", `social-book--${variant}`)} data-testid="social-book">
-      <Cover src={cover} title={title} size="sm" className="social-book__cover" />
+      <button
+        type="button"
+        className="social-book__cover"
+        onClick={() => (novel ? env.openBook(novel) : undefined)}
+        disabled={!novel}
+        aria-label={`${t.open}: ${title}`}
+      >
+        <Cover src={cover} title={title} size="fill" sheen />
+      </button>
       <div className="social-book__text">
+        {eyebrow ? <span className="social-book__eyebrow">{eyebrow}</span> : null}
         <strong className="social-book__title" title={title}>{title}</strong>
         <span className="social-book__meta">{[author, source].filter(Boolean).join(" · ")}</span>
+        {chapters ? <span className="social-book__meta">{t.chapters(chapters)}</span> : null}
         <div className="social-book__actions">
-          {novel ? (
-            <Button variant="ghost" size="sm" icon={<ExternalLink />} onClick={() => env.openBook(novel)}>{t.open}</Button>
-          ) : null}
           {owned ? (
-            <span className="social-book__owned"><Check aria-hidden="true" />{t.inLibrary}</span>
+            <span className="social-book__owned"><Check aria-hidden="true" />{t.inYourLibrary}</span>
           ) : novel ? (
             <Button
-              variant="ghost"
+              variant="primary"
               size="sm"
-              icon={<BookmarkPlus />}
+              icon={<Plus />}
               onClick={() => {
                 env.addToLibrary(novel);
                 onAdded?.();
@@ -50,6 +60,7 @@ export function BookCard({ novelId, snapshot, variant = "row", children, canReco
               {t.addToLibrary}
             </Button>
           ) : null}
+          {novel ? <Button variant="glass" size="sm" onClick={() => env.openBook(novel)}>{t.open}</Button> : null}
           {canRecommend ? (
             <Button
               variant="ghost"

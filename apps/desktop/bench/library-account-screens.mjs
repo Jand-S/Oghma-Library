@@ -175,7 +175,7 @@ async function main() {
       // Let the "adicionado à biblioteca" toast from Buscar go away first.
       await page.waitForFunction(() => !document.querySelector(".o-toast"), null, { timeout: 15000 }).catch(() => undefined);
       await shot(page, "11-settings-account");
-      await page.click('[data-testid="sidebar-account"]');
+      await page.click('[data-testid="account-button"]');
       await shot(page, "12-sidebar-menu");
       await page.keyboard.press("Escape");
       await page.click('[data-testid="oghma-account-edit"]');
@@ -194,7 +194,7 @@ async function main() {
       await page.getByRole("tab", { name: /Conta/ }).click();
       await page.waitForSelector('[data-testid="oghma-account-signed-out"]');
       await shot(page, "15-settings-signed-out");
-      await page.click('[data-testid="sidebar-account-sign-in"]');
+      await page.click('[data-testid="account-sign-in"]');
       await page.fill('[data-testid="account-email"]', "leitor@exemplo.com");
       await shot(page, "16-sheet-email");
       await page.click('[data-testid="account-continue"]');

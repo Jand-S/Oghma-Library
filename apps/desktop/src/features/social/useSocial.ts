@@ -4,10 +4,10 @@ import {
   socialApi,
   type ActivityItem,
   type Conversation,
+  type Friend,
   type FriendsList,
   type Recommendation,
-  type SocialResult,
-  type UserCard
+  type SocialResult
 } from "../../services/socialClient";
 
 /** "unknown" until the first answer; "no" when the server has no social side yet. */
@@ -38,6 +38,8 @@ export function useSocial({ client, signedIn, me }: Options) {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [feed, setFeed] = useState<ActivityItem[]>([]);
   const [version, setVersion] = useState(0);
+  /** The lists came at least once (so "nothing there" is real, not "not yet"). */
+  const [loaded, setLoaded] = useState(false);
   const loading = useRef<Promise<void> | null>(null);
   const again = useRef(false);
 
@@ -63,6 +65,7 @@ export function useSocial({ client, signedIn, me }: Options) {
         if (chats.ok && Array.isArray(chats.value)) setConversations(chats.value);
         if (recs.ok && Array.isArray(recs.value)) setRecommendations(recs.value);
         if (activity.ok && Array.isArray(activity.value?.items)) setFeed(activity.value.items);
+        setLoaded(true);
         setVersion((value) => value + 1);
       } while (again.current);
     })().finally(() => {
@@ -75,6 +78,7 @@ export function useSocial({ client, signedIn, me }: Options) {
   useEffect(() => {
     if (!signedIn) {
       setSupport("unknown");
+      setLoaded(false);
       setFriends(EMPTY_FRIENDS);
       setConversations([]);
       setRecommendations([]);
@@ -104,7 +108,7 @@ export function useSocial({ client, signedIn, me }: Options) {
   const attention = unreadMessages + friends.incoming.length + newRecommendations;
 
   const friendById = useCallback(
-    (publicId: string): UserCard | undefined => friends.friends.find((friend) => friend.publicId === publicId),
+    (publicId: string): Friend | undefined => friends.friends.find((friend) => friend.publicId === publicId),
     [friends.friends]
   );
 
@@ -113,6 +117,7 @@ export function useSocial({ client, signedIn, me }: Options) {
     /** Signed in and the server has the social side. */
     available: signedIn && support === "yes",
     support,
+    loaded,
     me,
     friends,
     conversations,

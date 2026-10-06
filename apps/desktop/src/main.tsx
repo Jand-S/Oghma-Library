@@ -8,6 +8,7 @@ import { defaultAppConfig, readStoredConfig } from "./core/appConfig";
 import type { BackendClient } from "./services/backendClient";
 import { createStaticBackendClient } from "./services/staticBackend";
 import { applyPlatform, watchFullscreen } from "./shell/platform";
+import { isSidebarShortcut } from "./shell/Sidebar";
 
 /** True for inputs, textareas and contenteditable regions, where selection, copy and the context menu must keep working. */
 function isEditableTarget(target: EventTarget | null) {
@@ -32,6 +33,11 @@ function installInteractionGuards() {
       || key === "s"
       || (key === "c" && !event.shiftKey && !isEditableTarget(event.target))
     );
+    if (isSidebarShortcut(event)) {
+      // ⌃⌘S hides the sidebar: no browser "save page", but the app still gets the key.
+      event.preventDefault();
+      return;
+    }
     if (event.key === "F12" || devtoolsShortcut || blockedShortcut) {
       event.preventDefault();
       event.stopPropagation();

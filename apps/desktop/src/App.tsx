@@ -321,11 +321,17 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
 
   const goTo = (target: AppView) => navigate(target, undefined, { root: true });
 
-  // ⌘K / Ctrl+K: jump to the Buscar search field from anywhere (Spotlight-style).
+  // ⌘K / Ctrl+K: jump to the Buscar search field from anywhere (Spotlight-style). ⌘,: Ajustes.
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // ⌘, / Ctrl+,: Ajustes (the Mac standard; Ajustes lives in the profile menu now).
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key === ",") {
+        event.preventDefault();
+        navigateRef.current("settings", undefined, { root: true });
+        return;
+      }
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== "k") return;
       event.preventDefault();
       navigateRef.current("discover", undefined, { root: true });
@@ -353,16 +359,19 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
         sidebarStatus={{
           downloading: downloads.downloading,
           flashKey: downloads.pulse,
-          kindleConnected,
-          socialAvailable: social.available,
-          socialAttention: social.attention
+          kindleConnected
         }}
-        sidebarAccount={(collapsed) => (
+        // Without account support (browser build, tests) the sidebar keeps a plain "Ajustes".
+        sidebarAccount={(collapsed) => !oghmaAccount.available ? null : (
           <SidebarAccount
             account={oghmaAccount}
             collapsed={collapsed}
+            friendsAvailable={social.available}
+            friendsAttention={social.available ? social.attention : 0}
+            place={view === "social" ? "friends" : view === "settings" ? "settings" : null}
             onOpenSheet={openAccountSheet}
-            onOpenSettings={() => navigate("settings", { section: "account" }, { root: true })}
+            onOpenFriends={() => goTo("social")}
+            onOpenSettings={() => goTo("settings")}
           />
         )}
         header={{ ...viewHeader, title: definition.title, onBack: canGoBack ? back : undefined, trailing: <UpdateButton update={appUpdate} /> }}

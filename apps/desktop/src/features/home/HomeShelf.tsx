@@ -63,11 +63,20 @@ export function HomeShelf({ id, title, subtitle, onSeeAll, variant = "tiles", ch
 }
 
 /** Cover tile: cover, two-line title, one meta line. */
-export function HomeTile({ title, cover, meta, accent = false, onClick }: { title: string; cover?: string; meta?: string; accent?: boolean; onClick: () => void }) {
+export function HomeTile({ title, cover, meta, accent = false, badge, onClick }: {
+  title: string;
+  cover?: string;
+  meta?: string;
+  accent?: boolean;
+  /** Drawn over the cover's bottom-right corner (friends' avatars). */
+  badge?: ReactNode;
+  onClick: () => void;
+}) {
+  const art = <Cover src={cover} title={title} size="fill" sheen className="home-tile__cover" />;
   return (
     <li>
       <button type="button" className="home-tile" onClick={onClick} title={title}>
-        <Cover src={cover} title={title} size="fill" sheen className="home-tile__cover" />
+        {badge ? <span className="home-tile__art">{art}<span className="home-tile__badge">{badge}</span></span> : art}
         <span className="home-tile__title">{title}</span>
         {meta ? <span className={cx("home-tile__meta", accent && "home-tile__meta--accent")}>{meta}</span> : null}
       </button>

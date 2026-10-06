@@ -34,6 +34,10 @@ export type MenuItem = {
   multiple?: boolean;
   /** Content after the label (e.g. stars), right-aligned. */
   trailing?: ReactNode;
+  /** A second, quieter line under the label ("Indicar algo que você já tem"). */
+  description?: string;
+  /** Not an action: a caption row at the top (who is signed in), label over description. */
+  info?: boolean;
 };
 
 export type MenuPoint = { x: number; y: number };
@@ -82,7 +86,7 @@ export function DropdownMenu({ items, label, align = "start", className, trigger
     if (restoreFocus && !isContext) focusTrigger();
   }, [focusTrigger, isContext, onClose]);
 
-  const enabledIndexes = items.map((item, index) => (item.disabled ? -1 : index)).filter((index) => index !== -1);
+  const enabledIndexes = items.map((item, index) => (item.disabled || item.info ? -1 : index)).filter((index) => index !== -1);
 
   const focusItem = (index: number | undefined) => {
     if (index === undefined) return;
@@ -114,10 +118,12 @@ export function DropdownMenu({ items, label, align = "start", className, trigger
     setCoords({ x, y });
   }, [align, isContext, open, position]);
 
-  // Focus the first item when the menu opens.
+  // Focus the first item once the menu is placed (a hidden menu cannot take focus, so Esc and
+  // the arrows would not reach it).
+  const placed = coords !== null;
   useEffect(() => {
-    if (open) focusItem(enabledIndexes[0]);
-  }, [open]);
+    if (open && placed) focusItem(enabledIndexes[0]);
+  }, [open, placed]);
 
   // Close on outside pointer, window blur, resize or scroll.
   useEffect(() => {
@@ -208,6 +214,12 @@ export function DropdownMenu({ items, label, align = "start", className, trigger
         onContextMenu={(event) => event.preventDefault()}
       >
         {items.map((item, index) => (
+          item.info ? (
+            <div key={`${item.label}-${index}`} role="presentation" className="o-menu__info">
+              <span className="o-menu__info-label">{item.label}</span>
+              {item.description ? <span className="o-menu__description">{item.description}</span> : null}
+            </div>
+          ) : (
           <div key={`${item.label}-${index}`} role="none" className={cx("o-menu__row", item.separatorBefore && "o-menu__row--separated")}>
             {item.heading ? <div role="presentation" className="o-menu__heading">{item.heading}</div> : null}
             <button
@@ -227,10 +239,18 @@ export function DropdownMenu({ items, label, align = "start", className, trigger
                 <span className={cx("o-menu__check", item.checked && "is-checked")} aria-hidden="true"><Check /></span>
               ) : null}
               {item.icon ? <span className="o-menu__icon" aria-hidden="true">{item.icon}</span> : null}
-              <span className="o-menu__label">{item.label}</span>
+              {item.description ? (
+                <span className="o-menu__text">
+                  <span className="o-menu__label">{item.label}</span>
+                  <span className="o-menu__description">{item.description}</span>
+                </span>
+              ) : (
+                <span className="o-menu__label">{item.label}</span>
+              )}
               {item.trailing ? <span className="o-menu__trailing" aria-hidden="true">{item.trailing}</span> : null}
             </button>
           </div>
+          )
         ))}
       </div>,
       document.body

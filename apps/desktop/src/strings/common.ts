@@ -46,9 +46,11 @@ export const pageTitleStrings = {
 export const shellStrings = {
   appName: "Oghma Library",
   mainNav: "Principal",
-  collapseSidebar: "Recolher menu",
-  expandSidebar: "Expandir menu",
+  collapseSidebar: "Ocultar barra lateral",
+  expandSidebar: "Mostrar barra lateral",
   resizeSidebar: "Redimensionar menu lateral",
+  expandSidebarHint: "Arraste para a direita para mostrar a barra",
+  resizeSidebarHint: (shortcut: string) => `Arraste para ajustar · ${shortcut} para ocultar`,
   back: "Voltar",
   downloadsActive: "Download em andamento",
   idle: "Nenhum download em andamento",

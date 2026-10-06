@@ -1,10 +1,10 @@
-import { useCallback, useState, type CSSProperties, type ReactNode, type UIEvent } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode, type UIEvent } from "react";
 import type { AppView } from "../app/NavigationContext";
 import { cx } from "../ui";
 import { BottomPanel, type BottomPanelProps } from "./BottomPanel";
 import { PageHeader, type PageHeaderProps } from "./PageHeader";
 import { getPlatform, type Platform } from "./platform";
-import { clampSidebarWidth, Sidebar, SIDEBAR_WIDTH, type SidebarStatus } from "./Sidebar";
+import { clampSidebarWidth, isSidebarShortcut, Sidebar, SIDEBAR_WIDTH, type SidebarStatus } from "./Sidebar";
 import { TitleBar } from "./TitleBar";
 
 const WIDTH_KEY = "oghma.sidebar.width";
@@ -42,8 +42,6 @@ export type AppShellProps = {
   active: AppView;
   onNavigate: (view: AppView) => void;
   sidebarStatus?: SidebarStatus;
-  /** Account control at the bottom of the sidebar (avatar + nickname, or "Entrar"). */
-  sidebarAccount?: (collapsed: boolean) => ReactNode;
   header: PageHeaderProps;
   bottomPanel: BottomPanelProps;
   /** Content-area variant: the page scrolls as a whole, or the view fills it (see layout.css). */
@@ -52,19 +50,21 @@ export type AppShellProps = {
   /** Rendered after the grid (overlays such as the onboarding wizard). */
   overlays?: ReactNode;
   platform?: Platform;
+  /** The reader's profile at the bottom of the sidebar (gets `collapsed`). */
+  sidebarAccount?: (collapsed: boolean) => ReactNode;
 };
 
 export function AppShell({
   active,
   onNavigate,
   sidebarStatus,
-  sidebarAccount,
   header,
   bottomPanel,
   contentLayout = "scroll",
   children,
   overlays,
-  platform = getPlatform()
+  platform = getPlatform(),
+  sidebarAccount
 }: AppShellProps) {
   const [width, setWidth] = useState(() => clampSidebarWidth(readNumber(WIDTH_KEY, SIDEBAR_WIDTH.default)));
   const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
@@ -82,6 +82,17 @@ export function AppShell({
       return !value;
     });
   }, []);
+
+  // ⌃⌘S (Ctrl+Shift+S): hide or show the sidebar from anywhere.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isSidebarShortcut(event)) return;
+      event.preventDefault();
+      toggleCollapsed();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [toggleCollapsed]);
 
   const style = collapsed ? undefined : ({ "--sidebar-current": `${width}px` } as CSSProperties);
 

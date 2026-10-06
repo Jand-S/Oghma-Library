@@ -80,6 +80,37 @@
     white-space: nowrap;
   }
 
+  .o-menu__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: var(--space-0-5) 0;
+  }
+
+  .o-menu__description {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .o-menu__info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: var(--space-1) var(--space-1) var(--space-1);
+  }
+
+  .o-menu__info-label {
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .o-menu__heading {
     padding: var(--space-0-5) var(--space-1) calc(var(--space-0-5) / 2);
     color: var(--text-muted);

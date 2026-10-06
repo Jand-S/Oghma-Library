@@ -338,6 +338,31 @@
     transition: scale var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
   }
 
+  .home-tile__art {
+    position: relative;
+    display: block;
+  }
+
+  .home-tile__badge {
+    position: absolute;
+    right: calc(var(--space-0-5) * -1);
+    bottom: calc(var(--space-0-5) * 0.5);
+    display: flex;
+    transition: translate var(--dur-base) var(--ease);
+  }
+
+  .home-tile__badge .o-avatar {
+    box-shadow: 0 0 0 calc(var(--ring-width) + 1px) var(--bg-app), var(--shadow-md);
+  }
+
+  .home-tile__badge .o-avatar + .o-avatar {
+    margin-left: calc(var(--space-1-5) * -1);
+  }
+
+  .home-tile:hover .home-tile__badge {
+    translate: 0 calc(var(--space-0-5) * -1);
+  }
+
   .home-tile .o-cover--sheen::after {
     opacity: 0;
     transition: opacity var(--dur-base) var(--ease);

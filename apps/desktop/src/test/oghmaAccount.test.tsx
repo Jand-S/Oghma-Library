@@ -245,13 +245,13 @@ describe("account sign-in flow (e-mail button)", () => {
         : { status: 202, body: { status: "pending" } };
     });
     render(<App backend={mockBackendClient} downloadQueue={createTestQueue()} accountClient={client} />);
-    await user.click(await screen.findByTestId("sidebar-account-sign-in"));
+    await user.click(await screen.findByTestId("account-sign-in"));
     await user.type(await screen.findByLabelText(s.emailLabel), "a@b.com");
     await user.click(screen.getByTestId("account-continue"));
     expect(await screen.findByText(s.orTapButton)).toBeInTheDocument();
 
     confirmed = true;
-    await waitFor(() => expect(screen.getByTestId("sidebar-account")).toHaveTextContent("leitor"), { timeout: 5000 });
+    await waitFor(() => expect(screen.getByTestId("account-button")).toHaveAccessibleName(/leitor/), { timeout: 5000 });
     expect(screen.queryByRole("dialog", { name: s.codeTitle })).not.toBeInTheDocument();
   }, 15000);
 });
@@ -269,7 +269,7 @@ describe("account sign-in flow", () => {
     const client = fakeClient();
     render(<App backend={mockBackendClient} downloadQueue={createTestQueue()} accountClient={client} />);
 
-    await user.click(await screen.findByTestId("sidebar-account-sign-in"));
+    await user.click(await screen.findByTestId("account-sign-in"));
     const sheet = await screen.findByRole("dialog", { name: s.emailTitle });
     await user.type(within(sheet).getByLabelText(s.emailLabel), "Leitor@Example.com");
     await user.click(within(sheet).getByTestId("account-continue"));
@@ -294,7 +294,7 @@ describe("account sign-in flow", () => {
     await waitFor(() => expect(within(profile).getByTestId("account-save-profile")).toBeEnabled(), { timeout: 3000 });
     await user.click(within(profile).getByTestId("account-save-profile"));
 
-    await waitFor(() => expect(screen.getByTestId("sidebar-account")).toHaveTextContent("jandson_br"));
+    await waitFor(() => expect(screen.getByTestId("account-button")).toHaveAccessibleName(/jandson_br/));
     const patch = client.calls.find(([method]) => method === "PATCH");
     expect(patch?.[2]).toMatchObject({ nickname: "jandson_br" });
     // Signing in joins this computer's library to the account.

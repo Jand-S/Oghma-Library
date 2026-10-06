@@ -19,6 +19,8 @@ const PUSH_DEBOUNCE_MS = 800;
 const FOCUS_MIN_INTERVAL_MS = 5_000;
 /** How long the server holds a "wait for changes" request open. */
 const WAIT_SECONDS = 25;
+/** Without `/v1/me/wait` on the server, try it again after this long. */
+const UNIFIED_RETRY_MS = 5 * 60_000;
 /** After a failure (offline, server down), wait this long before listening again. */
 const RETRY_MS = 10_000;
 
@@ -195,14 +197,17 @@ export function useOghmaAccount({ client, onLibraryChanged, notify, onSocialChan
     let stopped = false;
     const cursorKey = CURSOR_PREFIX + user.publicId;
     // One request waits on both cursors (library and social). A server without the social side
-    // answers 404 to `/v1/me/wait`: the app keeps the library-only wait for this session.
+    // answers 404 to `/v1/me/wait`: the app falls back to the library-only wait and tries the
+    // unified one again every few minutes (the server may be updated while the app is open).
     let social = user.socialCursor ?? 0;
     let unified = true;
+    let retryUnifiedAt = 0;
     void (async () => {
       while (!stopped) {
         const since = Number(readStorage(cursorKey) ?? 0) || 0;
         const started = Date.now();
         try {
+          if (!unified && Date.now() >= retryUnifiedAt) unified = true;
           let libraryChanged = false;
           let socialChanged = false;
           let result;
@@ -214,7 +219,13 @@ export function useOghmaAccount({ client, onLibraryChanged, notify, onSocialChan
             // No social side on this server (404, or an answer without both cursors).
             if (both.status === 404 || (isOk(both) && !(both.body?.library && both.body?.social))) {
               unified = false;
+              retryUnifiedAt = Date.now() + UNIFIED_RETRY_MS;
               continue;
+            }
+            // First unified answer after a fallback: the social side just appeared, load it.
+            if (retryUnifiedAt) {
+              retryUnifiedAt = 0;
+              onSocialRef.current?.();
             }
             result = both;
             if (isOk(both) && both.body) {
