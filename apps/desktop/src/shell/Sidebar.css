@@ -161,6 +161,23 @@
     border-radius: 50%;
   }
 
+  /* A count (Amigos: unread messages, requests, recommendations). */
+  .o-sidebar__count {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    min-width: calc(var(--space-2) + var(--space-0-5));
+    height: calc(var(--space-2) + var(--space-0-5));
+    margin-left: auto;
+    padding: 0 var(--space-0-5);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums;
+  }
+
   .o-sidebar__indicator--activity {
     background: var(--accent);
     box-shadow: 0 0 0 var(--ring-width) var(--accent-ring);
@@ -258,6 +275,15 @@
     right: var(--space-0-5);
     width: calc(var(--space-1) - var(--ring-width));
     height: calc(var(--space-1) - var(--ring-width));
+  }
+
+  .o-sidebar--collapsed .o-sidebar__count {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: var(--space-2);
+    height: var(--space-2);
+    font-size: calc(var(--fs-xs) * 0.85);
   }
 
   @keyframes sidebar-pulse {

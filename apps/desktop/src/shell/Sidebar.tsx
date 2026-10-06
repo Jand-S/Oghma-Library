@@ -19,6 +19,10 @@ export type SidebarStatus = {
   /** Bump to flash the Downloads entry (e.g. after adding to the queue). */
   flashKey?: number;
   kindleConnected?: boolean;
+  /** Signed in to an account server with the social side: shows "Amigos". */
+  socialAvailable?: boolean;
+  /** Unread messages + friend requests + new recommendations (a count on "Amigos"). */
+  socialAttention?: number;
 };
 
 export type SidebarProps = SidebarStatus & {
@@ -46,6 +50,8 @@ export function Sidebar({
   downloading = false,
   flashKey = 0,
   kindleConnected = false,
+  socialAvailable = false,
+  socialAttention = 0,
   account
 }: SidebarProps) {
   const [flashing, setFlashing] = useState(false);
@@ -100,6 +106,8 @@ export function Sidebar({
     const isActive = active === item.id;
     const isDownloads = item.id === "downloads";
     const isKindle = item.id === "kindle";
+    const isSocial = item.id === "social";
+    if (isSocial && !socialAvailable) return null;
     return (
       <li key={item.id}>
         <button
@@ -122,6 +130,12 @@ export function Sidebar({
           <span className="o-sidebar__label">{item.label}</span>
           {isDownloads && downloading ? (
             <span className="o-sidebar__indicator o-sidebar__indicator--activity" aria-hidden="true" />
+          ) : null}
+          {isSocial && socialAttention > 0 ? (
+            <>
+              <span className="o-sidebar__count" aria-hidden="true">{socialAttention > 99 ? "99+" : socialAttention}</span>
+              <span className="sr-only">({socialAttention} novidades)</span>
+            </>
           ) : null}
           {isKindle ? (
             <>

@@ -255,7 +255,8 @@ export function useLibraryController({
         chapters: item.chapters,
         description: item.description
       })
-      : null
+      : null,
+    private: Boolean(item.private)
   });
 
   const updateLibraryMeta = (item: LibraryItem, patch: Partial<Omit<LibraryMeta, "key">>) => {

@@ -1,5 +1,6 @@
-import { CloudDownload, Download, Eye, FileCog, FolderOpen, Heart, HeartOff, Image, ImageOff, Info, Search, Trash2, EyeOff } from "lucide-react";
+import { CloudDownload, Download, Eye, FileCog, Lock, Send, Users, FolderOpen, Heart, HeartOff, Image, ImageOff, Info, Search, Trash2, EyeOff } from "lucide-react";
 import { useCoverControls } from "../../app/coverPrivacy";
+import { socialStrings } from "../../strings/social";
 import { useRef, useState, type ReactNode } from "react";
 import type { LibraryItem, LibraryReadingStatus, Novel } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
@@ -22,13 +23,15 @@ type BookActionsArgs = {
   editionsOf?: (item: LibraryItem) => Novel[];
   /** "Separar desta pilha" / "Voltar para a pilha" for this book, when it applies. */
   stackMenuItem?: (item: LibraryItem) => MenuItem | null;
+  /** "Indicar a um amigo…" (signed in, with friends). */
+  recommend?: (item: LibraryItem) => void;
 };
 
 /**
  * Every per-book action of the library in one place: the context/⋮ menu items and the
  * dialogs they open (remove, delete, convert, rate, other editions). Grid, list and details share it.
  */
-export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, editionsOf, stackMenuItem }: BookActionsArgs) {
+export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, editionsOf, stackMenuItem, recommend }: BookActionsArgs) {
   const covers = useCoverControls();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
@@ -76,6 +79,22 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
   }));
 
   /** Full menu for the grid/list context menu and ⋮ buttons. */
+  /** "Só eu vejo" / "Mostrar para amigos" (catalog books, signed in with the social side). */
+  const privacyItem = (item: LibraryItem): MenuItem | null =>
+    recommend && item.novelId && !item.language
+      ? {
+        label: item.private ? socialStrings.privateBookOff : socialStrings.privateBook,
+        icon: item.private ? <Users /> : <Lock />,
+        onSelect: () => library.updateLibraryMeta(item, { private: !item.private })
+      }
+      : null;
+
+  /** "Indicar a um amigo…" for catalog books (translations are this computer's own). */
+  const recommendItem = (item: LibraryItem): MenuItem | null =>
+    recommend && item.novelId && !item.language
+      ? { label: socialStrings.recommendAction, icon: <Send />, onSelect: () => recommend(item), separatorBefore: true }
+      : null;
+
   /** "Ocultar esta capa" / "Sempre mostrar esta capa" (catalog books only). */
   const coverItem = (item: LibraryItem): MenuItem | null => {
     if (!item.novelId || item.language || !item.coverUrl) return null;
@@ -129,6 +148,10 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     if (cover) items.push(cover);
     const stack = stackMenuItem?.(item);
     if (stack) items.push(stack);
+    const share = recommendItem(item);
+    if (share) items.push(share);
+    const privacy = privacyItem(item);
+    if (privacy) items.push(privacy);
     items.push(item.hidden
       ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item), separatorBefore: true }
       : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => askRemove(item), separatorBefore: true });
@@ -260,6 +283,8 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     coverItem,
     /** "Separar desta pilha" / "Voltar para a pilha" (null when the book is in no stack). */
     stackItem: (item: LibraryItem) => stackMenuItem?.(item) ?? null,
+    recommendItem,
+    privacyItem,
     rate,
     askRating,
     setStatus,

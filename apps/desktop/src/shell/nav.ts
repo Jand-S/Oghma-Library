@@ -1,4 +1,4 @@
-import { BookOpenText, Download, House, Languages, Search, Settings, Tablet } from "lucide-react";
+import { BookOpenText, Download, House, Languages, Search, Settings, Tablet, Users } from "lucide-react";
 import type { AppView } from "../app/NavigationContext";
 import { navGroupStrings, navStrings } from "../strings/common";
 
@@ -19,7 +19,8 @@ export type NavGroup = {
 
 /** Sidebar groups, top to bottom. "settings" is pinned to the bottom of the sidebar. */
 export const navGroups: NavGroup[] = [
-  { id: "discover", items: [item("home", House), item("discover", Search)] },
+  // "Amigos" only shows with the Oghma account signed in (see Sidebar `socialAvailable`).
+  { id: "discover", items: [item("home", House), item("discover", Search), item("social", Users)] },
   { id: "library", label: navGroupStrings.library, items: [item("library", BookOpenText), item("downloads", Download), item("kindle", Tablet)] },
   // "Fontes" moved into Ajustes (category "Fontes").
   { id: "tools", label: navGroupStrings.tools, items: [item("translation", Languages)] }

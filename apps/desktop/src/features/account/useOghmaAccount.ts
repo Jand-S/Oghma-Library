@@ -63,6 +63,8 @@ type Options = {
   onLibraryChanged: (change: { removed: string[] }) => void;
   /** Toasts for background events (session expired). */
   notify?: (message: string, tone?: "info" | "success" | "warning" | "danger") => void;
+  /** Something social happened (a request, a message, a recommendation): refresh those lists. */
+  onSocialChanged?: () => void;
 };
 
 /**
@@ -71,7 +73,7 @@ type Options = {
  * Sync runs after sign-in, after local changes (debounced), when the window regains focus and
  * every few minutes; a 401 signs the reader out.
  */
-export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
+export function useOghmaAccount({ client, onLibraryChanged, notify, onSocialChanged }: Options) {
   const [status, setStatus] = useState<AccountStatus>(client.available ? "loading" : "unavailable");
   const [user, setUser] = useState<AccountUser | null>(null);
   const [serverUrl, setServerUrlState] = useState(() => readStorage(SERVER_KEY) || DEFAULT_ACCOUNT_SERVER);
@@ -85,6 +87,8 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
   onChangedRef.current = onLibraryChanged;
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
+  const onSocialRef = useRef(onSocialChanged);
+  onSocialRef.current = onSocialChanged;
 
   const signOutLocally = useCallback(() => {
     setUser(null);
@@ -190,21 +194,53 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
     if (status !== "signedIn" || !user) return;
     let stopped = false;
     const cursorKey = CURSOR_PREFIX + user.publicId;
+    // One request waits on both cursors (library and social). A server without the social side
+    // answers 404 to `/v1/me/wait`: the app keeps the library-only wait for this session.
+    let social = user.socialCursor ?? 0;
+    let unified = true;
     void (async () => {
       while (!stopped) {
         const since = Number(readStorage(cursorKey) ?? 0) || 0;
         const started = Date.now();
         try {
-          const result = await client.api<{ changed: boolean; cursor: number }>("GET", `/v1/me/library/wait?since=${since}&timeout=${WAIT_SECONDS}`);
+          let libraryChanged = false;
+          let socialChanged = false;
+          let result;
+          if (unified) {
+            const both = await client.api<{ library: { changed: boolean; cursor: number }; social: { changed: boolean; cursor: number } }>(
+              "GET",
+              `/v1/me/wait?library=${since}&social=${social}&timeout=${WAIT_SECONDS}`
+            );
+            // No social side on this server (404, or an answer without both cursors).
+            if (both.status === 404 || (isOk(both) && !(both.body?.library && both.body?.social))) {
+              unified = false;
+              continue;
+            }
+            result = both;
+            if (isOk(both) && both.body) {
+              libraryChanged = both.body.library.changed;
+              if (both.body.social.changed) {
+                social = both.body.social.cursor;
+                socialChanged = true;
+                onSocialRef.current?.();
+              }
+            }
+          } else {
+            const single = await client.api<{ changed: boolean; cursor: number }>("GET", `/v1/me/library/wait?since=${since}&timeout=${WAIT_SECONDS}`);
+            result = single;
+            libraryChanged = isOk(single) && Boolean(single.body?.changed);
+          }
           if (stopped) return;
           if (result.status === 401) {
             signOutLocally();
             return;
           }
-          if (isOk(result) && result.body?.changed) {
+          if (libraryChanged) {
             await runSync();
             continue;
           }
+          // A social event answered early: listen again right away.
+          if (socialChanged) continue;
           // Safety net: anything written here that did not announce itself (a download marks the
           // book in Rust) goes up within one wait cycle.
           if (isOk(result) && (await librarySyncPending()).length > 0) {
@@ -281,7 +317,13 @@ export function useOghmaAccount({ client, onLibraryChanged, notify }: Options) {
     }
   }, [client]);
 
-  const updateProfile = useCallback(async (patch: { nickname?: string; avatarId?: string; avatarColor?: string }): Promise<Outcome<{ user: AccountUser }>> => {
+  const updateProfile = useCallback(async (patch: {
+    nickname?: string;
+    avatarId?: string;
+    avatarColor?: string;
+    libraryVisible?: boolean;
+    activityVisible?: boolean;
+  }): Promise<Outcome<{ user: AccountUser }>> => {
     try {
       const result = await client.api<AccountUser>("PATCH", "/v1/me", patch);
       if (result.status === 401) signOutLocally();

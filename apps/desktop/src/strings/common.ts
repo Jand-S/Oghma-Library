@@ -20,6 +20,7 @@ export const navStrings = {
   library: "Biblioteca",
   translation: "Tradução",
   kindle: "Kindle",
+  social: "Amigos",
   settings: "Ajustes"
 } as const;
 
@@ -38,6 +39,7 @@ export const pageTitleStrings = {
   library: "Biblioteca",
   kindle: "Kindle",
   translation: "Tradução",
+  social: "Amigos",
   settings: "Ajustes"
 } as const;
 

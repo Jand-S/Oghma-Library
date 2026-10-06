@@ -1,7 +1,9 @@
 import { createElement as h, lazy, type ComponentType, type ReactNode } from "react";
 import { BookOpenText } from "lucide-react";
 import { defaultFilters } from "../core/defaults";
-import type { LibraryItem, LibraryMeta, Novel } from "../core/types";
+import type { BookSnapshot, LibraryItem, LibraryMeta, Novel } from "../core/types";
+import type { SocialController } from "../features/social/useSocial";
+import { snapshotOfNovel, type SocialEnv, type SocialPlace, type SocialTab } from "../features/social/socialEnv";
 import type { HomeSeeAll } from "../features/home/HomeView";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
 import { DiscoverView } from "../features/discover/DiscoverView";
@@ -45,6 +47,7 @@ const libraryView = lazyView(() => import("../features/library/LibraryView").the
 const translationView = lazyView(() => import("../features/translation/TranslationView").then((m) => m.TranslationView));
 const settingsView = lazyView(() => import("../features/settings/SettingsView").then((m) => m.SettingsView));
 const sourcesView = lazyView(() => import("../features/sources/SourcesView").then((m) => m.SourcesView));
+const socialView = lazyView(() => import("../features/social/SocialView").then((m) => m.SocialView));
 
 const HomeView = homeView.View;
 const DownloadsView = downloadsView.View;
@@ -53,10 +56,11 @@ const LibraryView = libraryView.View;
 const TranslationView = translationView.View;
 const SettingsView = settingsView.View;
 const SourcesView = sourcesView.View;
+const SocialView = socialView.View;
 
 /** Warms every lazy view chunk so later navigation never waits on disk or suspends. */
 export function preloadViews() {
-  return Promise.all([homeView, downloadsView, kindleView, libraryView, translationView, settingsView, sourcesView].map((view) => view.preload()));
+  return Promise.all([homeView, downloadsView, kindleView, libraryView, translationView, settingsView, sourcesView, socialView].map((view) => view.preload()));
 }
 
 /** Everything a view needs, assembled by App from the feature controllers. */
@@ -77,6 +81,10 @@ export type AppControllers = {
   oghmaAccount: OghmaAccountController;
   /** Opens the sign-in sheet (or the profile editor). */
   openAccountSheet: (step?: AccountSheetStep) => void;
+  /** Friends, conversations, recommendations and friends' activity. */
+  social: SocialController;
+  /** "Indicar a um amigo…" for a book (opens the dialog). */
+  recommendBook: (book: { novelId: string; snapshot: BookSnapshot }) => void;
 };
 
 export type ViewProps = { app: AppControllers };
@@ -142,7 +150,10 @@ function DiscoverPage({ app }: ViewProps) {
         app.library.addToShelf(novel, patch);
       },
       rate: (item: LibraryItem, rating: number | null) => app.library.updateLibraryMeta(item, { rating }),
-      open: (item: LibraryItem) => app.navigate("library", { book: item.id })
+      open: (item: LibraryItem) => app.navigate("library", { book: item.id }),
+      recommend: app.social.available && app.social.friends.friends.length
+        ? (novel: Novel) => app.recommendBook({ novelId: novel.id, snapshot: snapshotOfNovel(novel) })
+        : undefined
     }
   });
 }
@@ -168,7 +179,18 @@ function HomePage({ app }: ViewProps) {
       discover.setFilters({ ...defaultFilters("all"), includeTags: [key] });
       navigate("discover");
     },
-    onOpenLibrary: () => navigate("library")
+    onOpenLibrary: () => navigate("library"),
+    friends: app.social.available
+      ? {
+        recommended: app.social.recommendations
+          .filter((rec) => rec.novelId && rec.noteStatus === "new")
+          .slice(0, 14)
+          .map((rec) => ({ id: rec.id, novelId: rec.novelId!, title: rec.snapshot?.title ?? rec.novelId!, cover: rec.snapshot?.coverUrl, from: rec.fromUser.nickname })),
+        activity: app.social.feed,
+        resolve: (novelId: string) => discover.catalogIndex?.byId.get(novelId),
+        onSeeRecommendations: () => navigate("social", { tab: "recommendations" })
+      }
+      : undefined
   });
 }
 
@@ -197,7 +219,23 @@ function LibraryPage({ app }: ViewProps) {
     queuedJobs: app.downloads.queuedJobs,
     loading: app.loading,
     navigate: app.navigate,
-    catalogIndex: app.discover.catalogIndex
+    catalogIndex: app.discover.catalogIndex,
+    recommend: app.social.available && app.social.friends.friends.length
+      ? (item: LibraryItem) => {
+        const novel = item.novelId ? app.discover.catalogIndex?.byId.get(item.novelId) : undefined;
+        if (!item.novelId) return;
+        app.recommendBook({
+          novelId: novel?.id ?? item.novelId,
+          snapshot: novel ? snapshotOfNovel(novel) : {
+            novelId: item.novelId,
+            title: item.title,
+            author: item.author || undefined,
+            sourceName: item.sourceName,
+            coverUrl: item.coverUrl?.startsWith("http") ? item.coverUrl : undefined
+          }
+        });
+      }
+      : undefined
   });
 }
 
@@ -248,6 +286,7 @@ function SettingsPage({ app }: ViewProps) {
     onNavigate: (view: AppView) => app.navigate(view),
     account: app.account,
     oghmaAccount: app.oghmaAccount,
+    socialAvailable: app.social.available,
     onOpenAccountSheet: app.openAccountSheet,
     onRetryAccount: () => void app.translation.refreshAccount(),
     initialCategory: isSettingsCategory(params.section) ? params.section : undefined,
@@ -258,6 +297,50 @@ function SettingsPage({ app }: ViewProps) {
       onOpenSettings: () => undefined
     })
   });
+}
+
+function SocialPage({ app }: ViewProps) {
+  const { social, library, discover, navigate, params } = app;
+  const resolve = (novelId: string) => discover.catalogIndex?.byId.get(novelId);
+  const owned = new Set(library.library.filter((item) => item.novelId && !item.language).map((item) => item.novelId!));
+  const place: SocialPlace = {
+    tab: (["chats", "recommendations", "friends"] as SocialTab[]).includes(params.tab as SocialTab)
+      ? (params.tab as SocialTab)
+      : social.unreadMessages || !social.newRecommendations ? "chats" : "recommendations",
+    friend: typeof params.friend === "string" ? params.friend : undefined,
+    chat: typeof params.chat === "string" ? params.chat : undefined
+  };
+  const env: SocialEnv = {
+    social,
+    resolve,
+    inLibrary: (novelId) => owned.has(novelId) || owned.has(resolve(novelId)?.id ?? ""),
+    addToLibrary: (novel) => library.addToShelf(novel),
+    openBook: (novel) => {
+      navigate("discover");
+      discover.openPreviewNovel(novel);
+    },
+    go: (next) => {
+      const merged = { ...place, ...next };
+      navigate("social", { tab: merged.tab, friend: merged.friend, chat: merged.chat });
+    },
+    recommend: app.recommendBook,
+    libraryBooks: () => library.library
+      .filter((item) => item.novelId && !item.language && !item.hidden)
+      .map((item) => {
+        const novel = resolve(item.novelId!);
+        return {
+          novelId: novel?.id ?? item.novelId!,
+          snapshot: novel ? snapshotOfNovel(novel) : {
+            novelId: item.novelId!,
+            title: item.title,
+            author: item.author || undefined,
+            sourceName: item.sourceName,
+            coverUrl: item.coverUrl?.startsWith("http") ? item.coverUrl : undefined
+          }
+        };
+      })
+  };
+  return h(SocialView, { env, place });
 }
 
 const iconFor = (id: AppView) => [...navItems, settingsNavItem].find((item) => item.id === id)?.icon ?? BookOpenText;
@@ -311,5 +394,6 @@ export const viewRegistry: Record<AppView, ViewDefinition> = {
     layout: "scroll",
     header: sourcesHeader
   },
+  social: { id: "social", title: pageTitleStrings.social, icon: iconFor("social"), component: SocialPage, layout: "fill" },
   settings: { id: "settings", title: pageTitleStrings.settings, icon: iconFor("settings"), component: SettingsPage, layout: "scroll" }
 };

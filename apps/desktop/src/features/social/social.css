@@ -1,0 +1,695 @@
+@import "../../styles/layers.css";
+
+@layer features {
+  /* ---------- Page frame ---------- */
+  .social-page {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .social-page__bar {
+    flex: none;
+    display: flex;
+    justify-content: center;
+    padding: var(--space-1-5) var(--space-3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .social-page__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-3);
+  }
+
+  .social-page--empty {
+    display: grid;
+    place-items: center;
+  }
+
+  /* ---------- Shared pieces ---------- */
+  .social-card,
+  .social-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: calc(var(--space-8) * 12);
+    margin: 0 auto var(--space-3);
+  }
+
+  .social-card {
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+  }
+
+  .social-card__title,
+  .social-section__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+
+  .social-section__title span {
+    color: var(--text-muted);
+    font-weight: var(--fw-regular);
+  }
+
+  .social-card__title svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    color: var(--accent-text);
+  }
+
+  .social-card__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .social-add {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .social-add__field {
+    flex: 1 1 auto;
+  }
+
+  .social-add__error {
+    margin: 0;
+    color: var(--danger-text);
+    font-size: var(--fs-sm);
+  }
+
+  .social-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+  }
+
+  .social-person {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    padding: var(--space-1-5) var(--space-2);
+  }
+
+  .social-list > .social-person + .social-person {
+    border-top: 1px solid var(--border);
+  }
+
+  .social-person__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .social-person__text strong {
+    color: var(--text);
+    font-weight: var(--fw-semibold);
+  }
+
+  .social-person__text span,
+  .social-person__note {
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .social-person__actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-0-5);
+  }
+
+  /* ---------- Book card (messages, recommendations) ---------- */
+  .social-book {
+    display: flex;
+    gap: var(--space-1-5);
+    min-width: 0;
+  }
+
+  .social-book__text {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--space-0-5) / 2);
+    min-width: 0;
+  }
+
+  .social-book__title {
+    overflow: hidden;
+    color: var(--text);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .social-book__meta {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .social-book__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-0-5);
+    margin-top: var(--space-0-5);
+    margin-left: calc(var(--space-1) * -1);
+  }
+
+  .social-book__owned {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    padding: 0 var(--space-1);
+    color: var(--accent-text);
+    font-size: var(--fs-sm);
+  }
+
+  .social-book__owned svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+
+  /* ---------- Conversations ---------- */
+  .social-chats {
+    display: grid;
+    grid-template-columns: calc(var(--space-8) * 4.5) minmax(0, 1fr);
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .social-chats__list {
+    min-height: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+
+  .social-chats__list ul {
+    margin: 0;
+    padding: var(--space-1);
+    list-style: none;
+  }
+
+  .social-chat-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    width: 100%;
+    padding: var(--space-1) var(--space-1-5);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .social-chat-row:hover {
+    background: var(--hover);
+  }
+
+  .social-chat-row.is-active {
+    background: var(--accent-subtle);
+  }
+
+  .social-chat-row__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .social-chat-row__top {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-1);
+  }
+
+  .social-chat-row__top time {
+    flex: none;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .social-chat-row__last {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .social-chat-row__badge {
+    display: grid;
+    flex: none;
+    place-items: center;
+    min-width: var(--space-2);
+    height: var(--space-2);
+    padding: 0 var(--space-0-5);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+  }
+
+  .social-chats__thread {
+    display: flex;
+    min-height: 0;
+  }
+
+  .social-chats__thread > .o-empty {
+    margin: auto;
+  }
+
+  .social-thread {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .social-thread__head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1-5) var(--space-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .social-thread__messages {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--space-0-5);
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .social-thread__older {
+    display: flex;
+    justify-content: center;
+  }
+
+  .social-thread__time {
+    align-self: center;
+    margin: var(--space-1) 0 var(--space-0-5);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .social-bubble {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: min(75%, calc(var(--space-8) * 7));
+    padding: var(--space-1) var(--space-1-5);
+    border-radius: var(--radius-lg);
+  }
+
+  .social-bubble.is-mine {
+    align-self: flex-end;
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  .social-bubble.is-theirs {
+    align-self: flex-start;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .social-bubble.has-book {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .social-bubble.is-mine.has-book {
+    border-color: var(--accent-line);
+  }
+
+  .social-bubble__body {
+    margin: 0;
+    font-size: var(--fs-md);
+    line-height: var(--lh-snug);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .social-composer {
+    display: flex;
+    flex: none;
+    align-items: flex-end;
+    gap: var(--space-1);
+    padding: var(--space-1-5) var(--space-2);
+    border-top: 1px solid var(--border);
+  }
+
+  .social-composer__input,
+  .social-recommend__note {
+    flex: 1 1 auto;
+    min-height: var(--control-md);
+    max-height: calc(var(--space-8) * 2);
+    padding: var(--space-1) var(--space-1-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-1);
+    color: var(--text);
+    font: inherit;
+    resize: none;
+    field-sizing: content;
+  }
+
+  .social-composer__input:focus,
+  .social-recommend__note:focus {
+    outline: none;
+    border-color: var(--accent-line);
+  }
+
+  /* ---------- Recommendations ---------- */
+  .social-recs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: calc(var(--space-8) * 12);
+    margin: 0 auto;
+  }
+
+  .social-recs__filter {
+    align-self: flex-start;
+  }
+
+  .social-recs__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .social-rec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+  }
+
+  .social-rec__who {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+  }
+
+  .social-rec__who time {
+    color: var(--text-muted);
+  }
+
+  .social-rec__note {
+    margin: 0;
+    padding-left: var(--space-1-5);
+    border-left: calc(var(--hairline) * 2) solid var(--accent-line);
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  /* ---------- Friend profile ---------- */
+  .social-profile {
+    max-width: calc(var(--space-8) * 16);
+    margin: 0 auto;
+  }
+
+  .social-profile__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+
+  .social-profile__who {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .social-profile__who h2 {
+    margin: 0;
+    font-size: var(--fs-2xl);
+    letter-spacing: -0.01em;
+  }
+
+  .social-profile__who p {
+    margin: 0;
+    color: var(--text-muted);
+  }
+
+  .social-profile__loading {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) * 2), 1fr));
+    gap: var(--space-2);
+  }
+
+  .social-profile__skeleton {
+    aspect-ratio: var(--cover-ratio);
+  }
+
+  .social-profile .social-section {
+    max-width: none;
+  }
+
+  .social-shelf {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) * 2), 1fr));
+    gap: var(--space-2) var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .social-shelf__item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+    min-width: 0;
+  }
+
+  .social-shelf__cover {
+    position: relative;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    cursor: pointer;
+  }
+
+  .social-shelf__cover:disabled {
+    cursor: default;
+  }
+
+  .social-shelf__fav {
+    position: absolute;
+    right: var(--space-1);
+    bottom: var(--space-1);
+    color: var(--danger-text);
+  }
+
+  .social-shelf__fav svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    fill: currentColor;
+  }
+
+  .social-shelf__mine {
+    position: absolute;
+    top: var(--space-1);
+    left: var(--space-1);
+    padding: calc(var(--space-0-5) / 2) var(--space-1);
+    border-radius: var(--radius-pill);
+    background: rgb(var(--black-rgb) / 0.6);
+    color: rgb(var(--white-rgb) / 0.95);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+  }
+
+  .social-shelf__title {
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .social-shelf__actions {
+    display: flex;
+    gap: var(--space-0-5);
+    margin-left: calc(var(--space-0-5) * -1);
+  }
+
+  /* ---------- Pickers ---------- */
+  .social-picker {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(var(--space-8) * 6);
+    margin: var(--space-1) 0 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  .social-picker__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    width: 100%;
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .social-picker__item:hover {
+    background: var(--hover);
+  }
+
+  .social-picker__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .social-picker__text span {
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .social-recommend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+  }
+
+  .social-recommend__book {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+  }
+
+  .social-recommend__book div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .social-recommend__book span {
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .social-recommend__label {
+    margin: var(--space-0-5) 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+  }
+
+  .social-recommend__friends {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .social-recommend__friend {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-0-5) var(--space-1-5) var(--space-0-5) var(--space-0-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--surface-1);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .social-recommend__friend.is-on {
+    border-color: var(--accent-line);
+    background: var(--accent-subtle);
+  }
+
+  /* ---------- Home: friends' activity ---------- */
+  .social-activity {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .social-activity__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    width: 100%;
+    padding: var(--space-1) 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    color: var(--text-2);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .social-activity__item:disabled {
+    cursor: default;
+  }
+
+  .social-activity__text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .social-activity__text strong {
+    color: var(--text);
+    font-weight: var(--fw-semibold);
+  }
+
+  .social-activity__item time {
+    flex: none;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+}

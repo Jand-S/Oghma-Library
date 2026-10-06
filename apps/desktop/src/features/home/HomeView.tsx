@@ -3,7 +3,11 @@ import { buildFallbackTagCatalog, contentRatingForNovel } from "../../core/tagFi
 import type { LibraryItem, Novel } from "../../core/types";
 import { similarNovels, sortNovels, type CatalogIndex, type NovelSort } from "../../services/catalogIndex";
 import { homeStrings } from "../../strings/home";
-import { Skeleton } from "../../ui";
+import { Avatar, Cover, SectionHeader, Skeleton } from "../../ui";
+import type { ActivityItem } from "../../services/socialClient";
+import { socialStrings } from "../../strings/social";
+import { shortWhen } from "../social/socialEnv";
+import "../social/social.css";
 import { HomeFeatured } from "./HomeFeatured";
 import { HomeGenres, type GenreTile } from "./HomeGenres";
 import { HomeBookCard, HomeShelf, HomeTile } from "./HomeShelf";
@@ -27,6 +31,16 @@ export type HomeViewProps = {
   /** Buscar filtered by a tag. */
   onBrowseTag: (key: string) => void;
   onOpenLibrary: () => void;
+  /** Books friends recommended (newest first) and their recent activity; absent without friends. */
+  friends?: HomeFriends;
+};
+
+export type HomeFriends = {
+  recommended: Array<{ id: number; novelId: string; title: string; cover?: string; from: string }>;
+  activity: ActivityItem[];
+  /** The catalog novel for an id (opens its panel in Buscar). */
+  resolve: (novelId: string) => Novel | undefined;
+  onSeeRecommendations: () => void;
 };
 
 const SHELF = 14;
@@ -46,7 +60,7 @@ const hasStory = (novel: Novel) => Boolean(novel.coverUrl && novel.description &
  * suggestions with "Ver tudo", and genres to explore. Empty rows hide, so a new user sees
  * the catalog rows; a reader sees their books and new chapters first.
  */
-export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNovel, onOpenBook, onSeeAll, onBrowseTag, onOpenLibrary }: HomeViewProps) {
+export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNovel, onOpenBook, onSeeAll, onBrowseTag, onOpenLibrary, friends }: HomeViewProps) {
   const model = useMemo(() => {
     const shelves: Shelf[] = [];
     const reading = library.filter((item) => item.readingStatus === "reading");
@@ -176,10 +190,55 @@ export function HomeView({ catalogIndex, library, sourceIds, loading, onOpenNove
           ))}
         </HomeShelf>
       ))}
+      {friends?.recommended.length ? (
+        <HomeShelf id="from-friends" title={socialStrings.fromFriendsTitle} onSeeAll={friends.onSeeRecommendations}>
+          {friends.recommended.map((rec) => {
+            const novel = friends.resolve(rec.novelId);
+            return (
+              <HomeTile
+                key={rec.id}
+                title={novel?.title ?? rec.title}
+                cover={novel?.coverUrl ?? rec.cover}
+                meta={`@${rec.from}`}
+                accent
+                onClick={() => (novel ? onOpenNovel(novel) : friends.onSeeRecommendations())}
+              />
+            );
+          })}
+        </HomeShelf>
+      ) : null}
+      {friends?.activity.length ? <FriendsActivity friends={friends} onOpenNovel={onOpenNovel} /> : null}
       {leading.map(renderNovelShelf)}
       <HomeGenres genres={genres} onBrowse={onBrowseTag} />
       {trailing.map(renderNovelShelf)}
     </div>
+  );
+}
+
+/** "Atividade dos amigos": the last few things friends started, finished or rated. */
+function FriendsActivity({ friends, onOpenNovel }: { friends: HomeFriends; onOpenNovel: (novel: Novel) => void }) {
+  return (
+    <section className="home-shelf" aria-labelledby="home-friends-activity">
+      <SectionHeader id="home-friends-activity" title={socialStrings.activityTitle} />
+      <ul className="social-activity">
+        {friends.activity.slice(0, 8).map((item) => {
+          const novel = friends.resolve(item.novelId);
+          const title = novel?.title ?? item.snapshot?.title ?? item.novelId;
+          return (
+            <li key={item.id}>
+              <button type="button" className="social-activity__item" disabled={!novel} onClick={() => (novel ? onOpenNovel(novel) : undefined)}>
+                <Avatar avatarId={item.user.avatarId} color={item.user.avatarColor} nickname={item.user.nickname} size="sm" />
+                <Cover src={novel?.coverUrl ?? item.snapshot?.coverUrl} title={title} size="sm" />
+                <span className="social-activity__text">
+                  <strong>@{item.user.nickname}</strong> {socialStrings.activity(item.kind, item.rating)} <strong>{title}</strong>
+                </span>
+                <time dateTime={item.at}>{shortWhen(item.at)}</time>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

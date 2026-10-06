@@ -41,6 +41,9 @@ pub struct LibraryMeta {
     /// when its source leaves the catalog. Opaque JSON for the Rust side.
     #[serde(default)]
     snapshot: Option<serde_json::Value>,
+    /// "Só eu vejo": friends do not see this book (profile, activity). Synced.
+    #[serde(default)]
+    private: bool,
 }
 
 const NOVEL_PREFIX: &str = "novel:";
@@ -97,6 +100,7 @@ fn migrate(conn: &Connection) -> Result<(), String> {
         ("deleted_at", "INTEGER"),
         ("dirty", "INTEGER NOT NULL DEFAULT 1"),
         ("snapshot_json", "TEXT"),
+        ("is_private", "INTEGER NOT NULL DEFAULT 0"),
     ];
     let mut fresh_shelf = false;
     for (name, kind) in added {
@@ -119,7 +123,7 @@ fn migrate(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-const SELECT_COLUMNS: &str = "key, favorite, reading_status, tags_json, hidden, rating, on_shelf, added_at, changed_at, deleted_at, snapshot_json";
+const SELECT_COLUMNS: &str = "key, favorite, reading_status, tags_json, hidden, rating, on_shelf, added_at, changed_at, deleted_at, snapshot_json, is_private";
 
 fn row_to_meta(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryMeta> {
     let tags_json: String = row.get(3)?;
@@ -137,6 +141,7 @@ fn row_to_meta(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryMeta> {
         changed_at: (changed_at > 0).then_some(changed_at),
         deleted_at: row.get(9)?,
         snapshot: snapshot_json.and_then(|json| serde_json::from_str(&json).ok()),
+        private: row.get::<_, i64>(11)? != 0,
     })
 }
 
@@ -180,8 +185,8 @@ fn write_row(conn: &Connection, meta: &LibraryMeta, changed_at: i64, dirty: bool
     conn.execute(
         r#"
         INSERT INTO library_meta (key, favorite, reading_status, tags_json, hidden, rating, on_shelf,
-                                  added_at, changed_at, deleted_at, dirty, snapshot_json, updated_at)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, CURRENT_TIMESTAMP)
+                                  added_at, changed_at, deleted_at, dirty, snapshot_json, is_private, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, CURRENT_TIMESTAMP)
         ON CONFLICT(key) DO UPDATE SET
             favorite = excluded.favorite,
             reading_status = excluded.reading_status,
@@ -194,6 +199,7 @@ fn write_row(conn: &Connection, meta: &LibraryMeta, changed_at: i64, dirty: bool
             deleted_at = excluded.deleted_at,
             dirty = excluded.dirty,
             snapshot_json = COALESCE(excluded.snapshot_json, library_meta.snapshot_json),
+            is_private = excluded.is_private,
             updated_at = CURRENT_TIMESTAMP
         "#,
         params![
@@ -209,6 +215,7 @@ fn write_row(conn: &Connection, meta: &LibraryMeta, changed_at: i64, dirty: bool
             meta.deleted_at,
             if dirty { 1 } else { 0 },
             snapshot_json,
+            if meta.private { 1 } else { 0 },
         ],
     )
     .map_err(|err| format!("Não foi possível salvar metadados da biblioteca: {err}"))?;
@@ -401,6 +408,7 @@ mod tests {
             changed_at: None,
             deleted_at: None,
             snapshot: None,
+            private: false,
         }
     }
 
@@ -486,6 +494,15 @@ mod tests {
         assert_eq!(loaded.rating, None);
         assert_eq!(loaded.snapshot, Some(snapshot));
         assert_eq!(loaded.added_at, Some(10));
+    }
+
+    #[test]
+    fn private_flag_round_trips() {
+        let (_dir, mut conn) = open("meta-private");
+        save_meta_in(&mut conn, &LibraryMeta { private: true, on_shelf: true, ..meta("novel:p", false) }, None).unwrap();
+        assert!(row(&conn, "novel:p").private);
+        save_meta_in(&mut conn, &LibraryMeta { private: false, on_shelf: true, ..meta("novel:p", false) }, None).unwrap();
+        assert!(!row(&conn, "novel:p").private);
     }
 
     #[test]

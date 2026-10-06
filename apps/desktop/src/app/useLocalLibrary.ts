@@ -115,7 +115,8 @@ function personalFields(meta: LibraryMeta) {
     rating: meta.rating ?? undefined,
     personalTags: meta.tags,
     hidden: meta.hidden,
-    addedAt: meta.addedAt ?? undefined
+    addedAt: meta.addedAt ?? undefined,
+    private: meta.private ?? false
   };
 }
 

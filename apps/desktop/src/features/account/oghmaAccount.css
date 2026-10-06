@@ -485,4 +485,13 @@
     display: flex;
     width: 100%;
   }
+
+  /* Privacy switches inside a ListGroup: same inset as a ListRow. */
+  .oghma-account__switch {
+    padding: var(--space-1-5) var(--space-2);
+  }
+
+  .oghma-account__switch + .oghma-account__switch {
+    border-top: 1px solid var(--border);
+  }
 }

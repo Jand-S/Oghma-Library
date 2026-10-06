@@ -47,7 +47,7 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
     item.hidden
       ? { label: libraryStrings.showInLibrary, icon: <Eye />, onSelect: () => library.unhideLibraryItem(item) }
       : { label: libraryStrings.removeFromLibrary, icon: <EyeOff />, onSelect: () => actions.askRemove(item) },
-    ...[actions.coverItem(item), actions.stackItem(item)].filter((entry): entry is MenuItem => entry !== null),
+    ...[actions.recommendItem(item), actions.privacyItem(item), actions.coverItem(item), actions.stackItem(item)].filter((entry): entry is MenuItem => entry !== null),
     ...(shelf ? [] : [{ label: libraryStrings.deleteFilesMenu, icon: <Trash2 />, onSelect: () => actions.askDelete(item), danger: true, separatorBefore: true }])
   ];
   const revealLabel = getPlatform() === "macos" ? libraryStrings.showInFinder : libraryStrings.openFolder;

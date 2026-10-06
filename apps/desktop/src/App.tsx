@@ -2,6 +2,8 @@ import { CloudOff, RefreshCcw, Settings } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavigationProvider, useNavigation, type AppView } from "./app/NavigationContext";
 import { CoverPrivacyProvider } from "./app/coverPrivacy";
+import { useSocial } from "./features/social/useSocial";
+import { RecommendDialog, type RecommendTarget } from "./features/social/RecommendDialog";
 import { accountOf } from "./app/account";
 import { useBootstrapState } from "./app/useBootstrapState";
 import { useKindleDetection } from "./app/useKindleDetection";
@@ -118,7 +120,14 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     refreshLocalLibrary();
     if (removed.length) setRemovedElsewhere((current) => [...new Set([...current, ...removed])]);
   }, [refreshLocalLibrary]);
-  const oghmaAccount = useOghmaAccount({ client: accountTransport, onLibraryChanged: onAccountLibraryChanged, notify });
+  // Social events (requests, messages, recommendations) arrive on the account's long poll.
+  const socialRefreshRef = useRef<() => void>(() => undefined);
+  const onSocialChanged = useCallback(() => socialRefreshRef.current(), []);
+  const oghmaAccount = useOghmaAccount({ client: accountTransport, onLibraryChanged: onAccountLibraryChanged, notify, onSocialChanged });
+  const social = useSocial({ client: accountTransport, signedIn: oghmaAccount.signedIn, me: oghmaAccount.user });
+  socialRefreshRef.current = () => void social.refresh();
+  const [recommendTarget, setRecommendTarget] = useState<RecommendTarget>(null);
+  const recommendBook = useCallback((book: NonNullable<RecommendTarget>) => setRecommendTarget(book), []);
   const syncAccountRef = useRef(oghmaAccount.syncNow);
   syncAccountRef.current = oghmaAccount.syncNow;
   const [accountSheet, setAccountSheet] = useState<{ open: boolean; step: AccountSheetStep }>({ open: false, step: "email" });
@@ -272,7 +281,9 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     translation,
     account,
     oghmaAccount,
-    openAccountSheet
+    openAccountSheet,
+    social,
+    recommendBook
   };
 
   // Once boot settles, warm the lazily loaded view chunks so navigation stays instant.
@@ -339,7 +350,13 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
       <AppShell
         active={view}
         onNavigate={goTo}
-        sidebarStatus={{ downloading: downloads.downloading, flashKey: downloads.pulse, kindleConnected }}
+        sidebarStatus={{
+          downloading: downloads.downloading,
+          flashKey: downloads.pulse,
+          kindleConnected,
+          socialAvailable: social.available,
+          socialAttention: social.attention
+        }}
         sidebarAccount={(collapsed) => (
           <SidebarAccount
             account={oghmaAccount}
@@ -358,6 +375,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
         contentLayout={showBootError ? "scroll" : definition.layout}
         overlays={(
           <>
+          <RecommendDialog social={social} book={recommendTarget} onClose={() => setRecommendTarget(null)} />
           <AccountSheet
             account={oghmaAccount}
             open={accountSheet.open}

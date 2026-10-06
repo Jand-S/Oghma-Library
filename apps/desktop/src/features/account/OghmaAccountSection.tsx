@@ -2,7 +2,8 @@ import { Laptop, LogOut, Monitor, Pencil, Trash2, UserRound } from "lucide-react
 import { useEffect, useState } from "react";
 import type { AccountSessionInfo } from "../../services/accountClient";
 import { oghmaAccountStrings as s, accountErrorMessage } from "../../strings/oghmaAccount";
-import { Avatar, Button, ConfirmationModal, ListGroup, ListRow, Spinner, TextField, useToast } from "../../ui";
+import { Avatar, Button, ConfirmationModal, ListGroup, ListRow, Spinner, Switch, TextField, useToast } from "../../ui";
+import { socialStrings } from "../../strings/social";
 import { formatRelativeSync } from "../sources/lastSync";
 import type { AccountSheetStep } from "./AccountSheet";
 import type { OghmaAccountController } from "./useOghmaAccount";
@@ -11,6 +12,8 @@ import "./oghmaAccount.css";
 type Props = {
   account: OghmaAccountController;
   onOpenSheet: (step: AccountSheetStep) => void;
+  /** With the social side on the server: the privacy switches (what friends see). */
+  socialAvailable?: boolean;
 };
 
 function ago(iso: string | number | null | undefined) {
@@ -20,13 +23,18 @@ function ago(iso: string | number | null | undefined) {
 }
 
 /** Ajustes > Conta: the Oghma account (profile, sync, devices, sign out, delete). */
-export function OghmaAccountSection({ account, onOpenSheet }: Props) {
+export function OghmaAccountSection({ account, onOpenSheet, socialAvailable = false }: Props) {
   const { toast } = useToast();
   const [sessions, setSessions] = useState<AccountSessionInfo[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState<"logout" | "delete" | null>(null);
   const [serverDraft, setServerDraft] = useState(account.serverUrl);
   const user = account.user;
+
+  const savePrivacy = async (patch: { libraryVisible?: boolean; activityVisible?: boolean }) => {
+    const result = await account.updateProfile(patch);
+    if (!result.ok) toast({ message: accountErrorMessage(result.error), tone: "danger" });
+  };
 
   useEffect(() => setServerDraft(account.serverUrl), [account.serverUrl]);
   useEffect(() => {
@@ -119,6 +127,27 @@ export function OghmaAccountSection({ account, onOpenSheet }: Props) {
           </span>
         </ListRow>
       </ListGroup>
+
+      {socialAvailable ? (
+        <ListGroup title={socialStrings.privacyTitle} footer={socialStrings.privacyDescription}>
+          <div className="oghma-account__switch" role="listitem">
+            <Switch
+              label={socialStrings.libraryVisible}
+              description={socialStrings.libraryVisibleHint}
+              checked={user?.libraryVisible !== false}
+              onChange={(libraryVisible) => void savePrivacy({ libraryVisible })}
+            />
+          </div>
+          <div className="oghma-account__switch" role="listitem">
+            <Switch
+              label={socialStrings.activityVisible}
+              description={socialStrings.activityVisibleHint}
+              checked={user?.activityVisible !== false}
+              onChange={(activityVisible) => void savePrivacy({ activityVisible })}
+            />
+          </div>
+        </ListGroup>
+      ) : null}
 
       <ListGroup title={s.devices}>
         {sessions === null ? (

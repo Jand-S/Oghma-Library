@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import type { ViewId } from "../core/types";
 
 /** Every routable view. "kindle" is shell-only for now (see viewRegistry). */
-export type AppView = ViewId | "kindle";
+export type AppView = ViewId | "kindle" | "social";
 export type NavParams = Record<string, string | number | boolean | undefined>;
 export type NavEntry = { view: AppView; params: NavParams };
 

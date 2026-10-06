@@ -21,6 +21,8 @@ type LibraryViewProps = {
   navigate: (view: AppView) => void;
   /** Catalog of every source: "Procurar em outra fonte" for books whose source left. */
   catalogIndex?: CatalogIndex | null;
+  /** "Indicar a um amigo…" (signed in, with friends). */
+  recommend?: (item: LibraryItem) => void;
 };
 
 function LoadingGrid() {
@@ -38,7 +40,7 @@ function LoadingGrid() {
 }
 
 /** Library page: browse (grid or list) and, with `?book=<id>`, the book details. */
-export function LibraryView({ library, activeJob, queuedJobs, loading, navigate, catalogIndex }: LibraryViewProps) {
+export function LibraryView({ library, activeJob, queuedJobs, loading, navigate, catalogIndex, recommend }: LibraryViewProps) {
   const navigation = useNavigation();
   const detailId = typeof navigation.params.book === "string" ? navigation.params.book : null;
   const detailItem = detailId ? library.allLibrary.find((item) => item.id === detailId) ?? null : null;
@@ -102,7 +104,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
       : null;
   }, [browse, separated, stacks]);
 
-  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions, stackMenuItem });
+  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions, stackMenuItem, recommend });
 
   // The book left the library (removed or deleted): go back to the grid.
   useEffect(() => {

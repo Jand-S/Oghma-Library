@@ -198,6 +198,8 @@ export type LibraryItem = {
   unavailable?: boolean;
   /** When the book entered the library (ms since epoch). */
   addedAt?: number;
+  /** "Só eu vejo": friends do not see it (profile, activity). */
+  private?: boolean;
 };
 
 export type LibraryAvailability = "local" | "shelf";
@@ -223,6 +225,8 @@ export type LibraryMeta = {
   deletedAt?: number | null;
   /** The book as it looked when added, so it shows even when its source leaves the catalog. */
   snapshot?: BookSnapshot | null;
+  /** "Só eu vejo": friends do not see this book (profile, activity). Synced with the account. */
+  private?: boolean;
 };
 
 /** What the library needs to show a book without its files or its catalog entry. */

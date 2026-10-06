@@ -64,6 +64,8 @@ export type SettingsViewProps = {
   account: AccountController;
   /** Conta Oghma (Ajustes > Conta, above the ChatGPT account). */
   oghmaAccount?: OghmaAccountController;
+  /** Signed in to a server with the social side (privacy switches in Conta). */
+  socialAvailable?: boolean;
   onOpenAccountSheet?: (step: AccountSheetStep) => void;
   onRetryAccount?: () => void;
   initialCategory?: SettingsCategory;
@@ -124,7 +126,11 @@ export function SettingsView(props: SettingsViewProps) {
           {props.oghmaAccount ? (
             <section className="settings-accounts__block">
               <SectionHeader as="h3" size="md" title={oghmaAccountStrings.oghmaHeading} />
-              <OghmaAccountSection account={props.oghmaAccount} onOpenSheet={(step) => props.onOpenAccountSheet?.(step)} />
+              <OghmaAccountSection
+                account={props.oghmaAccount}
+                onOpenSheet={(step) => props.onOpenAccountSheet?.(step)}
+                socialAvailable={props.socialAvailable}
+              />
             </section>
           ) : null}
           <section className="settings-accounts__block">

@@ -12,6 +12,11 @@ export type AccountUser = {
   createdAt: string;
   /** A new account: the app asks for a nickname and an avatar. */
   needsProfile: boolean;
+  /** Friends see the library / the activity (servers with the social side). */
+  libraryVisible?: boolean;
+  activityVisible?: boolean;
+  /** Cursor of social events (friend requests, messages…); the long poll waits on it. */
+  socialCursor?: number;
 };
 
 export type AccountSessionInfo = {

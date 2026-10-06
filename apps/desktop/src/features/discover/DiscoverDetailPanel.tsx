@@ -1,4 +1,5 @@
-import { BookCheck, BookmarkPlus, Check, Clock, Download, RotateCcw, X } from "lucide-react";
+import { BookCheck, BookmarkPlus, Check, Clock, Download, RotateCcw, Send, X } from "lucide-react";
+import { socialStrings } from "../../strings/social";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { statusLabel } from "../../constants/ui";
 import { estimateChapters } from "../../core/defaults";
@@ -448,7 +449,24 @@ export type DiscoverShelf = {
   add: (novel: Novel, patch?: Partial<Pick<LibraryMeta, "readingStatus">>) => void;
   rate: (item: LibraryItem, rating: number | null) => void;
   open: (item: LibraryItem) => void;
+  /** "Indicar a um amigo…" (only with the Oghma account and friends). */
+  recommend?: (novel: Novel) => void;
 };
+
+function RecommendButton({ novel, shelf }: { novel: Novel; shelf: DiscoverShelf }) {
+  if (!shelf.recommend) return null;
+  return (
+    <IconButton
+      label={socialStrings.recommendAction}
+      icon={<Send />}
+      size="sm"
+      variant="ghost"
+      className="discover-shelf__recommend"
+      onClick={() => shelf.recommend?.(novel)}
+      data-testid="discover-recommend"
+    />
+  );
+}
 
 /** "Adicionar à biblioteca" / "Já li", or — once it is there — its status and the reader's stars. */
 function ShelfRow({ novel, shelf }: { novel: Novel; shelf: DiscoverShelf }) {
@@ -469,6 +487,7 @@ function ShelfRow({ novel, shelf }: { novel: Novel; shelf: DiscoverShelf }) {
         >
           {discoverStrings.alreadyRead}
         </Button>
+        <RecommendButton novel={novel} shelf={shelf} />
       </div>
     );
   }
@@ -486,6 +505,7 @@ function ShelfRow({ novel, shelf }: { novel: Novel; shelf: DiscoverShelf }) {
         value={item.rating}
         onChange={(value) => shelf.rate(item, value)}
       />
+      <RecommendButton novel={novel} shelf={shelf} />
     </div>
   );
 }
