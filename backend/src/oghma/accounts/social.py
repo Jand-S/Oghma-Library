@@ -11,9 +11,10 @@ from typing import Any
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .library_entries import clean_snapshot, is_import
 from .models import AccountActivity, AccountBlock, AccountFriendship, AccountLibraryEntry, AccountMessage, AccountUser
 from .profile import nickname_key, nickname_problem
-from .service import ACTIVITY_DAYS, AccountError, aware, bump_social, clean_snapshot, utcnow
+from .service import ACTIVITY_DAYS, AccountError, aware, bump_social, utcnow
 
 MAX_BODY = 2000
 NOTE_STATUSES = {"added", "dismissed"}
@@ -233,7 +234,8 @@ async def friend_library(db: AsyncSession, me: AccountUser, public_id: str) -> d
     entries = []
     for row in rows:
         data = row.data or {}
-        if not data.get("onShelf") or data.get("private"):
+        # EPUB importado é só da pessoa, mesmo que a linha tenha perdido o `private`.
+        if not data.get("onShelf") or data.get("private") or is_import(row.novel_id):
             continue
         entries.append(
             {
