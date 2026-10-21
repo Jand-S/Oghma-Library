@@ -47,7 +47,7 @@ pub struct LibraryMeta {
 }
 
 mod imports;
-pub(crate) use imports::record_import;
+pub(crate) use imports::{live_snapshot, record_import};
 
 const NOVEL_PREFIX: &str = "novel:";
 /// Imported EPUBs (`import:<sha256>`, docs/IMPORT_EPUB.md) sync like `novel:` rows.

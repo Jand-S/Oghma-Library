@@ -1,3 +1,4 @@
+mod account_files;
 mod cloud;
 mod export_root;
 mod files;
@@ -70,6 +71,9 @@ pub fn run() {
             oghma_account::oghma_account_api,
             oghma_account::oghma_account_logout,
             oghma_account::oghma_account_forget,
+            account_files::account_file_upload,
+            account_files::account_file_download,
+            account_files::account_files_usage,
             translation::commands::translation_account,
             translation::commands::translation_login,
             translation::commands::translation_login_cancel,

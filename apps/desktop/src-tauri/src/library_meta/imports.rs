@@ -1,5 +1,5 @@
 //! The library row of an imported EPUB (`import:<sha256>`, docs/IMPORT_EPUB.md).
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use tauri::AppHandle;
 
 use super::{now_ms, open_db};
@@ -31,4 +31,22 @@ pub(super) fn record_import_in(conn: &Connection, key: &str, snapshot: &serde_js
     )
     .map_err(|err| format!("Não foi possível salvar o livro importado: {err}"))?;
     Ok(())
+}
+
+/// The snapshot of a live `library_meta` row (the download of an imported book builds its
+/// marker from it). `None` when the row is missing, removed or has no snapshot.
+pub(crate) fn live_snapshot(app: &AppHandle, key: &str) -> Result<Option<serde_json::Value>, String> {
+    live_snapshot_in(&open_db(app)?, key)
+}
+
+pub(super) fn live_snapshot_in(conn: &Connection, key: &str) -> Result<Option<serde_json::Value>, String> {
+    let json: Option<Option<String>> = conn
+        .query_row(
+            "SELECT snapshot_json FROM library_meta WHERE key = ?1 AND deleted_at IS NULL",
+            params![key],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|err| format!("Não foi possível ler o livro: {err}"))?;
+    Ok(json.flatten().and_then(|json| serde_json::from_str(&json).ok()))
 }

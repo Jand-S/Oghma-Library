@@ -25,6 +25,8 @@ mod commit_tests;
 mod tests;
 
 pub use commit::{ImportCommitItem, ImportResult};
+pub(crate) use commit::folder_title;
+pub(crate) use epub_meta::make_series;
 pub use epub_meta::{SeriesInfo, SeriesSource};
 
 /// Event emitted with `Vec<PickedFile>` when .epub files are dropped on the window.

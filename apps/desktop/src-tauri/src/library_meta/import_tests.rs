@@ -1,5 +1,5 @@
 //! `import:` rows (docs/IMPORT_EPUB.md): created by the import and synced like `novel:` rows.
-use super::imports::record_import_in;
+use super::imports::{live_snapshot_in, record_import_in};
 use super::*;
 use crate::files::test_support::TempDir;
 
@@ -131,4 +131,15 @@ fn mark_downloaded_puts_an_import_row_back_on_the_shelf() {
     save_meta_in(&mut conn, &LibraryMeta { on_shelf: false, ..plain(KEY, 100) }, None).unwrap();
     assert_eq!(mark_downloaded_in(&conn, &[KEY.to_string()], 200).unwrap(), 1);
     assert!(row(&conn, KEY).unwrap().on_shelf);
+}
+
+#[test]
+fn live_snapshot_reads_the_row_until_it_is_removed() {
+    let (_dir, conn) = open("import-snapshot");
+    assert_eq!(live_snapshot_in(&conn, KEY).unwrap(), None);
+    let snapshot = serde_json::json!({ "title": "Caged Sparrow", "origin": "import" });
+    record_import_in(&conn, KEY, &snapshot, true, 100).unwrap();
+    assert_eq!(live_snapshot_in(&conn, KEY).unwrap(), Some(snapshot));
+    delete_meta_in(&conn, KEY, 200).unwrap();
+    assert_eq!(live_snapshot_in(&conn, KEY).unwrap(), None, "a tombstone has no live snapshot");
 }
