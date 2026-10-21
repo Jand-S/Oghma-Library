@@ -1,5 +1,6 @@
-import { CloudDownload, EyeOff, Heart, Languages, Layers, LayoutGrid, List, ListFilter, RefreshCw, Search, X } from "lucide-react";
+import { CloudDownload, EyeOff, FileUp, Heart, Languages, Layers, LayoutGrid, List, ListFilter, RefreshCw, Search, X } from "lucide-react";
 import type { AppControllers, ViewHeader } from "../../app/viewRegistry";
+import { importEpubStrings } from "../../strings/importEpub";
 import { libraryStrings } from "../../strings/library";
 import { Badge, Button, Chip, DropdownMenu, IconButton, SegmentedControl, SelectField, TextField, cx, type MenuItem } from "../../ui";
 import { statusFilters, type LibrarySort, type LibraryStatusFilter, type LibraryViewMode } from "./libraryModel";
@@ -18,9 +19,20 @@ export function libraryBrowsable({ library, params }: AppControllers) {
   return typeof params.book !== "string" && Boolean(library.outputPath.trim()) && library.library.length > 0;
 }
 
-/** Library's PageHeader content: count, search, grid/list toggle and refresh. */
+/** "Importar EPUB": needs the desktop app and a library folder (the books are copied there). */
+function importButton({ epubImport, library, params }: AppControllers) {
+  if (!epubImport.available || typeof params.book === "string" || !library.outputPath.trim()) return null;
+  return (
+    <Button variant="ghost" size="sm" icon={<FileUp />} onClick={() => void epubImport.pick()} data-testid="library-import">
+      {importEpubStrings.button}
+    </Button>
+  );
+}
+
+/** Library's PageHeader content: count, search, grid/list toggle, import and refresh. */
 export function libraryHeader(app: AppControllers): ViewHeader {
-  if (!libraryBrowsable(app)) return {};
+  const importAction = importButton(app);
+  if (!libraryBrowsable(app)) return importAction ? { actions: importAction } : {};
   const { library } = app;
   const browse = library.browse;
   const total = library.library.length;
@@ -78,6 +90,7 @@ export function libraryHeader(app: AppControllers): ViewHeader {
             onClick={browse.toggleStacks}
           />
         )}
+        {importAction}
         <IconButton label={libraryStrings.refresh} icon={<RefreshCw />} size="sm" variant="ghost" onClick={library.refresh} />
       </>
     )

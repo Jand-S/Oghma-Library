@@ -13,6 +13,7 @@ import type { DownloadsController } from "../features/downloads/useDownloadsCont
 import { downloadsHeader } from "../features/downloads/DownloadsHeader";
 import { libraryHeader } from "../features/library/LibraryHeader";
 import type { LibraryController } from "../features/library/useLibraryController";
+import type { EpubImportController } from "../features/library/useEpubImport";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
 import type { TranslationController } from "../features/translation/useTranslationController";
@@ -86,6 +87,8 @@ export type AppControllers = {
   social: SocialController;
   /** "Indicar a um amigo…" for a book (opens the dialog). */
   recommendBook: (book: { novelId: string; snapshot: BookSnapshot }) => void;
+  /** "Importar EPUB" (the preview sheet lives in App, so a drop works on any page). */
+  epubImport: EpubImportController;
 };
 
 export type ViewProps = { app: AppControllers };
