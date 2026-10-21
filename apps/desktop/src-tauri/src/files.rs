@@ -8,6 +8,7 @@ use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Manager};
 
 use crate::export_root::ExportRoot;
+use crate::import_epub::SeriesInfo;
 use crate::paths::{is_hidden_name, safe_relative_path};
 
 #[derive(Debug, Serialize)]
@@ -41,6 +42,13 @@ pub struct ExportLibraryItem {
     translation_progress: Option<u8>,
     /// Downloaded as a chapter range (not the whole novel): "new chapters" do not apply.
     partial_range: bool,
+    /// "import" for the reader's own EPUBs (docs/IMPORT_EPUB.md); absent for catalog books.
+    origin: Option<String>,
+    series: Option<SeriesInfo>,
+    /// Imported EPUBs: original file name, sha256 and size of the stored copy.
+    source_file_name: Option<String>,
+    file_sha256: Option<String>,
+    file_size: Option<u64>,
 }
 
 pub(crate) const LOCAL_BOOK_MANIFEST: &str = ".oghma-book.json";
@@ -73,6 +81,12 @@ pub(crate) struct LocalBookManifest {
     pub translation_progress: Option<u8>,
     pub range_start: Option<f64>,
     pub range_end: Option<f64>,
+    pub origin: Option<String>,
+    /// Loose JSON: a malformed series must not hide the rest of the manifest.
+    pub series: Option<serde_json::Value>,
+    pub source_file_name: Option<String>,
+    pub file_sha256: Option<String>,
+    pub file_size: Option<u64>,
 }
 
 impl LocalBookManifest {
@@ -88,6 +102,24 @@ impl LocalBookManifest {
             .as_deref()
             .map(str::trim)
             .filter(|title| !title.is_empty())
+    }
+
+    /// `series` when it has a non-empty id and name; the volume is optional.
+    pub fn series(&self) -> Option<SeriesInfo> {
+        let series = self.series.as_ref()?;
+        let text = |key: &str| {
+            series
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+                .map(str::to_string)
+        };
+        Some(SeriesInfo {
+            id: text("id")?,
+            name: text("name")?,
+            volume: series.get("volume").and_then(|value| value.as_f64()),
+        })
     }
 
     fn analysis(&self) -> Option<ContentAnalysis> {
@@ -331,6 +363,10 @@ pub fn open_local_path(root: tauri::State<'_, ExportRoot>, path: String) -> Resu
         })
 }
 
+fn non_blank(text: &Option<String>) -> Option<String> {
+    text.as_deref().map(str::trim).filter(|text| !text.is_empty()).map(str::to_string)
+}
+
 fn scan_book_dir(path: &Path, folder_name: String, include_cover_data: bool) -> Result<Option<ExportLibraryItem>, String> {
     let mut files = Vec::new();
     let mut size_bytes = 0;
@@ -394,6 +430,11 @@ fn scan_book_dir(path: &Path, folder_name: String, include_cover_data: bool) -> 
         author: manifest.author.clone().filter(|a| !a.trim().is_empty()),
         translation_progress: manifest.translation_progress.map(|p| p.min(100)),
         partial_range: manifest.range_start.is_some() || manifest.range_end.is_some(),
+        origin: non_blank(&manifest.origin),
+        series: manifest.series(),
+        source_file_name: non_blank(&manifest.source_file_name),
+        file_sha256: non_blank(&manifest.file_sha256),
+        file_size: manifest.file_size,
     }))
 }
 
@@ -501,6 +542,9 @@ pub(crate) mod test_support {
             .expect("set mtime");
     }
 }
+
+#[cfg(test)]
+mod import_tests;
 
 #[cfg(test)]
 mod tests {

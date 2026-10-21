@@ -1,6 +1,8 @@
+mod account_files;
 mod cloud;
 mod export_root;
 mod files;
+mod import_epub;
 mod kindle;
 mod library_meta;
 mod oghma_account;
@@ -24,6 +26,8 @@ pub fn run() {
             // Output folder lives on the Rust side; file commands only accept paths inside it.
             tauri::Manager::manage(app, export_root::ExportRoot::load(export_root::store_path(app.handle())));
             tauri::Manager::manage(app, oghma_account::OghmaAccount::default());
+            // Paths of the EPUBs picked or dropped for import; the webview only gets ids.
+            tauri::Manager::manage(app, import_epub::ImportEpubState::default());
             // Opens translation.db, registers the engine as managed state and pauses
             // projects left `running`. A failure only disables the translation screen.
             if let Err(err) = translation::init(app.handle()) {
@@ -31,6 +35,7 @@ pub fn run() {
             }
             Ok(())
         })
+        .on_window_event(import_epub::on_window_event)
         .invoke_handler(tauri::generate_handler![
             export_root::export_root_set,
             export_root::export_root_pick,
@@ -38,6 +43,9 @@ pub fn run() {
             files::open_local_path,
             files::list_export_library,
             files::delete_export_library_item,
+            import_epub::import_epub_pick,
+            import_epub::import_epub_preview,
+            import_epub::import_epub_commit,
             staging::begin_export,
             staging::commit_export,
             staging::abort_export,
@@ -63,6 +71,9 @@ pub fn run() {
             oghma_account::oghma_account_api,
             oghma_account::oghma_account_logout,
             oghma_account::oghma_account_forget,
+            account_files::account_file_upload,
+            account_files::account_file_download,
+            account_files::account_files_usage,
             translation::commands::translation_account,
             translation::commands::translation_login,
             translation::commands::translation_login_cancel,

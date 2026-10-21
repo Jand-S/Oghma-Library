@@ -25,7 +25,7 @@ kindling-mobi = "0.19"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 tokio = { version = "1", features = ["io-util", "sync", "time", "macros", "rt", "net"] }
 regex = "1"
-reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["native-tls", "stream"] }
 url = "2"
 sha2 = "0.10"
 base64 = "0.22"

@@ -46,7 +46,19 @@ pub struct LibraryMeta {
     private: bool,
 }
 
+mod imports;
+pub(crate) use imports::{live_snapshot, record_import};
+
 const NOVEL_PREFIX: &str = "novel:";
+/// Imported EPUBs (`import:<sha256>`, docs/IMPORT_EPUB.md) sync like `novel:` rows.
+pub(crate) const IMPORT_PREFIX: &str = "import:";
+/// SQL condition for the rows the account syncs; folder-path keys stay local.
+const SYNCED_KEYS: &str = "(key LIKE 'novel:%' OR key LIKE 'import:%')";
+
+/// `novel:` and `import:` rows belong to the library and sync; folder-path rows are local.
+fn is_synced_key(key: &str) -> bool {
+    key.starts_with(NOVEL_PREFIX) || key.starts_with(IMPORT_PREFIX)
+}
 
 fn now_ms() -> i64 {
     SystemTime::now()
@@ -256,7 +268,7 @@ pub(crate) fn mark_downloaded(app: &AppHandle, keys: &[String]) -> Result<usize,
 fn mark_downloaded_in(conn: &Connection, keys: &[String], now: i64) -> Result<usize, String> {
     let mut changed = 0;
     for key in keys {
-        let shelf = key.starts_with(NOVEL_PREFIX);
+        let shelf = is_synced_key(key);
         changed += conn
             .execute(
                 "UPDATE library_meta SET hidden = 0, deleted_at = NULL,
@@ -271,7 +283,7 @@ fn mark_downloaded_in(conn: &Connection, keys: &[String], now: i64) -> Result<us
     Ok(changed)
 }
 
-/// Removes a book from the library. `novel:` rows become tombstones (synced to every device);
+/// Removes a book from the library. `novel:` and `import:` rows become tombstones (synced to every device);
 /// status, rating, favorite, tags and the snapshot stay in the row, so bringing the book back
 /// restores them. Folder-path rows are local only and are deleted outright.
 #[tauri::command(async)]
@@ -281,7 +293,7 @@ pub fn delete_library_meta(app: AppHandle, key: String) -> Result<(), String> {
 
 fn delete_meta_in(conn: &Connection, key: &str, now: i64) -> Result<(), String> {
     let err = |err: rusqlite::Error| format!("Não foi possível remover metadados da biblioteca: {err}");
-    if key.starts_with(NOVEL_PREFIX) {
+    if is_synced_key(key) {
         conn.execute(
             "INSERT INTO library_meta (key, deleted_at, changed_at, dirty) VALUES (?1, ?2, ?2, 1)
              ON CONFLICT(key) DO UPDATE SET hidden = 0, on_shelf = 0, deleted_at = ?2, changed_at = ?2,
@@ -297,7 +309,7 @@ fn delete_meta_in(conn: &Connection, key: &str, now: i64) -> Result<(), String> 
 
 // ---------- Account sync ----------
 
-/// Rows waiting to be uploaded (only `novel:` keys sync).
+/// Rows waiting to be uploaded (only `novel:` and `import:` keys sync).
 #[tauri::command(async)]
 pub fn library_sync_pending(app: AppHandle) -> Result<Vec<LibraryMeta>, String> {
     pending_in(&open_db(&app)?)
@@ -306,7 +318,7 @@ pub fn library_sync_pending(app: AppHandle) -> Result<Vec<LibraryMeta>, String> 
 fn pending_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT {SELECT_COLUMNS} FROM library_meta WHERE dirty = 1 AND key LIKE 'novel:%' ORDER BY changed_at"
+            "SELECT {SELECT_COLUMNS} FROM library_meta WHERE dirty = 1 AND {SYNCED_KEYS} ORDER BY changed_at"
         ))
         .map_err(|err| format!("Não foi possível ler as alterações da biblioteca: {err}"))?;
     let rows = stmt
@@ -356,7 +368,7 @@ fn apply_in(conn: &mut Connection, rows: &[LibraryMeta]) -> Result<Vec<String>, 
         .transaction()
         .map_err(|err| format!("Não foi possível aplicar a sincronização: {err}"))?;
     let mut applied = Vec::new();
-    for remote in rows.iter().filter(|row| row.key.starts_with(NOVEL_PREFIX)) {
+    for remote in rows.iter().filter(|row| is_synced_key(&row.key)) {
         let remote_changed = remote.changed_at.unwrap_or(0);
         let local: Option<(i64, i64)> = tx
             .query_row(
@@ -385,10 +397,16 @@ fn apply_in(conn: &mut Connection, rows: &[LibraryMeta]) -> Result<Vec<String>, 
 /// Marks every book row for upload (after signing in: the local library joins the account).
 #[tauri::command(async)]
 pub fn library_sync_mark_all_dirty(app: AppHandle) -> Result<usize, String> {
-    open_db(&app)?
-        .execute("UPDATE library_meta SET dirty = 1 WHERE key LIKE 'novel:%'", [])
+    mark_all_dirty_in(&open_db(&app)?)
+}
+
+fn mark_all_dirty_in(conn: &Connection) -> Result<usize, String> {
+    conn.execute(&format!("UPDATE library_meta SET dirty = 1 WHERE {SYNCED_KEYS}"), [])
         .map_err(|err| format!("Não foi possível preparar a sincronização: {err}"))
 }
+
+#[cfg(test)]
+mod import_tests;
 
 #[cfg(test)]
 mod tests {

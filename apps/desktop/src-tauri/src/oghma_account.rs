@@ -87,6 +87,17 @@ impl OghmaAccount {
         *self.session.lock().map_err(|_| "estado da conta indisponível".to_string())? = Some(session);
         Ok(())
     }
+
+    /// `(base_url, token)` for the other Rust modules that call the account (account files).
+    /// The token stays in Rust: nothing here is ever sent to the web view.
+    pub(crate) fn session(&self, app: &AppHandle) -> Result<Option<(String, String)>, String> {
+        Ok(self.load(app)?.map(|session| (session.base_url, session.token)))
+    }
+
+    /// Forgets the session after the server answered 401.
+    pub(crate) fn forget(&self, app: &AppHandle) -> Result<(), String> {
+        self.save(app, None)
+    }
 }
 
 /// `https://host[:port]` (or `http://127.0.0.1…` / `localhost` for development), no path.
@@ -156,11 +167,11 @@ fn platform() -> &'static str {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiResponse {
-    status: u16,
-    body: Value,
+    pub(crate) status: u16,
+    pub(crate) body: Value,
 }
 
-async fn send(
+pub(crate) async fn send(
     http: &reqwest::Client,
     method: reqwest::Method,
     url: String,

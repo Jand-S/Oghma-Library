@@ -95,7 +95,7 @@ fn safe_id_component(novel_id: &str) -> String {
 }
 
 /// Folder name for a title: the TS sanitizer, but never a dot-name (those are skipped by the scanner).
-fn folder_name_for_title(title: &str) -> String {
+pub(crate) fn folder_name_for_title(title: &str) -> String {
     let name = sanitize_file_name(title);
     if is_hidden_name(&name) {
         format!("_{}", name.trim_start_matches('.'))
