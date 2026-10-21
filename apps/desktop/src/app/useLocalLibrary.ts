@@ -247,7 +247,8 @@ export function shelfAdditions(entries: LocalLibraryEntry[], metaRows: LibraryMe
     if (entry.language) continue; // translations are this computer's own books
     const known = findCatalogNovel(entry, catalog);
     const novelId = canonicalNovelId(entry, known);
-    if (!novelId) continue;
+    // An imported EPUB's row (series, file size…) is created by Rust when importing.
+    if (!novelId || isImportKey(novelId)) continue;
     const key = novelMetaKey(novelId);
     const row = metaByKey.get(key);
     const legacy = metaByKey.get(entry.outputDir);

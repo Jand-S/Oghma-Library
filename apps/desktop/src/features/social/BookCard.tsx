@@ -2,7 +2,7 @@ import { Check, Plus, Send } from "lucide-react";
 import type { BookSnapshot } from "../../core/types";
 import { socialStrings as t } from "../../strings/social";
 import { Button, Cover, cx } from "../../ui";
-import { chapterCount, useSocialEnv } from "./socialEnv";
+import { canRecommend as recommendable, chapterCount, useSocialEnv } from "./socialEnv";
 
 type BookCardProps = {
   novelId: string;
@@ -61,7 +61,7 @@ export function BookCard({ novelId, snapshot, variant = "row", eyebrow, children
             </Button>
           ) : null}
           {novel ? <Button variant="glass" size="sm" onClick={() => env.openBook(novel)}>{t.open}</Button> : null}
-          {canRecommend ? (
+          {canRecommend && recommendable(novelId) ? (
             <Button
               variant="ghost"
               size="sm"

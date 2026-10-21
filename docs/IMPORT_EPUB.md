@@ -264,6 +264,14 @@ account_files_usage() -> { usedBytes, quotaBytes, files }
   - o erro, quando houver.
 - O botão "Importar N livros" grava os livros. Depois o arquivo sobe para a conta em segundo
   plano, se houver login.
+  - O resultado é conferido por arquivo enviado: um arquivo sem resposta (ou com erro) fica na
+    folha com o erro e não entra no aviso de sucesso.
+- Volume inválido só bloqueia enquanto há série; sem série, o volume é ignorado.
+- A capa gerada é redesenhada 250 ms depois de parar de digitar.
+- O app nunca cria a linha `import:` pela estante (`shelfAdditions`): quem cria é o Rust ao
+  importar. Toda gravação de uma linha `import:` vai com `private: true`.
+- "Indicar" nunca aparece para livros `import:` (Biblioteca, perfil do amigo e a própria janela
+  de indicar).
 
 **Série na Biblioteca**
 - Os itens com o mesmo `series.id` viram um card de série: "Unsheathed · 4 volumes", com as capas

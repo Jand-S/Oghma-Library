@@ -5,7 +5,7 @@ import { importApi as defaultApi, type ImportApi, type PickedFile } from "../../
 import { importEpubStrings } from "../../strings/importEpub";
 import type { ToastTone } from "../../ui";
 import { drawImportCover, type CoverText, type GeneratedCover } from "./importCover";
-import { commitItemOf, coverTextOf, draftFromPreview, isImportable, needsGeneratedCover, type ImportDraft, type ImportDraftFields } from "./importModel";
+import { commitItemOf, commitOutcome, coverTextOf, draftFromPreview, isImportable, needsGeneratedCover, type ImportDraft, type ImportDraftFields } from "./importModel";
 
 type EpubImportArgs = {
   catalogIndex?: CatalogIndex | null;
@@ -121,11 +121,12 @@ export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defa
         return commitItemOf(draft, cover?.bytes ?? null);
       });
       const results = await api.commit(items);
-      const failed = new Map(results.filter((result) => result.error).map((result) => [result.id, result.error!]));
-      const done = results.length - failed.size;
+      // Judged per submitted file: one without an answer did not import (no success toast for it).
+      const { keys, failed } = commitOutcome(items.map((item) => item.id), results, importEpubStrings.missingResult);
+      const done = keys.length;
       if (done > 0) {
         refreshLibrary();
-        onImported?.(results.filter((result) => !result.error).map((result) => result.key));
+        onImported?.(keys);
       }
       if (!failed.size) {
         notify(importEpubStrings.imported(done), "success");

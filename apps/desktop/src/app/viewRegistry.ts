@@ -3,7 +3,7 @@ import { BookOpenText } from "lucide-react";
 import { defaultFilters } from "../core/defaults";
 import type { BookSnapshot, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import type { SocialController } from "../features/social/useSocial";
-import { shareableLibraryBooks, snapshotOfNovel, type SharedBook, type SocialEnv, type SocialPlace } from "../features/social/socialEnv";
+import { canRecommend, shareableLibraryBooks, snapshotOfNovel, type SharedBook, type SocialEnv, type SocialPlace } from "../features/social/socialEnv";
 import { searchCatalog } from "../services/catalogIndex";
 import type { HomeSeeAll } from "../features/home/HomeView";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
@@ -232,7 +232,7 @@ function LibraryPage({ app }: ViewProps) {
     recommend: app.social.available && app.social.friends.friends.length
       ? (item: LibraryItem) => {
         const novel = item.novelId ? app.discover.catalogIndex?.byId.get(item.novelId) : undefined;
-        if (!item.novelId) return;
+        if (!item.novelId || !canRecommend(item.novelId)) return;
         app.recommendBook({
           novelId: novel?.id ?? item.novelId,
           snapshot: novel ? snapshotOfNovel(novel) : {

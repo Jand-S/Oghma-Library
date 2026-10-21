@@ -1,5 +1,5 @@
 import { workKey, type CatalogIndex } from "../../services/catalogIndex";
-import type { ImportCommitItem, ImportPreview } from "../../services/importClient";
+import type { ImportCommitItem, ImportPreview, ImportResult } from "../../services/importClient";
 
 /** One file of the import sheet: the preview plus the fields the reader can edit. */
 export type ImportDraft = {
@@ -56,10 +56,33 @@ export function draftFromPreview(preview: ImportPreview, index: CatalogIndex | n
   };
 }
 
+/** A volume that is not a number only matters while there is a series (without one it is ignored). */
+export function volumeBlocks(draft: ImportDraft): boolean {
+  return Boolean(draft.seriesName.trim()) && parseVolume(draft.volume) === undefined;
+}
+
 /** Files that "Importar N livros" writes: readable, not in the library yet, with a valid volume. */
 export function isImportable(draft: ImportDraft): boolean {
   const { preview } = draft;
-  return !preview.error && !preview.alreadyImported && parseVolume(draft.volume) !== undefined;
+  return !preview.error && !preview.alreadyImported && !volumeBlocks(draft);
+}
+
+/**
+ * What the commit did to each submitted file: the keys written, and the error of each file that
+ * failed. A file with no result (or a result without a key) failed too, with `missing`; results
+ * for ids that were not submitted are ignored.
+ */
+export function commitOutcome(submitted: string[], results: ImportResult[], missing: string) {
+  const byId = new Map(results.map((result) => [result.id, result]));
+  const keys: string[] = [];
+  const failed = new Map<string, string>();
+  for (const id of submitted) {
+    const result = byId.get(id);
+    if (result?.error) failed.set(id, result.error);
+    else if (!result?.key) failed.set(id, missing);
+    else keys.push(result.key);
+  }
+  return { keys, failed };
 }
 
 /** No cover in the EPUB and none from another volume: the app draws one. */

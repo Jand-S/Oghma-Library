@@ -25,6 +25,36 @@ import { readIntegrationPreferences, SEND_TO_KINDLE_URL } from "../settings/pref
 import { isImported } from "./seriesModel";
 import { useLibraryBrowse } from "./useLibraryBrowse";
 
+/** Books of the catalog are keyed by the work (`novel:<id>`, synced); local-only books (translations,
+ *  unknown folders) by their folder path. */
+const syncsAsNovel = (item: LibraryItem) => Boolean(item.novelId) && !item.language;
+export const libraryMetaKey = (item: LibraryItem) =>
+  syncsAsNovel(item) ? novelMetaKey(item.novelId!) : item.outputDir ?? item.id;
+export const metadataFromItem = (item: LibraryItem): LibraryMeta => ({
+  key: libraryMetaKey(item),
+  favorite: Boolean(item.favorite),
+  readingStatus: item.readingStatus ?? "unread",
+  tags: item.personalTags ?? [],
+  hidden: Boolean(item.hidden),
+  rating: item.rating ?? null,
+  onShelf: item.novelId && !item.language ? !item.hidden : false,
+  addedAt: item.addedAt ?? null,
+  // An imported book's snapshot (series, file size…) is written by Rust; null keeps it.
+  snapshot: item.novelId && !item.language && !isImported(item)
+    ? snapshotOf(item.novelId, undefined, {
+      title: item.title,
+      author: item.author,
+      sourceId: item.sourceId,
+      sourceName: item.sourceName,
+      coverUrl: item.coverUrl,
+      chapters: item.chapters,
+      description: item.description
+    })
+    : null,
+  // An imported EPUB is always private (the server forces it too).
+  private: isImported(item) || Boolean(item.private)
+});
+
 export function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
   return items.map((item) => ({
     id: item.id,
@@ -231,35 +261,6 @@ export function useLibraryController({
 
   const openLibraryItemFolder = (item: LibraryItem) =>
     openOutputFolder(item.outputDir ?? joinPath(appConfig.outputPath, sanitizeFileName(item.title)), `pasta de ${item.title}`, notify);
-
-  /** Books of the catalog are keyed by the work (`novel:<id>`, synced); local-only books (translations,
-   *  unknown folders) by their folder path. */
-  const syncsAsNovel = (item: LibraryItem) => Boolean(item.novelId) && !item.language;
-  const libraryMetaKey = (item: LibraryItem) =>
-    syncsAsNovel(item) ? novelMetaKey(item.novelId!) : item.outputDir ?? item.id;
-  const metadataFromItem = (item: LibraryItem): LibraryMeta => ({
-    key: libraryMetaKey(item),
-    favorite: Boolean(item.favorite),
-    readingStatus: item.readingStatus ?? "unread",
-    tags: item.personalTags ?? [],
-    hidden: Boolean(item.hidden),
-    rating: item.rating ?? null,
-    onShelf: item.novelId && !item.language ? !item.hidden : false,
-    addedAt: item.addedAt ?? null,
-    // An imported book's snapshot (series, file size…) is written by Rust; null keeps it.
-    snapshot: item.novelId && !item.language && !isImported(item)
-      ? snapshotOf(item.novelId, undefined, {
-        title: item.title,
-        author: item.author,
-        sourceId: item.sourceId,
-        sourceName: item.sourceName,
-        coverUrl: item.coverUrl,
-        chapters: item.chapters,
-        description: item.description
-      })
-      : null,
-    private: Boolean(item.private)
-  });
 
   const updateLibraryMeta = (item: LibraryItem, patch: Partial<Omit<LibraryMeta, "key">>) => {
     const nextMeta = { ...metadataFromItem(item), ...patch };

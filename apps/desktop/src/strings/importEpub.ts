@@ -28,6 +28,7 @@ export const importEpubStrings = {
   coverFromLibrary: "Capa de outro volume",
   failedPreview: "Não foi possível ler os arquivos.",
   failedCommit: "Não foi possível importar.",
+  missingResult: "A importação deste arquivo não foi confirmada; tente de novo.",
   imported: (count: number) => (count === 1 ? "1 livro importado." : `${count.toLocaleString("pt-BR")} livros importados.`),
   importedPartly: (done: number, failed: number) =>
     `${done.toLocaleString("pt-BR")} importado${done === 1 ? "" : "s"}, ${failed.toLocaleString("pt-BR")} com erro.`

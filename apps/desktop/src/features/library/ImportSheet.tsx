@@ -2,8 +2,9 @@ import { FileUp } from "lucide-react";
 import { useMemo } from "react";
 import { importEpubStrings as strings } from "../../strings/importEpub";
 import { Badge, Banner, Button, Cover, Modal, Spinner, TextField } from "../../ui";
-import { coverTextOf, needsGeneratedCover, parseVolume, type ImportDraft } from "./importModel";
+import { coverTextOf, needsGeneratedCover, volumeBlocks, type ImportDraft } from "./importModel";
 import type { EpubImportController } from "./useEpubImport";
+import { useSettledValue } from "./useSettledValue";
 import "./importSheet.css";
 
 type ImportSheetProps = {
@@ -12,19 +13,23 @@ type ImportSheetProps = {
   libraryCover?: (id: string) => string | undefined;
 };
 
+/** The generated cover is redrawn once the reader stops typing for this long. */
+const COVER_REDRAW_MS = 250;
+
 function ImportRow({ draft, importer, libraryCover }: { draft: ImportDraft; importer: EpubImportController; libraryCover?: ImportSheetProps["libraryCover"] }) {
   const { preview } = draft;
   const generated = needsGeneratedCover(preview);
-  const text = coverTextOf(draft);
+  const typed = coverTextOf(draft);
+  const text = useSettledValue(typed, `${typed.series}\n${typed.volume ?? ""}\n${typed.subtitle}`, COVER_REDRAW_MS);
   const { drawCover } = importer;
-  // Redrawn only when the text on the cover changes.
+  // Redrawn only when the text on the cover changes (and settles).
   const generatedUrl = useMemo(
     () => (generated ? drawCover({ series: text.series, volume: text.volume, subtitle: text.subtitle })?.dataUrl : undefined),
     [drawCover, generated, text.series, text.volume, text.subtitle]
   );
   const coverUrl = preview.coverDataUrl ?? (preview.coverFromLibrary ? libraryCover?.(preview.coverFromLibrary) : undefined) ?? generatedUrl;
   const locked = Boolean(preview.error) || importer.committing;
-  const volumeInvalid = parseVolume(draft.volume) === undefined;
+  const volumeInvalid = volumeBlocks(draft);
   const set = (field: "title" | "author" | "seriesName" | "volume") => (event: { target: { value: string } }) =>
     importer.update(preview.id, { [field]: event.target.value });
 

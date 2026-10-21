@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import type { BookSnapshot, LibraryItem, Novel } from "../../core/types";
 import { isImported } from "../library/seriesModel";
+import { isImportKey } from "../../services/localFiles";
 import { socialStrings as t } from "../../strings/social";
 import type { SocialController } from "./useSocial";
 
@@ -54,6 +55,11 @@ export function snapshotOfNovel(novel: Novel): BookSnapshot {
     chapters: novel.chapters,
     description: novel.description?.slice(0, 600)
   };
+}
+
+/** Whether a book can be recommended ("Indicar"): an imported EPUB is always private (the server refuses it too). */
+export function canRecommend(novelId: string): boolean {
+  return !isImportKey(novelId);
 }
 
 /**

@@ -4,6 +4,7 @@ import type { LocalLibraryEntry } from "../services/localFiles";
 import { aliasMerges, buildLibraryItems, enrichLibraryItems, shelfAdditions } from "../app/useLocalLibrary";
 import { filterLibrary, formatsOf, stackEditions, statusCounts } from "../features/library/libraryModel";
 import { homeSeeds, seedWeight } from "../features/home/HomeView";
+import { metadataFromItem } from "../features/library/useLibraryController";
 import { buildCatalogIndex, similarNovels, stackNovels, withEditions } from "../services/catalogIndex";
 import { defaultFilters } from "../core/defaults";
 
@@ -83,6 +84,22 @@ describe("shelf (books without files)", () => {
     const added = shelfAdditions(disk, rows, catalog, 999);
     expect(added.map((row) => row.key)).toEqual(["novel:cn:1", "novel:cn:6"]);
     expect(added[0]).toMatchObject({ onShelf: true, addedAt: 100, snapshot: { novelId: "cn:1", title: "Shadow Slave", coverUrl: "https://c/1.jpg" } });
+  });
+
+  it("leaves imported EPUBs to Rust, which writes their row when importing", () => {
+    const key = `import:${"ab".repeat(32)}`;
+    const disk = [entry({ title: "Caged Sparrow", outputDir: "/out/Caged", novelId: key, mtimeMs: 100 })];
+    expect(shelfAdditions(disk, [], catalog, 999)).toEqual([]);
+    expect(shelfAdditions(disk, [meta({ key, deletedAt: 50 })], catalog, 999)).toEqual([]);
+  });
+
+  it("writes imported EPUBs as private, like the server does", () => {
+    const key = `import:${"ab".repeat(32)}`;
+    const imported = { id: "local-/out/Caged", title: "Caged Sparrow", novelId: key, outputDir: "/out/Caged" } as LibraryItem;
+    expect(metadataFromItem(imported)).toMatchObject({ key, private: true, snapshot: null });
+    expect(metadataFromItem({ ...imported, private: false })).toMatchObject({ private: true });
+    const catalogBook = { id: "local-/out/SS", title: "Shadow Slave", novelId: "cn:1", outputDir: "/out/SS" } as LibraryItem;
+    expect(metadataFromItem(catalogBook)).toMatchObject({ key: "novel:cn:1", private: false });
   });
 });
 

@@ -161,6 +161,44 @@ describe("Importar EPUB", () => {
     expect(within(getToastRegion()).getByText(importEpubStrings.importedPartly(1, 1))).toBeInTheDocument();
   });
 
+  it("treats a file without an answer from the import as failed, with no success toast", async () => {
+    const user = setupUser();
+    const { api, drop, picked } = fakeApi();
+    const onlyFirst = async (items: { id: string }[]): Promise<ImportResult[]> =>
+      [{ id: items[0].id, key: `import:${items[0].id}`, outputDir: `/out/${items[0].id}`, error: null }];
+    api.commit.mockImplementation(onlyFirst);
+    await renderWith(api);
+    await waitFor(() => expect(api.onDropped).toHaveBeenCalled());
+    drop(picked.slice(0, 2));
+    const sheet = await screen.findByRole("dialog", { name: importEpubStrings.sheetTitle });
+    await waitFor(() => expect(within(sheet).getAllByTestId("import-item")).toHaveLength(2));
+
+    await user.click(within(sheet).getByRole("button", { name: importEpubStrings.commit(2) }));
+    await waitFor(() => expect(within(sheet).getAllByTestId("import-item")).toHaveLength(1));
+    expect(within(sheet).getByTestId("import-error")).toHaveTextContent(importEpubStrings.missingResult);
+    expect(within(getToastRegion()).getByText(importEpubStrings.importedPartly(1, 1))).toBeInTheDocument();
+    expect(within(getToastRegion()).queryByText(importEpubStrings.imported(2))).not.toBeInTheDocument();
+  });
+
+  it("does not let the volume block a file once its series is cleared", async () => {
+    const user = setupUser();
+    const { api, drop, picked } = fakeApi();
+    await renderWith(api);
+    await waitFor(() => expect(api.onDropped).toHaveBeenCalled());
+    drop(picked.slice(1, 2));
+    const sheet = await screen.findByRole("dialog", { name: importEpubStrings.sheetTitle });
+    await waitFor(() => expect(within(sheet).getAllByTestId("import-item")).toHaveLength(1));
+    const row = rowOf("withCover.epub");
+    const volume = within(row).getByLabelText(importEpubStrings.volumeLabel);
+    await user.clear(volume);
+    await user.type(volume, "dois");
+    expect(within(sheet).getByRole("button", { name: importEpubStrings.commit(0) })).toBeDisabled();
+    await user.clear(within(row).getByLabelText(importEpubStrings.seriesLabel));
+    expect(within(row).queryByText(importEpubStrings.volumeInvalid)).not.toBeInTheDocument();
+    await user.click(within(sheet).getByRole("button", { name: importEpubStrings.commit(1) }));
+    await waitFor(() => expect(api.commit).toHaveBeenCalledWith([{ id: "withCover", title: "Second", author: "Autora B", series: null, coverPng: null }]));
+  });
+
   it("has no import button outside the desktop app", async () => {
     const user = setupUser();
     const { api } = fakeApi();

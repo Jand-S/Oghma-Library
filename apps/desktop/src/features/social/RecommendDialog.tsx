@@ -4,7 +4,7 @@ import { normalizeSearchText } from "../../core/tagFilters";
 import type { BookSnapshot } from "../../core/types";
 import { socialStrings as t } from "../../strings/social";
 import { Avatar, Button, Cover, Modal, cx, useToast } from "../../ui";
-import { chapterCount, errorMessage } from "./socialEnv";
+import { canRecommend, chapterCount, errorMessage } from "./socialEnv";
 import type { SocialController } from "./useSocial";
 
 export type RecommendTarget = { novelId: string; snapshot: BookSnapshot } | null;
@@ -13,7 +13,9 @@ export type RecommendTarget = { novelId: string; snapshot: BookSnapshot } | null
  * "Indicar para…", like forwarding on WhatsApp: the book on top, friends you talk to most
  * recently first, pick one or more, an optional note, send (one message with the book each).
  */
-export function RecommendDialog({ social, book, onClose }: { social: SocialController; book: RecommendTarget; onClose: () => void }) {
+export function RecommendDialog({ social, book: target, onClose }: { social: SocialController; book: RecommendTarget; onClose: () => void }) {
+  // Every "Indicar" ends here: an imported EPUB never opens the dialog.
+  const book = target && canRecommend(target.novelId) ? target : null;
   const { toast } = useToast();
   const [chosen, setChosen] = useState<ReadonlySet<string>>(() => new Set());
   const [note, setNote] = useState("");

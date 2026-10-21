@@ -1,3 +1,4 @@
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Novel } from "../core/types";
 
@@ -10,7 +11,8 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: (...args: unknown[]) => listen
 import { buildCatalogIndex } from "../services/catalogIndex";
 import { importApi, importKey, isImportKey, type ImportPreview } from "../services/importClient";
 import { drawImportCover } from "../features/library/importCover";
-import { catalogAuthorForSeries, commitItemOf, coverTextOf, draftFromPreview, isImportable, parseVolume } from "../features/library/importModel";
+import { catalogAuthorForSeries, commitItemOf, commitOutcome, coverTextOf, draftFromPreview, isImportable, parseVolume, volumeBlocks } from "../features/library/importModel";
+import { useSettledValue } from "../features/library/useSettledValue";
 
 function setTauri(enabled: boolean) {
   const target = window as unknown as Record<string, unknown>;
@@ -149,6 +151,28 @@ describe("import drafts", () => {
     expect(isImportable({ ...draftFromPreview(preview({ id: "d" }), null), volume: "x" })).toBe(false);
   });
 
+  it("ignores the volume once the series is cleared", () => {
+    const draft = { ...draftFromPreview(preview({ id: "a" }), null), volume: "x" };
+    expect(volumeBlocks(draft)).toBe(true);
+    const noSeries = { ...draft, seriesName: "  " };
+    expect(volumeBlocks(noSeries)).toBe(false);
+    expect(isImportable(noSeries)).toBe(true);
+    expect(commitItemOf(noSeries, null).series).toBeNull();
+  });
+
+  it("judges the commit per submitted file: missing or keyless answers failed, strays are ignored", () => {
+    const ok = (id: string) => ({ id, key: `import:${id}`, outputDir: `/out/${id}`, error: null });
+    const outcome = commitOutcome(["a", "b", "c", "d"], [
+      ok("a"),
+      { id: "b", key: "", outputDir: null, error: "disk_full" },
+      { id: "c", key: "", outputDir: null, error: null },
+      ok("stray")
+    ], "sem resposta");
+    expect(outcome.keys).toEqual(["import:a"]);
+    expect([...outcome.failed]).toEqual([["b", "disk_full"], ["c", "sem resposta"], ["d", "sem resposta"]]);
+    expect(commitOutcome(["a"], [ok("a")], "x")).toEqual({ keys: ["import:a"], failed: new Map() });
+  });
+
   it("turns an edited draft into the commit item", () => {
     const draft = { ...draftFromPreview(preview({ id: "a" }), null), title: "  Pardal ", author: " Eu ", seriesName: " Unsheathed ", volume: "2,5" };
     expect(commitItemOf(draft, new Uint8Array([137, 80]))).toEqual({
@@ -161,6 +185,23 @@ describe("import drafts", () => {
     expect(commitItemOf({ ...draft, seriesName: "" }, null)).toMatchObject({ series: null, coverPng: null });
     expect(coverTextOf(draft)).toEqual({ series: "Unsheathed", volume: 2.5, subtitle: "Pardal" });
     expect(coverTextOf({ ...draft, seriesName: "" })).toEqual({ series: "Pardal", volume: null, subtitle: "" });
+  });
+});
+
+describe("useSettledValue (generated cover redraw)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("gives the first value at once and later ones only after the typing stops", () => {
+    vi.useFakeTimers();
+    const { result, rerender } = renderHook(({ text }) => useSettledValue({ text }, text, 250), { initialProps: { text: "P" } });
+    expect(result.current).toEqual({ text: "P" });
+    rerender({ text: "Pa" });
+    act(() => void vi.advanceTimersByTime(200));
+    rerender({ text: "Par" });
+    act(() => void vi.advanceTimersByTime(200));
+    expect(result.current).toEqual({ text: "P" });
+    act(() => void vi.advanceTimersByTime(50));
+    expect(result.current).toEqual({ text: "Par" });
   });
 });
 

@@ -1,7 +1,10 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AccountClient, AccountUser } from "../services/accountClient";
-import { useSocial } from "../features/social/useSocial";
+import { RecommendDialog } from "../features/social/RecommendDialog";
+import { canRecommend } from "../features/social/socialEnv";
+import { useSocial, type SocialController } from "../features/social/useSocial";
+import { ToastProvider } from "../ui";
 
 const me: AccountUser = { publicId: "me", email: "a@b.com", nickname: "leitor", avatarId: null, avatarColor: null, createdAt: "", needsProfile: false };
 const ana = { publicId: "ana", nickname: "ana", avatarId: null, avatarColor: null };
@@ -109,5 +112,24 @@ describe("readingNow (Início › Amigos estão lendo)", () => {
     ]);
     expect(books.map((book) => book.novelId)).toEqual(["x"]);
     expect(books[0].readers.map((reader) => reader.nickname).sort()).toEqual(["ana", "bia"]);
+  });
+});
+
+describe("Indicar", () => {
+  const imported = `import:${"ab".repeat(32)}`;
+  const social = { conversations: [], friends: { friends: [ana] }, send: vi.fn() } as unknown as SocialController;
+
+  it("is never offered for an imported EPUB, which is always private", () => {
+    expect(canRecommend(imported)).toBe(false);
+    expect(canRecommend("cn:1")).toBe(true);
+
+    const { rerender } = render(
+      <ToastProvider><RecommendDialog social={social} book={{ novelId: imported, snapshot: { novelId: imported, title: "Meu EPUB" } }} onClose={() => undefined} /></ToastProvider>
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    rerender(
+      <ToastProvider><RecommendDialog social={social} book={{ novelId: "cn:1", snapshot: { novelId: "cn:1", title: "Shadow Slave" } }} onClose={() => undefined} /></ToastProvider>
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("Shadow Slave");
   });
 });

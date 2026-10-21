@@ -5,7 +5,7 @@ import type { FriendLibrary, FriendLibraryEntry } from "../../services/socialCli
 import { socialStrings as t } from "../../strings/social";
 import { Avatar, Button, Cover, DropdownMenu, EmptyState, IconButton, Skeleton, StarRating } from "../../ui";
 import type { PersonActions } from "./PeopleColumn";
-import { errorMessage, longDate, useSocialEnv } from "./socialEnv";
+import { canRecommend, errorMessage, longDate, useSocialEnv } from "./socialEnv";
 
 const SHELVES = ["completed", "paused", "unread", "dropped"] as const;
 
@@ -133,7 +133,9 @@ export function FriendProfile({ publicId, actions }: { publicId: string; actions
                           <div className="social-reading__actions">
                             {!mine && novel ? <Button variant="primary" size="sm" icon={<Plus />} onClick={() => env.addToLibrary(novel)}>{t.addShort}</Button> : null}
                             {novel ? <Button variant="glass" size="sm" onClick={() => env.openBook(novel)}>{t.open}</Button> : null}
-                            <IconButton label={`${t.recommend}: ${title}`} icon={<Send />} size="sm" variant="ghost" onClick={() => recommend(entry, novel)} />
+                            {canRecommend(entry.novelId) ? (
+                              <IconButton label={`${t.recommend}: ${title}`} icon={<Send />} size="sm" variant="ghost" onClick={() => recommend(entry, novel)} />
+                            ) : null}
                           </div>
                         </div>
                       </li>
@@ -163,7 +165,9 @@ export function FriendProfile({ publicId, actions }: { publicId: string; actions
                             {!mine && novel ? (
                               <IconButton label={`${t.addToLibrary}: ${title}`} icon={<Plus />} size="sm" variant="glass" onClick={() => env.addToLibrary(novel)} />
                             ) : null}
-                            <IconButton label={`${t.recommend}: ${title}`} icon={<Send />} size="sm" variant="glass" onClick={() => recommend(entry, novel)} />
+                            {canRecommend(entry.novelId) ? (
+                              <IconButton label={`${t.recommend}: ${title}`} icon={<Send />} size="sm" variant="glass" onClick={() => recommend(entry, novel)} />
+                            ) : null}
                           </span>
                         </div>
                         <span className="social-shelf__title" title={title}>{title}</span>
