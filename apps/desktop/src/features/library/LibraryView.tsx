@@ -12,6 +12,7 @@ import { LibraryFilterBar } from "./LibraryHeader";
 import { bookJobState, isShelf, type LibraryStack } from "./libraryModel";
 import { SeriesDetails } from "./SeriesDetails";
 import { stackLibrary, volumesOf } from "./seriesModel";
+import type { AccountFilesController } from "./useAccountFiles";
 import { useBookActions } from "./useBookActions";
 import { canRedownload, type LibraryController } from "./useLibraryController";
 import "./library.css";
@@ -26,6 +27,8 @@ type LibraryViewProps = {
   catalogIndex?: CatalogIndex | null;
   /** "Indicar a um amigo…" (signed in, with friends). */
   recommend?: (item: LibraryItem) => void;
+  /** Imported books and the account: badges, "Tentar de novo" and "Baixar da conta". */
+  accountFiles?: AccountFilesController;
 };
 
 function LoadingGrid() {
@@ -43,7 +46,7 @@ function LoadingGrid() {
 }
 
 /** Library page: browse (grid or list), with `?book=<id>` the book details, with `?series=<id>` the series page. */
-export function LibraryView({ library, activeJob, queuedJobs, loading, navigate, catalogIndex, recommend }: LibraryViewProps) {
+export function LibraryView({ library, activeJob, queuedJobs, loading, navigate, catalogIndex, recommend, accountFiles }: LibraryViewProps) {
   const navigation = useNavigation();
   const detailId = typeof navigation.params.book === "string" ? navigation.params.book : null;
   const detailItem = detailId ? library.allLibrary.find((item) => item.id === detailId) ?? null : null;
@@ -137,7 +140,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
       : null;
   }, [browse, separated, stacks]);
 
-  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions, stackMenuItem, recommend });
+  const actions = useBookActions({ library, canRedownload, isBusy, onOpenDetails: openDetails, editionsOf: findEditions, stackMenuItem, recommend, accountFiles });
 
   // The book left the library (removed or deleted): go back to the grid.
   useEffect(() => {

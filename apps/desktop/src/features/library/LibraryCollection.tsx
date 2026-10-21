@@ -1,10 +1,11 @@
-import { AlertTriangle, ChevronRight, CloudDownload, FolderOpen, Layers, Library, MoreVertical } from "lucide-react";
+import { ChevronRight, CloudDownload, FolderOpen, Layers, Library, MoreVertical } from "lucide-react";
 import { Fragment, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 import { librarySeriesStrings } from "../../strings/librarySeries";
 import { Badge, Cover, DropdownMenu, IconButton, StackSpread, StarRating, cx, type MenuItem, type MenuPoint } from "../../ui";
-import { editionLabel, FavoriteToggle, JobBadge, ShelfBadge, TranslationBadge } from "./libraryBadges";
+import { accountBadgeState } from "./AccountFileBadge";
+import { AccountBadge, editionLabel, FavoriteToggle, JobBadge, ShelfBadge, ShelfRowBadge, TranslationBadge } from "./libraryBadges";
 import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, type BookJobState, type LibraryStack, type LibraryViewMode } from "./libraryModel";
 import { seriesAuthor } from "./seriesModel";
 import { ReadingStatusLabel } from "./ReadingStatus";
@@ -125,12 +126,8 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
         </div>
         <div className="library-row__formats">
           <TranslationBadge item={item} />
-          {isShelf(item) ? (
-            <Badge tone={item.unavailable ? "warning" : "neutral"} title={item.unavailable ? libraryStrings.unavailableHint : libraryStrings.onShelfHint}>
-              {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
-              {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
-            </Badge>
-          ) : formatsOf(item).map((format) => <Badge key={format}>{format}</Badge>)}
+          <AccountBadge items={[item]} actions={actions} />
+          {isShelf(item) ? <ShelfRowBadge item={item} /> : formatsOf(item).map((format) => <Badge key={format}>{format}</Badge>)}
         </div>
         <span className="library-row__num">{isShelf(item) ? "—" : libraryStrings.size(item.sizeMb)}</span>
         <span className="library-row__date">{formatDownloadedAt(item)}</span>
@@ -138,7 +135,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
           <FavoriteToggle item={item} actions={actions} className="library-row__favorite" variant="ghost" />
           {isShelf(item) ? (
             <IconButton
-              label={`${libraryStrings.download}: ${item.title}`}
+              label={`${actions.downloadLabel(item)}: ${item.title}`}
               icon={<CloudDownload />}
               size="sm"
               onClick={() => actions.download(item)}
@@ -198,6 +195,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
           <StarRating size="xs" value={item.rating} compact />
         </div>
         <div className="library-row__formats">
+          {series ? <AccountBadge items={stack.items} actions={actions} /> : null}
           {formats.map((format) => <Badge key={format}>{format}</Badge>)}
         </div>
         <span className="library-row__num">{size ? libraryStrings.size(size) : "—"}</span>
@@ -223,6 +221,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
             const series = stack.series;
             // A stack is named after the work (the original's title, not "… (PT-BR)"), a series after itself.
             const workTitle = series?.name ?? (editions > 1 ? stack.items.find((edition) => !edition.language)?.title ?? item.title : item.title);
+            const accountItems = series ? stack.items : [item];
             return (
               <li key={stack.key} className="library-grid__cell">
                 <article
@@ -248,9 +247,10 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                     {isShelf(item)
                       ? <ShelfBadge item={item} />
                       : <span className="library-tile__formats" title={formatsOf(item).join(", ")}>{formatSummary(item)}</span>}
-                    {state || isTranslated(item) || item.newChapters ? (
+                    {state || isTranslated(item) || item.newChapters || accountBadgeState(accountItems, actions.accountState) ? (
                       <div className="library-tile__flags">
                         {state ? <JobBadge state={state} /> : null}
+                        <AccountBadge items={accountItems} actions={actions} />
                         <TranslationBadge item={item} />
                         {!state && item.newChapters ? (
                           <Badge tone="accent" data-testid="library-new-chapters" title={libraryStrings.newChaptersHint(item.newChapters)}>

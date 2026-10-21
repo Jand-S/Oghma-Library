@@ -4,7 +4,7 @@ import type { BookSeries, LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 import { librarySeriesStrings as strings } from "../../strings/librarySeries";
 import { Badge, Button, Cover, DropdownMenu, IconButton, ListGroup, cx } from "../../ui";
-import { JobBadge } from "./libraryBadges";
+import { AccountBadge, JobBadge, shelfLabel } from "./libraryBadges";
 import { formatSummary, isShelf, type BookJobState } from "./libraryModel";
 import { ReadingStatusLabel } from "./ReadingStatus";
 import { seriesAuthor } from "./seriesModel";
@@ -88,14 +88,19 @@ export function SeriesDetails({ series, volumes, actions, jobState, onOpen, onSe
                     <strong className="library-volume__title">{item.title}</strong>
                     <span className="library-volume__meta">
                       {state ? <JobBadge state={state} /> : null}
+                      <AccountBadge items={[item]} actions={actions} />
                       <ReadingStatusLabel status={item.readingStatus} />
                     </span>
                   </span>
                 </button>
                 <div className="library-volume__side">
-                  {shelf ? <Badge><CloudDownload aria-hidden="true" />{libraryStrings.onShelfBadge}</Badge> : <Badge>{formatSummary(item)}</Badge>}
+                  {shelf ? <Badge><CloudDownload aria-hidden="true" />{shelfLabel(item)}</Badge> : <Badge>{formatSummary(item)}</Badge>}
                   <div className="library-volume__actions">
-                    <Button size="sm" variant="outline" icon={<BookOpen />} onClick={() => onOpen(item)}>{strings.open}</Button>
+                    {shelf ? (
+                      <Button size="sm" variant="outline" icon={<CloudDownload />} onClick={() => actions.download(item)} disabled={Boolean(actions.redownloadDisabledReason(item))}>
+                        {actions.downloadLabel(item)}
+                      </Button>
+                    ) : <Button size="sm" variant="outline" icon={<BookOpen />} onClick={() => onOpen(item)}>{strings.open}</Button>}
                     <IconButton
                       label={strings.sendVolume(item.title)}
                       icon={<Send />}

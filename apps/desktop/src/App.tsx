@@ -15,6 +15,7 @@ import { useDiscoverController } from "./features/discover/useDiscoverController
 import { useDownloadsController } from "./features/downloads/useDownloadsController";
 import { useLibraryController } from "./features/library/useLibraryController";
 import { ImportSheet } from "./features/library/ImportSheet";
+import { useAccountFiles } from "./features/library/useAccountFiles";
 import { useEpubImport } from "./features/library/useEpubImport";
 import { useOnboardingController } from "./features/onboarding/useOnboardingController";
 import { useSettingsController } from "./features/settings/useSettingsController";
@@ -217,8 +218,10 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     notify,
     toast
   });
+  // Imported books go to the account in the background (after an import and after each sync).
+  const accountFiles = useAccountFiles({ signedIn: oghmaAccount.signedIn, lastSyncAt: oghmaAccount.sync.lastSyncAt, library, refreshLibrary: refreshLocalLibrary, notify, api: importApi });
   // "Importar EPUB" and files dropped on the window (any page) open the same preview sheet.
-  const epubImport = useEpubImport({ catalogIndex: discover.catalogIndex, refreshLibrary: refreshLocalLibrary, notify, api: importApi });
+  const epubImport = useEpubImport({ catalogIndex: discover.catalogIndex, refreshLibrary: refreshLocalLibrary, notify, api: importApi, onImported: accountFiles.upload });
   const sourcesController = useSourcesController({ backend, sources, setSources, setAppConfig, notify });
 
   // A book removed on another computer but downloaded here leaves this library too (it goes to
@@ -292,7 +295,8 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     openAccountSheet,
     social,
     recommendBook,
-    epubImport
+    epubImport,
+    accountFiles
   };
 
   // Once boot settles, warm the lazily loaded view chunks so navigation stays instant.

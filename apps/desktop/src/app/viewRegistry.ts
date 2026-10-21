@@ -13,6 +13,7 @@ import type { DownloadsController } from "../features/downloads/useDownloadsCont
 import { downloadsHeader } from "../features/downloads/DownloadsHeader";
 import { libraryHeader } from "../features/library/LibraryHeader";
 import type { LibraryController } from "../features/library/useLibraryController";
+import type { AccountFilesController } from "../features/library/useAccountFiles";
 import type { EpubImportController } from "../features/library/useEpubImport";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
@@ -89,6 +90,8 @@ export type AppControllers = {
   recommendBook: (book: { novelId: string; snapshot: BookSnapshot }) => void;
   /** "Importar EPUB" (the preview sheet lives in App, so a drop works on any page). */
   epubImport: EpubImportController;
+  /** Imported books and the account: upload badges, "Baixar da conta" and the quota. */
+  accountFiles: AccountFilesController;
 };
 
 export type ViewProps = { app: AppControllers };
@@ -225,6 +228,7 @@ function LibraryPage({ app }: ViewProps) {
     loading: app.loading,
     navigate: app.navigate,
     catalogIndex: app.discover.catalogIndex,
+    accountFiles: app.accountFiles,
     recommend: app.social.available && app.social.friends.friends.length
       ? (item: LibraryItem) => {
         const novel = item.novelId ? app.discover.catalogIndex?.byId.get(item.novelId) : undefined;
@@ -291,6 +295,7 @@ function SettingsPage({ app }: ViewProps) {
     onNavigate: (view: AppView) => app.navigate(view),
     account: app.account,
     oghmaAccount: app.oghmaAccount,
+    importedUsage: app.accountFiles.available ? app.accountFiles.usage : undefined,
     socialAvailable: app.social.available,
     onOpenAccountSheet: app.openAccountSheet,
     onRetryAccount: () => void app.translation.refreshAccount(),

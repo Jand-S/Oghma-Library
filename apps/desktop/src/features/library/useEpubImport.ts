@@ -15,6 +15,8 @@ type EpubImportArgs = {
   api?: ImportApi;
   /** Typographic cover (canvas); tests pass a fake. */
   drawCover?: (text: CoverText) => GeneratedCover | null;
+  /** The keys (`import:<sha>`) just written: they go up to the account in the background. */
+  onImported?: (keys: string[]) => void;
 };
 
 export type EpubImportController = {
@@ -40,7 +42,7 @@ export type EpubImportController = {
  * window open the same preview sheet; "Importar N livros" writes the books and rescans the
  * library. Lives at the app level so a drop works on any page.
  */
-export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defaultApi, drawCover = drawImportCover }: EpubImportArgs): EpubImportController {
+export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defaultApi, drawCover = drawImportCover, onImported }: EpubImportArgs): EpubImportController {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -121,7 +123,10 @@ export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defa
       const results = await api.commit(items);
       const failed = new Map(results.filter((result) => result.error).map((result) => [result.id, result.error!]));
       const done = results.length - failed.size;
-      if (done > 0) refreshLibrary();
+      if (done > 0) {
+        refreshLibrary();
+        onImported?.(results.filter((result) => !result.error).map((result) => result.key));
+      }
       if (!failed.size) {
         notify(importEpubStrings.imported(done), "success");
         setOpen(false);
@@ -138,7 +143,7 @@ export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defa
     } finally {
       setCommitting(false);
     }
-  }, [api, committing, drafts, drawCover, notify, refreshLibrary]);
+  }, [api, committing, drafts, drawCover, notify, onImported, refreshLibrary]);
 
   return {
     available: api.available,

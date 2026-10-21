@@ -1,9 +1,12 @@
 // Small pieces shared by the library cards, rows and pages (badges, the favorite heart).
 import { AlertTriangle, CloudDownload, Heart, Languages } from "lucide-react";
 import type { LibraryItem } from "../../core/types";
+import { accountFilesStrings } from "../../strings/accountFiles";
 import { libraryStrings } from "../../strings/library";
 import { Badge, IconButton, Spinner, cx } from "../../ui";
+import { AccountFileBadge } from "./AccountFileBadge";
 import { isTranslated, jobLabel, type BookJobState } from "./libraryModel";
+import { isImported } from "./seriesModel";
 import type { BookActions } from "./useBookActions";
 
 export function JobBadge({ state, className }: { state: BookJobState; className?: string }) {
@@ -32,18 +35,39 @@ export function TranslationBadge({ item, className }: { item: LibraryItem; class
   );
 }
 
+/** A book without files here: "Na estante" (catalog) or "Na conta" (imported, kept in the account). */
+export function shelfLabel(item: LibraryItem) {
+  return isImported(item) ? accountFilesStrings.inAccount : libraryStrings.onShelfBadge;
+}
+
+function shelfHint(item: LibraryItem) {
+  if (item.unavailable) return libraryStrings.unavailableHint;
+  return isImported(item) ? accountFilesStrings.shelfHint : libraryStrings.onShelfHint;
+}
+
 /** Cloud badge on books kept in the library without files; a warning when the source left. */
 export function ShelfBadge({ item }: { item: LibraryItem }) {
   return (
-    <span
-      className="library-tile__formats library-tile__shelf"
-      title={item.unavailable ? libraryStrings.unavailableHint : libraryStrings.onShelfHint}
-      data-testid="library-shelf-badge"
-    >
+    <span className="library-tile__formats library-tile__shelf" title={shelfHint(item)} data-testid="library-shelf-badge">
       {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
-      {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
+      {item.unavailable ? libraryStrings.unavailableBadge : shelfLabel(item)}
     </span>
   );
+}
+
+/** The same, as a list-row badge. */
+export function ShelfRowBadge({ item }: { item: LibraryItem }) {
+  return (
+    <Badge tone={item.unavailable ? "warning" : "neutral"} title={shelfHint(item)}>
+      {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
+      {item.unavailable ? libraryStrings.unavailableBadge : shelfLabel(item)}
+    </Badge>
+  );
+}
+
+/** Account state of imported books (one book, or every volume of a series card). */
+export function AccountBadge({ items, actions }: { items: LibraryItem[]; actions: BookActions }) {
+  return <AccountFileBadge items={items} stateOf={actions.accountState} onRetry={actions.retryUpload} />;
 }
 
 /** One-click favorite: a heart that shows on hover and stays (filled) on favorite books. */

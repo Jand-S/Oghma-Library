@@ -1,0 +1,8 @@
+@import "../../styles/layers.css";
+
+@layer features {
+  /* Ajustes › Conta: the quota of imported books, a short meter at the end of the row. */
+  .imported-usage__meter {
+    width: calc(var(--space-8) * 2);
+  }
+}

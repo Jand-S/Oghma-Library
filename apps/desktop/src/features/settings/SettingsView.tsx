@@ -25,6 +25,7 @@ import { ChatGptAccountCard } from "../account/ChatGptAccount";
 import { OghmaAccountSection } from "../account/OghmaAccountSection";
 import type { AccountSheetStep } from "../account/AccountSheet";
 import type { OghmaAccountController } from "../account/useOghmaAccount";
+import type { AccountFilesUsage } from "../../services/importClient";
 import { oghmaAccountStrings } from "../../strings/oghmaAccount";
 import { SectionHeader } from "../../ui";
 import "./settings.css";
@@ -66,6 +67,8 @@ export type SettingsViewProps = {
   oghmaAccount?: OghmaAccountController;
   /** Signed in to a server with the social side (privacy switches in Conta). */
   socialAvailable?: boolean;
+  /** "Livros importados: X de Y" in Conta (desktop app). */
+  importedUsage?: () => Promise<AccountFilesUsage>;
   onOpenAccountSheet?: (step: AccountSheetStep) => void;
   onRetryAccount?: () => void;
   initialCategory?: SettingsCategory;
@@ -130,6 +133,7 @@ export function SettingsView(props: SettingsViewProps) {
                 account={props.oghmaAccount}
                 onOpenSheet={(step) => props.onOpenAccountSheet?.(step)}
                 socialAvailable={props.socialAvailable}
+                importedUsage={props.importedUsage}
               />
             </section>
           ) : null}
