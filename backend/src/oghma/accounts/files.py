@@ -35,6 +35,7 @@ class FileStore(Protocol):
     def presign_get(self, key: str, expires: int) -> str: ...
     def size(self, key: str) -> int | None: ...
     def delete(self, key: str) -> None: ...
+    def list_keys(self, prefix: str) -> list[str]: ...
 
 
 class S3FileStore:
@@ -79,6 +80,11 @@ class S3FileStore:
 
     def delete(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
+
+    def list_keys(self, prefix: str) -> list[str]:
+        """Todas as chaves sob `prefix` (a limpeza procura objetos de contas apagadas)."""
+        pages = self.client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix)
+        return [item["Key"] for page in pages for item in page.get("Contents", [])]
 
 
 def object_key(user_id: int, sha256: str, kind: str, ext: str) -> str:

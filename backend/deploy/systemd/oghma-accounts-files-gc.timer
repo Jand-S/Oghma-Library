@@ -1,0 +1,10 @@
+[Unit]
+Description=Oghma: limpeza diaria dos arquivos orfaos da conta
+
+[Timer]
+OnCalendar=*-*-* 07:30:00 UTC
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
