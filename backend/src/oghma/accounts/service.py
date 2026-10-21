@@ -13,6 +13,8 @@ from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import AccountSettings
+from .errors import AccountError
+from .library_entries import clean_entry, entry_out, wire_key
 from .models import (
     AccountActivity,
     AccountBlock,
@@ -26,24 +28,9 @@ from .models import (
 from .profile import AVATAR_COLORS, AVATAR_IDS, nickname_key, nickname_problem, nickname_suggestions
 
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
-READING_STATUSES = {"unread", "reading", "paused", "completed", "dropped"}
-MAX_TAGS = 30
-MAX_TAG_LEN = 40
-MAX_SNAPSHOT_TEXT = 600
-NOVEL_KEY_PREFIX = "novel:"
 ACTIVITY_DAYS = 90
 # Mudanças mais velhas que isso (a primeira sincronização de uma biblioteca, por exemplo) não viram atividade.
 ACTIVITY_FRESH_MS = 48 * 3600 * 1000
-
-
-class AccountError(Exception):
-    """Erro com código estável (o app traduz) e status HTTP."""
-
-    def __init__(self, code: str, status: int = 400, **extra: Any) -> None:
-        super().__init__(code)
-        self.code = code
-        self.status = status
-        self.extra = extra
 
 
 def utcnow() -> datetime:
@@ -413,87 +400,6 @@ async def bump_social(db: AsyncSession, *user_ids: int) -> None:
 # ---------- Biblioteca ----------
 
 
-def _clean_text(value: Any, limit: int) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text[:limit] if text else None
-
-
-def clean_entry(raw: dict[str, Any]) -> tuple[str, dict[str, Any], int, int | None]:
-    """Valida uma linha vinda do app. Devolve (novel_id, dados, changed_at, deleted_at)."""
-    key = str(raw.get("key") or "")
-    if not key.startswith(NOVEL_KEY_PREFIX) or len(key) > 330:
-        raise AccountError("invalid_entry")
-    novel_id = key[len(NOVEL_KEY_PREFIX):]
-    if not novel_id:
-        raise AccountError("invalid_entry")
-    try:
-        changed_at = int(raw.get("changedAt") or 0)
-    except (TypeError, ValueError):
-        raise AccountError("invalid_entry") from None
-    if changed_at <= 0:
-        raise AccountError("invalid_entry")
-    deleted_at = raw.get("deletedAt")
-    deleted_at = int(deleted_at) if isinstance(deleted_at, (int, float)) and deleted_at > 0 else None
-    status = raw.get("readingStatus") if raw.get("readingStatus") in READING_STATUSES else "unread"
-    rating = raw.get("rating")
-    rating = int(rating) if isinstance(rating, (int, float)) and 1 <= int(rating) <= 5 else None
-    tags = [str(tag).strip()[:MAX_TAG_LEN] for tag in (raw.get("tags") or []) if str(tag).strip()][:MAX_TAGS]
-    snapshot = clean_snapshot(novel_id, raw.get("snapshot"))
-    added_at = raw.get("addedAt")
-    # A removed book keeps what the reader marked: bringing it back restores status, rating and tags.
-    data = {
-        "favorite": bool(raw.get("favorite")),
-        "readingStatus": status,
-        "rating": rating,
-        "tags": tags,
-        "onShelf": bool(raw.get("onShelf")) and deleted_at is None,
-        "addedAt": int(added_at) if isinstance(added_at, (int, float)) and added_at > 0 else None,
-        "snapshot": snapshot,
-        # "Só eu vejo": fora do perfil e da atividade que os amigos veem.
-        "private": bool(raw.get("private")),
-    }
-    return novel_id, data, changed_at, deleted_at
-
-
-def clean_snapshot(novel_id: str, snapshot_raw: Any) -> dict[str, Any] | None:
-    """Título, autor, fonte e capa do livro (o que o app mostra sem ter o livro no catálogo)."""
-    if not isinstance(snapshot_raw, dict) or not snapshot_raw:
-        return None
-    snapshot = {
-        "novelId": novel_id,
-        "title": _clean_text(snapshot_raw.get("title"), 300) or novel_id,
-        "author": _clean_text(snapshot_raw.get("author"), 200),
-        "sourceId": _clean_text(snapshot_raw.get("sourceId"), 64),
-        "sourceName": _clean_text(snapshot_raw.get("sourceName"), 120),
-        "coverUrl": _clean_text(snapshot_raw.get("coverUrl"), 700) if str(snapshot_raw.get("coverUrl") or "").startswith("https://") else None,
-        "chapters": int(snapshot_raw["chapters"]) if isinstance(snapshot_raw.get("chapters"), (int, float)) else None,
-        "description": _clean_text(snapshot_raw.get("description"), MAX_SNAPSHOT_TEXT),
-    }
-    return {k: v for k, v in snapshot.items() if v is not None}
-
-
-def entry_out(entry: AccountLibraryEntry) -> dict[str, Any]:
-    data = entry.data or {}
-    return {
-        "key": f"{NOVEL_KEY_PREFIX}{entry.novel_id}",
-        "favorite": bool(data.get("favorite")),
-        "readingStatus": data.get("readingStatus") or "unread",
-        "rating": data.get("rating"),
-        "tags": data.get("tags") or [],
-        # Ocultar é por dispositivo: nunca vem da conta.
-        "hidden": False,
-        "onShelf": bool(data.get("onShelf")),
-        "addedAt": data.get("addedAt"),
-        "snapshot": data.get("snapshot"),
-        "private": bool(data.get("private")),
-        "changedAt": entry.changed_at,
-        "deletedAt": entry.deleted_at,
-        "seq": entry.seq,
-    }
-
-
 async def pull_library(db: AsyncSession, user: AccountUser, since: int = 0, limit: int = 2000) -> dict[str, Any]:
     rows = (
         await db.execute(
@@ -564,7 +470,7 @@ async def push_library(
     now_ms = int(now.timestamp() * 1000)
     hidden_now: set[str] = set()
     for novel_id, data, changed_at, deleted_at in cleaned:
-        key = f"{NOVEL_KEY_PREFIX}{novel_id}"
+        key = wire_key(novel_id)
         row = existing.get(novel_id)
         if row is not None and row.changed_at == changed_at:
             # Already here (a resend after a lost reply): confirm it so the app stops resending.

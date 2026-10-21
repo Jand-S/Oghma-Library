@@ -1,0 +1,18 @@
+[Unit]
+Description=Oghma: limpeza dos arquivos órfãos da conta (EPUBs importados e capas)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=oghma
+# Mesma worktree e mesmo PYTHONPATH do oghma-accounts.service (o código da conta vem de lá).
+WorkingDirectory=/opt/oghma/accounts/backend
+EnvironmentFile=/opt/oghma/.env
+Environment=PYTHONPATH=/opt/oghma/accounts/backend/src
+ExecStart=/opt/oghma/venv/bin/python -m oghma.accounts.files_gc
+Nice=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

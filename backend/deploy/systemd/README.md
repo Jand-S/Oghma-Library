@@ -64,3 +64,51 @@ conta.oghma.dev {
 
 O app usa `https://conta.oghma.dev` como servidor da conta (Ajustes > Conta > Servidor; padrão
 em `apps/desktop/src/features/account/oghmaAccount.ts`).
+
+### Arquivos na conta (EPUBs importados)
+
+O app guarda na conta os EPUBs que a pessoa importou e as capas deles (contrato em
+`docs/IMPORT_EPUB.md`). O servidor nunca recebe o arquivo: entrega links assinados (PUT para
+enviar, GET para baixar) de um bucket S3 **privado** e confere o tamanho com um HEAD na
+confirmação. Chaves: `accounts/<user_id>/files/<sha>.epub` e `<sha>.cover.<ext>`. Sem bucket
+configurado, as rotas `/v1/me/files` respondem 503 `files_disabled` e o resto da conta segue.
+
+Variáveis novas no `/opt/oghma/.env` (só os nomes aqui; os valores ficam no `.env`):
+
+| Variável | Uso |
+|---|---|
+| `OGHMA_ACCOUNTS_FILES_BUCKET` | bucket privado só para isso (nunca o público nem o de backups). Vazio desliga o recurso |
+| `OGHMA_ACCOUNTS_S3_ENDPOINT` | endpoint S3 do provedor (ex.: o do B2 da região do bucket) |
+| `OGHMA_ACCOUNTS_S3_REGION` | região do bucket |
+| `OGHMA_ACCOUNTS_S3_ACCESS_KEY_ID` | application key restrita a esse bucket |
+| `OGHMA_ACCOUNTS_S3_SECRET_ACCESS_KEY` | segredo dessa key |
+| `OGHMA_ACCOUNTS_FILE_QUOTA_MB` | cota por conta (padrão 2048) |
+| `OGHMA_ACCOUNTS_MAX_FILE_MB` | tamanho máximo de um arquivo (padrão 200) |
+| `OGHMA_ACCOUNTS_FILE_URL_SECONDS` | validade dos links de envio e download (padrão 900) |
+
+A key precisa ler, gravar, apagar e listar o bucket (a limpeza lista `accounts/` para achar
+objetos de contas apagadas). O envio e o download partem do Rust do app, não do navegador, então
+o bucket não precisa de CORS. A tabela `account_file` é criada na partida do `oghma-accounts`.
+
+Limpeza (`oghma-accounts-files-gc`, todo dia às 07:30 UTC): apaga do bucket e da tabela os
+arquivos cujo `import:<sha>` não tem entrada viva na biblioteca há mais de 30 dias (tombstone
+antigo, ou nenhuma entrada desde a confirmação), os envios pendentes não confirmados com mais de
+1 dia e os objetos de contas que não existem mais. Uma falha no bucket mantém a linha para a noite
+seguinte (o serviço sai com erro e aparece no journal).
+
+Deploy (depois de atualizar a worktree `/opt/oghma/accounts` como acima):
+
+```bash
+# 1. Criar o bucket privado e a application key restrita a ele no provedor; pôr as variáveis no .env
+sudoedit /opt/oghma/.env
+systemctl restart oghma-accounts
+curl -s http://127.0.0.1:8096/health
+# 2. Limpeza diária
+cp /opt/oghma/accounts/backend/deploy/systemd/oghma-accounts-files-gc.service /opt/oghma/accounts/backend/deploy/systemd/oghma-accounts-files-gc.timer /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now oghma-accounts-files-gc.timer
+# 3. Conferir sem apagar nada (imprime as contagens em JSON), com o mesmo ambiente do serviço
+systemd-run --wait --pipe -p User=oghma -p EnvironmentFile=/opt/oghma/.env \
+  -p WorkingDirectory=/opt/oghma/accounts/backend -E PYTHONPATH=/opt/oghma/accounts/backend/src \
+  /opt/oghma/venv/bin/python -m oghma.accounts.files_gc --dry-run
+journalctl -u oghma-accounts-files-gc -n 20   # depois da primeira rodada
+```
