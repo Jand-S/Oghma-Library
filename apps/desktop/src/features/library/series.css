@@ -1,0 +1,156 @@
+@import "../../styles/layers.css";
+
+@layer features {
+  /* ---------- Series page: the pile of covers ---------- */
+
+  /* The first volume in front; the next ones peek out behind it, a little turned, like books on a desk. */
+  .library-series__fan {
+    --fan-width: calc(var(--space-8) * 3.25);
+    position: relative;
+    flex: 0 0 auto;
+    width: calc(var(--fan-width) + var(--space-3));
+    aspect-ratio: 2 / 3;
+  }
+
+  .library-series__fan[data-count="1"] {
+    width: var(--fan-width);
+  }
+
+  .library-series__fan-cover {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: var(--fan-width);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    transform:
+      translateX(calc(var(--fan-index) * var(--space-1-5)))
+      rotate(calc(var(--fan-index) * 3deg));
+    transform-origin: bottom left;
+    transition: transform var(--dur-base) var(--ease);
+  }
+
+  .library-series__fan-cover .o-cover {
+    border-radius: var(--radius-md);
+  }
+
+  .library-series__fan:hover .library-series__fan-cover {
+    transform:
+      translateX(calc(var(--fan-index) * var(--space-2)))
+      rotate(calc(var(--fan-index) * 5deg));
+  }
+
+  .library-series__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: calc(var(--space-8) * 16);
+    padding: var(--space-3);
+  }
+
+  /* ---------- One volume ---------- */
+  .library-volume {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1-5);
+  }
+
+  .library-volume + .library-volume {
+    border-top: var(--hairline) solid var(--separator);
+  }
+
+  .library-volume__open {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .library-volume__open:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .library-volume__text {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--space-0-5) / 2);
+    min-width: 0;
+  }
+
+  .library-volume__number {
+    color: var(--accent-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .library-volume__title {
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-volume__open:hover .library-volume__title {
+    color: var(--accent-text);
+  }
+
+  .library-volume__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+  }
+
+  .library-volume__side {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+  }
+
+  .library-volume__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-0-5);
+  }
+
+  .library-volume.is-shelf .o-cover {
+    opacity: 0.7;
+  }
+
+  /* ---------- Series card in the grid ---------- */
+  .library-tile__series {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0-5);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-medium);
+  }
+
+  .library-tile__series svg {
+    width: var(--fs-sm);
+    height: var(--fs-sm);
+  }
+
+  @media (max-width: 1280px) {
+    .library-series__fan {
+      --fan-width: calc(var(--space-8) * 2.75);
+    }
+  }
+}

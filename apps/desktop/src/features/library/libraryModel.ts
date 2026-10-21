@@ -1,4 +1,4 @@
-import type { DownloadFormat, DownloadJob, LibraryItem, LibraryReadingStatus } from "../../core/types";
+import type { BookSeries, DownloadFormat, DownloadJob, LibraryItem, LibraryReadingStatus } from "../../core/types";
 import { downloadFormats } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 
@@ -143,8 +143,11 @@ export function jobLabel(state: BookJobState) {
   return state.percent > 0 ? libraryStrings.updatingPercent(state.percent) : libraryStrings.updating;
 }
 
-/** Editions of one work shown as one card (a stack); `main` is the face of the card. */
-export type LibraryStack = { key: string; main: LibraryItem; items: LibraryItem[] };
+/**
+ * Editions of one work shown as one card (a stack); `main` is the face of the card. With
+ * `series`, the stack is the volumes of an imported series, in reading order (`stackLibrary`).
+ */
+export type LibraryStack = { key: string; main: LibraryItem; items: LibraryItem[]; series?: BookSeries };
 
 /**
  * Groups the (already filtered and sorted) books by work: the original, its PT-BR translation

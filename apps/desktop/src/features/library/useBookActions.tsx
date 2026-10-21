@@ -8,6 +8,7 @@ import { AppleLogo, Button, ConfirmationModal, Modal, StarRating, type MenuItem 
 import { ConvertDialog } from "./ConvertDialog";
 import { EditionsDialog } from "./EditionsDialog";
 import { isShelf } from "./libraryModel";
+import { isImported } from "./seriesModel";
 import { readingStatuses, ReadingStatusIcon } from "./ReadingStatus";
 import type { LibraryController } from "./useLibraryController";
 
@@ -81,7 +82,7 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
   /** Full menu for the grid/list context menu and ⋮ buttons. */
   /** "Só eu vejo" / "Mostrar para amigos" (catalog books, signed in with the social side). */
   const privacyItem = (item: LibraryItem): MenuItem | null =>
-    recommend && item.novelId && !item.language
+    recommend && item.novelId && !item.language && !isImported(item)
       ? {
         label: item.private ? socialStrings.privateBookOff : socialStrings.privateBook,
         icon: item.private ? <Users /> : <Lock />,
@@ -89,9 +90,9 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
       }
       : null;
 
-  /** "Indicar a um amigo…" for catalog books (translations are this computer's own). */
+  /** "Indicar a um amigo…" for catalog books (translations are this computer's own; imported books are always private). */
   const recommendItem = (item: LibraryItem): MenuItem | null =>
-    recommend && item.novelId && !item.language
+    recommend && item.novelId && !item.language && !isImported(item)
       ? { label: socialStrings.recommendAction, icon: <Send />, onSelect: () => recommend(item), separatorBefore: true }
       : null;
 

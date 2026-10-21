@@ -1,16 +1,23 @@
-import { AlertTriangle, ChevronRight, CloudDownload, FolderOpen, Heart, Languages, Layers, MoreVertical } from "lucide-react";
+import { AlertTriangle, ChevronRight, CloudDownload, FolderOpen, Layers, Library, MoreVertical } from "lucide-react";
 import { Fragment, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
-import { Badge, Cover, DropdownMenu, IconButton, Spinner, StackSpread, StarRating, cx, type MenuPoint } from "../../ui";
-import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, jobLabel, type BookJobState, type LibraryStack, type LibraryViewMode } from "./libraryModel";
+import { librarySeriesStrings } from "../../strings/librarySeries";
+import { Badge, Cover, DropdownMenu, IconButton, StackSpread, StarRating, cx, type MenuItem, type MenuPoint } from "../../ui";
+import { editionLabel, FavoriteToggle, JobBadge, ShelfBadge, TranslationBadge } from "./libraryBadges";
+import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, type BookJobState, type LibraryStack, type LibraryViewMode } from "./libraryModel";
+import { seriesAuthor } from "./seriesModel";
 import { ReadingStatusLabel } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
 
 type CollectionProps = {
   items: LibraryItem[];
-  /** Grid only: editions of the same work as one card (see `stackEditions`). */
+  /** Editions of the same work, and volumes of a series, as one card (see `stackLibrary`). */
   stacks?: LibraryStack[] | null;
+  /** A series card (or its list row) opens the series page. */
+  onOpenSeries?: (stack: LibraryStack) => void;
+  /** Menu of a series card: open it, send it to the Kindle. */
+  seriesMenu?: (stack: LibraryStack) => MenuItem[];
   view: LibraryViewMode;
   jobState: (item: LibraryItem) => BookJobState | null;
   actions: BookActions;
@@ -18,7 +25,7 @@ type CollectionProps = {
   onOpenFolder: (item: LibraryItem) => void;
 };
 
-type ContextState = { item: LibraryItem; position: MenuPoint } | null;
+type ContextState = { item: LibraryItem; stack?: LibraryStack; position: MenuPoint } | null;
 type SpreadState = { stack: LibraryStack; anchor: HTMLElement } | null;
 
 /** Clicks that bubble through React portals (menus, dialogs) must not open the book. */
@@ -33,71 +40,8 @@ function menuPoint(event: ReactMouseEvent<HTMLElement>): MenuPoint {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
-function JobBadge({ state, className }: { state: BookJobState; className?: string }) {
-  return (
-    <Badge tone={state.phase === "active" ? "accent" : "neutral"} className={className} data-testid="library-job-badge">
-      {state.phase === "active" ? <Spinner size="sm" /> : null}
-      {jobLabel(state)}
-    </Badge>
-  );
-}
-
-/** "PT-BR" (finished translation) or "Prévia 42%" (partial book). */
-export function TranslationBadge({ item, className }: { item: LibraryItem; className?: string }) {
-  if (!isTranslated(item)) return null;
-  const preview = item.translationProgress != null;
-  return (
-    <Badge
-      tone={preview ? "warning" : "accent"}
-      className={cx("library-lang", className)}
-      title={preview ? libraryStrings.previewBadgeTitle(item.translationProgress!) : libraryStrings.translatedBadgeTitle}
-      data-testid="library-translation-badge"
-    >
-      <Languages aria-hidden="true" />
-      <span className="library-lang__text">{preview ? libraryStrings.previewBadge(item.translationProgress!) : libraryStrings.translatedBadge}</span>
-    </Badge>
-  );
-}
-
-/** Cloud badge on books kept in the library without files; a warning when the source left. */
-function ShelfBadge({ item }: { item: LibraryItem }) {
-  return (
-    <span
-      className="library-tile__formats library-tile__shelf"
-      title={item.unavailable ? libraryStrings.unavailableHint : libraryStrings.onShelfHint}
-      data-testid="library-shelf-badge"
-    >
-      {item.unavailable ? <AlertTriangle aria-hidden="true" /> : <CloudDownload aria-hidden="true" />}
-      {item.unavailable ? libraryStrings.unavailableBadge : libraryStrings.onShelfBadge}
-    </span>
-  );
-}
-
-/** One-click favorite: a heart that shows on hover and stays (filled) on favorite books. */
-function FavoriteToggle({ item, actions, className, variant }: { item: LibraryItem; actions: BookActions; className: string; variant: "glass" | "ghost" }) {
-  return (
-    <span className={cx(className, item.favorite && "is-on")} data-card-control>
-      <IconButton
-        label={`${item.favorite ? libraryStrings.removeFavorite : libraryStrings.addFavorite}: ${item.title}`}
-        icon={<Heart />}
-        size="sm"
-        variant={variant}
-        aria-pressed={Boolean(item.favorite)}
-        data-testid="library-favorite-toggle"
-        onClick={() => actions.toggleFavorite(item)}
-      />
-    </span>
-  );
-}
-
-/** How an edition is named in a stack: its source, or "Tradução PT-BR". */
-function editionLabel(item: LibraryItem) {
-  if (item.language) return libraryStrings.translationEdition(item.language.toUpperCase());
-  return item.sourceName ?? libraryStrings.localSource;
-}
-
 /** Grid of covers or dense list, with a shared right-click menu. */
-export function LibraryCollection({ items, stacks, view, jobState, actions, onOpen, onOpenFolder }: CollectionProps) {
+export function LibraryCollection({ items, stacks, view, jobState, actions, onOpen, onOpenFolder, onOpenSeries, seriesMenu }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
   const [spread, setSpread] = useState<SpreadState>(null);
   // Stacks open in the list (their editions show as rows below).
@@ -110,37 +54,44 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
   });
   const cards: LibraryStack[] = stacks ?? items.map((item) => ({ key: item.id, main: item, items: [item] }));
 
-  const openContext = (item: LibraryItem) => (event: ReactMouseEvent<HTMLElement>) => {
+  const openContext = (item: LibraryItem, stack?: LibraryStack) => (event: ReactMouseEvent<HTMLElement>) => {
     event.preventDefault();
     if (!fromInside(event)) return;
-    setContext({ item, position: menuPoint(event) });
+    setContext({ item, stack: stack?.series ? stack : undefined, position: menuPoint(event) });
   };
+  /** A series card's menu is about the series; a book's is about the book. */
+  const menuOf = (item: LibraryItem, stack?: LibraryStack) =>
+    stack?.series && seriesMenu ? seriesMenu(stack) : actions.menuItems(item);
   const openItem = (item: LibraryItem) => (event: ReactMouseEvent<HTMLElement>) => {
     if (!fromInside(event)) return;
     if ((event.target as HTMLElement).closest("[data-card-control]")) return;
     onOpen(item);
   };
-  /** A stack opens its editions over the grid; a single book opens its details. */
+  /** A series opens its page; a stack opens its editions over the grid; a single book opens its details. */
   const openCard = (stack: LibraryStack) => (event: ReactMouseEvent<HTMLElement>) => {
     if (stack.items.length < 2) return openItem(stack.main)(event);
     if (!fromInside(event)) return;
     if ((event.target as HTMLElement).closest("[data-card-control]")) return;
+    if (stack.series && onOpenSeries) return onOpenSeries(stack);
     const anchor = event.currentTarget.querySelector<HTMLElement>(".library-tile__media");
     if (anchor) setSpread({ stack, anchor });
   };
 
-  const moreMenu = (item: LibraryItem, className: string, variant: "glass" | "ghost") => (
-    <span className={className} data-card-control>
-      <DropdownMenu
-        label={libraryStrings.cardActions(item.title)}
-        align="end"
-        items={actions.menuItems(item)}
-        trigger={<IconButton label={libraryStrings.cardActions(item.title)} icon={<MoreVertical />} size="sm" variant={variant} />}
-      />
-    </span>
-  );
+  const moreMenu = (item: LibraryItem, className: string, variant: "glass" | "ghost", stack?: LibraryStack) => {
+    const label = stack?.series ? librarySeriesStrings.seriesActions(stack.series.name) : libraryStrings.cardActions(item.title);
+    return (
+      <span className={className} data-card-control>
+        <DropdownMenu
+          label={label}
+          align="end"
+          items={menuOf(item, stack)}
+          trigger={<IconButton label={label} icon={<MoreVertical />} size="sm" variant={variant} />}
+        />
+      </span>
+    );
+  };
 
-  /** One list row: a book, or (`edition`) one edition inside an open stack. */
+  /** One list row: a book, or (`edition`) one edition or volume inside an open stack. */
   const renderRow = (item: LibraryItem, edition = false) => {
     const state = jobState(item);
     return (
@@ -158,7 +109,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
           </button>
           <span className="library-row__sub">
             {state ? <JobBadge state={state} /> : null}
-            {edition ? editionLabel(item) : item.author || item.sourceName || libraryStrings.localSource}
+            {edition && item.series ? librarySeriesStrings.volumeShort(item.series.volume) : edition ? editionLabel(item) : item.author || item.sourceName || libraryStrings.localSource}
           </span>
         </div>
         <div className="library-row__status">
@@ -202,10 +153,11 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
     );
   };
 
-  /** A stack in the list: one row for the work, with a chevron that shows its editions below. */
+  /** A stack in the list: one row for the work (or series), with a chevron that shows its editions (volumes) below. */
   const renderStackRow = (stack: LibraryStack, open: boolean) => {
     const item = stack.main;
-    const workTitle = stack.items.find((edition) => !edition.language)?.title ?? item.title;
+    const series = stack.series;
+    const workTitle = series?.name ?? stack.items.find((edition) => !edition.language)?.title ?? item.title;
     const formats = [...new Set(stack.items.flatMap((edition) => formatsOf(edition)))];
     const size = stack.items.filter((edition) => !isShelf(edition)).reduce((sum, edition) => sum + edition.sizeMb, 0);
     return (
@@ -218,7 +170,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
           if (!fromInside(event) || (event.target as HTMLElement).closest("[data-card-control]")) return;
           toggleExpanded(stack.key);
         }}
-        onContextMenu={openContext(item)}
+        onContextMenu={openContext(item, stack)}
       >
         <Cover src={item.coverUrl} title={workTitle} size="sm" />
         <div className="library-row__title">
@@ -227,14 +179,16 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
             className="library-row__name"
             data-testid="card-title"
             aria-expanded={open}
-            aria-label={libraryStrings.editionsOf(workTitle, stack.items.length)}
+            aria-label={series ? librarySeriesStrings.seriesOf(series.name, stack.items.length) : libraryStrings.editionsOf(workTitle, stack.items.length)}
           >
             <ChevronRight className="library-row__chevron" aria-hidden="true" />
             <span className="library-row__name-text">{workTitle}</span>
           </button>
           <span className="library-row__sub">
             <Layers aria-hidden="true" />
-            {[libraryStrings.editionsCount(stack.items.length), item.author].filter(Boolean).join(" · ")}
+            {series
+              ? [librarySeriesStrings.volumesCount(stack.items.length), seriesAuthor(stack.items)].filter(Boolean).join(" · ")
+              : [libraryStrings.editionsCount(stack.items.length), item.author].filter(Boolean).join(" · ")}
           </span>
         </div>
         <div className="library-row__status">
@@ -248,7 +202,12 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
         </div>
         <span className="library-row__num">{size ? libraryStrings.size(size) : "—"}</span>
         <span className="library-row__date">{formatDownloadedAt(item)}</span>
-        <div className="library-row__actions" />
+        <div className="library-row__actions" data-card-control={series ? true : undefined}>
+          {series && onOpenSeries ? (
+            <IconButton label={librarySeriesStrings.openSeriesOf(series.name)} icon={<Library />} size="sm" onClick={() => onOpenSeries(stack)} />
+          ) : null}
+          {series ? moreMenu(item, "library-row__menu", "ghost", stack) : null}
+        </div>
       </li>
     );
   };
@@ -261,8 +220,9 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
             const item = stack.main;
             const state = jobState(item);
             const editions = stack.items.length;
-            // A stack is named after the work (the original's title, not "… (PT-BR)").
-            const workTitle = editions > 1 ? stack.items.find((edition) => !edition.language)?.title ?? item.title : item.title;
+            const series = stack.series;
+            // A stack is named after the work (the original's title, not "… (PT-BR)"), a series after itself.
+            const workTitle = series?.name ?? (editions > 1 ? stack.items.find((edition) => !edition.language)?.title ?? item.title : item.title);
             return (
               <li key={stack.key} className="library-grid__cell">
                 <article
@@ -273,12 +233,14 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                     item.unavailable && "is-unavailable",
                     editions > 1 && "is-stack",
                     editions > 2 && "is-stack-deep",
+                    series && "is-series",
                     spread?.stack.key === stack.key && "is-spread"
                   )}
                   data-testid="library-card"
                   data-editions={editions > 1 ? editions : undefined}
+                  data-series={series?.id}
                   onClick={openCard(stack)}
-                  onContextMenu={openContext(item)}
+                  onContextMenu={openContext(item, stack)}
                 >
                   <div className="library-tile__media">
                     <Cover src={item.coverUrl} title={item.title} size="fill" sheen className="library-tile__cover" />
@@ -297,14 +259,14 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                         ) : null}
                       </div>
                     ) : null}
-                    <FavoriteToggle item={item} actions={actions} className="library-tile__favorite" variant="glass" />
+                    {series ? null : <FavoriteToggle item={item} actions={actions} className="library-tile__favorite" variant="glass" />}
                     {editions > 1 ? (
                       <span className="o-stack-count" data-testid="library-stack-count">
                         <Layers aria-hidden="true" />
-                        {libraryStrings.editionsCount(editions)}
+                        {series ? librarySeriesStrings.volumesCount(editions) : libraryStrings.editionsCount(editions)}
                       </span>
                     ) : null}
-                    {moreMenu(item, "library-tile__menu", "glass")}
+                    {moreMenu(item, "library-tile__menu", "glass", stack)}
                   </div>
                   <div className="library-tile__body">
                     <button
@@ -312,17 +274,25 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                       className="library-tile__title"
                       data-testid="card-title"
                       title={workTitle}
-                      aria-label={editions > 1 ? libraryStrings.editionsOf(workTitle, editions) : libraryStrings.openDetailsOf(item.title)}
-                      aria-haspopup={editions > 1 ? "dialog" : undefined}
+                      aria-label={series
+                        ? librarySeriesStrings.seriesOf(series.name, editions)
+                        : editions > 1 ? libraryStrings.editionsOf(workTitle, editions) : libraryStrings.openDetailsOf(item.title)}
+                      aria-haspopup={editions > 1 && !series ? "dialog" : undefined}
                     >
                       {workTitle}
                     </button>
                     <span className="library-tile__meta">
-                      {[item.author, item.chapters ? libraryStrings.chapters(item.chapters) : isShelf(item) ? "" : libraryStrings.size(item.sizeMb)]
+                      {(series
+                        ? [seriesAuthor(stack.items)]
+                        : [item.author, item.chapters ? libraryStrings.chapters(item.chapters) : isShelf(item) ? "" : libraryStrings.size(item.sizeMb)])
                         .filter(Boolean)
                         .join(" · ")}
                     </span>
-                    <div className="library-tile__footer">
+                    {series ? (
+                      <div className="library-tile__footer">
+                        <span className="library-tile__series"><Library aria-hidden="true" />{librarySeriesStrings.eyebrow}</span>
+                      </div>
+                    ) : <div className="library-tile__footer">
                       <ReadingStatusLabel status={item.readingStatus} />
                       <span className={cx("library-tile__rating", Boolean(item.rating) && "is-rated")} data-card-control>
                         <StarRating
@@ -332,7 +302,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                           onChange={(value) => actions.rate(item, value)}
                         />
                       </span>
-                    </div>
+                    </div>}
                   </div>
                 </article>
               </li>
@@ -390,8 +360,8 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
         />
       ) : null}
       <DropdownMenu
-        label={context ? libraryStrings.cardActions(context.item.title) : undefined}
-        items={context ? actions.menuItems(context.item) : []}
+        label={context?.stack?.series ? librarySeriesStrings.seriesActions(context.stack.series.name) : context ? libraryStrings.cardActions(context.item.title) : undefined}
+        items={context ? menuOf(context.item, context.stack) : []}
         open={Boolean(context)}
         position={context?.position ?? null}
         onClose={() => setContext(null)}

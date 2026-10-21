@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { LibraryItem } from "../core/types";
-import { TranslationBadge } from "../features/library/LibraryCollection";
+import { TranslationBadge } from "../features/library/libraryBadges";
 import { filterLibrary, isTranslated } from "../features/library/libraryModel";
 import { libraryStrings } from "../strings/library";
 

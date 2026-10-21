@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { AppConfig, BookSnapshot, DownloadFormat, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import { downloadFormats } from "../core/types";
+import { seriesOfSnapshot } from "../features/library/seriesModel";
 import { sanitizeFileName } from "../services/downloadManager";
 import {
   deleteLibraryMetadata,
@@ -116,7 +117,8 @@ function personalFields(meta: LibraryMeta) {
     personalTags: meta.tags,
     hidden: meta.hidden,
     addedAt: meta.addedAt ?? undefined,
-    private: meta.private ?? false
+    private: meta.private ?? false,
+    series: seriesOfSnapshot(meta.snapshot)
   };
 }
 

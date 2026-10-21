@@ -9,7 +9,7 @@ import { ReadingStatusLabel, ReadingStatusPicker } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
 import type { LibraryController } from "./useLibraryController";
 import { useNavigation } from "../../app/NavigationContext";
-import { TranslationBadge } from "./LibraryCollection";
+import { TranslationBadge } from "./libraryBadges";
 
 type LibraryDetailsProps = {
   item: LibraryItem;

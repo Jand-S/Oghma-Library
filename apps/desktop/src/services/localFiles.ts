@@ -191,7 +191,8 @@ export function mapLibraryRow(row: ExportLibraryRow, convertFileSrc: ConvertFile
     sourceChars: row.sourceChars ?? undefined,
     wordCount: row.wordCount ?? undefined,
     analysisFormat: row.analysisFormat ?? undefined,
-    language: row.language ?? undefined,
+    // An imported book's language is its own, not a translation's (that is what `language` means here).
+    language: isImportKey(row.novelId ?? "") ? undefined : row.language ?? undefined,
     sourceNovelId: row.sourceNovelId ?? undefined,
     author: row.author ?? undefined,
     translationProgress: row.translationProgress ?? undefined,
@@ -206,8 +207,14 @@ export function mapLibraryRow(row: ExportLibraryRow, convertFileSrc: ConvertFile
  */
 const novelIdByOutputDir = new Map<string, string>();
 
+/** Imported books are keyed by `import:<sha256>` everywhere (row, account, marker). */
+export function isImportKey(id: string): boolean {
+  return id.startsWith("import:");
+}
+
+/** `novel:<id>` for books of the catalog; an imported book's id already is its key. */
 export function novelMetaKey(novelId: string): string {
-  return `novel:${novelId}`;
+  return isImportKey(novelId) ? novelId : `novel:${novelId}`;
 }
 
 export async function listLocalLibrary(
