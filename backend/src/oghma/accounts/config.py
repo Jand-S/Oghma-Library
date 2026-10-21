@@ -30,6 +30,16 @@ class AccountSettings(BaseSettings):
     friend_requests_per_day: int = 30
     user_lookups_per_10min: int = 60
     messages_per_minute: int = 30
+    # Arquivos na conta (EPUBs importados e capas), num bucket S3 privado. Vazio desliga as rotas.
+    files_bucket: str = ""
+    s3_endpoint: str = ""
+    s3_region: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    file_quota_mb: int = 2048
+    max_file_mb: int = 200
+    # Validade dos links de envio e de download.
+    file_url_seconds: int = 900
 
 
 @lru_cache

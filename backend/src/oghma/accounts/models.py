@@ -154,3 +154,21 @@ class AccountActivity(AccountBase):
     snapshot: Mapped[dict | None] = mapped_column(JSON)
     rating: Mapped[int | None] = mapped_column(Integer)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AccountFile(AccountBase):
+    """Arquivo da pessoa no bucket (EPUB importado ou a capa dele). Pendente até a confirmação do envio."""
+
+    __tablename__ = "account_file"
+    __table_args__ = (UniqueConstraint("user_id", "sha256", "kind", name="uq_account_file_user_sha_kind"),)
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("account_user.id", ondelete="CASCADE"))
+    sha256: Mapped[str] = mapped_column(String(64))
+    # "epub" ou "cover".
+    kind: Mapped[str] = mapped_column(String(8))
+    ext: Mapped[str] = mapped_column(String(8))
+    size: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

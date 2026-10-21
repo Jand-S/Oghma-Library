@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from . import service, social
+from . import files, service, social
 from .config import AccountSettings, get_account_settings
 from .pages import BRAND_DIR, approval_page
 from .mailer import LogMailer, Mailer, ResendMailer
@@ -120,6 +120,7 @@ def create_app(
     settings: AccountSettings | None = None,
     mailer: Mailer | None = None,
     engine: AsyncEngine | None = None,
+    file_store: files.FileStore | None = None,
 ) -> FastAPI:
     settings = settings or get_account_settings()
     if not settings.secret or len(settings.secret) < 32:
@@ -127,6 +128,7 @@ def create_app(
     engine = engine or create_async_engine(settings.database_url, pool_pre_ping=True)
     sessions = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     mailer = mailer or make_mailer(settings)
+    file_store = file_store or (files.S3FileStore(settings) if settings.files_bucket else None)
     ip_limit = SlidingWindow(settings.ip_requests_per_10min, 600)
     lookup_limit = SlidingWindow(settings.user_lookups_per_10min, 600)
     request_limit = SlidingWindow(settings.friend_requests_per_day, 86400)
@@ -424,6 +426,7 @@ def create_app(
     ) -> dict[str, Any]:
         return await social.feed(db, user, before, limit)
 
+    files.register_routes(app, settings, file_store, current_user, get_db)
     return app
 
 
