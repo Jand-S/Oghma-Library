@@ -35,9 +35,11 @@ type AccountFileBadgeProps = {
   stateOf: StateOf;
   onRetry: (items: LibraryItem[]) => void;
   className?: string;
+  /** Inside another button (a card of the editions spread): "Não enviado" without "Tentar de novo". */
+  readOnly?: boolean;
 };
 
-export function AccountFileBadge({ items, stateOf, onRetry, className }: AccountFileBadgeProps) {
+export function AccountFileBadge({ items, stateOf, onRetry, className, readOnly = false }: AccountFileBadgeProps) {
   const state = accountBadgeState(items, stateOf);
   if (!state) return null;
   const percent = state.percent ?? null;
@@ -53,6 +55,7 @@ export function AccountFileBadge({ items, stateOf, onRetry, className }: Account
     case "uploaded":
       return <Badge {...common} title={s.inAccountHint}><Cloud aria-hidden="true" />{s.inAccount}</Badge>;
     case "failed":
+      if (readOnly) return <Badge tone="warning" {...common}><CloudAlert aria-hidden="true" />{s.notSent}</Badge>;
       return (
         <Badge tone="warning" {...common} data-card-control>
           <CloudAlert aria-hidden="true" />

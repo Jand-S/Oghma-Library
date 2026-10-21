@@ -66,8 +66,8 @@ export function ShelfRowBadge({ item }: { item: LibraryItem }) {
 }
 
 /** Account state of imported books (one book, or every volume of a series card). */
-export function AccountBadge({ items, actions }: { items: LibraryItem[]; actions: BookActions }) {
-  return <AccountFileBadge items={items} stateOf={actions.accountState} onRetry={actions.retryUpload} />;
+export function AccountBadge({ items, actions, readOnly }: { items: LibraryItem[]; actions: BookActions; readOnly?: boolean }) {
+  return <AccountFileBadge items={items} stateOf={actions.accountState} onRetry={actions.retryUpload} readOnly={readOnly} />;
 }
 
 /** One-click favorite: a heart that shows on hover and stays (filled) on favorite books. */

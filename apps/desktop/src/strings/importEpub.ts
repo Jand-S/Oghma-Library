@@ -3,6 +3,8 @@ import type { SeriesSource } from "../services/importClient";
 /** Importing the reader's own EPUBs (Biblioteca), pt-BR. */
 export const importEpubStrings = {
   button: "Importar EPUB",
+  dropTitle: "Solte para importar",
+  dropHint: "Os arquivos EPUB entram na Biblioteca. O original fica onde está.",
   sheetTitle: "Importar EPUB",
   sheetDescription: "Confira os dados antes de guardar. O arquivo original fica onde está.",
   loading: "Lendo os arquivos…",

@@ -16,7 +16,12 @@ mod kindle_mtp;
 mod kindle_mtp_mac;
 
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // macOS menu bar: the default menu plus "Importar EPUB…" (⌘O) in File. Windows and Linux
+    // have no menu bar (custom title bar); the webview handles Ctrl+O there.
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(import_epub::menu::app_menu);
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // Updates: checked and installed from the UI (signed with the Oghma key; see docs/RELEASE.md).
@@ -36,6 +41,7 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(import_epub::on_window_event)
+        .on_menu_event(import_epub::menu::on_menu_event)
         .invoke_handler(tauri::generate_handler![
             export_root::export_root_set,
             export_root::export_root_pick,

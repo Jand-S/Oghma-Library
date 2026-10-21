@@ -72,6 +72,10 @@ export type ImportApi = {
   usage(): Promise<AccountFilesUsage>;
   /** `.epub` files dropped anywhere on the window. */
   onDropped(handler: (files: PickedFile[]) => void): Promise<() => void>;
+  /** `true` while `.epub` files are dragged over the window, `false` when they leave or drop. */
+  onDragHover(handler: (active: boolean) => void): Promise<() => void>;
+  /** "Importar EPUB…" chosen in the macOS File menu (⌘O). */
+  onMenuImport(handler: () => void): Promise<() => void>;
   onFileProgress(handler: (progress: AccountFileProgress) => void): Promise<() => void>;
 };
 
@@ -99,5 +103,7 @@ export const importApi: ImportApi = {
   download: (key, title) => call<DownloadResult>("account_file_download", { key, title }),
   usage: () => call<AccountFilesUsage>("account_files_usage"),
   onDropped: (handler) => listenTo<PickedFile[]>("import-epub-dropped", handler),
+  onDragHover: (handler) => listenTo<boolean>("import-epub-drag", (active) => handler(active === true)),
+  onMenuImport: (handler) => listenTo<null>("import-epub-menu", () => handler()),
   onFileProgress: (handler) => listenTo<AccountFileProgress>("account-file-progress", handler)
 };

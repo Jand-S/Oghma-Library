@@ -108,6 +108,27 @@ describe("importApi", () => {
     expect(listenMock).toHaveBeenLastCalledWith("account-file-progress", expect.any(Function));
   });
 
+  it("listens to the drag-over state and the File menu's \"Importar EPUB…\"", async () => {
+    const hover = vi.fn();
+    const menu = vi.fn();
+    (await importApi.onDragHover(hover))();
+    (await importApi.onMenuImport(menu))();
+    expect(listenMock).not.toHaveBeenCalled();
+
+    setTauri(true);
+    listenMock.mockResolvedValue(vi.fn());
+    await importApi.onDragHover(hover);
+    expect(listenMock).toHaveBeenLastCalledWith("import-epub-drag", expect.any(Function));
+    listenMock.mock.calls[0][1]({ payload: true });
+    listenMock.mock.calls[0][1]({ payload: false });
+    expect(hover.mock.calls).toEqual([[true], [false]]);
+
+    await importApi.onMenuImport(menu);
+    expect(listenMock).toHaveBeenLastCalledWith("import-epub-menu", expect.any(Function));
+    listenMock.mock.calls[1][1]({ payload: null });
+    expect(menu).toHaveBeenCalledTimes(1);
+  });
+
   it("builds and recognizes import keys", () => {
     expect(importKey("ab12")).toBe("import:ab12");
     expect(isImportKey("import:ab12")).toBe(true);

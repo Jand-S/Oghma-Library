@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildLibraryItems } from "../app/useLocalLibrary";
 import type { BookSeries, LibraryItem, LibraryMeta } from "../core/types";
-import { compareVolumes, isImported, seriesOfSnapshot, stackLibrary, volumesOf } from "../features/library/seriesModel";
+import { compareVolumes, isImported, seriesOfSnapshot, sortVolumes, stackLibrary } from "../features/library/seriesModel";
 import { mapLibraryRow, novelMetaKey, type LocalLibraryEntry } from "../services/localFiles";
 
 const SHA = "a".repeat(64);
@@ -56,14 +56,15 @@ describe("series in the library", () => {
     expect(stackLibrary(items, byTitle, new Set(["v2"])).map((card) => card.items.length)).toEqual([1, 1, 1]);
   });
 
-  it("lists the visible volumes of a series in order", () => {
-    const library = [
-      book("v2", { series: unsheathed(2) }),
-      book("hidden", { series: unsheathed(3), hidden: true }),
-      book("v1", { series: unsheathed(1) }),
-      book("solo")
+  it("orders the volumes of a series by number, then title, with unnumbered ones last", () => {
+    const volumes = [
+      book("extra", { title: "A Side Story", series: unsheathed(null) }),
+      book("v10", { title: "Last Light", series: unsheathed(10) }),
+      book("v2b", { title: "Broken Wings II", series: unsheathed(2) }),
+      book("v2a", { title: "Broken Wings", series: unsheathed(2) }),
+      book("v1", { title: "Caged Sparrow", series: unsheathed(1) })
     ];
-    expect(volumesOf(library, "series:unsheathed").map((item) => item.id)).toEqual(["v1", "v2"]);
+    expect(sortVolumes(volumes).map((item) => item.id)).toEqual(["v1", "v2a", "v2b", "v10", "extra"]);
   });
 
   it("reads the series from an import: row snapshot and ignores malformed ones", () => {

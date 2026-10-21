@@ -56,11 +56,6 @@ export function stackLibrary(
   });
 }
 
-/** Every volume of a series in the library (hidden ones left out), in reading order. */
-export function volumesOf(library: LibraryItem[], seriesId: string): LibraryItem[] {
-  return sortVolumes(library.filter((item) => !item.hidden && item.series?.id === seriesId));
-}
-
 /** The author shown for a series: the first volume that has one. */
 export function seriesAuthor(volumes: LibraryItem[]) {
   return volumes.find((item) => item.author.trim())?.author ?? "";

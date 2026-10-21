@@ -18,6 +18,7 @@ use crate::files::{pick_cover, LOCAL_BOOK_MANIFEST};
 use crate::paths::is_hidden_name;
 
 mod commit;
+pub mod menu;
 pub(crate) mod epub_meta;
 #[cfg(test)]
 mod commit_tests;
@@ -359,11 +360,14 @@ pub(crate) fn commit_items(
         .collect()
 }
 
-/// Window DragDrop: registers the dropped .epub files and emits `DROPPED_EVENT`.
+/// Window DragDrop: `menu::DRAG_EVENT` while .epub files hover the window (the "Solte para
+/// importar" overlay); on drop, registers the .epub files and emits `DROPPED_EVENT`.
 pub fn on_window_event<R: Runtime>(window: &tauri::Window<R>, event: &tauri::WindowEvent) {
-    let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event else {
-        return;
-    };
+    let tauri::WindowEvent::DragDrop(drag) = event else { return };
+    if let Some(active) = menu::drag_state(drag, |path| is_epub(path)) {
+        let _ = window.emit(menu::DRAG_EVENT, active);
+    }
+    let tauri::DragDropEvent::Drop { paths, .. } = drag else { return };
     let Some(state) = window.try_state::<ImportEpubState>() else { return };
     let picked = state.register(paths);
     if !picked.is_empty() {

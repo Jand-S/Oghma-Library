@@ -1,24 +1,23 @@
-import { ChevronRight, CloudDownload, FolderOpen, Layers, Library, MoreVertical } from "lucide-react";
-import { Fragment, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { ChevronRight, CloudDownload, FolderOpen, Layers, Library, MoreVertical, Send } from "lucide-react";
+import { Fragment, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { LibraryItem } from "../../core/types";
 import { libraryStrings } from "../../strings/library";
 import { librarySeriesStrings } from "../../strings/librarySeries";
-import { Badge, Cover, DropdownMenu, IconButton, StackSpread, StarRating, cx, type MenuItem, type MenuPoint } from "../../ui";
+import { Badge, Cover, DropdownMenu, IconButton, StackSpread, StarRating, cx, type MenuItem, type MenuPoint, type StackSpreadAction } from "../../ui";
 import { accountBadgeState } from "./AccountFileBadge";
 import { AccountBadge, editionLabel, FavoriteToggle, JobBadge, ShelfBadge, ShelfRowBadge, TranslationBadge } from "./libraryBadges";
 import { formatDownloadedAt, formatSummary, formatsOf, isShelf, isTranslated, type BookJobState, type LibraryStack, type LibraryViewMode } from "./libraryModel";
 import { seriesAuthor } from "./seriesModel";
 import { ReadingStatusLabel } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
+import "./series.css";
 
 type CollectionProps = {
   items: LibraryItem[];
   /** Editions of the same work, and volumes of a series, as one card (see `stackLibrary`). */
   stacks?: LibraryStack[] | null;
-  /** A series card (or its list row) opens the series page. */
-  onOpenSeries?: (stack: LibraryStack) => void;
-  /** Menu of a series card: open it, send it to the Kindle. */
-  seriesMenu?: (stack: LibraryStack) => MenuItem[];
+  /** "Enviar série ao Kindle": the series' downloaded volumes, in order (spread heading and series menu). */
+  onSendSeries?: (stack: LibraryStack) => void;
   view: LibraryViewMode;
   jobState: (item: LibraryItem) => BookJobState | null;
   actions: BookActions;
@@ -42,9 +41,10 @@ function menuPoint(event: ReactMouseEvent<HTMLElement>): MenuPoint {
 }
 
 /** Grid of covers or dense list, with a shared right-click menu. */
-export function LibraryCollection({ items, stacks, view, jobState, actions, onOpen, onOpenFolder, onOpenSeries, seriesMenu }: CollectionProps) {
+export function LibraryCollection({ items, stacks, view, jobState, actions, onOpen, onOpenFolder, onSendSeries }: CollectionProps) {
   const [context, setContext] = useState<ContextState>(null);
   const [spread, setSpread] = useState<SpreadState>(null);
+  const gridRef = useRef<HTMLUListElement>(null);
   // Stacks open in the list (their editions show as rows below).
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const toggleExpanded = (key: string) => setExpanded((current) => {
@@ -60,20 +60,49 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
     if (!fromInside(event)) return;
     setContext({ item, stack: stack?.series ? stack : undefined, position: menuPoint(event) });
   };
+  /** The volumes of a series: spread out of its card in the grid, opened below its row in the list. */
+  const showVolumes = (stack: LibraryStack) => {
+    if (view !== "grid") {
+      setExpanded((current) => new Set(current).add(stack.key));
+      return;
+    }
+    const card = Array.from(gridRef.current?.querySelectorAll<HTMLElement>("[data-testid=library-card]") ?? [])
+      .find((element) => element.dataset.stackKey === stack.key);
+    const anchor = card?.querySelector<HTMLElement>(".library-tile__media");
+    if (anchor) setSpread({ stack, anchor });
+  };
+  /** "Enviar série ao Kindle" (only the volumes on this computer go). */
+  const sendSeries = (stack: LibraryStack): StackSpreadAction | null => {
+    if (!onSendSeries) return null;
+    const downloaded = stack.items.filter((volume) => !isShelf(volume)).length;
+    return {
+      label: librarySeriesStrings.sendSeries,
+      icon: <Send />,
+      onSelect: () => onSendSeries(stack),
+      disabled: downloaded === 0,
+      hint: downloaded ? librarySeriesStrings.sendSeriesHint(downloaded) : librarySeriesStrings.noneDownloaded,
+      "data-testid": "series-send-kindle"
+    };
+  };
   /** A series card's menu is about the series; a book's is about the book. */
-  const menuOf = (item: LibraryItem, stack?: LibraryStack) =>
-    stack?.series && seriesMenu ? seriesMenu(stack) : actions.menuItems(item);
+  const menuOf = (item: LibraryItem, stack?: LibraryStack): MenuItem[] => {
+    if (!stack?.series) return actions.menuItems(item);
+    const send = sendSeries(stack);
+    return [
+      { label: librarySeriesStrings.showVolumes, icon: <Library />, onSelect: () => showVolumes(stack) },
+      ...(send ? [{ label: send.label, icon: send.icon, onSelect: send.onSelect, disabled: send.disabled }] : [])
+    ];
+  };
   const openItem = (item: LibraryItem) => (event: ReactMouseEvent<HTMLElement>) => {
     if (!fromInside(event)) return;
     if ((event.target as HTMLElement).closest("[data-card-control]")) return;
     onOpen(item);
   };
-  /** A series opens its page; a stack opens its editions over the grid; a single book opens its details. */
+  /** A stack (editions of a work, volumes of a series) spreads over the grid; a single book opens its details. */
   const openCard = (stack: LibraryStack) => (event: ReactMouseEvent<HTMLElement>) => {
     if (stack.items.length < 2) return openItem(stack.main)(event);
     if (!fromInside(event)) return;
     if ((event.target as HTMLElement).closest("[data-card-control]")) return;
-    if (stack.series && onOpenSeries) return onOpenSeries(stack);
     const anchor = event.currentTarget.querySelector<HTMLElement>(".library-tile__media");
     if (anchor) setSpread({ stack, anchor });
   };
@@ -201,9 +230,6 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
         <span className="library-row__num">{size ? libraryStrings.size(size) : "—"}</span>
         <span className="library-row__date">{formatDownloadedAt(item)}</span>
         <div className="library-row__actions" data-card-control={series ? true : undefined}>
-          {series && onOpenSeries ? (
-            <IconButton label={librarySeriesStrings.openSeriesOf(series.name)} icon={<Library />} size="sm" onClick={() => onOpenSeries(stack)} />
-          ) : null}
           {series ? moreMenu(item, "library-row__menu", "ghost", stack) : null}
         </div>
       </li>
@@ -213,7 +239,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
   return (
     <>
       {view === "grid" ? (
-        <ul className="library-grid" data-testid="library-grid">
+        <ul className="library-grid" data-testid="library-grid" ref={gridRef}>
           {cards.map((stack) => {
             const item = stack.main;
             const state = jobState(item);
@@ -238,6 +264,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                   data-testid="library-card"
                   data-editions={editions > 1 ? editions : undefined}
                   data-series={series?.id}
+                  data-stack-key={stack.key}
                   onClick={openCard(stack)}
                   onContextMenu={openContext(item, stack)}
                 >
@@ -261,8 +288,9 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                     ) : null}
                     {series ? null : <FavoriteToggle item={item} actions={actions} className="library-tile__favorite" variant="glass" />}
                     {editions > 1 ? (
-                      <span className="o-stack-count" data-testid="library-stack-count">
-                        <Layers aria-hidden="true" />
+                      <span className="o-stack-count" data-testid="library-stack-count" data-kind={series ? "series" : "editions"}>
+                        {/* Books side by side for a series, a stack of sheets for editions of one work. */}
+                        {series ? <Library aria-hidden="true" /> : <Layers aria-hidden="true" />}
                         {series ? librarySeriesStrings.volumesCount(editions) : libraryStrings.editionsCount(editions)}
                       </span>
                     ) : null}
@@ -277,7 +305,7 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
                       aria-label={series
                         ? librarySeriesStrings.seriesOf(series.name, editions)
                         : editions > 1 ? libraryStrings.editionsOf(workTitle, editions) : libraryStrings.openDetailsOf(item.title)}
-                      aria-haspopup={editions > 1 && !series ? "dialog" : undefined}
+                      aria-haspopup={editions > 1 ? "dialog" : undefined}
                     >
                       {workTitle}
                     </button>
@@ -338,25 +366,30 @@ export function LibraryCollection({ items, stacks, view, jobState, actions, onOp
       {spread ? (
         <StackSpread
           anchor={spread.anchor}
-          title={spread.stack.items.find((edition) => !edition.language)?.title ?? spread.stack.main.title}
-          count={libraryStrings.editionsCount(spread.stack.items.length)}
+          title={spread.stack.series?.name ?? spread.stack.items.find((edition) => !edition.language)?.title ?? spread.stack.main.title}
+          count={spread.stack.series
+            ? librarySeriesStrings.volumesCount(spread.stack.items.length)
+            : libraryStrings.editionsCount(spread.stack.items.length)}
+          action={spread.stack.series ? sendSeries(spread.stack) ?? undefined : undefined}
           items={spread.stack.items}
           itemKey={(edition) => edition.id}
           card={(edition) => ({
             cover: edition.coverUrl,
             title: edition.title,
-            label: editionLabel(edition),
+            // A volume is named by its number and title ("Vol. 2 · Broken Wings"), an edition by its source.
+            label: spread.stack.series && edition.series ? librarySeriesStrings.volumeTitle(edition.series.volume, edition.title) : editionLabel(edition),
             meta: (
               <>
                 {isShelf(edition) ? <Badge>{libraryStrings.onShelfBadge}</Badge> : <Badge tone="accent">{formatSummary(edition)}</Badge>}
                 <ReadingStatusLabel status={edition.readingStatus} />
+                <AccountBadge items={[edition]} actions={actions} readOnly />
               </>
             )
           })}
           onPick={onOpen}
           onClose={() => setSpread(null)}
           returnFocus={spread.anchor.closest<HTMLElement>("[data-testid=library-card]")?.querySelector<HTMLElement>("[data-testid=card-title]")}
-          data-testid="edition-spread"
+          data-testid={spread.stack.series ? "series-spread" : "edition-spread"}
         />
       ) : null}
       <DropdownMenu

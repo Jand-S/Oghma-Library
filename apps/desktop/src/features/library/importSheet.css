@@ -85,4 +85,60 @@
     padding: var(--space-4);
     color: var(--text-muted);
   }
+
+  /* ---------- "Solte para importar": .epub files over the window ---------- */
+  .library-drop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: grid;
+    place-items: center;
+    padding: var(--space-3);
+    background: var(--scrim);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    pointer-events: none;
+    animation: fade-in var(--dur-base) var(--ease) both;
+  }
+
+  .library-drop__panel {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-1);
+    width: min(100%, calc(var(--space-8) * 8));
+    padding: var(--space-5) var(--space-4);
+    border: var(--ring-width) dashed var(--accent-line);
+    border-radius: var(--radius-xl);
+    background: var(--glass-strong);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    animation: scale-fade-in var(--dur-slow) var(--ease) both;
+  }
+
+  .library-drop__icon {
+    display: grid;
+    place-items: center;
+    width: calc(var(--space-6) + var(--space-1));
+    height: calc(var(--space-6) + var(--space-1));
+    margin-bottom: var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--accent-soft);
+    color: var(--accent-tint);
+  }
+
+  .library-drop__icon svg {
+    width: var(--icon-lg);
+    height: var(--icon-lg);
+  }
+
+  .library-drop__title {
+    color: var(--text);
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-semibold);
+  }
+
+  .library-drop__hint {
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
 }

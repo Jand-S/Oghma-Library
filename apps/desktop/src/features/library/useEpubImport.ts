@@ -28,6 +28,8 @@ export type EpubImportController = {
   drafts: ImportDraft[];
   /** The preview itself failed (no list to show). */
   error: string | null;
+  /** `.epub` files are being dragged over the window: the "Solte para importar" overlay shows. */
+  dragging: boolean;
   importableCount: number;
   /** "Importar EPUB": native dialog, then the preview sheet. */
   pick: () => Promise<void>;
@@ -48,6 +50,7 @@ export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defa
   const [committing, setCommitting] = useState(false);
   const [drafts, setDrafts] = useState<ImportDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const indexRef = useRef(catalogIndex);
   indexRef.current = catalogIndex;
   // A newer pick/drop wins over a preview still loading.
@@ -79,18 +82,25 @@ export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defa
     }
   }, [api, notify, preview]);
 
-  // Files dropped anywhere on the window (Rust registers the paths and emits the ids).
+  // Files dropped anywhere on the window (Rust registers the paths and emits the ids), and the
+  // drag-over state of .epub files for the overlay.
   useEffect(() => {
     if (!api.available) return;
     let disposed = false;
-    let unlisten: (() => void) | null = null;
-    void api.onDropped((files) => void preview(files)).then((stop) => {
+    const stops: (() => void)[] = [];
+    const keep = (stop: () => void) => {
       if (disposed) stop();
-      else unlisten = stop;
-    }).catch(() => undefined);
+      else stops.push(stop);
+    };
+    void api.onDropped((files) => {
+      setDragging(false);
+      void preview(files);
+    }).then(keep).catch(() => undefined);
+    void api.onDragHover(setDragging).then(keep).catch(() => undefined);
     return () => {
       disposed = true;
-      unlisten?.();
+      stops.forEach((stop) => stop());
+      setDragging(false);
     };
   }, [api, preview]);
 
@@ -153,6 +163,7 @@ export function useEpubImport({ catalogIndex, refreshLibrary, notify, api = defa
     committing,
     drafts,
     error,
+    dragging,
     importableCount: drafts.filter(isImportable).length,
     pick,
     update,

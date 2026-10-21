@@ -42,6 +42,8 @@ function fakeApi(upload: (key: string) => Promise<UploadResult> = async (k) => (
     download: vi.fn(async (k: string): Promise<DownloadResult> => ({ key: k, outputDir: "/out/shelf", error: null })),
     usage: vi.fn(async () => ({ usedBytes: 1, quotaBytes: 2, files: 1 })),
     onDropped: vi.fn(async () => () => undefined),
+    onDragHover: vi.fn(async () => () => undefined),
+    onMenuImport: vi.fn(async () => () => undefined),
     onFileProgress: vi.fn(async (handler: (value: AccountFileProgress) => void) => {
       progress = handler;
       return () => undefined;

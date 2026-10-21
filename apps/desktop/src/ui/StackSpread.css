@@ -47,6 +47,7 @@
     position: fixed;
     z-index: var(--z-modal);
     display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: var(--space-1-5);
     padding: var(--space-1-5) var(--space-2) var(--space-2);
     border: 1px solid var(--border-strong);
@@ -78,6 +79,13 @@
     white-space: nowrap;
   }
 
+  .o-stack-spread__action {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-block: calc(var(--space-0-5) * -1);
+    margin-left: auto;
+  }
+
   .o-stack-spread__head strong {
     min-width: 0;
     overflow: hidden;
@@ -86,12 +94,22 @@
     text-overflow: ellipsis;
   }
 
+  /* One row for a few editions; a long series wraps into rows (--stack-cols) and scrolls. */
   .o-stack-spread__row {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(var(--stack-cols, 1), var(--stack-card-width));
     gap: var(--space-2);
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  /* Room around the cards so the hover lift and the focus ring are not cut by the scroll. */
+  .o-stack-spread.is-scroll .o-stack-spread__row {
+    margin: calc(var(--space-0-5) * -1);
+    padding: var(--space-0-5);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .o-stack-spread__item {
@@ -135,13 +153,17 @@
     transform: translateY(calc(var(--space-0-5) * -1));
   }
 
+  /* Up to two lines ("Vol. 3 · A long volume title"); an edition's source fits in one. */
   .o-stack-spread__label {
+    display: -webkit-box;
     max-width: 100%;
     overflow: hidden;
     font-size: var(--fs-sm);
     font-weight: var(--fw-semibold);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .o-stack-spread__meta {

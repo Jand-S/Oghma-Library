@@ -67,6 +67,8 @@ function fakeApi(upload: (key: string) => Promise<UploadResult>) {
     download: vi.fn(async (k: string) => ({ key: k, outputDir: "/out/Broken Wings", error: null })),
     usage: vi.fn(async () => ({ usedBytes: 1_887_437, quotaBytes: 2048 * 1024 * 1024, files: 1 })),
     onDropped: vi.fn(async () => () => undefined),
+    onDragHover: vi.fn(async () => () => undefined),
+    onMenuImport: vi.fn(async () => () => undefined),
     onFileProgress: vi.fn(async () => () => undefined)
   } satisfies ImportApi;
 }

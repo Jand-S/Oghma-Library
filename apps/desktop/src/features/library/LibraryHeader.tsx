@@ -19,13 +19,18 @@ export function libraryBrowsable({ library, params }: AppControllers) {
   return typeof params.book !== "string" && Boolean(library.outputPath.trim()) && library.library.length > 0;
 }
 
-/** "Importar EPUB": needs the desktop app and a library folder (the books are copied there). */
+/** "Importar EPUB" (icon, next to refresh): needs the desktop app and a library folder (the books are copied there). */
 function importButton({ epubImport, library, params }: AppControllers) {
   if (!epubImport.available || typeof params.book === "string" || !library.outputPath.trim()) return null;
   return (
-    <Button variant="ghost" size="sm" icon={<FileUp />} onClick={() => void epubImport.pick()} data-testid="library-import">
-      {importEpubStrings.button}
-    </Button>
+    <IconButton
+      label={importEpubStrings.button}
+      icon={<FileUp />}
+      size="sm"
+      variant="ghost"
+      onClick={() => void epubImport.pick()}
+      data-testid="library-import"
+    />
   );
 }
 

@@ -208,6 +208,10 @@ import_epub_pick() -> Vec<PickedFile>
     PickedFile { id: String, fileName: String, size: u64 }; os caminhos ficam no estado do Rust.
     O drop de arquivos .epub na janela (DragDrop) registra os caminhos do mesmo jeito e emite o
     evento "import-epub-dropped" com Vec<PickedFile>.
+    Enquanto arquivos com algum .epub passam sobre a janela, emite "import-epub-drag" com true;
+    ao sair ou soltar, com false (o webview não recebe caminhos).
+    No macOS, o menu File ganha "Importar EPUB…" (CmdOrCtrl+O), que emite "import-epub-menu"
+    sem payload. Windows e Linux não têm barra de menu: o webview trata Ctrl+O.
 
 import_epub_preview(ids: Vec<String>) -> Vec<ImportPreview>
     ImportPreview {
@@ -255,7 +259,12 @@ account_files_usage() -> { usedBytes, quotaBytes, files }
 ## App (UI)
 
 **Importar**
-- Botão "Importar EPUB" na Biblioteca, e a janela inteira aceita soltar arquivos.
+- Botão só com ícone "Importar EPUB" (tooltip) na barra da Biblioteca, ao lado de atualizar.
+- "Importar EPUB…" no menu File do macOS (⌘O) ou Ctrl+O no Windows: abre a Biblioteca, se
+  estiver em outra tela, e o mesmo seletor de arquivos.
+- A janela inteira aceita soltar arquivos. Enquanto há EPUBs sobre ela, um véu cobre a janela com
+  "Solte para importar"; some ao sair ou soltar.
+- A Biblioteca vazia cita a importação e tem o botão "Importar EPUB".
 - Uma folha de pré-visualização lista cada arquivo com:
   - capa (do EPUB, de outro volume ou gerada);
   - título, autor, série e volume editáveis;
@@ -275,9 +284,14 @@ account_files_usage() -> { usedBytes, quotaBytes, files }
 
 **Série na Biblioteca**
 - Os itens com o mesmo `series.id` viram um card de série: "Unsheathed · 4 volumes", com as capas
-  empilhadas. Fica no mesmo padrão das pilhas de edições (`stackEditions`, `libraryModel.ts`).
-- O detalhe da série lista os volumes em ordem.
-- Ações: "Enviar série ao Kindle" e, em cada volume, abrir, enviar e remover.
+  empilhadas. Fica no mesmo padrão das pilhas de edições (`stackEditions`, `libraryModel.ts`). O
+  selo do card usa outro ícone (livros lado a lado) e diz "N volumes".
+- Não há tela de série. Clicar no card abre o mesmo painel das edições (`StackSpread`), com
+  "Unsheathed · N volumes" no topo e cada volume como "Vol. N · Título", em ordem de volume e
+  depois título, com os mesmos selos (Na estante, status, conta). Clicar num volume abre o
+  detalhe do livro. Séries longas quebram em linhas (até 6 colunas) e rolam dentro do painel.
+- "Enviar série ao Kindle" fica discreto no topo do painel e no menu ⋯ do card (junto de "Ver
+  volumes"). Só vão os volumes baixados, em ordem.
 
 **Envio para a conta**
 - O selo de cada livro mostra "Enviando…", "Na conta" ou "Não enviado · Tentar de novo".

@@ -1,10 +1,12 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import type { ImportApi, ImportPreview, ImportResult, PickedFile } from "../../services/importClient";
+import type { BackendClient } from "../../services/backendClient";
 import { mockBackendClient } from "../../services/mockBackend";
-import { navStrings } from "../../strings/common";
+import { navStrings, pageTitleStrings } from "../../strings/common";
 import { importEpubStrings } from "../../strings/importEpub";
+import { libraryStrings } from "../../strings/library";
 import { createTestQueue, defaultBookTitle, findBookCardTitle, getToastRegion, resetAppState, seedSetup, setupUser } from "../renderApp";
 
 // The mock catalog has "The Enchanted Forest" by Emily Bronte: a series with that name and no
@@ -39,6 +41,8 @@ const previews = [
 
 function fakeApi() {
   let dropped: ((files: PickedFile[]) => void) | null = null;
+  let hovered: ((active: boolean) => void) | null = null;
+  let menu: (() => void) | null = null;
   const picked: PickedFile[] = previews.map(({ id, fileName, size }) => ({ id, fileName, size }));
   const api = {
     available: true,
@@ -54,15 +58,33 @@ function fakeApi() {
         dropped = null;
       };
     }),
+    onDragHover: vi.fn(async (handler: (active: boolean) => void) => {
+      hovered = handler;
+      return () => {
+        hovered = null;
+      };
+    }),
+    onMenuImport: vi.fn(async (handler: () => void) => {
+      menu = handler;
+      return () => {
+        menu = null;
+      };
+    }),
     onFileProgress: vi.fn(async () => () => undefined)
   } satisfies ImportApi;
-  return { api, drop: (files: PickedFile[]) => dropped?.(files), picked };
+  return {
+    api,
+    drop: (files: PickedFile[]) => act(() => dropped?.(files)),
+    hover: (active: boolean) => act(() => hovered?.(active)),
+    chooseMenu: () => act(() => menu?.()),
+    picked
+  };
 }
 
-async function renderWith(api: ImportApi) {
+async function renderWith(api: ImportApi, backend: BackendClient = mockBackendClient) {
   seedSetup();
-  render(<App backend={mockBackendClient} downloadQueue={createTestQueue()} importApi={api} />);
-  await findBookCardTitle(defaultBookTitle);
+  render(<App backend={backend} downloadQueue={createTestQueue()} importApi={api} />);
+  if (backend === mockBackendClient) await findBookCardTitle(defaultBookTitle);
 }
 
 function rowOf(fileName: string) {
@@ -199,6 +221,90 @@ describe("Importar EPUB", () => {
     await waitFor(() => expect(api.commit).toHaveBeenCalledWith([{ id: "withCover", title: "Second", author: "Autora B", series: null, coverPng: null }]));
   });
 
+  it("puts the import next to refresh as an icon button, like the other toolbar icons", async () => {
+    const user = setupUser();
+    const { api } = fakeApi();
+    await renderWith(api);
+    await user.click(screen.getByRole("button", { name: navStrings.library }));
+    const button = await screen.findByTestId("library-import");
+    expect(button).toHaveAccessibleName(importEpubStrings.button);
+    expect(button).toHaveAttribute("title", importEpubStrings.button);
+    // Icon only: the name is the label and tooltip, no text on the button.
+    expect(button.textContent).toBe("");
+    expect(button.nextElementSibling).toBe(screen.getByRole("button", { name: libraryStrings.refresh }));
+    await user.click(button);
+    expect(api.pick).toHaveBeenCalledTimes(1);
+  });
+
+  it("covers the window with \"Solte para importar\" while EPUBs are dragged over it", async () => {
+    const { api, drop, hover, picked } = fakeApi();
+    await renderWith(api);
+    await waitFor(() => expect(api.onDragHover).toHaveBeenCalled());
+    expect(screen.queryByTestId("import-drop-overlay")).not.toBeInTheDocument();
+
+    hover(true);
+    expect(screen.getByTestId("import-drop-overlay")).toHaveTextContent(importEpubStrings.dropTitle);
+    hover(false);
+    expect(screen.queryByTestId("import-drop-overlay")).not.toBeInTheDocument();
+
+    // Dropping hides it and opens the usual preview.
+    hover(true);
+    drop(picked.slice(2, 3));
+    expect(screen.queryByTestId("import-drop-overlay")).not.toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: importEpubStrings.sheetTitle })).toBeInTheDocument();
+  });
+
+  it("runs the import from the File menu on any page, opening the Library first", async () => {
+    const { api, chooseMenu } = fakeApi();
+    await renderWith(api);
+    await waitFor(() => expect(api.onMenuImport).toHaveBeenCalled());
+    expect(screen.getByRole("heading", { level: 1, name: pageTitleStrings.discover })).toBeInTheDocument();
+
+    chooseMenu();
+    expect(screen.getByRole("heading", { level: 1, name: pageTitleStrings.library })).toBeInTheDocument();
+    await waitFor(() => expect(api.pick).toHaveBeenCalledTimes(1));
+    const sheet = await screen.findByRole("dialog", { name: importEpubStrings.sheetTitle });
+    await waitFor(() => expect(within(sheet).getAllByTestId("import-item")).toHaveLength(4));
+  });
+
+  it("imports with Ctrl+O where there is no menu bar, and leaves ⌘O to the Mac menu", async () => {
+    const { api } = fakeApi();
+    await renderWith(api);
+    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+    expect(screen.getByRole("heading", { level: 1, name: pageTitleStrings.library })).toBeInTheDocument();
+    await waitFor(() => expect(api.pick).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not handle Ctrl+O itself on the Mac (the File menu's ⌘O does)", async () => {
+    document.documentElement.dataset.platform = "macos";
+    try {
+      const { api } = fakeApi();
+      await renderWith(api);
+      fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+      fireEvent.keyDown(window, { key: "o", metaKey: true });
+      expect(api.pick).not.toHaveBeenCalled();
+    } finally {
+      delete document.documentElement.dataset.platform;
+    }
+  });
+
+  it("offers the import in the empty library", async () => {
+    const user = setupUser();
+    const { api } = fakeApi();
+    const empty: BackendClient = {
+      ...mockBackendClient,
+      async bootstrap() {
+        return { ...(await mockBackendClient.bootstrap()), library: [] };
+      }
+    };
+    await renderWith(api, empty);
+    await user.click(await screen.findByRole("button", { name: navStrings.library }));
+    expect(await screen.findByRole("heading", { name: libraryStrings.emptyTitle })).toBeInTheDocument();
+    expect(screen.getByText(libraryStrings.emptyDescriptionImport)).toBeInTheDocument();
+    await user.click(screen.getByTestId("library-empty-import"));
+    expect(api.pick).toHaveBeenCalledTimes(1);
+  });
+
   it("has no import button outside the desktop app", async () => {
     const user = setupUser();
     const { api } = fakeApi();
@@ -207,5 +313,9 @@ describe("Importar EPUB", () => {
     await waitFor(() => expect(screen.getAllByTestId("library-card").length).toBeGreaterThan(0));
     expect(screen.queryByRole("button", { name: importEpubStrings.button })).not.toBeInTheDocument();
     expect(api.onDropped).not.toHaveBeenCalled();
+    expect(api.onDragHover).not.toHaveBeenCalled();
+    expect(api.onMenuImport).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+    expect(api.pick).not.toHaveBeenCalled();
   });
 });

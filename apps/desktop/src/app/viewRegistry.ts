@@ -229,6 +229,7 @@ function LibraryPage({ app }: ViewProps) {
     navigate: app.navigate,
     catalogIndex: app.discover.catalogIndex,
     accountFiles: app.accountFiles,
+    onImport: app.epubImport.available ? () => void app.epubImport.pick() : undefined,
     recommend: app.social.available && app.social.friends.friends.length
       ? (item: LibraryItem) => {
         const novel = item.novelId ? app.discover.catalogIndex?.byId.get(item.novelId) : undefined;

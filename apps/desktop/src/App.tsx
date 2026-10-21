@@ -14,9 +14,11 @@ import { isTauriRuntime } from "./core/windowControls";
 import { useDiscoverController } from "./features/discover/useDiscoverController";
 import { useDownloadsController } from "./features/downloads/useDownloadsController";
 import { useLibraryController } from "./features/library/useLibraryController";
+import { ImportDropOverlay } from "./features/library/ImportDropOverlay";
 import { ImportSheet } from "./features/library/ImportSheet";
 import { useAccountFiles } from "./features/library/useAccountFiles";
 import { useEpubImport } from "./features/library/useEpubImport";
+import { useImportShortcut } from "./features/library/useImportShortcut";
 import { useOnboardingController } from "./features/onboarding/useOnboardingController";
 import { useSettingsController } from "./features/settings/useSettingsController";
 import { useSourcesController } from "./features/sources/useSourcesController";
@@ -222,6 +224,13 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
   const accountFiles = useAccountFiles({ signedIn: oghmaAccount.signedIn, lastSyncAt: oghmaAccount.sync.lastSyncAt, library, refreshLibrary: refreshLocalLibrary, notify, api: importApi });
   // "Importar EPUB" and files dropped on the window (any page) open the same preview sheet.
   const epubImport = useEpubImport({ catalogIndex: discover.catalogIndex, refreshLibrary: refreshLocalLibrary, notify, api: importApi, onImported: accountFiles.upload });
+  // "Importar EPUB…" in the macOS File menu (⌘O), or Ctrl+O elsewhere: the Library, then the
+  // file dialog. Without a library folder the Library shows how to choose one instead.
+  useImportShortcut(() => {
+    if (!epubImport.available) return;
+    if (view !== "library" || typeof params.book === "string") navigate("library", undefined, { root: true });
+    if (libraryController.outputPath.trim() && !epubImport.open) void epubImport.pick();
+  }, importApi);
   const sourcesController = useSourcesController({ backend, sources, setSources, setAppConfig, notify });
 
   // A book removed on another computer but downloaded here leaves this library too (it goes to
@@ -398,6 +407,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
         overlays={(
           <>
           <ImportSheet importer={epubImport} libraryCover={(id) => library.find((item) => item.id === id)?.coverUrl} />
+          <ImportDropOverlay visible={epubImport.dragging} />
           <RecommendDialog social={social} book={recommendTarget} onClose={() => setRecommendTarget(null)} />
           <AccountSheet
             account={oghmaAccount}

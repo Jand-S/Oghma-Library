@@ -1,17 +1,16 @@
-import { BookOpenText, FolderCog, Group, Library, SearchX, Send, Ungroup } from "lucide-react";
+import { BookOpenText, FileUp, FolderCog, Group, SearchX, Ungroup } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useNavigation, type AppView } from "../../app/NavigationContext";
 import type { DownloadJob, LibraryItem, Novel } from "../../core/types";
 import { editionsOf, workKey, type CatalogIndex } from "../../services/catalogIndex";
+import { importEpubStrings } from "../../strings/importEpub";
 import { libraryStrings } from "../../strings/library";
-import { librarySeriesStrings } from "../../strings/librarySeries";
 import { Button, EmptyState, Skeleton, cx, type MenuItem } from "../../ui";
 import { LibraryCollection } from "./LibraryCollection";
 import { LibraryDetails } from "./LibraryDetails";
 import { LibraryFilterBar } from "./LibraryHeader";
 import { bookJobState, isShelf, type LibraryStack } from "./libraryModel";
-import { SeriesDetails } from "./SeriesDetails";
-import { stackLibrary, volumesOf } from "./seriesModel";
+import { stackLibrary } from "./seriesModel";
 import type { AccountFilesController } from "./useAccountFiles";
 import { useBookActions } from "./useBookActions";
 import { canRedownload, type LibraryController } from "./useLibraryController";
@@ -29,6 +28,8 @@ type LibraryViewProps = {
   recommend?: (item: LibraryItem) => void;
   /** Imported books and the account: badges, "Tentar de novo" and "Baixar da conta". */
   accountFiles?: AccountFilesController;
+  /** "Importar EPUB" (desktop app): offered by the empty library too. */
+  onImport?: () => void;
 };
 
 function LoadingGrid() {
@@ -45,14 +46,11 @@ function LoadingGrid() {
   );
 }
 
-/** Library page: browse (grid or list), with `?book=<id>` the book details, with `?series=<id>` the series page. */
-export function LibraryView({ library, activeJob, queuedJobs, loading, navigate, catalogIndex, recommend, accountFiles }: LibraryViewProps) {
+/** Library page: browse (grid or list), with `?book=<id>` the book details. */
+export function LibraryView({ library, activeJob, queuedJobs, loading, navigate, catalogIndex, recommend, accountFiles, onImport }: LibraryViewProps) {
   const navigation = useNavigation();
   const detailId = typeof navigation.params.book === "string" ? navigation.params.book : null;
   const detailItem = detailId ? library.allLibrary.find((item) => item.id === detailId) ?? null : null;
-  const seriesId = !detailId && typeof navigation.params.series === "string" ? navigation.params.series : null;
-  const seriesVolumes = useMemo(() => (seriesId ? volumesOf(library.allLibrary, seriesId) : []), [library.allLibrary, seriesId]);
-  const seriesInfo = seriesVolumes[0]?.series ?? null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedScroll = useRef(0);
@@ -64,21 +62,10 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
   const jobState = (item: LibraryItem) => bookJobState(item, jobs);
   const isBusy = (item: LibraryItem) => Boolean(bookJobState(item, jobs));
 
-  // Only the grid has the scroll ref; from the series page the grid's place stays saved.
-  const saveScroll = useCallback(() => {
-    if (scrollRef.current) savedScroll.current = scrollRef.current.scrollTop;
-  }, []);
-
   const openDetails = useCallback((item: LibraryItem) => {
-    saveScroll();
+    if (scrollRef.current) savedScroll.current = scrollRef.current.scrollTop;
     navigation.navigate("library", { book: item.id });
-  }, [navigation, saveScroll]);
-
-  const openSeries = useCallback((stack: LibraryStack) => {
-    if (!stack.series) return;
-    saveScroll();
-    navigation.navigate("library", { series: stack.series.id });
-  }, [navigation, saveScroll]);
+  }, [navigation]);
 
   /** The existing "Enviar ao Kindle" flow: the downloaded books, in this order, on the Kindle page. */
   const sendToKindle = useCallback((items: LibraryItem[]) => {
@@ -88,15 +75,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
     navigate("kindle");
   }, [library, navigate]);
 
-  const seriesMenu = useCallback((stack: LibraryStack): MenuItem[] => [
-    { label: librarySeriesStrings.openSeries, icon: <Library />, onSelect: () => openSeries(stack) },
-    {
-      label: librarySeriesStrings.sendSeries,
-      icon: <Send />,
-      onSelect: () => sendToKindle(stack.items),
-      disabled: stack.items.every(isShelf)
-    }
-  ], [openSeries, sendToKindle]);
+  const sendSeries = useCallback((stack: LibraryStack) => sendToKindle(stack.items), [sendToKindle]);
 
   const closeDetails = useCallback(() => {
     if (navigation.canGoBack) navigation.back();
@@ -147,18 +126,13 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
     if (detailId && !detailItem && !loading) closeDetails();
   }, [closeDetails, detailId, detailItem, loading]);
 
-  // The series has no volumes left (all removed): back to the grid too.
-  useEffect(() => {
-    if (seriesId && seriesVolumes.length === 0 && !loading) closeDetails();
-  }, [closeDetails, seriesId, seriesVolumes.length, loading]);
-
   // Coming back from the details keeps the grid where it was.
   useLayoutEffect(() => {
-    if (!detailId && !seriesId && scrollRef.current) scrollRef.current.scrollTop = savedScroll.current;
-  }, [detailId, seriesId]);
+    if (!detailId && scrollRef.current) scrollRef.current.scrollTop = savedScroll.current;
+  }, [detailId]);
 
   // Esc on the details page goes back to the grid (menus and dialogs handle their own Esc first).
-  const inPage = Boolean(detailId || seriesId);
+  const inPage = Boolean(detailId);
   useEffect(() => {
     if (!inPage) return;
     const onKey = (event: KeyboardEvent) => {
@@ -175,24 +149,6 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
       <div className="library-page library-page--details" data-testid="library-page">
         <div className="library-scroll">
           <LibraryDetails item={detailItem} library={library} actions={actions} jobState={jobState(detailItem)} />
-        </div>
-        {actions.dialogs}
-      </div>
-    );
-  }
-
-  if (seriesId && seriesInfo) {
-    return (
-      <div className="library-page library-page--details" data-testid="library-page">
-        <div className="library-scroll">
-          <SeriesDetails
-            series={seriesInfo}
-            volumes={seriesVolumes}
-            actions={actions}
-            jobState={jobState}
-            onOpen={openDetails}
-            onSendToKindle={sendToKindle}
-          />
         </div>
         {actions.dialogs}
       </div>
@@ -220,8 +176,13 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
       <EmptyState
         icon={<BookOpenText />}
         title={libraryStrings.emptyTitle}
-        description={libraryStrings.emptyDescription}
-        action={<Button variant="primary" icon={<BookOpenText />} onClick={() => navigate("discover")}>{libraryStrings.emptyAction}</Button>}
+        description={onImport ? libraryStrings.emptyDescriptionImport : libraryStrings.emptyDescription}
+        action={(
+          <>
+            <Button variant="primary" icon={<BookOpenText />} onClick={() => navigate("discover")}>{libraryStrings.emptyAction}</Button>
+            {onImport ? <Button variant="outline" icon={<FileUp />} onClick={onImport} data-testid="library-empty-import">{importEpubStrings.button}</Button> : null}
+          </>
+        )}
       />
     );
   } else if (filtered.length === 0) {
@@ -243,8 +204,7 @@ export function LibraryView({ library, activeJob, queuedJobs, loading, navigate,
         actions={actions}
         onOpen={openDetails}
         onOpenFolder={library.openLibraryItemFolder}
-        onOpenSeries={openSeries}
-        seriesMenu={seriesMenu}
+        onSendSeries={sendSeries}
       />
     );
   }

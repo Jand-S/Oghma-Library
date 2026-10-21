@@ -1,18 +1,23 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "./Button";
 import { Cover } from "./Cover";
 import { cx } from "./cx";
 import "./StackSpread.css";
 
-/** What one card of the spread shows: its cover, a label line and an optional extra line. */
+/** What one card of the spread shows: its cover, a label (up to two lines) and an optional extra line. */
 export type StackSpreadCard = { cover?: string | null; title: string; label: ReactNode; meta?: ReactNode };
+
+/** A discreet button in the heading ("Enviar série ao Kindle"); the spread folds before it runs. */
+export type StackSpreadAction = { label: string; icon?: ReactNode; onSelect: () => void; disabled?: boolean; hint?: string; "data-testid"?: string };
 
 export type StackSpreadProps<T> = {
   /** The stack's cover: the cards come out of it and the panel opens around it. */
   anchor: HTMLElement;
-  /** Heading: the work's name and how many cards ("Lord of Mysteries · 3 edições"). */
+  /** Heading: the work's name and how many cards ("Lord of Mysteries · 3 edições", "Unsheathed · 12 volumes"). */
   title: string;
   count: string;
+  action?: StackSpreadAction;
   items: T[];
   itemKey: (item: T) => string;
   card: (item: T) => StackSpreadCard;
@@ -23,7 +28,17 @@ export type StackSpreadProps<T> = {
   "data-testid"?: string;
 };
 
-type Layout = { left: number; top: number; width: number; panel: number; from: { x: number; y: number }[] };
+type Layout = {
+  left: number;
+  top: number;
+  width: number;
+  panel: number;
+  cols: number;
+  /** Tallest the panel may be (the window minus the margins); past it the cards scroll. */
+  maxHeight: number;
+  scrolls: boolean;
+  from: { x: number; y: number }[];
+};
 
 const GAP = 16;
 const PAD_X = 16;
@@ -33,32 +48,43 @@ const MAX_COVER = 168;
 const MIN_COVER = 96;
 const EDGE = 16;
 const CLOSE_MS = 220;
+/** Label, meta and spacing under each cover. */
+const CARD_TEXT = 56;
+const PAD_BOTTOM = 16;
+/** Long stacks (a series) wrap into rows of at most this many cards, then scroll. */
+const MAX_COLS = 6;
 
 /** Where each card goes, and where it starts (on the stack) for the opening animation. */
 function layoutFor(anchor: HTMLElement, count: number): Layout {
   const media = anchor.getBoundingClientRect();
   const vw = document.documentElement.clientWidth;
   const vh = window.innerHeight;
-  const fit = (vw - EDGE * 2 - PAD_X * 2 - GAP * (count - 1)) / count;
+  const fitCols = Math.floor((vw - EDGE * 2 - PAD_X * 2 + GAP) / (MIN_COVER + GAP));
+  const cols = Math.max(1, Math.min(count, MAX_COLS, fitCols));
+  const rows = Math.ceil(count / cols);
+  const fit = (vw - EDGE * 2 - PAD_X * 2 - GAP * (cols - 1)) / cols;
   const width = Math.max(MIN_COVER, Math.min(media.width * 1.04, MAX_COVER, fit));
-  const inner = count * width + (count - 1) * GAP;
+  const rowHeight = width * 1.5 + CARD_TEXT;
+  const inner = cols * width + (cols - 1) * GAP;
   const total = inner + PAD_X * 2;
-  const height = PAD_TOP + HEAD + width * 1.5 + 72;
+  const height = PAD_TOP + HEAD + rows * rowHeight + (rows - 1) * GAP + PAD_BOTTOM;
+  const maxHeight = Math.max(0, vh - EDGE * 2);
+  const shown = Math.min(height, maxHeight);
   const left = Math.max(EDGE, Math.min(media.left - PAD_X - (inner - media.width) / 2, vw - total - EDGE));
-  const top = Math.max(EDGE, Math.min(media.top - PAD_TOP - HEAD, vh - height - EDGE));
+  const top = Math.max(EDGE, Math.min(media.top - PAD_TOP - HEAD, vh - shown - EDGE));
   const from = Array.from({ length: count }, (_, index) => ({
-    x: media.left - (left + PAD_X + index * (width + GAP)),
-    y: media.top - (top + PAD_TOP + HEAD)
+    x: media.left - (left + PAD_X + (index % cols) * (width + GAP)),
+    y: media.top - (top + PAD_TOP + HEAD + Math.floor(index / cols) * (rowHeight + GAP))
   }));
-  return { left, top, width, panel: total, from };
+  return { left, top, width, panel: total, cols, maxHeight, scrolls: height > maxHeight, from };
 }
 
 /**
- * The cards of a stack (editions of one work), spread over the page out of the stack itself,
- * like a Dock stack. Nothing behind moves; a click outside, Esc, scrolling or resizing folds
- * them back.
+ * The cards of a stack (editions of one work, volumes of a series), spread over the page out
+ * of the stack itself, like a Dock stack. Nothing behind moves; a click outside, Esc, scrolling
+ * the page or resizing folds them back. Long stacks wrap into rows and scroll inside.
  */
-export function StackSpread<T>({ anchor, title, count, items, itemKey, card, onPick, onClose, returnFocus, ...rest }: StackSpreadProps<T>) {
+export function StackSpread<T>({ anchor, title, count, action, items, itemKey, card, onPick, onClose, returnFocus, ...rest }: StackSpreadProps<T>) {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -73,7 +99,7 @@ export function StackSpread<T>({ anchor, title, count, items, itemKey, card, onP
     const first = requestAnimationFrame(() => {
       second = requestAnimationFrame(() => setPhase("open"));
     });
-    panelRef.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
+    panelRef.current?.querySelector<HTMLElement>(".o-stack-spread__item")?.focus({ preventScroll: true });
     return () => {
       cancelAnimationFrame(first);
       cancelAnimationFrame(second);
@@ -104,26 +130,39 @@ export function StackSpread<T>({ anchor, title, count, items, itemKey, card, onP
       closeRef.current();
     };
     const fold = () => closeRef.current(() => undefined);
+    // Any scroll of the page (pages scroll inside their own containers) folds the cards back;
+    // scrolling the cards of a long stack does not.
+    const onScroll = (event: Event) => {
+      if (event.target instanceof Node && panelRef.current?.contains(event.target)) return;
+      fold();
+    };
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("resize", fold);
-    // Any scroll (pages scroll inside their own containers) folds the cards back.
-    window.addEventListener("scroll", fold, true);
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("resize", fold);
-      window.removeEventListener("scroll", fold, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, []);
 
   if (!layout) return null;
-  const panelStyle = { left: layout.left, top: layout.top, width: layout.panel, "--stack-card-width": `${layout.width}px` } as CSSProperties;
+  const panelStyle = {
+    left: layout.left,
+    top: layout.top,
+    width: layout.panel,
+    // A long stack takes the window's height and scrolls its cards (a definite height lets the row track shrink).
+    height: layout.scrolls ? layout.maxHeight : undefined,
+    "--stack-card-width": `${layout.width}px`,
+    "--stack-cols": layout.cols
+  } as CSSProperties;
 
   return createPortal(
     <>
       <div className={cx("o-stack-scrim", phase === "closing" && "is-closing")} onClick={() => close()} aria-hidden="true" />
       <div
         ref={panelRef}
-        className={cx("o-stack-spread", phase === "open" && "is-open", phase === "closing" && "is-closing")}
+        className={cx("o-stack-spread", layout.scrolls && "is-scroll", phase === "open" && "is-open", phase === "closing" && "is-closing")}
         style={panelStyle}
         role="dialog"
         aria-label={`${title}: ${count}`}
@@ -131,7 +170,22 @@ export function StackSpread<T>({ anchor, title, count, items, itemKey, card, onP
       >
         <div className="o-stack-spread__head">
           <strong>{title}</strong>
-          <span>{count}</span>
+          <span aria-hidden="true">·</span>
+          <span data-testid="stack-spread-count">{count}</span>
+          {action ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={action.icon}
+              className="o-stack-spread__action"
+              disabled={action.disabled}
+              title={action.hint}
+              onClick={() => close(action.onSelect)}
+              data-testid={action["data-testid"]}
+            >
+              {action.label}
+            </Button>
+          ) : null}
         </div>
         <ul className="o-stack-spread__row">
           {items.map((item, index) => {

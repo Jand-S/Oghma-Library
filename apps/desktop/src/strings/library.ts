@@ -181,6 +181,7 @@ export const libraryStrings = {
   // Empty states
   emptyTitle: "Sua biblioteca está vazia",
   emptyDescription: "Os livros que você baixar ou adicionar à estante aparecem aqui, com status de leitura e nota.",
+  emptyDescriptionImport: "Os livros que você baixar, adicionar à estante ou importar de um EPUB aparecem aqui. Para importar, use o botão abaixo ou solte os arquivos na janela.",
   emptyAction: "Buscar novels",
   noMatchTitle: "Nenhum livro encontrado",
   noMatchDescription: "Nenhum livro corresponde à busca ou aos filtros atuais.",
