@@ -3,12 +3,15 @@ import { useCoverControls } from "../../app/coverPrivacy";
 import { socialStrings } from "../../strings/social";
 import { useRef, useState, type ReactNode } from "react";
 import type { LibraryItem, LibraryReadingStatus, Novel } from "../../core/types";
+import { accountFilesStrings } from "../../strings/accountFiles";
 import { libraryStrings } from "../../strings/library";
 import { AppleLogo, Button, ConfirmationModal, Modal, StarRating, type MenuItem } from "../../ui";
 import { ConvertDialog } from "./ConvertDialog";
 import { EditionsDialog } from "./EditionsDialog";
 import { isShelf } from "./libraryModel";
+import { isImported } from "./seriesModel";
 import { readingStatuses, ReadingStatusIcon } from "./ReadingStatus";
+import type { AccountFilesController } from "./useAccountFiles";
 import type { LibraryController } from "./useLibraryController";
 
 type Confirm = { kind: "remove" | "delete" | "remove-shelf"; item: LibraryItem } | null;
@@ -25,13 +28,15 @@ type BookActionsArgs = {
   stackMenuItem?: (item: LibraryItem) => MenuItem | null;
   /** "Indicar a um amigo…" (signed in, with friends). */
   recommend?: (item: LibraryItem) => void;
+  /** Imported books and the account: badges, "Tentar de novo" and "Baixar da conta". */
+  accountFiles?: AccountFilesController;
 };
 
 /**
  * Every per-book action of the library in one place: the context/⋮ menu items and the
  * dialogs they open (remove, delete, convert, rate, other editions). Grid, list and details share it.
  */
-export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, editionsOf, stackMenuItem, recommend }: BookActionsArgs) {
+export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, editionsOf, stackMenuItem, recommend, accountFiles }: BookActionsArgs) {
   const covers = useCoverControls();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
@@ -45,10 +50,22 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
 
   const redownloadDisabledReason = (item: LibraryItem) => {
+    // An imported book comes back from the account, never from the catalog.
+    if (isImported(item)) {
+      if (!accountFiles?.available) return libraryStrings.notInCatalog;
+      return accountFiles.stateOf(item)?.phase === "downloading" ? accountFilesStrings.downloading : undefined;
+    }
     if (!canRedownload(item) || item.unavailable) return libraryStrings.notInCatalog;
     if (isBusy(item)) return libraryStrings.alreadyQueued;
     return undefined;
   };
+
+  /** "Baixar" (catalog) or "Baixar da conta" (imported). */
+  const download = (item: LibraryItem) => {
+    if (isImported(item)) void accountFiles?.download(item);
+    else library.redownloadItem(item);
+  };
+  const downloadLabel = (item: LibraryItem) => (isImported(item) ? accountFilesStrings.download : libraryStrings.download);
 
   const openConvert = (item: LibraryItem) => {
     if (library.prepareConversion([item.id])) setConvertId(item.id);
@@ -81,7 +98,7 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
   /** Full menu for the grid/list context menu and ⋮ buttons. */
   /** "Só eu vejo" / "Mostrar para amigos" (catalog books, signed in with the social side). */
   const privacyItem = (item: LibraryItem): MenuItem | null =>
-    recommend && item.novelId && !item.language
+    recommend && item.novelId && !item.language && !isImported(item)
       ? {
         label: item.private ? socialStrings.privateBookOff : socialStrings.privateBook,
         icon: item.private ? <Users /> : <Lock />,
@@ -89,9 +106,9 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
       }
       : null;
 
-  /** "Indicar a um amigo…" for catalog books (translations are this computer's own). */
+  /** "Indicar a um amigo…" for catalog books (translations are this computer's own; imported books are always private). */
   const recommendItem = (item: LibraryItem): MenuItem | null =>
-    recommend && item.novelId && !item.language
+    recommend && item.novelId && !item.language && !isImported(item)
       ? { label: socialStrings.recommendAction, icon: <Send />, onSelect: () => recommend(item), separatorBefore: true }
       : null;
 
@@ -115,24 +132,25 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     }
     if (shelf) {
       items.push({
-        label: libraryStrings.download,
+        label: downloadLabel(item),
         icon: <CloudDownload />,
-        onSelect: () => library.redownloadItem(item),
+        onSelect: () => download(item),
         disabled: Boolean(redownloadDisabledReason(item))
       });
       if (item.unavailable && editionsOf) {
         items.push({ label: libraryStrings.findOtherEdition, icon: <Search />, onSelect: () => findOtherEdition(item) });
       }
     } else {
-      items.push(
-        { label: libraryStrings.openFolder, icon: <FolderOpen />, onSelect: () => library.openLibraryItemFolder(item) },
-        {
+      items.push({ label: libraryStrings.openFolder, icon: <FolderOpen />, onSelect: () => library.openLibraryItemFolder(item) });
+      // "Baixar novamente" downloads from the catalog: imported books are not there.
+      if (!isImported(item)) {
+        items.push({
           label: libraryStrings.downloadAgain,
           icon: <Download />,
           onSelect: () => library.redownloadItem(item),
           disabled: Boolean(redownloadDisabledReason(item))
-        }
-      );
+        });
+      }
       if (library.icloudAvailable) {
         items.push({ label: libraryStrings.saveToICloud, icon: <AppleLogo />, onSelect: () => library.saveToICloud([item.id]), disabled: library.savingToICloud });
       }
@@ -289,9 +307,13 @@ export function useBookActions({ library, canRedownload, isBusy, onOpenDetails, 
     askRating,
     setStatus,
     findOtherEdition,
-    /** Downloads a shelf book (or downloads a local one again). */
-    download: (item: LibraryItem) => library.redownloadItem(item),
-    redownloadDisabledReason
+    /** Downloads a shelf book (or downloads a local one again); imported books come from the account. */
+    download,
+    downloadLabel,
+    redownloadDisabledReason,
+    /** Account state of an imported book (badge), and "Tentar de novo". */
+    accountState: (item: LibraryItem) => accountFiles?.stateOf(item) ?? null,
+    retryUpload: (items: LibraryItem[]) => accountFiles?.retry(items)
   };
 }
 

@@ -2,6 +2,7 @@ import { AlertTriangle, CloudDownload, Download, Eye, EyeOff, FileCog, FolderOpe
 import { getPlatform } from "../../shell/platform";
 import { useState, type CSSProperties } from "react";
 import type { LibraryItem } from "../../core/types";
+import { accountFilesStrings } from "../../strings/accountFiles";
 import { libraryStrings } from "../../strings/library";
 import { AppleLogo, Badge, Banner, Button, Chip, Cover, DropdownMenu, IconButton, ListGroup, ListRow, PathControl, ProgressBar, StarRating, TextField, cx, type MenuItem } from "../../ui";
 import { formatDownloadedAt, formatsOf, isShelf, jobLabel, type BookJobState } from "./libraryModel";
@@ -9,7 +10,8 @@ import { ReadingStatusLabel, ReadingStatusPicker } from "./ReadingStatus";
 import type { BookActions } from "./useBookActions";
 import type { LibraryController } from "./useLibraryController";
 import { useNavigation } from "../../app/NavigationContext";
-import { TranslationBadge } from "./LibraryCollection";
+import { AccountBadge, shelfLabel, TranslationBadge } from "./libraryBadges";
+import { isImported } from "./seriesModel";
 
 type LibraryDetailsProps = {
   item: LibraryItem;
@@ -33,6 +35,7 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
   const busy = Boolean(jobState);
   const redownloadReason = actions.redownloadDisabledReason(item);
   const shelf = isShelf(item);
+  const imported = isImported(item);
 
   const addTag = () => {
     const value = tagInput.trim();
@@ -71,8 +74,9 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                 <TranslationBadge item={item} />
                 {formats.map((format) => <Badge key={format} tone="accent">{format}</Badge>)}
                 {shelf && !item.unavailable ? (
-                  <Badge><CloudDownload aria-hidden="true" />{libraryStrings.onShelfBadge}</Badge>
+                  <Badge><CloudDownload aria-hidden="true" />{shelfLabel(item)}</Badge>
                 ) : null}
+                <AccountBadge items={[item]} actions={actions} />
               </div>
               {item.rating || (item.readingStatus && item.readingStatus !== "unread") ? (
                 <div className="library-hero__reading">
@@ -113,16 +117,16 @@ export function LibraryDetails({ item, library, actions, jobState }: LibraryDeta
                     data-testid="library-download"
                     onClick={() => actions.download(item)}
                     disabled={Boolean(redownloadReason)}
-                    title={redownloadReason ?? libraryStrings.downloadHint}
+                    title={redownloadReason ?? (imported ? accountFilesStrings.downloadHint : libraryStrings.downloadHint)}
                   >
-                    {libraryStrings.download}
+                    {actions.downloadLabel(item)}
                   </Button>
                 ) : (
                   <Button variant="primary" icon={<FolderOpen />} onClick={() => library.openLibraryItemFolder(item)}>
                     {revealLabel}
                   </Button>
                 )}
-                {shelf ? null : <Button
+                {shelf || imported ? null : <Button
                   variant={item.newChapters ? "primary" : "outline"}
                   icon={<Download />}
                   data-testid="library-redownload"

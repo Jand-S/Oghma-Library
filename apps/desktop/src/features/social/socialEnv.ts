@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
-import type { BookSnapshot, Novel } from "../../core/types";
+import type { BookSnapshot, LibraryItem, Novel } from "../../core/types";
+import { isImported } from "../library/seriesModel";
 import { socialStrings as t } from "../../strings/social";
 import type { SocialController } from "./useSocial";
 
@@ -53,6 +54,28 @@ export function snapshotOfNovel(novel: Novel): BookSnapshot {
     chapters: novel.chapters,
     description: novel.description?.slice(0, 600)
   };
+}
+
+/**
+ * The library books a friend can be shown (the chat's book picker): catalog books only. Translations
+ * and hidden books stay out, and so do imported ones, which are always private (docs/IMPORT_EPUB.md).
+ */
+export function shareableLibraryBooks(library: LibraryItem[], resolve: (novelId: string) => Novel | undefined): SharedBook[] {
+  return library
+    .filter((item) => item.novelId && !item.language && !item.hidden && !isImported(item))
+    .map((item) => {
+      const novel = resolve(item.novelId!);
+      return {
+        novelId: novel?.id ?? item.novelId!,
+        snapshot: novel ? snapshotOfNovel(novel) : {
+          novelId: item.novelId!,
+          title: item.title,
+          author: item.author || undefined,
+          sourceName: item.sourceName,
+          coverUrl: item.coverUrl?.startsWith("http") ? item.coverUrl : undefined
+        }
+      };
+    });
 }
 
 const dayFormat = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short" });

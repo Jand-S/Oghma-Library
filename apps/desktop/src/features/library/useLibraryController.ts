@@ -22,6 +22,7 @@ import type { ToastOptions } from "../../ui";
 import { openOutputFolder } from "../downloads/useDownloadsController";
 import { openExternal } from "../settings/appInfo";
 import { readIntegrationPreferences, SEND_TO_KINDLE_URL } from "../settings/preferences";
+import { isImported } from "./seriesModel";
 import { useLibraryBrowse } from "./useLibraryBrowse";
 
 export function libraryToQueueItems(items: LibraryItem[]): QueueItem[] {
@@ -245,7 +246,8 @@ export function useLibraryController({
     rating: item.rating ?? null,
     onShelf: item.novelId && !item.language ? !item.hidden : false,
     addedAt: item.addedAt ?? null,
-    snapshot: item.novelId && !item.language
+    // An imported book's snapshot (series, file size…) is written by Rust; null keeps it.
+    snapshot: item.novelId && !item.language && !isImported(item)
       ? snapshotOf(item.novelId, undefined, {
         title: item.title,
         author: item.author,

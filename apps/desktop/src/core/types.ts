@@ -200,7 +200,12 @@ export type LibraryItem = {
   addedAt?: number;
   /** "Só eu vejo": friends do not see it (profile, activity). */
   private?: boolean;
+  /** Series of an imported book (from its `import:` row snapshot); volumes group into one card. */
+  series?: BookSeries;
 };
+
+/** `{ id: "series:<slug>", name, volume }` of an imported book (docs/IMPORT_EPUB.md). */
+export type BookSeries = { id: string; name: string; volume: number | null };
 
 export type LibraryAvailability = "local" | "shelf";
 
@@ -239,6 +244,9 @@ export type BookSnapshot = {
   coverUrl?: string;
   chapters?: number;
   description?: string;
+  /** Imported books (`import:<sha>` rows, written by Rust): see docs/IMPORT_EPUB.md. */
+  origin?: "import";
+  series?: BookSeries | null;
 };
 
 export type TagCategory = "format" | "genre" | "theme";

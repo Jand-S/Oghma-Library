@@ -14,6 +14,9 @@ import { isTauriRuntime } from "./core/windowControls";
 import { useDiscoverController } from "./features/discover/useDiscoverController";
 import { useDownloadsController } from "./features/downloads/useDownloadsController";
 import { useLibraryController } from "./features/library/useLibraryController";
+import { ImportSheet } from "./features/library/ImportSheet";
+import { useAccountFiles } from "./features/library/useAccountFiles";
+import { useEpubImport } from "./features/library/useEpubImport";
 import { useOnboardingController } from "./features/onboarding/useOnboardingController";
 import { useSettingsController } from "./features/settings/useSettingsController";
 import { useSourcesController } from "./features/sources/useSourcesController";
@@ -21,6 +24,7 @@ import { useTranslationController } from "./features/translation/useTranslationC
 import type { BackendClient } from "./services/backendClient";
 import { getDownloadQueue, type DownloadQueue } from "./services/downloadQueue";
 import type { TranslationClient } from "./services/translationClient";
+import type { ImportApi } from "./services/importClient";
 import { openLocalPath } from "./services/localFiles";
 import { AppShell, SplashScreen, type BootStep } from "./shell";
 import { bootStrings, shellStrings } from "./strings/common";
@@ -49,11 +53,13 @@ type AppProps = {
   accountClient?: AccountClient;
   /** App updates; defaults to the Tauri updater (tests inject a fake, `null` disables). */
   updater?: UpdaterApi | null;
+  /** EPUB import commands; defaults to Tauri IPC (tests inject a fake). */
+  importApi?: ImportApi;
 };
 
 const ERROR_MESSAGE = /^n[aã]o foi poss[ií]vel/i;
 
-export function App({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient, updater }: AppProps) {
+export function App({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient, updater, importApi }: AppProps) {
   return (
     <ToastProvider>
       <NavigationProvider initialView={readUiPreferences().startPage}>
@@ -64,13 +70,14 @@ export function App({ backend, downloadQueue, translationClient, onServerUrlChan
           onServerUrlChange={onServerUrlChange}
           accountClient={accountClient}
           updater={updater}
+          importApi={importApi}
         />
       </NavigationProvider>
     </ToastProvider>
   );
 }
 
-function AppContent({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient, updater }: AppProps) {
+function AppContent({ backend, downloadQueue, translationClient, onServerUrlChange, accountClient, updater, importApi }: AppProps) {
   const navigation = useNavigation();
   const { view, params, navigate, canGoBack, back } = navigation;
   const { toast } = useToast();
@@ -211,6 +218,10 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     notify,
     toast
   });
+  // Imported books go to the account in the background (after an import and after each sync).
+  const accountFiles = useAccountFiles({ signedIn: oghmaAccount.signedIn, lastSyncAt: oghmaAccount.sync.lastSyncAt, library, refreshLibrary: refreshLocalLibrary, notify, api: importApi });
+  // "Importar EPUB" and files dropped on the window (any page) open the same preview sheet.
+  const epubImport = useEpubImport({ catalogIndex: discover.catalogIndex, refreshLibrary: refreshLocalLibrary, notify, api: importApi, onImported: accountFiles.upload });
   const sourcesController = useSourcesController({ backend, sources, setSources, setAppConfig, notify });
 
   // A book removed on another computer but downloaded here leaves this library too (it goes to
@@ -283,7 +294,9 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
     oghmaAccount,
     openAccountSheet,
     social,
-    recommendBook
+    recommendBook,
+    epubImport,
+    accountFiles
   };
 
   // Once boot settles, warm the lazily loaded view chunks so navigation stays instant.
@@ -384,6 +397,7 @@ function AppContent({ backend, downloadQueue, translationClient, onServerUrlChan
         contentLayout={showBootError ? "scroll" : definition.layout}
         overlays={(
           <>
+          <ImportSheet importer={epubImport} libraryCover={(id) => library.find((item) => item.id === id)?.coverUrl} />
           <RecommendDialog social={social} book={recommendTarget} onClose={() => setRecommendTarget(null)} />
           <AccountSheet
             account={oghmaAccount}

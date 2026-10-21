@@ -1,0 +1,42 @@
+@import "../../styles/layers.css";
+
+@layer features {
+  /* ---------- Imported books and the account: the badge ---------- */
+
+  .library-account {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .library-account .o-spinner {
+    flex: none;
+    width: var(--fs-xs);
+    height: var(--fs-xs);
+  }
+
+  .library-account svg {
+    flex: none;
+  }
+
+  /* "Tentar de novo": a text button inside the badge, like a link in a footnote. */
+  .library-account__retry {
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
+  }
+
+  .library-account__retry:hover {
+    text-decoration-thickness: 0.12em;
+  }
+
+  .library-account__retry:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}

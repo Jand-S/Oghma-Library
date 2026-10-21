@@ -1,11 +1,13 @@
 import { Laptop, LogOut, Monitor, Pencil, Trash2, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AccountSessionInfo } from "../../services/accountClient";
+import type { AccountFilesUsage } from "../../services/importClient";
 import { oghmaAccountStrings as s, accountErrorMessage } from "../../strings/oghmaAccount";
 import { Avatar, Button, ConfirmationModal, ListGroup, ListRow, Spinner, Switch, TextField, useToast } from "../../ui";
 import { socialStrings } from "../../strings/social";
 import { formatRelativeSync } from "../sources/lastSync";
 import type { AccountSheetStep } from "./AccountSheet";
+import { ImportedFilesUsage } from "./ImportedFilesUsage";
 import type { OghmaAccountController } from "./useOghmaAccount";
 import "./oghmaAccount.css";
 
@@ -14,6 +16,8 @@ type Props = {
   onOpenSheet: (step: AccountSheetStep) => void;
   /** With the social side on the server: the privacy switches (what friends see). */
   socialAvailable?: boolean;
+  /** Space used by imported books in the account (desktop app only). */
+  importedUsage?: () => Promise<AccountFilesUsage>;
 };
 
 function ago(iso: string | number | null | undefined) {
@@ -23,7 +27,7 @@ function ago(iso: string | number | null | undefined) {
 }
 
 /** Ajustes > Conta: the Oghma account (profile, sync, devices, sign out, delete). */
-export function OghmaAccountSection({ account, onOpenSheet, socialAvailable = false }: Props) {
+export function OghmaAccountSection({ account, onOpenSheet, socialAvailable = false, importedUsage }: Props) {
   const { toast } = useToast();
   const [sessions, setSessions] = useState<AccountSessionInfo[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -126,6 +130,7 @@ export function OghmaAccountSection({ account, onOpenSheet, socialAvailable = fa
             {s.syncAutomatic}
           </span>
         </ListRow>
+        {importedUsage ? <ImportedFilesUsage usage={importedUsage} refreshKey={account.sync.lastSyncAt} /> : null}
       </ListGroup>
 
       {socialAvailable ? (

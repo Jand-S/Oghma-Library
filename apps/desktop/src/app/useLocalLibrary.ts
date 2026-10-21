@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { AppConfig, BookSnapshot, DownloadFormat, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import { downloadFormats } from "../core/types";
+import { seriesOfSnapshot } from "../features/library/seriesModel";
 import { sanitizeFileName } from "../services/downloadManager";
 import {
   deleteLibraryMetadata,
+  isImportKey,
   listLibraryMetadata,
   listLocalLibrary,
   novelMetaKey,
@@ -116,12 +118,14 @@ function personalFields(meta: LibraryMeta) {
     personalTags: meta.tags,
     hidden: meta.hidden,
     addedAt: meta.addedAt ?? undefined,
-    private: meta.private ?? false
+    private: meta.private ?? false,
+    series: seriesOfSnapshot(meta.snapshot)
   };
 }
 
-/** Novel id of a `novel:<id>` key, or undefined for folder-path keys. */
+/** Novel id of a `novel:<id>` key (an `import:<sha>` key is its own id), or undefined for folder-path keys. */
 export function novelIdOfKey(key: string): string | undefined {
+  if (isImportKey(key)) return key;
   return key.startsWith("novel:") ? key.slice("novel:".length) : undefined;
 }
 
@@ -165,7 +169,8 @@ export function shelfItem(meta: LibraryMeta, novelId: string, known: Novel | und
     sourceName: known?.sourceName ?? snap?.sourceName,
     exportedAt: meta.addedAt ? new Date(meta.addedAt).toISOString() : "Local",
     availability: "shelf",
-    unavailable: !known,
+    // An imported book is not in the catalog: it waits in the account ("Baixar da conta").
+    unavailable: !known && !isImportKey(novelId),
     ...personalFields(meta)
   };
 }

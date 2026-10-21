@@ -3,7 +3,7 @@ import { BookOpenText } from "lucide-react";
 import { defaultFilters } from "../core/defaults";
 import type { BookSnapshot, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import type { SocialController } from "../features/social/useSocial";
-import { snapshotOfNovel, type SharedBook, type SocialEnv, type SocialPlace } from "../features/social/socialEnv";
+import { shareableLibraryBooks, snapshotOfNovel, type SharedBook, type SocialEnv, type SocialPlace } from "../features/social/socialEnv";
 import { searchCatalog } from "../services/catalogIndex";
 import type { HomeSeeAll } from "../features/home/HomeView";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
@@ -13,6 +13,8 @@ import type { DownloadsController } from "../features/downloads/useDownloadsCont
 import { downloadsHeader } from "../features/downloads/DownloadsHeader";
 import { libraryHeader } from "../features/library/LibraryHeader";
 import type { LibraryController } from "../features/library/useLibraryController";
+import type { AccountFilesController } from "../features/library/useAccountFiles";
+import type { EpubImportController } from "../features/library/useEpubImport";
 import type { SettingsController } from "../features/settings/useSettingsController";
 import type { SourcesController } from "../features/sources/useSourcesController";
 import type { TranslationController } from "../features/translation/useTranslationController";
@@ -86,6 +88,10 @@ export type AppControllers = {
   social: SocialController;
   /** "Indicar a um amigo…" for a book (opens the dialog). */
   recommendBook: (book: { novelId: string; snapshot: BookSnapshot }) => void;
+  /** "Importar EPUB" (the preview sheet lives in App, so a drop works on any page). */
+  epubImport: EpubImportController;
+  /** Imported books and the account: upload badges, "Baixar da conta" and the quota. */
+  accountFiles: AccountFilesController;
 };
 
 export type ViewProps = { app: AppControllers };
@@ -222,6 +228,7 @@ function LibraryPage({ app }: ViewProps) {
     loading: app.loading,
     navigate: app.navigate,
     catalogIndex: app.discover.catalogIndex,
+    accountFiles: app.accountFiles,
     recommend: app.social.available && app.social.friends.friends.length
       ? (item: LibraryItem) => {
         const novel = item.novelId ? app.discover.catalogIndex?.byId.get(item.novelId) : undefined;
@@ -288,6 +295,7 @@ function SettingsPage({ app }: ViewProps) {
     onNavigate: (view: AppView) => app.navigate(view),
     account: app.account,
     oghmaAccount: app.oghmaAccount,
+    importedUsage: app.accountFiles.available ? app.accountFiles.usage : undefined,
     socialAvailable: app.social.available,
     onOpenAccountSheet: app.openAccountSheet,
     onRetryAccount: () => void app.translation.refreshAccount(),
@@ -330,21 +338,7 @@ function SocialPage({ app }: ViewProps) {
         .slice(0, 40)
         .map((novel) => ({ novelId: novel.id, snapshot: snapshotOfNovel(novel) }));
     },
-    libraryBooks: () => library.library
-      .filter((item) => item.novelId && !item.language && !item.hidden)
-      .map((item) => {
-        const novel = resolve(item.novelId!);
-        return {
-          novelId: novel?.id ?? item.novelId!,
-          snapshot: novel ? snapshotOfNovel(novel) : {
-            novelId: item.novelId!,
-            title: item.title,
-            author: item.author || undefined,
-            sourceName: item.sourceName,
-            coverUrl: item.coverUrl?.startsWith("http") ? item.coverUrl : undefined
-          }
-        };
-      })
+    libraryBooks: () => shareableLibraryBooks(library.library, resolve)
   };
   return h(SocialView, { env, place });
 }
