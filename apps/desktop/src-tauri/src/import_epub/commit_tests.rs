@@ -255,3 +255,33 @@ fn real_epubs_import_as_one_series() {
     }
     assert_eq!(library_books(root.path()).iter().filter(|b| b.series_id.as_deref() == Some("series:unsheathed")).count(), paths.len());
 }
+
+#[test]
+fn commit_refuses_epubs_over_200_mb() {
+    let (_root, root) = library_root("commit-huge");
+    let source = TempDir::new("commit-huge-src");
+    let path = source.path().join("Enorme.epub");
+    std::fs::File::create(&path).unwrap().set_len(MAX_EPUB_BYTES + 1).unwrap();
+    let done = commit_import(&root, &path, &item("Enorme", None));
+    assert_eq!(done.err().as_deref(), Some(TOO_LARGE));
+    assert!(entries(&root).is_empty(), "nothing written to the Library");
+}
+
+#[test]
+fn commit_leaves_an_unmarked_folder_with_the_same_name_alone() {
+    let (_root, root) = library_root("commit-unmarked");
+    let mine = root.join("Unsheathed - Vol 1 - Caged Sparrow");
+    std::fs::create_dir_all(&mine).unwrap();
+    std::fs::write(mine.join("notas.txt"), "minhas").unwrap();
+    let source = TempDir::new("commit-unmarked-src");
+    let path = epub_with_jpeg_cover(source.path(), "Unsheathed - Volume 1 - Caged Sparrow.epub");
+
+    let done = commit_import(&root, &path, &item("Caged Sparrow", Some(("Unsheathed", Some(1.0))))).unwrap();
+    assert_eq!(done.output_dir.file_name().unwrap(), "Unsheathed - Vol 1 - Caged Sparrow (2)");
+    assert_eq!(entries(&mine), vec!["notas.txt"]);
+    assert_eq!(std::fs::read_to_string(mine.join("notas.txt")).unwrap(), "minhas");
+    assert_eq!(
+        entries(&root),
+        vec!["Unsheathed - Vol 1 - Caged Sparrow", "Unsheathed - Vol 1 - Caged Sparrow (2)"]
+    );
+}

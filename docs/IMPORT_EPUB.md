@@ -83,6 +83,9 @@ A pré-visualização deixa editar título, autor, série e volume.
 **Pasta:** `<ExportRoot>/<Série> - Vol <N> - <Título>/`. Sem série, a pasta é só `<Título>`.
 - O nome passa por `sanitize_file_name`.
 - Se o nome já existir, ganha o sufixo ` (2)`, como hoje.
+  - Uma pasta com o mesmo nome mas sem `.oghma-book.json` é da pessoa: a importação e o "Baixar
+    da conta" nunca a reaproveitam nem a substituem (`begin_import_at`), e vão para ` (2)`. Só o
+    export do catálogo ainda reaproveita pasta sem marcador (export antigo).
 - A pasta é escrita pelo staging atômico que já existe (`staging.rs`).
 
 **Arquivos dentro da pasta:**
@@ -192,6 +195,12 @@ A cota soma o `size` dos arquivos confirmados e não apagados, mais os pendentes
 ## Comandos Tauri (Rust)
 
 A webview nunca recebe caminhos arbitrários nem o token.
+
+- **Limite de tamanho:** a pré-visualização, a importação e o envio recusam EPUB com mais de
+  200 MB antes de calcular o sha (`MAX_EPUB_BYTES`; o envio devolve `file_too_large`).
+- **URLs presignadas:** o cliente HTTP das transferências não segue redirecionamento; um 3xx é
+  erro (`upload_failed` ou `download_failed`).
+- O hash e a leitura e escrita dos arquivos nas transferências rodam em `spawn_blocking`.
 
 ```text
 import_epub_pick() -> Vec<PickedFile>

@@ -110,9 +110,10 @@ fn manifest_novel_id(dir: &Path) -> Option<String> {
 
 /// Picks the final folder for `novel_id`:
 /// 1. an existing folder whose manifest has the same novel id (the one named like the title wins);
-/// 2. `<root>/<sanitized title>` if free, without a manifest, or with the same id;
+/// 2. `<root>/<sanitized title>` if free, with the same id, or without a manifest when
+///    `reuse_unmarked` (a legacy catalog export is assumed to be the same book);
 /// 3. `<root>/<sanitized title> (2)`, `(3)`, … otherwise.
-pub(crate) fn resolve_final_dir(root: &Path, novel_id: &str, title: &str) -> PathBuf {
+pub(crate) fn resolve_final_dir(root: &Path, novel_id: &str, title: &str, reuse_unmarked: bool) -> PathBuf {
     let base = folder_name_for_title(title);
     let mut matches: Vec<String> = fs::read_dir(root)
         .map(|entries| {
@@ -144,7 +145,10 @@ pub(crate) fn resolve_final_dir(root: &Path, novel_id: &str, title: &str) -> Pat
         let candidate = root.join(&name);
         let taken = candidate.exists()
             && (!candidate.is_dir()
-                || manifest_novel_id(&candidate).is_some_and(|id| id != novel_id));
+                || match manifest_novel_id(&candidate) {
+                    Some(id) => id != novel_id,
+                    None => !reuse_unmarked,
+                });
         if !taken {
             return candidate;
         }
@@ -153,6 +157,16 @@ pub(crate) fn resolve_final_dir(root: &Path, novel_id: &str, title: &str) -> Pat
 }
 
 pub(crate) fn begin_export_at(root: &Path, novel_id: &str, title: &str) -> Result<BeginExportResult, String> {
+    begin_export_with(root, novel_id, title, true)
+}
+
+/// `begin_export_at` for imported EPUBs (import commit and "Baixar da conta"): a folder with the
+/// same name but no `.oghma-book.json` is the user's own and is never reused nor replaced.
+pub(crate) fn begin_import_at(root: &Path, novel_id: &str, title: &str) -> Result<BeginExportResult, String> {
+    begin_export_with(root, novel_id, title, false)
+}
+
+fn begin_export_with(root: &Path, novel_id: &str, title: &str, reuse_unmarked: bool) -> Result<BeginExportResult, String> {
     let novel_id = novel_id.trim();
     if novel_id.is_empty() {
         return Err("Identificador do livro ausente".to_string());
@@ -175,7 +189,7 @@ pub(crate) fn begin_export_at(root: &Path, novel_id: &str, title: &str) -> Resul
     };
     mark_active(&staging);
 
-    let final_dir = resolve_final_dir(root, novel_id, title);
+    let final_dir = resolve_final_dir(root, novel_id, title, reuse_unmarked);
     Ok(BeginExportResult {
         staging_dir: staging.to_string_lossy().to_string(),
         final_dir: final_dir.to_string_lossy().to_string(),
@@ -437,6 +451,18 @@ mod tests {
         write_book(&root.join("Legado"), None, "legacy");
         let result = begin_export_at(&root, "9", "Legado").unwrap();
         assert_eq!(PathBuf::from(result.final_dir), root.join("Legado"));
+    }
+
+    #[test]
+    fn begin_import_never_takes_an_unmarked_folder() {
+        let (_temp, root) = root();
+        write_book(&root.join("Meu Livro"), None, "mine");
+        let result = begin_import_at(&root, "import:abc", "Meu Livro").unwrap();
+        assert_eq!(PathBuf::from(&result.final_dir), root.join("Meu Livro (2)"));
+        // The same book (marker with the same id) is still reused.
+        write_book(&root.join("Outro"), Some("import:abc"), "same");
+        let result = begin_import_at(&root, "import:abc", "Outro").unwrap();
+        assert_eq!(PathBuf::from(&result.final_dir), root.join("Outro"));
     }
 
     #[test]

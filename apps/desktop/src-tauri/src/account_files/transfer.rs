@@ -10,19 +10,41 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::export_root::resolve;
 use crate::files::{pick_cover, write_atomic, LOCAL_BOOK_MANIFEST};
-use crate::import_epub::{folder_title, library_books, make_series, sha256_file};
+use crate::import_epub::{folder_title, library_books, make_series, sha256_file, MAX_EPUB_BYTES};
 use crate::library_meta::IMPORT_PREFIX;
 use crate::oghma_account::{send, ApiResponse};
-use crate::staging::{abort_export_at, begin_export_at, commit_export_at, folder_name_for_title};
+use crate::staging::{abort_export_at, begin_import_at, commit_export_at, folder_name_for_title};
 
 /// Bytes read from disk per chunk of the upload stream.
 const CHUNK: usize = 256 * 1024;
+
+/// The HTTP client of the transfers: no overall timeout (they can take minutes), only for
+/// connecting and between reads, and no redirects: a presigned URL answers with the file or
+/// fails, and a 3xx is an error (the bytes never go to or come from anywhere else).
+pub(crate) fn transfer_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(15))
+        .read_timeout(Duration::from_secs(60))
+        .redirect(reqwest::redirect::Policy::none())
+        .user_agent(concat!("OghmaLibrary/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .unwrap_or_default()
+}
+
+/// Runs blocking file work (hashing, reading, writing) off the async worker threads.
+async fn blocking<T: Send + 'static>(
+    error: &'static str,
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work).await.map_err(|_| error.to_string())?
+}
 
 /// The signed-in account: base URL and token (both stay in Rust).
 pub(crate) struct AccountClient {
@@ -153,18 +175,28 @@ impl AccountClient {
         };
         let file = fs::File::open(path).map_err(|_| "file_missing")?;
         let counter = Arc::clone(progress);
-        let chunks = futures_lite::stream::unfold(file, move |mut file| {
+        // `None` after an error ends the stream (the request then fails).
+        let chunks = futures_lite::stream::unfold(Some(file), move |file| {
             let counter = Arc::clone(&counter);
             async move {
-                let mut buf = vec![0u8; CHUNK];
-                match file.read(&mut buf) {
-                    Ok(0) => None,
-                    Ok(read) => {
+                let mut file = file?;
+                let read = tauri::async_runtime::spawn_blocking(move || {
+                    let mut buf = vec![0u8; CHUNK];
+                    let read = file.read(&mut buf).map(|read| {
                         buf.truncate(read);
-                        counter.add(read as u64);
-                        Some((Ok::<_, std::io::Error>(buf), file))
+                        buf
+                    });
+                    (read, file)
+                })
+                .await;
+                match read {
+                    Ok((Ok(buf), _)) if buf.is_empty() => None,
+                    Ok((Ok(buf), file)) => {
+                        counter.add(buf.len() as u64);
+                        Some((Ok::<_, std::io::Error>(buf), Some(file)))
                     }
-                    Err(err) => Some((Err(err), file)),
+                    Ok((Err(err), _)) => Some((Err(err), None)),
+                    Err(_) => Some((Err(std::io::Error::other("read_failed")), None)),
                 }
             }
         });
@@ -196,16 +228,22 @@ impl AccountClient {
         if !response.status().is_success() {
             return Err("download_failed".to_string());
         }
-        let mut file = fs::File::create(target).map_err(|_| "write_failed")?;
+        let target = target.to_path_buf();
+        let mut file = blocking("write_failed", move || fs::File::create(target).map_err(|_| "write_failed".to_string())).await?;
         let mut hasher = Sha256::new();
         let mut size = 0u64;
         while let Some(chunk) = response.chunk().await.map_err(|_| "network")? {
-            file.write_all(&chunk).map_err(|_| "write_failed")?;
+            let len = chunk.len() as u64;
             hasher.update(&chunk);
-            size += chunk.len() as u64;
-            progress.add(chunk.len() as u64);
+            file = blocking("write_failed", move || {
+                file.write_all(&chunk).map_err(|_| "write_failed")?;
+                Ok(file)
+            })
+            .await?;
+            size += len;
+            progress.add(len);
         }
-        file.sync_all().map_err(|_| "write_failed")?;
+        blocking("write_failed", move || file.sync_all().map_err(|_| "write_failed".to_string())).await?;
         let hex = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
         Ok((hex, size))
     }
@@ -221,14 +259,9 @@ impl AccountClient {
     }
 }
 
-/// Sends the EPUB and the cover of the `key` book folder of the Library at `root`.
-pub(crate) async fn upload_book(
-    client: &AccountClient,
-    root: &Path,
-    key: &str,
-    progress: &Arc<Progress>,
-) -> Result<Uploaded, String> {
-    let sha = import_sha(key).ok_or("invalid_key")?;
+/// The files of the `key` book folder to send: `(kind, ext, path, size)`, the EPUB first.
+/// Blocking (scans the Library and hashes the EPUB): run it through `blocking`.
+fn local_files(root: &Path, key: &str, sha: &str) -> Result<Vec<(&'static str, &'static str, PathBuf, u64)>, String> {
     let root = resolve(root).map_err(|_| "no_library")?;
     let book = library_books(&root)
         .into_iter()
@@ -236,6 +269,10 @@ pub(crate) async fn upload_book(
         .ok_or("not_in_library")?;
     let dir = inside(&root, &book.dir)?;
     let epub = inside(&root, &epub_in(&dir).ok_or("file_missing")?)?;
+    // Over the limit the server refuses it anyway: say so before hashing hundreds of MB.
+    if fs::metadata(&epub).map_err(|_| "file_missing")?.len() > MAX_EPUB_BYTES {
+        return Err("file_too_large".to_string());
+    }
     let (local_sha, size) = sha256_file(&epub).map_err(|_| "file_missing")?;
     if local_sha != sha {
         return Err("sha_mismatch".to_string());
@@ -247,6 +284,21 @@ pub(crate) async fn upload_book(
             files.push(("cover", ext, cover, meta.len()));
         }
     }
+    Ok(files)
+}
+
+/// Sends the EPUB and the cover of the `key` book folder of the Library at `root`.
+pub(crate) async fn upload_book(
+    client: &AccountClient,
+    root: &Path,
+    key: &str,
+    progress: &Arc<Progress>,
+) -> Result<Uploaded, String> {
+    let sha = import_sha(key).ok_or("invalid_key")?;
+    let files = {
+        let (root, key, sha) = (root.to_path_buf(), key.to_string(), sha.to_string());
+        blocking("file_missing", move || local_files(&root, &key, &sha)).await?
+    };
 
     let mut tickets = Vec::new();
     for (kind, ext, path, size) in files {
@@ -290,7 +342,14 @@ pub(crate) async fn download_book(
     progress: &Arc<Progress>,
 ) -> Result<PathBuf, String> {
     let sha = import_sha(key).ok_or("invalid_key")?;
-    if let Some(book) = library_books(root).into_iter().find(|book| book.novel_id.as_deref() == Some(key)) {
+    let present = {
+        let (root, key) = (root.to_path_buf(), key.to_string());
+        blocking("write_failed", move || {
+            Ok(library_books(&root).into_iter().find(|book| book.novel_id.as_deref() == Some(key.as_str())))
+        })
+        .await?
+    };
+    if let Some(book) = present {
         return Ok(book.dir);
     }
     let epub = client.ticket(sha, "epub").await?.ok_or("file_not_found")?;
@@ -312,7 +371,10 @@ pub(crate) async fn download_book(
         let name = text(series.get("name"))?;
         Some(make_series(&name, series.get("volume").and_then(Value::as_f64)))
     });
-    let begun = begin_export_at(root, key, &folder_title(series.as_ref(), &title)).map_err(|_| "write_failed")?;
+    let begun = {
+        let (root, key, folder) = (root.to_path_buf(), key.to_string(), folder_title(series.as_ref(), &title));
+        blocking("write_failed", move || begin_import_at(&root, &key, &folder).map_err(|_| "write_failed".to_string())).await?
+    };
     let staging = PathBuf::from(&begun.staging_dir);
     let written = async {
         let file_name = format!("{}.epub", folder_name_for_title(&title));
@@ -346,12 +408,16 @@ pub(crate) async fn download_book(
             }
         }
         let marker = serde_json::to_vec_pretty(&marker).map_err(|_| "write_failed")?;
-        write_atomic(&staging.join(LOCAL_BOOK_MANIFEST), &marker).map_err(|_| "write_failed")?;
-        commit_export_at(&staging, Path::new(&begun.final_dir)).map_err(|_| "write_failed".to_string())
+        let (staging, final_dir) = (staging.clone(), PathBuf::from(&begun.final_dir));
+        blocking("write_failed", move || {
+            write_atomic(&staging.join(LOCAL_BOOK_MANIFEST), &marker).map_err(|_| "write_failed")?;
+            commit_export_at(&staging, &final_dir).map_err(|_| "write_failed".to_string())
+        })
+        .await
     }
     .await;
     if written.is_err() {
-        let _ = abort_export_at(&staging);
+        let _ = blocking("write_failed", move || abort_export_at(&staging)).await;
     }
     written
 }

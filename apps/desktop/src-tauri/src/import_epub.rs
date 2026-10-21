@@ -33,6 +33,10 @@ pub use epub_meta::{SeriesInfo, SeriesSource};
 pub const DROPPED_EVENT: &str = "import-epub-dropped";
 /// Longer side of the cover thumbnail sent to the preview.
 const PREVIEW_COVER_SIDE: u32 = 600;
+/// Largest EPUB imported or sent to the account (the server's default `max_file_mb`).
+pub(crate) const MAX_EPUB_BYTES: u64 = 200 * 1024 * 1024;
+/// Shown when a file passes `MAX_EPUB_BYTES`.
+pub(crate) const TOO_LARGE: &str = "O EPUB passa de 200 MB, o limite para importar";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -157,6 +161,16 @@ pub(crate) fn library_books(root: &Path) -> Vec<LibraryBook> {
     books
 }
 
+/// Refuses a file over `MAX_EPUB_BYTES` before reading it (hashing 1 GB would take a while).
+pub(crate) fn check_epub_size(path: &Path) -> Result<u64, String> {
+    let size = fs::metadata(path).map_err(|err| format!("não foi possível abrir o arquivo: {err}"))?.len();
+    if size > MAX_EPUB_BYTES {
+        Err(TOO_LARGE.to_string())
+    } else {
+        Ok(size)
+    }
+}
+
 pub(crate) fn sha256_file(path: &Path) -> Result<(String, u64), String> {
     let mut file = fs::File::open(path).map_err(|err| format!("não foi possível abrir o arquivo: {err}"))?;
     let mut hasher = Sha256::new();
@@ -189,7 +203,7 @@ pub(crate) fn build_preview(id: &str, path: &Path, library: &[LibraryBook]) -> I
     let from_name = epub_meta::series_from_file_name(&file_name);
     let mut preview = ImportPreview { id: id.to_string(), file_name, ..Default::default() };
 
-    match sha256_file(path) {
+    match check_epub_size(path).and_then(|_| sha256_file(path)) {
         Ok((sha, size)) => {
             preview.sha256 = sha;
             preview.size = size;

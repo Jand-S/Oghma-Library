@@ -3,7 +3,6 @@
 //! storage usage. Everything goes through Rust with the session of `oghma_account`: the web
 //! view only sees keys, states and error codes, never the token nor the presigned URLs.
 use std::sync::OnceLock;
-use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
@@ -46,19 +45,10 @@ struct ProgressPayload {
     total: u64,
 }
 
-/// Transfers can take minutes: no overall timeout, only for connecting and between reads.
+/// One shared client for the transfers (see `transfer_client`: no redirects).
 fn transfer_http() -> reqwest::Client {
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT
-        .get_or_init(|| {
-            reqwest::Client::builder()
-                .connect_timeout(Duration::from_secs(15))
-                .read_timeout(Duration::from_secs(60))
-                .user_agent(concat!("OghmaLibrary/", env!("CARGO_PKG_VERSION")))
-                .build()
-                .unwrap_or_default()
-        })
-        .clone()
+    CLIENT.get_or_init(transfer::transfer_client).clone()
 }
 
 fn client(app: &AppHandle, account: &OghmaAccount) -> Result<AccountClient, String> {

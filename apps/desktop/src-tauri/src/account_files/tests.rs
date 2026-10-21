@@ -9,6 +9,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 use super::transfer::{download_book, upload_book, AccountClient, Progress, Uploaded};
+use crate::import_epub::MAX_EPUB_BYTES;
 use crate::files::test_support::TempDir;
 use crate::files::LOCAL_BOOK_MANIFEST;
 
@@ -77,10 +78,16 @@ async fn serve(handler: Arc<Handler>) -> (String, Arc<Mutex<Vec<Seen>>>) {
                     raw.extend_from_slice(&buf[..read]);
                 }
                 let request = Seen { method, path, headers, body: raw[head_end..].to_vec() };
-                let (status, body) = handler(&request, &url);
+                let (status, mut body) = handler(&request, &url);
                 log.lock().unwrap().push(request);
+                // A 3xx answer is a redirect to the URL given as the body.
+                let location = if (300..400).contains(&status) {
+                    format!("Location: {}\r\n", String::from_utf8_lossy(&std::mem::take(&mut body)))
+                } else {
+                    String::new()
+                };
                 let head = format!(
-                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\n{location}Content-Length: {}\r\nConnection: close\r\n\r\n",
                     body.len()
                 );
                 let _ = socket.write_all(head.as_bytes()).await;
@@ -105,7 +112,7 @@ fn epub_bytes() -> Vec<u8> {
 }
 
 fn client(base: &str) -> AccountClient {
-    AccountClient { http: reqwest::Client::new(), base: base.to_string(), token: "tok".to_string() }
+    AccountClient { http: super::transfer::transfer_client(), base: base.to_string(), token: "tok".to_string() }
 }
 
 /// A recorder of `(sent, total)` progress reports.
@@ -317,5 +324,69 @@ fn download_builds_the_folder_from_the_row_snapshot() {
         let before = seen.lock().unwrap().len();
         let again = download_book(&client(&base), root.path(), &key, "Other", &snapshot, &progress).await.unwrap();
         assert_eq!((again.file_name(), seen.lock().unwrap().len()), (dir.file_name(), before));
+    });
+}
+
+#[test]
+fn upload_refuses_epubs_over_200_mb_before_hashing() {
+    tauri::async_runtime::block_on(async {
+        let root = TempDir::new("files-huge");
+        let key = make_book(root.path(), "Huge", b"epub bytes", None);
+        // Sparse: no 200 MB written to disk.
+        fs::File::options().write(true).open(root.path().join("Huge").join("Huge.epub")).unwrap().set_len(MAX_EPUB_BYTES + 1).unwrap();
+        let (base, seen) = serve(Arc::new(|_: &Seen, _: &str| reply(json!({ "exists": true })))).await;
+        let (progress, _) = recorder();
+        let done = upload_book(&client(&base), root.path(), &key, &progress).await;
+        assert_eq!(done, Err("file_too_large".to_string()));
+        assert!(seen.lock().unwrap().is_empty(), "nothing reaches the server");
+    });
+}
+
+#[test]
+fn download_does_not_follow_a_redirect() {
+    tauri::async_runtime::block_on(async {
+        let root = TempDir::new("files-redirect");
+        let epub = b"the real book".to_vec();
+        let sha = sha_hex(&epub);
+        let key = format!("import:{sha}");
+        let ticket = format!("/v1/me/files/{sha}?kind=");
+        let (base, seen) = serve(Arc::new(move |request: &Seen, base: &str| match request.path.strip_prefix(ticket.as_str()) {
+            Some("epub") => reply(json!({ "downloadUrl": format!("{base}/bucket/epub"), "size": epub.len(), "ext": "epub" })),
+            Some(_) => (404, br#"{"error":"file_not_found"}"#.to_vec()),
+            None => match request.path.as_str() {
+                "/bucket/epub" => (302, format!("{base}/elsewhere").into_bytes()),
+                "/elsewhere" => (200, epub.clone()),
+                _ => (500, Vec::new()),
+            },
+        }))
+        .await;
+        let (progress, _) = recorder();
+
+        let done = download_book(&client(&base), root.path(), &key, "Book", &json!({}), &progress).await;
+        assert_eq!(done, Err("download_failed".to_string()));
+        assert!(seen.lock().unwrap().iter().all(|r| r.path != "/elsewhere"), "the redirect is not followed");
+        let left: Vec<_> = fs::read_dir(root.path()).unwrap().flatten().map(|e| e.file_name()).collect();
+        assert!(left.is_empty(), "no folder and no staging left behind: {left:?}");
+    });
+}
+
+#[test]
+fn download_leaves_an_unmarked_folder_with_the_same_name_alone() {
+    tauri::async_runtime::block_on(async {
+        let root = TempDir::new("files-unmarked");
+        let mine = root.path().join("Book");
+        fs::create_dir_all(&mine).unwrap();
+        fs::write(mine.join("notas.txt"), "minhas").unwrap();
+        let epub = epub_bytes();
+        let sha = sha_hex(&epub);
+        let (base, _) = account_with(sha.clone(), epub.clone(), None).await;
+        let (progress, _) = recorder();
+
+        let dir = download_book(&client(&base), root.path(), &format!("import:{sha}"), "Book", &json!({}), &progress).await.unwrap();
+        assert_eq!(dir.file_name().unwrap(), "Book (2)");
+        assert_eq!(fs::read(dir.join("Book.epub")).unwrap(), epub);
+        let kept: Vec<_> = fs::read_dir(&mine).unwrap().flatten().map(|e| e.file_name()).collect();
+        assert_eq!(kept, vec![std::ffi::OsString::from("notas.txt")]);
+        assert_eq!(fs::read_to_string(mine.join("notas.txt")).unwrap(), "minhas");
     });
 }

@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use super::{epub_meta, format_volume, library_books, sha256_file, LibraryBook, SeriesInfo};
 use crate::files::{pick_cover, write_atomic, LOCAL_BOOK_MANIFEST};
 use crate::library_meta::IMPORT_PREFIX;
-use crate::staging::{abort_export_at, begin_export_at, commit_export_at, folder_name_for_title};
+use crate::staging::{abort_export_at, begin_import_at, commit_export_at, folder_name_for_title};
 
 /// Series as edited in the preview; the id is always recomputed from the name.
 #[derive(Debug, Clone, Deserialize)]
@@ -112,6 +112,7 @@ fn put(target: &mut Value, key: &str, value: Option<Value>) {
 /// Imports the file at `source` into the Library at `root`. A file imported before (same
 /// sha256) is not copied again: its folder is returned with `existing: true`.
 pub(crate) fn commit_import(root: &Path, source: &Path, item: &ImportCommitItem) -> Result<Committed, String> {
+    super::check_epub_size(source)?;
     let (sha, size) = sha256_file(source)?;
     let key = format!("{IMPORT_PREFIX}{sha}");
     let meta = epub_meta::read_epub_meta(source).map_err(|err| format!("EPUB inválido: {err}"))?;
@@ -160,7 +161,7 @@ pub(crate) fn commit_import(root: &Path, source: &Path, item: &ImportCommitItem)
     put(&mut marker, "language", meta.language.map(Value::from));
     put(&mut marker, "series", series_json);
 
-    let begun = begin_export_at(root, &key, &folder_title(series.as_ref(), &title))?;
+    let begun = begin_import_at(root, &key, &folder_title(series.as_ref(), &title))?;
     let staging = PathBuf::from(&begun.staging_dir);
     let written = (|| {
         let copy = staging.join(format!("{}.epub", folder_name_for_title(&title)));

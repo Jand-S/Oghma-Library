@@ -208,6 +208,20 @@ fn invalid_epub_still_gets_sha_and_an_error() {
 }
 
 #[test]
+fn files_over_200_mb_are_refused_before_hashing() {
+    let tmp = TempDir::new("import-huge");
+    let path = tmp.path().join("Enorme - Volume 1.epub");
+    // Sparse: no 200 MB written to disk.
+    let file = std::fs::File::create(&path).unwrap();
+    file.set_len(MAX_EPUB_BYTES + 1).unwrap();
+    let preview = build_preview("g", &path, &[]);
+    assert_eq!(preview.error.as_deref(), Some(TOO_LARGE));
+    assert!(preview.sha256.is_empty(), "not hashed");
+    file.set_len(MAX_EPUB_BYTES).unwrap();
+    assert_eq!(check_epub_size(&path), Ok(MAX_EPUB_BYTES));
+}
+
+#[test]
 fn register_keeps_only_epubs_and_reuses_ids() {
     let tmp = TempDir::new("import-register");
     let a = make_epub(tmp.path(), "a.EPUB", "", "", &[]);
