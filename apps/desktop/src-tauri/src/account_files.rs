@@ -13,6 +13,8 @@ use crate::oghma_account::OghmaAccount;
 
 mod transfer;
 #[cfg(test)]
+mod e2e_tests;
+#[cfg(test)]
 mod tests;
 
 use transfer::{download_book, upload_book, AccountClient, Progress, Uploaded};
@@ -105,27 +107,48 @@ pub async fn account_file_download(
     key: String,
     title: String,
 ) -> Result<DownloadResult, String> {
-    let snapshot = crate::library_meta::live_snapshot(&app, &key).ok().flatten().unwrap_or(Value::Null);
     let outcome = match (client(&app, &account), export_root.current()) {
         (Err(err), _) => Err(err),
         (_, None) => Err("no_library".to_string()),
-        (Ok(client), Some(root)) => download_book(&client, &root, &key, &title, &snapshot, &progress(&app, &key)).await,
+        (Ok(client), Some(root)) => {
+            let open_db = || crate::library_meta::open_db(&app);
+            download_into_library(&client, &root, open_db, &key, &title, &progress(&app, &key)).await
+        }
     };
     let mut result = DownloadResult { key: key.clone(), output_dir: None, error: None };
     match outcome {
-        Ok(dir) => {
-            // The files are in place; a metadata failure must not fail the download.
-            if let Err(err) = crate::library_meta::mark_downloaded(&app, &[key.clone()]) {
-                eprintln!("Warning: could not mark {key} as downloaded: {err}");
-            }
-            result.output_dir = Some(dir.to_string_lossy().to_string());
-        }
+        Ok(dir) => result.output_dir = Some(dir.to_string_lossy().to_string()),
         Err(err) => {
             after(&app, &account, &err);
             result.error = Some(err);
         }
     }
     Ok(result)
+}
+
+/// The download apart from the Tauri state: the marker comes from the row snapshot in the
+/// `library_meta` that `open_db` opens, and the row goes back on the shelf afterwards.
+pub(crate) async fn download_into_library(
+    client: &AccountClient,
+    root: &std::path::Path,
+    open_db: impl Fn() -> Result<rusqlite::Connection, String> + Send + Sync,
+    key: &str,
+    title: &str,
+    progress: &std::sync::Arc<Progress>,
+) -> Result<std::path::PathBuf, String> {
+    let snapshot = open_db()
+        .and_then(|conn| crate::library_meta::live_snapshot_in(&conn, key))
+        .ok()
+        .flatten()
+        .unwrap_or(Value::Null);
+    let dir = download_book(client, root, key, title, &snapshot, progress).await?;
+    // The files are in place; a metadata failure must not fail the download.
+    let keys = [key.to_string()];
+    let marked = open_db().and_then(|conn| crate::library_meta::mark_downloaded_in(&conn, &keys, crate::library_meta::now_ms()));
+    if let Err(err) = marked {
+        eprintln!("Warning: could not mark {key} as downloaded: {err}");
+    }
+    Ok(dir)
 }
 
 /// `{ usedBytes, quotaBytes, files }` of the account storage; errors are codes.

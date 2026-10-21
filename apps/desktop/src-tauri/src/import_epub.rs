@@ -320,11 +320,22 @@ pub fn import_epub_commit(
     items: Vec<ImportCommitItem>,
 ) -> Vec<ImportResult> {
     let root = export_root.current();
+    commit_items(root.as_deref(), &items, |id| state.path_of(id), || crate::library_meta::open_db(&app))
+}
+
+/// The import itself, apart from the Tauri state: `root` is the Library, `path_of` maps the
+/// ids to the picked files and `open_db` opens the `library_meta` database.
+pub(crate) fn commit_items(
+    root: Option<&Path>,
+    items: &[ImportCommitItem],
+    path_of: impl Fn(&str) -> Option<PathBuf>,
+    open_db: impl Fn() -> Result<rusqlite::Connection, String>,
+) -> Vec<ImportResult> {
     items
         .iter()
         .map(|item| {
             let mut result = ImportResult { id: item.id.clone(), ..Default::default() };
-            let committed = match (&root, state.path_of(&item.id)) {
+            let committed = match (root, path_of(&item.id)) {
                 (None, _) => Err("Escolha a pasta da Biblioteca antes de importar".to_string()),
                 (_, None) => Err("Arquivo não encontrado; escolha de novo".to_string()),
                 (Some(root), Some(path)) => commit::commit_import(root, &path, item),
@@ -333,9 +344,8 @@ pub fn import_epub_commit(
                 Ok(done) => {
                     // The files are already in place; a metadata failure must not fail the import
                     // (importing again creates the missing row).
-                    let keys = [done.key.clone()];
-                    let recorded = crate::library_meta::record_import(&app, &done.key, &done.snapshot, !done.existing)
-                        .and_then(|_| crate::library_meta::mark_downloaded(&app, &keys));
+                    let recorded = open_db()
+                        .and_then(|conn| crate::library_meta::record_imported(&conn, &done.key, &done.snapshot, !done.existing));
                     if let Err(err) = recorded {
                         eprintln!("Warning: could not record the imported book {}: {err}", done.key);
                     }

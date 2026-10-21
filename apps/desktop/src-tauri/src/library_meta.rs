@@ -47,7 +47,7 @@ pub struct LibraryMeta {
 }
 
 mod imports;
-pub(crate) use imports::{live_snapshot, record_import};
+pub(crate) use imports::{live_snapshot_in, record_imported};
 
 const NOVEL_PREFIX: &str = "novel:";
 /// Imported EPUBs (`import:<sha256>`, docs/IMPORT_EPUB.md) sync like `novel:` rows.
@@ -60,14 +60,14 @@ fn is_synced_key(key: &str) -> bool {
     key.starts_with(NOVEL_PREFIX) || key.starts_with(IMPORT_PREFIX)
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
 }
 
-fn open_db(app: &AppHandle) -> Result<Connection, String> {
+pub(crate) fn open_db(app: &AppHandle) -> Result<Connection, String> {
     let dir = app
         .path()
         .app_data_dir()
@@ -76,7 +76,7 @@ fn open_db(app: &AppHandle) -> Result<Connection, String> {
     open_db_at(&dir.join("oghma-library.sqlite"))
 }
 
-fn open_db_at(db_path: &Path) -> Result<Connection, String> {
+pub(crate) fn open_db_at(db_path: &Path) -> Result<Connection, String> {
     let conn = Connection::open(db_path).map_err(|err| format!("Não foi possível abrir o SQLite: {err}"))?;
     conn.execute_batch(
         r#"
@@ -163,7 +163,7 @@ pub fn list_library_meta(app: AppHandle) -> Result<Vec<LibraryMeta>, String> {
     list_meta_in(&open_db(&app)?)
 }
 
-fn list_meta_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
+pub(crate) fn list_meta_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
     let mut stmt = conn
         .prepare(&format!("SELECT {SELECT_COLUMNS} FROM library_meta"))
         .map_err(|err| format!("Não foi possível ler os metadados da biblioteca: {err}"))?;
@@ -265,7 +265,7 @@ pub(crate) fn mark_downloaded(app: &AppHandle, keys: &[String]) -> Result<usize,
     mark_downloaded_in(&open_db(app)?, keys, now_ms())
 }
 
-fn mark_downloaded_in(conn: &Connection, keys: &[String], now: i64) -> Result<usize, String> {
+pub(crate) fn mark_downloaded_in(conn: &Connection, keys: &[String], now: i64) -> Result<usize, String> {
     let mut changed = 0;
     for key in keys {
         let shelf = is_synced_key(key);
@@ -315,7 +315,7 @@ pub fn library_sync_pending(app: AppHandle) -> Result<Vec<LibraryMeta>, String> 
     pending_in(&open_db(&app)?)
 }
 
-fn pending_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
+pub(crate) fn pending_in(conn: &Connection) -> Result<Vec<LibraryMeta>, String> {
     let mut stmt = conn
         .prepare(&format!(
             "SELECT {SELECT_COLUMNS} FROM library_meta WHERE dirty = 1 AND {SYNCED_KEYS} ORDER BY changed_at"
@@ -341,7 +341,7 @@ pub fn library_sync_mark_clean(app: AppHandle, entries: Vec<SyncedKey>) -> Resul
     mark_clean_in(&open_db(&app)?, &entries)
 }
 
-fn mark_clean_in(conn: &Connection, entries: &[SyncedKey]) -> Result<usize, String> {
+pub(crate) fn mark_clean_in(conn: &Connection, entries: &[SyncedKey]) -> Result<usize, String> {
     let mut changed = 0;
     for entry in entries {
         changed += conn
@@ -363,7 +363,7 @@ pub fn library_sync_apply(app: AppHandle, rows: Vec<LibraryMeta>) -> Result<Vec<
     apply_in(&mut conn, &rows)
 }
 
-fn apply_in(conn: &mut Connection, rows: &[LibraryMeta]) -> Result<Vec<String>, String> {
+pub(crate) fn apply_in(conn: &mut Connection, rows: &[LibraryMeta]) -> Result<Vec<String>, String> {
     let tx = conn
         .transaction()
         .map_err(|err| format!("Não foi possível aplicar a sincronização: {err}"))?;

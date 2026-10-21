@@ -314,3 +314,17 @@ account_files_usage() -> { usedBytes, quotaBytes, files }
   - item `import:` na estante com "Baixar da conta";
   - folha de pré-visualização (edição e commit);
   - capa gerada quando não há capa.
+
+## Teste ponta a ponta local
+
+`backend/scripts/e2e_import_epub.sh` prova o caminho servidor + Rust com processos de verdade, sem
+tocar a produção. Ele sobe o moto (S3 falso, bucket `oghma-contas`) e o `oghma-accounts` em
+portas livres de `127.0.0.1`, entra com um e-mail de teste (o código sai do log) e roda o teste
+ignorado `account_files::e2e_tests` com os EPUBs reais: importa os 4 volumes no computador A
+(pré-visualização + commit), envia cada um (a segunda vez dá `already`), sincroniza as linhas
+(push e pull) para um computador B vazio, baixa tudo em B (sha igual, pasta, marcador e capa),
+confere a cota e, por fim, adultera um objeto no moto e confere que o download dá `sha_mismatch`
+sem deixar pasta. Depois roda `cargo test --lib` e o pytest do backend (`OGHMA_E2E_GATES=0`
+pula). Uso:
+`OGHMA_E2E_VENV=<venv com o backend e moto[server]> OGHMA_REAL_EPUBS=<pasta dos EPUBs> [OGHMA_E2E_TMP=<pasta>] backend/scripts/e2e_import_epub.sh`.
+Os dados e os logs ficam em `OGHMA_E2E_TMP` (ou numa pasta temporária).
