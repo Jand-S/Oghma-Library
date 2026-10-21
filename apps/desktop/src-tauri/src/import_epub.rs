@@ -17,10 +17,14 @@ use crate::export_root::ExportRoot;
 use crate::files::{pick_cover, LOCAL_BOOK_MANIFEST};
 use crate::paths::is_hidden_name;
 
+mod commit;
 mod epub_meta;
+#[cfg(test)]
+mod commit_tests;
 #[cfg(test)]
 mod tests;
 
+pub use commit::{ImportCommitItem, ImportResult};
 pub use epub_meta::{SeriesInfo, SeriesSource};
 
 /// Event emitted with `Vec<PickedFile>` when .epub files are dropped on the window.
@@ -285,6 +289,46 @@ pub fn import_epub_preview(
                 error: Some("Arquivo não encontrado; escolha de novo".to_string()),
                 ..Default::default()
             },
+        })
+        .collect()
+}
+
+/// Imports the previewed files (docs/IMPORT_EPUB.md): folder, marker and cover in the
+/// Library, then the `import:<sha>` row of `library_meta` (private, on the shelf, dirty).
+/// Importing a file already in the Library returns its folder without copying it again.
+#[tauri::command(async)]
+pub fn import_epub_commit(
+    app: AppHandle,
+    state: State<'_, ImportEpubState>,
+    export_root: State<'_, ExportRoot>,
+    items: Vec<ImportCommitItem>,
+) -> Vec<ImportResult> {
+    let root = export_root.current();
+    items
+        .iter()
+        .map(|item| {
+            let mut result = ImportResult { id: item.id.clone(), ..Default::default() };
+            let committed = match (&root, state.path_of(&item.id)) {
+                (None, _) => Err("Escolha a pasta da Biblioteca antes de importar".to_string()),
+                (_, None) => Err("Arquivo não encontrado; escolha de novo".to_string()),
+                (Some(root), Some(path)) => commit::commit_import(root, &path, item),
+            };
+            match committed {
+                Ok(done) => {
+                    // The files are already in place; a metadata failure must not fail the import
+                    // (importing again creates the missing row).
+                    let keys = [done.key.clone()];
+                    let recorded = crate::library_meta::record_import(&app, &done.key, &done.snapshot, !done.existing)
+                        .and_then(|_| crate::library_meta::mark_downloaded(&app, &keys));
+                    if let Err(err) = recorded {
+                        eprintln!("Warning: could not record the imported book {}: {err}", done.key);
+                    }
+                    result.key = done.key;
+                    result.output_dir = Some(done.output_dir.to_string_lossy().to_string());
+                }
+                Err(err) => result.error = Some(err),
+            }
+            result
         })
         .collect()
 }

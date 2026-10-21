@@ -44,6 +44,7 @@ pub fn run() {
             files::delete_export_library_item,
             import_epub::import_epub_pick,
             import_epub::import_epub_preview,
+            import_epub::import_epub_commit,
             staging::begin_export,
             staging::commit_export,
             staging::abort_export,

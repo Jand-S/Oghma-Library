@@ -7,7 +7,7 @@ use crate::files::test_support::TempDir;
 
 /// Small valid EPUB: `metadata` goes inside `<metadata>`, `manifest_extra` inside `<manifest>`
 /// and `files` are extra zip entries under `OEBPS/`.
-fn make_epub(dir: &Path, file_name: &str, metadata: &str, manifest_extra: &str, files: &[(&str, &[u8])]) -> PathBuf {
+pub(super) fn make_epub(dir: &Path, file_name: &str, metadata: &str, manifest_extra: &str, files: &[(&str, &[u8])]) -> PathBuf {
     let path = dir.join(file_name);
     let mut zip = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
     let stored = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
@@ -30,14 +30,14 @@ fn make_epub(dir: &Path, file_name: &str, metadata: &str, manifest_extra: &str, 
     path
 }
 
-fn png(width: u32, height: u32) -> Vec<u8> {
+pub(super) fn png(width: u32, height: u32) -> Vec<u8> {
     let image = image::RgbImage::from_pixel(width, height, image::Rgb([200, 40, 40]));
     let mut out = std::io::Cursor::new(Vec::new());
     image.write_to(&mut out, image::ImageFormat::Png).unwrap();
     out.into_inner()
 }
 
-fn write_book(root: &Path, folder: &str, manifest: serde_json::Value, cover: bool) -> PathBuf {
+pub(super) fn write_book(root: &Path, folder: &str, manifest: serde_json::Value, cover: bool) -> PathBuf {
     let dir = root.join(folder);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join(LOCAL_BOOK_MANIFEST), manifest.to_string()).unwrap();
