@@ -3,7 +3,7 @@ import { BookOpenText } from "lucide-react";
 import { defaultFilters } from "../core/defaults";
 import type { BookSnapshot, LibraryItem, LibraryMeta, Novel } from "../core/types";
 import type { SocialController } from "../features/social/useSocial";
-import { snapshotOfNovel, type SharedBook, type SocialEnv, type SocialPlace } from "../features/social/socialEnv";
+import { shareableLibraryBooks, snapshotOfNovel, type SharedBook, type SocialEnv, type SocialPlace } from "../features/social/socialEnv";
 import { searchCatalog } from "../services/catalogIndex";
 import type { HomeSeeAll } from "../features/home/HomeView";
 import { discoverHeader } from "../features/discover/DiscoverHeader";
@@ -338,21 +338,7 @@ function SocialPage({ app }: ViewProps) {
         .slice(0, 40)
         .map((novel) => ({ novelId: novel.id, snapshot: snapshotOfNovel(novel) }));
     },
-    libraryBooks: () => library.library
-      .filter((item) => item.novelId && !item.language && !item.hidden)
-      .map((item) => {
-        const novel = resolve(item.novelId!);
-        return {
-          novelId: novel?.id ?? item.novelId!,
-          snapshot: novel ? snapshotOfNovel(novel) : {
-            novelId: item.novelId!,
-            title: item.title,
-            author: item.author || undefined,
-            sourceName: item.sourceName,
-            coverUrl: item.coverUrl?.startsWith("http") ? item.coverUrl : undefined
-          }
-        };
-      })
+    libraryBooks: () => shareableLibraryBooks(library.library, resolve)
   };
   return h(SocialView, { env, place });
 }

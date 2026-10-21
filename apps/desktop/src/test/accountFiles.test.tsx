@@ -93,6 +93,30 @@ describe("useAccountFiles", () => {
     expect(result.current.stateOf(shelfVolume)).toBeNull();
   });
 
+  it("drops an upload of the account that signed out: no false \"Na conta\" and the next account sends it again", async () => {
+    const gates: Array<(result: UploadResult) => void> = [];
+    const { api } = fakeApi(() => new Promise((resolve) => gates.push(resolve)));
+    const a = book("a");
+    const b = book("b");
+    const { result, rerender } = setup(api, { signedIn: true, lastSyncAt: null, library: [a, b] });
+
+    act(() => result.current.upload([a.novelId!, b.novelId!]));
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(1));
+    // Signs out mid-upload; another account signs in before its sync finishes.
+    rerender({ signedIn: false, lastSyncAt: null, library: [a, b] });
+    rerender({ signedIn: true, lastSyncAt: null, library: [a, b] });
+    await act(async () => gates.shift()!({ key: a.novelId!, state: "uploaded", error: null }));
+    expect(result.current.stateOf(a)?.phase).not.toBe("uploaded");
+    // The queued one of the old session never ran.
+    expect(api.upload).toHaveBeenCalledTimes(1);
+
+    rerender({ signedIn: true, lastSyncAt: 1, library: [a, b] });
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(2));
+    expect(api.upload).toHaveBeenLastCalledWith(a.novelId);
+    expect(result.current.stateOf(a)?.phase).toBe("sending");
+    expect(result.current.stateOf(b)?.phase).toBe("queued");
+  });
+
   it("after each sync sends the local imports not in the account yet, retrying passing failures only", async () => {
     const failures: Record<string, string> = { [key("big")]: "file_too_large", [key("net")]: "network" };
     const { api } = fakeApi(async (k) => (failures[k] ? { key: k, state: "failed", error: failures[k] } : { key: k, state: "already", error: null }));

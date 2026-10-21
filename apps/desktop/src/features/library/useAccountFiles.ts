@@ -62,6 +62,9 @@ export function useAccountFiles({ signedIn, lastSyncAt, library, refreshLibrary,
   // Uploads run one after the other; `busy` holds the keys queued or sending.
   const chain = useRef<Promise<void>>(Promise.resolve());
   const busy = useRef(new Set<string>());
+  // Bumped on sign out: queued uploads of the old session do not run, and one still sending when
+  // it ends leaves no state behind (another account may be signed in by then).
+  const session = useRef(0);
 
   const setState = useCallback((key: string, state: AccountFileState | null) => {
     setStates((current) => {
@@ -74,11 +77,13 @@ export function useAccountFiles({ signedIn, lastSyncAt, library, refreshLibrary,
 
   const enqueue = useCallback((keys: string[], announce: boolean) => {
     if (!api.available || !signedInRef.current) return;
+    const started = session.current;
     for (const key of keys) {
       if (busy.current.has(key)) continue;
       busy.current.add(key);
       setState(key, { phase: "queued" });
       chain.current = chain.current.then(async () => {
+        if (session.current !== started) return;
         setState(key, { phase: "sending", percent: null });
         let error: string | null = null;
         try {
@@ -86,9 +91,9 @@ export function useAccountFiles({ signedIn, lastSyncAt, library, refreshLibrary,
           if (result.state === "failed") error = result.error ?? "failed";
         } catch (failure) {
           error = errorCodeOf(failure) ?? "failed";
-        } finally {
-          busy.current.delete(key);
         }
+        if (session.current !== started) return;
+        busy.current.delete(key);
         setState(key, error === null ? { phase: "uploaded" } : { phase: "failed", error });
         if (error === null || !announce) return;
         const title = libraryRef.current.find((item) => item.novelId === key)?.title ?? key;
@@ -109,6 +114,7 @@ export function useAccountFiles({ signedIn, lastSyncAt, library, refreshLibrary,
   // Signing out forgets what this session knew (another account may sign in next).
   useEffect(() => {
     if (signedIn) return;
+    session.current += 1;
     busy.current.clear();
     setStates((current) => (Object.values(current).some((state) => state.phase !== "downloading") ? {} : current));
   }, [signedIn]);
