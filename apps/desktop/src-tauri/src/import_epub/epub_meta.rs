@@ -17,7 +17,7 @@ use regex::Regex;
 use serde::Serialize;
 
 /// OPF/container larger than this is not a real EPUB metadata file.
-const MAX_OPF_BYTES: u64 = 8 * 1024 * 1024;
+pub const MAX_OPF_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_COVER_BYTES: u64 = 40 * 1024 * 1024;
 
 /// Group 1 is the series, 2 the volume, 3 the subtitle (case-insensitive).
@@ -248,7 +248,7 @@ impl Drop for ScratchDir {
     }
 }
 
-fn read_entry(archive: &mut zip::ZipArchive<fs::File>, name: &str, limit: u64) -> Result<Vec<u8>, String> {
+pub fn read_entry(archive: &mut zip::ZipArchive<fs::File>, name: &str, limit: u64) -> Result<Vec<u8>, String> {
     let entry = archive
         .by_name(name)
         .map_err(|_| format!("o EPUB não tem {name}"))?;
@@ -287,7 +287,7 @@ fn percent_decode(text: &str) -> String {
 }
 
 /// Joins a manifest href to the OPF folder inside the zip, resolving `.`/`..` and `%20`.
-fn zip_path(opf_dir: &str, href: &str) -> String {
+pub fn zip_path(opf_dir: &str, href: &str) -> String {
     let href = href.split('#').next().unwrap_or(href);
     let decoded = percent_decode(href);
     let mut parts: Vec<&str> = opf_dir.split('/').filter(|p| !p.is_empty()).collect();
@@ -353,18 +353,23 @@ fn non_empty(text: &str) -> Option<String> {
     (!text.is_empty()).then(|| text.to_string())
 }
 
+/// Zip path of the OPF, from `META-INF/container.xml`.
+pub fn opf_entry_name(archive: &mut zip::ZipArchive<fs::File>) -> Result<String, String> {
+    let container = String::from_utf8_lossy(&read_entry(archive, "META-INF/container.xml", MAX_OPF_BYTES)?).to_string();
+    static ROOTFILE: OnceLock<Regex> = OnceLock::new();
+    ROOTFILE
+        .get_or_init(|| Regex::new(r#"full-path\s*=\s*["']([^"']+)["']"#).unwrap())
+        .captures(&container)
+        .map(|caps| unescape_xml(&caps[1]))
+        .ok_or_else(|| "o EPUB não indica o arquivo OPF".to_string())
+}
+
 /// Opens the EPUB as a zip, parses its OPF with kindling and reads the cover. The EPUB
 /// itself is never written to; the OPF copy lives in a private temp folder.
 pub fn read_epub_meta(path: &Path) -> Result<EpubMeta, String> {
     let file = fs::File::open(path).map_err(|err| format!("não foi possível abrir o arquivo: {err}"))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|_| "o arquivo não é um EPUB (zip) válido".to_string())?;
-    let container = String::from_utf8_lossy(&read_entry(&mut archive, "META-INF/container.xml", MAX_OPF_BYTES)?).to_string();
-    static ROOTFILE: OnceLock<Regex> = OnceLock::new();
-    let opf_name = ROOTFILE
-        .get_or_init(|| Regex::new(r#"full-path\s*=\s*["']([^"']+)["']"#).unwrap())
-        .captures(&container)
-        .map(|caps| unescape_xml(&caps[1]))
-        .ok_or_else(|| "o EPUB não indica o arquivo OPF".to_string())?;
+    let opf_name = opf_entry_name(&mut archive)?;
     let opf_bytes = read_entry(&mut archive, &opf_name, MAX_OPF_BYTES)?;
     let opf_text = String::from_utf8_lossy(&opf_bytes).to_string();
 

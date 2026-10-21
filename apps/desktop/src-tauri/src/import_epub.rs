@@ -18,7 +18,7 @@ use crate::files::{pick_cover, LOCAL_BOOK_MANIFEST};
 use crate::paths::is_hidden_name;
 
 mod commit;
-mod epub_meta;
+pub(crate) mod epub_meta;
 #[cfg(test)]
 mod commit_tests;
 #[cfg(test)]

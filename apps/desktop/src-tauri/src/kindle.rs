@@ -13,6 +13,13 @@ use crate::files::{pick_cover, read_manifest, unique_suffix};
 use crate::export_root::ExportRoot;
 use crate::paths::{expand_home, is_hidden_name, safe_export_stem, safe_relative_path};
 
+mod imported;
+mod wireless_copy;
+#[cfg(test)]
+mod import_tests;
+
+use imported::{kindle_identity, KindleIdentity};
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KindleStatus {
@@ -310,18 +317,25 @@ fn find_book_file(output_dir: &Path, listed: &[String], extension: &str) -> Resu
 /// Returns an up-to-date AZW3 for the book in `output_dir`, converting from the
 /// EPUB when the AZW3 is missing or older than the EPUB. Other AZW3 files in the
 /// folder are removed after a regeneration so only one version remains.
+/// An imported book's AZW3 is named after its Kindle title, so one with another name
+/// (series or title changed) is regenerated.
 fn ensure_fresh_azw3(title: &str, output_dir: &Path, listed: &[String]) -> Result<PathBuf, String> {
+    let identity = kindle_identity(output_dir, title);
+    let target = output_dir.join(format!(
+        "{}.azw3",
+        safe_export_stem(identity.title.as_deref().unwrap_or(title))
+    ));
     let epub = find_book_file(output_dir, listed, "epub")?;
     let existing = find_book_file(output_dir, listed, "azw3")?;
     if let Some(existing) = &existing {
-        if azw3_is_fresh(modified(existing), epub.as_deref().and_then(modified)) {
+        if azw3_is_fresh(modified(existing), epub.as_deref().and_then(modified))
+            && (identity.title.is_none() || *existing == target)
+        {
             return Ok(existing.clone());
         }
     }
     let epub = epub.ok_or_else(|| format!("{title} não tem EPUB para converter em AZW3"))?;
-    let target = output_dir.join(format!("{}.azw3", safe_export_stem(title)));
-    let seed = kindle_content_seed(output_dir, title);
-    convert_epub_to_azw3(&epub, &target, pick_cover(output_dir), title, &seed)
+    convert_epub_to_azw3(&epub, &target, pick_cover(output_dir), title, &identity)
         .map_err(|err| format!("Falha ao converter {title} para AZW3: {err}"))?;
     if let Ok(entries) = fs::read_dir(output_dir) {
         for entry in entries.flatten() {
@@ -386,16 +400,7 @@ fn transcode_unsupported_images_for_kindle(extracted: &mut ExtractedEpub) -> Res
 }
 
 fn install_kindling_cover(extracted: &mut ExtractedEpub, cover: &Path) -> Result<(), String> {
-    let image = image::ImageReader::open(cover)
-        .map_err(|err| format!("Não foi possível abrir a capa local: {err}"))?
-        .with_guessed_format()
-        .map_err(|err| format!("Formato de capa local inválido: {err}"))?
-        .decode()
-        .map_err(|err| format!("Não foi possível decodificar a capa local: {err}"))?;
-    let mut bytes = Vec::new();
-    JpegEncoder::new_with_quality(&mut bytes, 90)
-        .encode_image(&image)
-        .map_err(|err| format!("Não foi possível preparar a capa para o AZW3: {err}"))?;
+    let bytes = wireless_copy::cover_jpeg(cover)?;
 
     let cover_name = "oghma-cover.jpg";
     fs::write(extracted.root.join(cover_name), bytes)
@@ -413,7 +418,7 @@ fn convert_epub_with_kindling(
     epub: &Path,
     target: &Path,
     cover: Option<&Path>,
-    content_seed: &str,
+    identity: &KindleIdentity,
 ) -> Result<(), String> {
     let source_data = fs::read(epub)
         .map_err(|err| format!("Não foi possível ler o EPUB: {err}"))?;
@@ -448,12 +453,14 @@ fn convert_epub_with_kindling(
         return Err(err);
     }
 
-    let content_id = oghma_content_id(content_seed);
     // Kindle's thumbnail lookup uses EXTH 113 as its content UUID. Kindling's
-    // rewrite API exposes that record as series_index, so emit both known IDs.
+    // rewrite API exposes that record as series_index, so emit both known IDs
+    // (and never a real series index; see kindle/imported.rs).
     let updates = MetadataUpdates {
-        asin: Some(content_id.clone()),
-        series_index: Some(content_id),
+        asin: Some(identity.content_id.clone()),
+        series_index: Some(identity.content_id.clone()),
+        title: identity.title.clone(),
+        series: identity.series.clone(),
         ..MetadataUpdates::default()
     };
     let rewrite_result = rewrite_mobi_metadata(&staging, target, &updates)
@@ -487,14 +494,14 @@ fn convert_epub_to_azw3(
     target: &Path,
     cover: Option<PathBuf>,
     title: &str,
-    content_seed: &str,
+    identity: &KindleIdentity,
 ) -> Result<(), String> {
     let stem = target
         .file_stem()
         .map(|stem| stem.to_string_lossy().to_string())
         .unwrap_or_else(|| "book".to_string());
     let temp = target.with_file_name(format!(".{stem}.oghma-tmp-{}.azw3", unique_suffix()));
-    let result = match convert_epub_with_kindling(epub, &temp, cover.as_deref(), content_seed) {
+    let result = match convert_epub_with_kindling(epub, &temp, cover.as_deref(), identity) {
         Ok(()) => {
             eprintln!("AZW3 converter=kindling title={title:?}");
             Ok(())
@@ -676,7 +683,7 @@ fn locate_send_to_kindle_app() -> Option<PathBuf> {
     }
 }
 
-fn epub_for_item(item: &SendKindleItem) -> Result<PathBuf, String> {
+fn epub_for_item(item: &SendKindleItem) -> Result<(PathBuf, PathBuf), String> {
     let dir = item
         .output_dir
         .as_deref()
@@ -689,10 +696,12 @@ fn epub_for_item(item: &SendKindleItem) -> Result<PathBuf, String> {
         .map(|name| dir.join(name))
         .chain(fs::read_dir(&dir).into_iter().flatten().flatten().map(|entry| entry.path()))
         .find(|path| path.is_file() && path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("epub")))
+        .map(|epub| (dir.clone(), epub))
         .ok_or_else(|| format!("{} não tem EPUB para enviar", item.title))
 }
 
-/// Opens Amazon's "Send to Kindle" with the books' EPUBs; the user confirms the send in that app.
+/// Opens Amazon's "Send to Kindle" with the books' EPUBs (or a temporary copy with the cover
+/// and Kindle title, see kindle/wireless_copy.rs); the user confirms the send in that app.
 #[tauri::command(async)]
 pub fn kindle_send_wireless(
     root: tauri::State<'_, ExportRoot>,
@@ -704,7 +713,8 @@ pub fn kindle_send_wireless(
     let mut files = Vec::new();
     let mut opened_ids = Vec::new();
     for item in &items {
-        files.push(epub_for_item(item)?);
+        let (dir, epub) = epub_for_item(item)?;
+        files.push(wireless_copy::wireless_epub(&dir, &epub, &kindle_identity(&dir, &item.title)));
         opened_ids.push(item.id.clone());
     }
     if files.is_empty() {
@@ -927,7 +937,8 @@ mod tests {
             .expect("chapter");
         zip.finish().expect("finish epub");
 
-        convert_epub_with_kindling(&epub, &target, Some(&cover), "Livro de teste")
+        let identity = super::KindleIdentity::from_seed("Livro de teste");
+        convert_epub_with_kindling(&epub, &target, Some(&cover), &identity)
             .expect("Kindling conversion");
         assert!(target.is_file());
         let thumbnail = super::kindle_thumbnail_filename(&target).expect("thumbnail metadata");
