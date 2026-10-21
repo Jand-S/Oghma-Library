@@ -20,6 +20,9 @@ MAX_SNAPSHOT_TEXT = 600
 NOVEL_KEY_PREFIX = "novel:"
 IMPORT_KEY_PREFIX = "import:"
 IMPORT_KEY_RE = re.compile(r"import:[0-9a-f]{64}")
+# `series:<slug>` como o app gera (import_epub/epub_meta.rs): `[a-z0-9]` com `-` entre os pedaços.
+# Nome sem letra latina nem dígito (só CJK, por exemplo) vira os 12 primeiros hex do sha256 do nome.
+SERIES_ID_RE = re.compile(r"series:[a-z0-9]+(?:-[a-z0-9]+)*")
 COVER_EXTS = {"jpg", "png", "webp"}
 SNAPSHOT_ORIGINS = {"import"}
 
@@ -67,12 +70,13 @@ def _clean_series(raw: Any) -> dict[str, Any] | None:
         return None
     series_id = _clean_text(raw.get("id"), 200)
     name = _clean_text(raw.get("name"), 200)
-    if not series_id or not name:
+    if not series_id or not name or not SERIES_ID_RE.fullmatch(series_id):
         return None
     series: dict[str, Any] = {"id": series_id, "name": name}
     volume = raw.get("volume")
     if not isinstance(volume, bool) and isinstance(volume, (int, float)) and 0 <= volume < 100000:
-        series["volume"] = int(volume) if float(volume).is_integer() else float(volume)
+        volume = round(float(volume), 1)
+        series["volume"] = int(volume) if volume.is_integer() else volume
     return series
 
 

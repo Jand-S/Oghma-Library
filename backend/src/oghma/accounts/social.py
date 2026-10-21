@@ -333,7 +333,8 @@ async def send_message(db: AsyncSession, me: AccountUser, public_id: str, payloa
     if len(body) > MAX_BODY:
         raise AccountError("message_too_long", 400)
     novel_id = str(payload.get("novelId") or "").strip().removeprefix("novel:") or None
-    if novel_id is not None and len(novel_id) > 320:
+    # EPUB importado é sempre privado: não se indica a um amigo (ele nem teria o arquivo).
+    if novel_id is not None and (len(novel_id) > 320 or is_import(novel_id)):
         raise AccountError("invalid_novel", 400)
     if not body and novel_id is None:
         raise AccountError("empty_message", 400)

@@ -34,7 +34,12 @@ assim mesmo (veja "Capa e autor").
 
 - **`slug`:** o nome em minúsculas, sem acento, com `[^a-z0-9]+` trocado por `-` e sem `-` nas
   pontas.
+  - Nome sem nenhuma letra latina nem dígito (só CJK, por exemplo) daria slug vazio. Nesse caso o
+    slug são os 12 primeiros dígitos hex do sha256 do nome (`series:0123456789ab`), para séries
+    diferentes não se juntarem.
 - **`volume`:** número com no máximo 1 casa decimal (1, 2, 2.5) ou `null`.
+- **No servidor:** o id precisa casar com `series:[a-z0-9]+(-[a-z0-9]+)*`; se não casar, a série é
+  descartada. O volume é arredondado para 1 casa decimal.
 - **Livro sem série:** o campo fica ausente.
 
 A série vem da primeira fonte que existir, nesta ordem:
@@ -129,6 +134,7 @@ A chave da linha é `import:<sha>`, com `onShelf=1`, `private=1`, `addedAt` e `d
   - `clean_snapshot` passa a aceitar `origin` (só `"import"`), `language`, `series` (id, name com
     até 200 caracteres, volume), `fileSize` e `coverExt` (`jpg|png|webp`).
   - Uma entrada `import:` é sempre gravada com `private: true`.
+  - Mensagem (indicação a um amigo) com `novelId` `import:` dá `400 invalid_novel`.
 
 ## Arquivos na conta (servidor `oghma-accounts`)
 
@@ -158,16 +164,23 @@ A cota soma o `size` dos arquivos confirmados e não apagados, mais os pendentes
   - `200 {"exists": false, "uploadUrl": "...", "method": "PUT", "headers": {"Content-Type": "..."}, "expiresIn": 900}`.
   - `413 {"error":"file_too_large"}` e `409 {"error":"quota_exceeded","usedBytes":..,"quotaBytes":..}`.
   - `400 invalid_file`, para sha, kind, ext ou size inválidos.
+- Pedidos ao mesmo tempo do mesmo arquivo não dão erro: o segundo relê a linha e responde igual.
+- Pedir de novo um pendente com outra `ext` (capa png → jpg) apaga o objeto da `ext` antiga.
 
 **`POST /v1/me/files/{sha256}/confirm`**
 - Corpo: `{kind}`.
 - O servidor faz HEAD no objeto e confere se o tamanho é igual.
-- Respostas: `200 {"ok": true}`, `409 {"error":"upload_missing"}` ou
-  `409 {"error":"size_mismatch"}` (este apaga o objeto).
+- Confere a cota de novo, pois a reserva do pedido vale só 1 hora: a soma dos arquivos já
+  confirmados com este precisa caber.
+- Respostas: `200 {"ok": true}`, `409 {"error":"upload_missing"}`,
+  `409 {"error":"size_mismatch"}` (este apaga o objeto) ou
+  `409 {"error":"quota_exceeded","usedBytes":..,"quotaBytes":..}` (também apaga o objeto;
+  `usedBytes` soma só os confirmados).
 
 **`GET /v1/me/files/{sha256}?kind=epub|cover`**
 - `200 {"downloadUrl": "...", "size": n, "ext": "..."}`.
 - `404 {"error":"file_not_found"}`, só para arquivos confirmados.
+- `400 {"error":"invalid_file"}`, para `kind` inválido.
 
 **`GET /v1/me/files/usage`**
 - `200 {"usedBytes": n, "quotaBytes": n, "files": n}`.

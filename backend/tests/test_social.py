@@ -126,6 +126,10 @@ async def test_messages_need_text_or_a_book_and_stay_short(api):
     assert (await api.post(url, headers=auth(ana[0]), json={"body": "   "})).json()["error"] == "empty_message"
     assert (await api.post(url, headers=auth(ana[0]), json={"body": "x" * 2001})).json()["error"] == "message_too_long"
     assert (await api.post(url, headers=auth(ana[0]), json={"body": "x" * 2000})).status_code == 200
+    # Imported EPUBs are private: they cannot be recommended.
+    for novel_id in ("import:" + "ab" * 32, "novel:import:" + "ab" * 32):
+        sent = await api.post(url, headers=auth(ana[0]), json={"body": "lê", "novelId": novel_id, "snapshot": {"title": "Meu"}})
+        assert sent.status_code == 400 and sent.json() == {"error": "invalid_novel"}, novel_id
 
 
 async def test_crossed_requests_become_a_friendship(api):

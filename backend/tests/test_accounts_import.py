@@ -109,7 +109,15 @@ def test_snapshot_import_fields_are_cleaned():
         assert "series" not in clean_snapshot(KEY, {"title": "T", "series": series})
     assert "fileSize" not in clean_snapshot(KEY, {"title": "T", "fileSize": True})
     assert "fileSize" not in clean_snapshot(KEY, {"title": "T", "fileSize": "123"})
-    assert "volume" not in clean_snapshot(KEY, {"title": "T", "series": {"id": "s", "name": "n", "volume": "1"}})["series"]
+    assert "volume" not in clean_snapshot(KEY, {"title": "T", "series": {"id": "series:s", "name": "n", "volume": "1"}})["series"]
+    # Volume keeps one decimal at most, like the app shows it.
+    for volume, kept in ((2.25, 2.2), (2.0, 2), (3.04, 3), (1.96, 2)):
+        assert clean_snapshot(KEY, {"title": "T", "series": {"id": "series:s", "name": "n", "volume": volume}})["series"]["volume"] == kept
+    # The id is `series:` + the slug the app makes (or the 12-hex fallback of a CJK-only name).
+    for series_id in ("series:unsheathed", "series:the-wandering-inn-2", "series:0123456789ab"):
+        assert clean_snapshot(KEY, {"title": "T", "series": {"id": series_id, "name": "n"}})["series"]["id"] == series_id
+    for series_id in ("s", "series:", "series:Upper", "series:-x", "series:x-", "series:a--b", "series:a b", "novel:x", "series:x/y"):
+        assert "series" not in clean_snapshot(KEY, {"title": "T", "series": {"id": series_id, "name": "n"}}), series_id
     for ext in ("jpg", "png", "webp"):
         assert clean_snapshot(KEY, {"title": "T", "coverExt": ext})["coverExt"] == ext
 

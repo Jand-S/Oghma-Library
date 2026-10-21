@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from fastapi import Depends, FastAPI, Query
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import AccountSettings
@@ -140,21 +141,11 @@ async def request_upload(
     sha256, kind, ext, size = clean_request(body)
     if size > settings.max_file_mb * MB:
         raise AccountError("file_too_large", 413)
-    row = await find(db, user.id, sha256, kind)
-    if row is not None and row.confirmed_at is not None and row.deleted_at is None:
+    user_id = user.id
+    if await reserve(db, settings, store, user_id, sha256, kind, ext, size):
         return {"exists": True}
-    used, quota = await used_bytes(db, user.id, *([row.id] if row else [])), settings.file_quota_mb * MB
-    if used + size > quota:
-        raise AccountError("quota_exceeded", 409, usedBytes=used, quotaBytes=quota)
-    now = utcnow()
-    if row is None:
-        db.add(AccountFile(user_id=user.id, sha256=sha256, kind=kind, ext=ext, size=size, created_at=now))
-    else:
-        # Novo pedido do mesmo arquivo (pendente vencido ou apagado): recomeça do zero.
-        row.ext, row.size, row.created_at, row.confirmed_at, row.deleted_at = ext, size, now, None, None
-    await db.flush()
     content_type = CONTENT_TYPES[ext]
-    url = store.presign_put(object_key(user.id, sha256, kind, ext), content_type, settings.file_url_seconds)
+    url = store.presign_put(object_key(user_id, sha256, kind, ext), content_type, settings.file_url_seconds)
     return {
         "exists": False,
         "uploadUrl": url,
@@ -164,7 +155,47 @@ async def request_upload(
     }
 
 
-async def confirm_upload(db: AsyncSession, store: FileStore, user: AccountUser, sha256: Any, kind: Any) -> dict[str, bool]:
+async def reserve(
+    db: AsyncSession,
+    settings: AccountSettings,
+    store: FileStore,
+    user_id: int,
+    sha256: str,
+    kind: str,
+    ext: str,
+    size: int,
+    retry: bool = True,
+) -> bool:
+    """Reserva a cota do envio. Devolve True quando o arquivo já está confirmado (não precisa enviar)."""
+    row = await find(db, user_id, sha256, kind)
+    if row is not None and row.confirmed_at is not None and row.deleted_at is None:
+        return True
+    used, quota = await used_bytes(db, user_id, *([row.id] if row else [])), settings.file_quota_mb * MB
+    if used + size > quota:
+        raise AccountError("quota_exceeded", 409, usedBytes=used, quotaBytes=quota)
+    now = utcnow()
+    if row is not None:
+        if row.ext != ext:
+            # A extensão mudou (capa png → jpg): o objeto antigo ficaria órfão no bucket.
+            store.delete(object_key(user_id, sha256, kind, row.ext))
+        # Novo pedido do mesmo arquivo (pendente vencido ou apagado): recomeça do zero.
+        row.ext, row.size, row.created_at, row.confirmed_at, row.deleted_at = ext, size, now, None, None
+        await db.flush()
+        return False
+    try:
+        async with db.begin_nested():
+            db.add(AccountFile(user_id=user_id, sha256=sha256, kind=kind, ext=ext, size=size, created_at=now))
+    except IntegrityError:
+        # Dois pedidos ao mesmo tempo do mesmo arquivo: o outro criou a linha. Relê e responde como de costume.
+        if not retry:
+            raise
+        return await reserve(db, settings, store, user_id, sha256, kind, ext, size, retry=False)
+    return False
+
+
+async def confirm_upload(
+    db: AsyncSession, settings: AccountSettings, store: FileStore, user: AccountUser, sha256: Any, kind: Any
+) -> dict[str, bool]:
     row = await find(db, user.id, clean_sha(sha256), clean_kind(kind))
     if row is None or row.deleted_at is not None:
         raise AccountError("upload_missing", 409)
@@ -177,8 +208,23 @@ async def confirm_upload(db: AsyncSession, store: FileStore, user: AccountUser, 
     if size != row.size:
         store.delete(key)
         raise AccountError("size_mismatch", 409)
+    # A reserva do pedido vale só 1 hora: confere a cota de novo com o que já está confirmado.
+    used, quota = await confirmed_bytes(db, row.user_id, row.id), settings.file_quota_mb * MB
+    if used + size > quota:
+        store.delete(key)
+        raise AccountError("quota_exceeded", 409, usedBytes=used, quotaBytes=quota)
     row.confirmed_at = utcnow()
     return {"ok": True}
+
+
+async def confirmed_bytes(db: AsyncSession, user_id: int, exclude: int) -> int:
+    query = select(func.coalesce(func.sum(AccountFile.size), 0)).where(
+        AccountFile.user_id == user_id,
+        AccountFile.id != exclude,
+        AccountFile.confirmed_at.is_not(None),
+        AccountFile.deleted_at.is_(None),
+    )
+    return int((await db.execute(query)).scalar_one())
 
 
 async def download(
@@ -236,12 +282,13 @@ def register_routes(app: FastAPI, settings: AccountSettings, store: FileStore | 
     async def confirm_file(
         sha256: str, body: ConfirmIn, user: AccountUser = Depends(current_user), db: AsyncSession = Depends(get_db)
     ) -> dict[str, bool]:
-        return await confirm_upload(db, enabled(), user, sha256, body.kind)
+        return await confirm_upload(db, settings, enabled(), user, sha256, body.kind)
 
     @app.get("/v1/me/files/{sha256}")
     async def get_file(
         sha256: str,
-        kind: str = Query(default="epub", max_length=16),
+        # Sem `max_length`: kind inválido (ou longo) dá `invalid_file`, como nas outras rotas, e não o 422.
+        kind: str = Query(default="epub"),
         user: AccountUser = Depends(current_user),
         db: AsyncSession = Depends(get_db),
     ) -> dict[str, Any]:

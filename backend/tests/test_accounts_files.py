@@ -14,6 +14,7 @@ from sqlalchemy.pool import StaticPool
 
 from oghma.accounts.app import create_app, create_schema
 from oghma.accounts.config import AccountSettings
+from oghma.accounts import files
 from oghma.accounts.files import object_key
 from oghma.accounts.mailer import LogMailer
 from oghma.accounts.models import AccountFile, AccountUser
@@ -189,6 +190,58 @@ async def test_confirm_with_the_wrong_size_deletes_the_object(api):
     assert (await api.get(f"/v1/me/files/{SHA}", headers=auth(token))).status_code == 404
 
 
+async def test_confirm_checks_the_quota_again(api):
+    """The pending hold lasts one hour: a late confirm must still fit next to the confirmed files."""
+    token, _ = await person(api, "ana")
+    uid = await user_id(api, "ana")
+    assert (await api.post("/v1/me/files", headers=auth(token), json=ask(size=2 * MB))).status_code == 200
+    async with AsyncSession(api.engine) as db:
+        await db.execute(update(AccountFile).where(AccountFile.sha256 == SHA).values(created_at=utcnow() - timedelta(hours=2)))
+        await db.commit()
+    await upload(api, token, "ana", sha=OTHER, size=2 * MB)
+    key = object_key(uid, SHA, "epub", "epub")
+    put(api, key, 2 * MB)
+    late = await api.post(f"/v1/me/files/{SHA}/confirm", headers=auth(token), json={"kind": "epub"})
+    assert late.status_code == 409
+    assert late.json() == {"error": "quota_exceeded", "usedBytes": 2 * MB, "quotaBytes": 3 * MB}
+    assert not stored(api, key), "the object over the quota is deleted"
+    assert (await api.get(f"/v1/me/files/{SHA}", headers=auth(token))).status_code == 404
+    assert (await api.get("/v1/me/files/usage", headers=auth(token))).json()["files"] == 1
+
+
+async def test_a_concurrent_request_for_the_same_file_does_not_fail(api, monkeypatch):
+    """Two requests race: both miss the row, the second insert hits the unique constraint."""
+    token, _ = await person(api, "ana")
+    assert (await api.post("/v1/me/files", headers=auth(token), json=ask())).status_code == 200
+    real_find, calls = files.find, []
+
+    async def racing_find(*args):
+        calls.append(args)
+        return None if len(calls) == 1 else await real_find(*args)
+
+    monkeypatch.setattr(files, "find", racing_find)
+    again = await api.post("/v1/me/files", headers=auth(token), json=ask())
+    assert again.status_code == 200 and again.json()["exists"] is False, again.text
+    assert len(calls) == 2
+    monkeypatch.setattr(files, "find", real_find)
+    async with AsyncSession(api.engine) as db:
+        assert len((await db.execute(select(AccountFile).where(AccountFile.sha256 == SHA))).scalars().all()) == 1
+
+
+async def test_asking_again_with_another_extension_drops_the_old_object(api):
+    token, _ = await person(api, "ana")
+    uid = await user_id(api, "ana")
+    assert (await api.post("/v1/me/files", headers=auth(token), json=ask(kind="cover", ext="png"))).status_code == 200
+    old = object_key(uid, SHA, "cover", "png")
+    put(api, old, 1000)
+    again = await api.post("/v1/me/files", headers=auth(token), json=ask(kind="cover", ext="jpg"))
+    assert again.status_code == 200 and again.json()["headers"] == {"Content-Type": "image/jpeg"}
+    assert not stored(api, old), "the pending object with the old extension is not left behind"
+    put(api, object_key(uid, SHA, "cover", "jpg"), 1000)
+    assert (await api.post(f"/v1/me/files/{SHA}/confirm", headers=auth(token), json={"kind": "cover"})).json() == {"ok": True}
+    assert (await api.get(f"/v1/me/files/{SHA}", params={"kind": "cover"}, headers=auth(token))).json()["ext"] == "jpg"
+
+
 async def test_unconfirmed_files_are_not_found(api):
     token, _ = await person(api, "ana")
     assert (await api.post("/v1/me/files", headers=auth(token), json=ask())).status_code == 200
@@ -200,6 +253,9 @@ async def test_unconfirmed_files_are_not_found(api):
     await api.post(f"/v1/me/files/{SHA}/confirm", headers=auth(token), json={"kind": "epub"})
     assert (await api.get(f"/v1/me/files/{SHA}", params={"kind": "cover"}, headers=auth(token))).status_code == 404
     assert (await api.get(f"/v1/me/files/{SHA}", params={"kind": "pdf"}, headers=auth(token))).status_code == 400
+    for kind in ["pdf", "x" * 17]:
+        bad = await api.get(f"/v1/me/files/{SHA}", params={"kind": kind}, headers=auth(token))
+        assert bad.status_code == 400 and bad.json() == {"error": "invalid_file"}, kind
 
 
 async def test_files_belong_to_one_account(api):
